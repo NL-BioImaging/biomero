@@ -1,1 +1,1 @@
-# omero-slurm-client
+# omero_slurm_client

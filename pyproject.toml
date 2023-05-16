@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omero_slurm_client"
+version = "0.0.1"
+authors = [{ name = "Torec Luik", email = "t.t.luik@amsterdamumc.nl" }]
+description = "A python library for easy connecting between Omero (jobs) and a Slurm cluster"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/NL-BioImaging/omero-slurm-client"

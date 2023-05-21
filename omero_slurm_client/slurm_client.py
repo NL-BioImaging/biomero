@@ -1,9 +1,11 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
 from paramiko import SSHException
 import configparser
 import re
+import json
+import requests
 
 
 class SlurmClient(Connection):
@@ -148,7 +150,7 @@ class SlurmClient(Connection):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
             else:
                 slurm_model_paths[k] = v
-        
+
         slurm_script_path = configs.get(
             "SLURM", "slurm_script_path", fallback=cls._DEFAULT_SLURM_GIT_SCRIPT_PATH)
         # Create the SlurmClient object with the parameters read from the config file
@@ -433,38 +435,133 @@ class SlurmClient(Connection):
         update_cmd = f"git -C {self.slurm_script_path} pull"
         return update_cmd
 
-    def check_job_status(self, slurm_job_id: str, env: Optional[Dict[str, str]] = None) -> Result:
+    def check_job_status(self, slurm_job_ids: List[str], env: Optional[Dict[str, str]] = None) -> Result:
         """
         Checks the status of a Slurm job with the given job ID.
 
         Args:
-            slurm_job_id (str): The job ID of the Slurm job to check.
+            slurm_job_id (List[str]): The job ID of the Slurm job to check.
             env (Optional[Dict[str, str]]): A dictionary of environment variables to set before executing the command. Defaults to None.
 
         Returns:
             Result: The result of the command execution.
         """
-        cmd = self.get_job_status_command(slurm_job_id)
-        print(f"Getting status of {slurm_job_id} on Slurm")
-        return self.run_commands([cmd], env=env)
+        cmd = self.get_job_status_command(slurm_job_ids)
+        print(f"Getting status of {slurm_job_ids} on Slurm")
+        result = self.run_commands([cmd], env=env)
+        if result.ok:
+            job_status_dict = {line.split()[0]: line.split(
+            )[1] for line in result.stdout.split("\n") if line}
+            return job_status_dict, result
+        else:
+            error = f"Result is not ok: {result}"
+            print(error)
+            raise SSHException(error)
 
-    def get_job_status_command(self, slurm_job_id: str) -> str:
+    def resubmit_job(self, slurm_job_id: str) -> Result:
+        # TODO requeue with more time
+        raise NotImplementedError()
+        return slurm_job_id
+
+    def get_job_status_command(self, slurm_job_ids: List[str]) -> str:
         """
-        Returns the Slurm command to get the status of a job with the given job ID.
+        Returns the Slurm command to get the status of jobs with the given job ID.
 
         Args:
-            slurm_job_id (str): The job ID of the job to check.
+            slurm_job_id (List[str]): The job IDs of the jobs to check.
 
         Returns:
-            str: The Slurm command to get the status of the job.
+            str: The Slurm command to get the status of the jobs.
         """
+        # concat multiple jobs if needed
+        slurm_job_id = " -j ".join(slurm_job_ids)
         return self._JOB_STATUS_CMD.format(slurm_job_id=slurm_job_id)
+
+    def get_workflow_parameters(self, workflow) -> Dict[str, Dict[str, Any]]:
+        json_descriptor = self.pull_descriptor_from_github(workflow)
+        # convert to omero types
+        print(json_descriptor)
+        # Use json_descriptor['container_image'] instead?
+        worflow_dict = {}
+        for input in json_descriptor['inputs']:
+            # filter cytomine parameters
+            if not input['id'].startswith('cytomine'):
+                workflow_params = {}
+                workflow_params['name'] = input['id']
+                workflow_params['default'] = input['default-value']
+                # TODO convert to omero types
+                workflow_params['cytype'] = input['type']
+                workflow_params['omtype'] = self.convert_cytype_to_omtype(workflow_params['cytype'])
+                workflow_params['optional'] = input['optional']
+                workflow_params['description'] = input['description']
+                worflow_dict[input['id']] = workflow_params
+        return worflow_dict
+        
+    def convert_cytype_to_omtype(self, cytype: str) -> Any:
+        # TODO make Enum .. from enum import Enum
+        # class Color(Enum):
+        #   RED = 1
+        #   GREEN = 2
+        # or
+        # Color = Enum('Color', ['RED','GREEN'])
+        # Color.RED 'name' = RED 'value' = 1
+        if cytype == 'Number':
+            
+        elif cytype == 'Boolean':
+        
+        elif cytype == 'String':
+            
     
-    def get_workflow_command(self, workflow, *args, **kwargs) -> Tuple[str, dict]:
+    def convert_url(self, input_url: str) -> str:
+        """
+        Converts the input GitHub URL to an output URL that retrieves the 'descriptor.json' file in raw format.
+
+        Args:
+            input_url (str): The input GitHub URL.
+
+        Returns:
+            str: The output URL to the 'descriptor.json' file.
+
+        Raises:
+            ValueError: If the input URL is not a valid GitHub URL.
+        """
+        # Extract the repository and branch information from the input URL
+        url_parts = input_url.split("/")
+        if len(url_parts) < 5 or url_parts[2] != "github.com":
+            raise ValueError("Invalid GitHub URL")
+
+        if "tree" in url_parts:
+            # Case: URL contains a branch
+            branch_index = url_parts.index("tree") + 1
+            branch = url_parts[branch_index]
+        else:
+            # Case: URL does not specify a branch
+            branch = "master"
+
+        # Construct the output URL by combining the extracted information with the desired file path
+        output_url = f"https://github.com/{url_parts[3]}/{url_parts[4]}/raw/{branch}/descriptor.json"
+
+        return output_url
+
+    def pull_descriptor_from_github(self, workflow):
+        git_repo = self.slurm_model_repos[workflow]
+        # convert git repo to json file
+        raw_url = self.convert_url(git_repo)
+        # pull workflow params
+        # TODO: cache?
+        ghfile = requests.get(raw_url)
+        if ghfile.ok:
+            json_descriptor = json.loads(ghfile.text)
+        else:
+            raise ValueError(f'Error while pulling descriptor file for workflow {workflow}, from {raw_url}: {ghfile}')
+        return json_descriptor
+
+    def get_workflow_command(self, workflow, *args, **kwargs) -> Tuple[str, Dict]:
         model_path = self.slurm_model_paths[workflow]
         git_repo = self.slurm_model_repos[workflow]
         image_repo = self.slurm_model_images[workflow]
         job_script = self.slurm_model_jobs[workflow]
+        # raise NotImplementedError()
         sbatch_env = {
             "DATA_PATH": f"{self.slurm_data_path}/{input_data}",
             "IMAGE_PATH": f"{self.slurm_images_path}/{model_path}",
@@ -486,7 +583,6 @@ class SlurmClient(Connection):
         sbatch_cmd = f"sbatch{job_param} --output=omero-%4j.log {self.slurm_script_path}/{job_script}"
 
         return sbatch_cmd, env
-        
 
     def get_cellpose_command(self, image_version, input_data, cp_model, nuc_channel, prob_threshold, cell_diameter, email=None, time=None, model="cellpose", job_script="cellpose.sh") -> Tuple[str, dict]:
         """
@@ -643,7 +739,7 @@ class SlurmClient(Connection):
                          for response in response_list]
         return response_list[0], response_list[1]
 
-    def get_all_image_versions_and_data_files(self) -> dict[str, str]:
+    def get_all_image_versions_and_data_files(self) -> Dict[str, str]:
         resultdict = {}
         cmdlist = []
         for path in self.slurm_model_paths.values():

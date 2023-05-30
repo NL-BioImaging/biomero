@@ -20,6 +20,9 @@ class SlurmClient(Connection):
 
     SlurmClient accepts the same arguments as Connection. So below only 
     mentions the added ones:
+    
+    The easiest way to set this client up is by using a slurm-config.ini 
+    and the from-config() method.
 
     Attributes:
         slurm_data_path (str): The path to the directory containing the 
@@ -32,9 +35,17 @@ class SlurmClient(Connection):
             repositories of Singularity images for specific Slurm job models.
         slurm_model_images (dict): A dictionary containing the dockerhub 
             of the Singularity images for specific Slurm job models.
+            Will fill automatically from the data in the git repository, 
+            if you set init_slurm.
         slurm_script_path (str): The path to the directory containing 
-            the Slurm job submission scripts. This is expected to be a 
-            Git repository.
+            the Slurm job submission scripts on Slurm. 
+        slurm_script_repo (str): The git https URL for cloning the repo
+            containing the Slurm job submission scripts. Optional.
+        init_slurm (bool): Whether to setup the required structures on Slurm
+            after initiating this client. This includes creating missing 
+            folders, downloading container images, cloning git, et cetera.
+            This will take a while at first, but will validate your setup. 
+            Defaults to True.
 
     Example:
         # Create a SlurmClient object as contextmanager
@@ -63,7 +74,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
-    _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=-)v.+(?=.simg)'"
+    _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=\-|\_)v.+(?=.simg|.sif)'"
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
     _ZIP_CMD = "7z a -y {filename} -tzip {data_location}/data/out"
@@ -90,7 +101,9 @@ class SlurmClient(Connection):
                  slurm_model_repos: dict = None,
                  slurm_model_images: dict = None,
                  slurm_model_jobs: dict = None,
-                 slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH
+                 slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
+                 slurm_script_repo: str = None,
+                 init_slurm: bool = True,
                  ):
         super(SlurmClient, self).__init__(host,
                                           user,
@@ -105,11 +118,91 @@ class SlurmClient(Connection):
         self.slurm_images_path = slurm_images_path
         self.slurm_model_paths = slurm_model_paths
         self.slurm_script_path = slurm_script_path
+        self.slurm_script_repo = slurm_script_repo
         self.slurm_model_repos = slurm_model_repos
         self.slurm_model_images = slurm_model_images
         self.slurm_model_jobs = slurm_model_jobs
-        # TODO: setup the script path by downloading from GIT? setup all the
-        # directories?
+        
+        self.init_workflows()
+        if init_slurm: 
+            self.init_slurm()
+        
+    def init_workflows(self, force_update: bool = False):
+        """
+        Retrieves the required info for the configured workflows.
+        """
+        if not self.slurm_model_images:
+            self.slurm_model_images = {}
+        if not self.slurm_model_repos:
+            logging.warn("No workflows configured!")
+            self.slurm_model_repos = {}
+            # skips the setup
+        for workflow in self.slurm_model_repos.keys():
+            json_descriptor = self.pull_descriptor_from_github(workflow)
+            logging.debug(json_descriptor)
+            image = json_descriptor['container_image']['image']
+            if workflow not in self.slurm_model_images or force_update:
+                self.slurm_model_images[workflow] = image
+            
+    def init_slurm(self):
+        """
+        Validates or creates the required setup on the Slurm cluster.
+        
+        Raises:
+            SSHException: if it cannot connect to Slurm, or runs into an error
+        """      
+        if self.validate():
+            # 1. Create directories
+            dir_cmds = []
+            # a. data
+            if self.slurm_data_path:
+                dir_cmds.append(f"mkdir -p {self.slurm_data_path}")
+            # b. scripts # let git clone create it
+            # c. workflows
+            if self.slurm_images_path:
+                dir_cmds.append(f"mkdir -p {self.slurm_images_path}")
+            r = self.run_commands(dir_cmds)
+            if not r.ok:
+                raise SSHException(r)
+                
+            # 2. Clone git
+            if self.slurm_script_repo and self.slurm_script_path:
+                # git clone into script path
+                env = {
+                    "REPOSRC": self.slurm_script_repo,
+                    "LOCALREPO": self.slurm_script_path
+                }
+                cmd = 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null || git -C "$LOCALREPO" pull'
+                r = self.run_commands([cmd], env)
+                if not r.ok:
+                    raise SSHException(r)
+                
+            # 3. Download workflow images
+            # Create specific workflow dirs
+            with self.cd(self.slurm_images_path):
+                if self.slurm_model_paths:
+                    modelpaths = " ".join(self.slurm_model_paths.values())          
+                    # mkdir cellprofiler imagej ...
+                    r = self.run_commands([f"mkdir -p {modelpaths}"])
+                    if not r.ok:
+                        raise SSHException(r)
+                
+                if self.slurm_model_images:
+                    for wf, image in self.slurm_model_images.items():
+                        repo = self.slurm_model_repos[wf]
+                        path = self.slurm_model_paths[wf]
+                        _, version = self.extract_parts_from_url(repo)
+                        cmd = f"singularity pull --dir {path} docker://{image}:{version}"     
+                        # TODO: async?
+                        r = self.run_commands([cmd])
+                        if not r.ok:
+                            raise SSHException(r)
+                    # cleanup giant singularity cache!
+                    cmd = "singularity cache clean -f"
+                    r = self.run_commands([cmd])               
+                
+        else:
+            raise SSHException("Failure in connecting to Slurm cluster")        
 
     @classmethod
     def from_config(cls, configfile: str = '') -> 'SlurmClient':
@@ -137,7 +230,8 @@ class SlurmClient(Connection):
         configs = configparser.ConfigParser(allow_no_value=True)
         # Loads from default locations and given location, missing files are ok
         configs.read([cls._DEFAULT_CONFIG_PATH_1,
-                     cls._DEFAULT_CONFIG_PATH_2, configfile])
+                     cls._DEFAULT_CONFIG_PATH_2, 
+                     configfile])
         # Read the required parameters from the configuration file,
         # fallback to defaults
         host = configs.get("SSH", "host", fallback=cls._DEFAULT_HOST)
@@ -148,20 +242,17 @@ class SlurmClient(Connection):
         slurm_images_path = configs.get(
             "SLURM", "slurm_images_path",
             fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
+        
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
         slurm_model_paths = {}
         slurm_model_repos = {}
-        slurm_model_images = {}
         slurm_model_jobs = {}
         for k, v in models_dict.items():
             suffix_repo = '_repo'
-            suffix_image = '_image'
             suffix_job = '_job'
             if k.endswith(suffix_repo):
                 slurm_model_repos[k[:-len(suffix_repo)]] = v
-            elif k.endswith(suffix_image):
-                slurm_model_images[k[:-len(suffix_image)]] = v
             elif k.endswith(suffix_job):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
             else:
@@ -170,6 +261,10 @@ class SlurmClient(Connection):
         slurm_script_path = configs.get(
             "SLURM", "slurm_script_path",
             fallback=cls._DEFAULT_SLURM_GIT_SCRIPT_PATH)
+        slurm_script_repo = configs.get(
+            "SLURM", "slurm_script_repo",
+            fallback=None
+        )
         # Create the SlurmClient object with the parameters read from
         # the config file
         return cls(host=host,
@@ -178,9 +273,10 @@ class SlurmClient(Connection):
                    slurm_images_path=slurm_images_path,
                    slurm_model_paths=slurm_model_paths,
                    slurm_model_repos=slurm_model_repos,
-                   slurm_model_images=slurm_model_images,
+                   slurm_model_images=None,
                    slurm_model_jobs=slurm_model_jobs,
-                   slurm_script_path=slurm_script_path)
+                   slurm_script_path=slurm_script_path,
+                   slurm_script_repo=slurm_script_repo)
 
     def validate(self):
         """Validate the connection to the Slurm cluster by running 
@@ -282,7 +378,7 @@ class SlurmClient(Connection):
             print(f"{result.stdout}")
         except UnicodeEncodeError as e:
             print(f"Unicode error: {e}")
-            # TODO: ONLY THIS RECODE NEEDED?? don't know
+            # TODO: ONLY stdout RECODE NEEDED?? don't know
             result.stdout = result.stdout.encode(
                 'utf-8', 'ignore').decode('utf-8')
         return result
@@ -725,6 +821,12 @@ class SlurmClient(Connection):
         """
         Converts a Cytomine type to an OMERO type and instantiates it 
         with args/kwargs.
+        
+        Note that Cytomine has a Python Client, and some conversion methods
+        to python types, but nothing particularly worth depending on that
+        library for yet. Might be useful in the future perhaps.
+        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/
+        blob/master/cytomine/cytomine_job.py)
 
         Args:
             cytype (str): The Cytomine type to convert.
@@ -755,6 +857,34 @@ class SlurmClient(Connection):
             return self.str_to_class("omero.scripts", "String",
                                      *args, **kwargs)
 
+    def extract_parts_from_url(self, input_url: str) -> Tuple[List[str], str]:
+        """
+        Extracts the repository and branch information from the input URL.
+        
+        Args:
+            input_url (str): The input GitHub URL.
+
+        Returns:
+            Tuple[List[str], str]: 
+                The list of url parts and the branch/version.
+
+        Raises:
+            ValueError: If the input URL is not a valid GitHub URL.     
+        """
+        url_parts = input_url.split("/")
+        if len(url_parts) < 5 or url_parts[2] != "github.com":
+            raise ValueError("Invalid GitHub URL")
+
+        if "tree" in url_parts:
+            # Case: URL contains a branch
+            branch_index = url_parts.index("tree") + 1
+            branch = url_parts[branch_index]
+        else:
+            # Case: URL does not specify a branch
+            branch = "master"
+            
+        return url_parts, branch
+
     def convert_url(self, input_url: str) -> str:
         """
         Converts the input GitHub URL to an output URL that retrieves 
@@ -769,18 +899,7 @@ class SlurmClient(Connection):
         Raises:
             ValueError: If the input URL is not a valid GitHub URL.
         """
-        # Extract the repository and branch information from the input URL
-        url_parts = input_url.split("/")
-        if len(url_parts) < 5 or url_parts[2] != "github.com":
-            raise ValueError("Invalid GitHub URL")
-
-        if "tree" in url_parts:
-            # Case: URL contains a branch
-            branch_index = url_parts.index("tree") + 1
-            branch = url_parts[branch_index]
-        else:
-            # Case: URL does not specify a branch
-            branch = "master"
+        url_parts, branch = self.extract_parts_from_url(input_url)
 
         # Construct the output URL by combining the extracted information
         # with the desired file path
@@ -841,10 +960,6 @@ class SlurmClient(Connection):
 
         """
         model_path = self.slurm_model_paths[workflow.lower()]
-        # git_repo = self.slurm_model_repos[workflow]
-        # TODO build image if needed?
-        # image_repo = self.slurm_model_images[workflow]
-        # TODO download image if needed?
         job_script = self.slurm_model_jobs[workflow.lower()]
 
         sbatch_env = {

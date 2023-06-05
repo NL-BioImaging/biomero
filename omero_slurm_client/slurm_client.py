@@ -11,6 +11,9 @@ import importlib
 import logging
 import time as timesleep
 import warnings
+from string import Template
+from importlib_resources import files
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -154,10 +157,10 @@ class SlurmClient(Connection):
             self.slurm_model_repos = {}
             # skips the setup
         for workflow in self.slurm_model_repos.keys():
-            json_descriptor = self.pull_descriptor_from_github(workflow)
-            logger.debug('%s: %s', workflow, json_descriptor)
-            image = json_descriptor['container-image']['image']
             if workflow not in self.slurm_model_images or force_update:
+                json_descriptor = self.pull_descriptor_from_github(workflow)
+                logger.debug('%s: %s', workflow, json_descriptor)
+                image = json_descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
 
     def init_slurm(self):
@@ -192,6 +195,9 @@ class SlurmClient(Connection):
                 r = self.run_commands([cmd], env)
                 if not r.ok:
                     raise SSHException(r)
+            elif self.slurm_script_path:
+                # generate scripts
+                self.update_slurm_scripts(generate_jobs=True)
 
             # 3. Download workflow images
             # Create specific workflow dirs
@@ -606,7 +612,32 @@ class SlurmClient(Connection):
         logger.info(f"Unpacking {zipfile} on Slurm")
         return self.run_commands([cmd], env=env)
 
+    def generate_slurm_job_for_workflow(self,
+                                        workflow: str,
+                                        substitutes: Dict[str, str],
+                                        template: str = "job_template.sh"
+                                        ) -> str:
+        # add workflow to substitutes
+        substitutes['jobname'] = workflow
+        # grab job template
+        template_f = files("resources").joinpath(template)
+        with template_f.open('r') as f:
+            src = Template(f.read())
+            job_script = src.safe_substitute(substitutes)
+        return job_script
+
+    def workflow_params_to_subs(self, params) -> Dict[str, str]:
+        subs = {}
+        flags = []
+        for _, param in params.items():
+            flag = param['cmd_flag']
+            flag = flag + " $" + param['name'].upper()
+            flags.append(flag)
+        subs['PARAMS'] = " ".join(flags)
+        return subs
+
     def update_slurm_scripts(self,
+                             generate_jobs: bool = False,
                              env: Optional[Dict[str, str]] = None) -> Result:
         """
         Updates the local copy of the Slurm job submission scripts.
@@ -615,16 +646,36 @@ class SlurmClient(Connection):
         repository,
         and copies them to the slurm_script_path directory.
 
+        Can also generate scripts from a template instead. This is default
+        behaviour if no Git repo is provided, or can be forced
+        via `generate_jobs` parameter.
+
         Args:
+            generate_jobs (bool): Whether to generate new slurm job scripts
+                INSTEAD (of pulling from git). Defaults to False, except
+                if no slurm_script_repo is configured.
             env (Dict[str, str]): Optional environment variables to set when
                 running the command. Defaults to None.
 
         Returns:
             Result: The result of the command.
         """
-        cmd = self.get_update_slurm_scripts_command()
-        logger.info("Updating Slurm job scripts on Slurm")
-        return self.run_commands([cmd], env=env)
+        if not self.slurm_script_repo:
+            generate_jobs = True
+
+        if generate_jobs:
+            logger.info("Generating Slurm job scripts")
+            for wf, job_path in self.slurm_model_jobs.items():
+                params = self.get_workflow_parameters(wf)
+                subs = self.workflow_params_to_subs(params)
+                job_script = self.generate_slurm_job_for_workflow(wf, subs)
+                result = self.put(local=io.StringIO(job_script),
+                                  remote=self.slurm_script_path+"/"+job_path)
+        else:
+            cmd = self.get_update_slurm_scripts_command()
+            logger.info("Updating Slurm job scripts on Slurm")
+            result = self.run_commands([cmd], env=env)
+        return result
 
     def run_cellpose(self, cellpose_version: str, input_data: str,
                      cp_model: str, nuc_channel: int,
@@ -847,6 +898,9 @@ class SlurmClient(Connection):
                 workflow_params['default'] = input['default-value']
                 workflow_params['cytype'] = input['type']
                 workflow_params['optional'] = input['optional']
+                cmd_flag = input['command-line-flag']
+                cmd_flag = cmd_flag.replace("@id", input['id'])
+                workflow_params['cmd_flag'] = cmd_flag
                 workflow_params['description'] = input['description']
                 worflow_dict[input['id']] = workflow_params
         return worflow_dict

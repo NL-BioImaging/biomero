@@ -11,6 +11,7 @@
 #
 import os
 import sys
+from importlib.metadata import version
 sys.path.append(os.path.abspath('../..'))
 sys.path.append(os.path.abspath('../omero_slurm_client'))
 sys.path.append(os.path.abspath('..'))
@@ -19,9 +20,9 @@ sys.path.append(os.path.abspath('..'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Omero Slurm Client'
-copyright = '2023, T.T. Luik'
-author = 'T.T. Luik'
-release = '0.0.1'
+copyright = '2023, T.T.Luik'
+author = 'T.T.Luik'
+release = version('omero_slurm_client')
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

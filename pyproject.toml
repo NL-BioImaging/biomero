@@ -18,7 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "requests==2.27.1",
+    "requests==2.31.0",
     "fabric==3.1.0",
     "paramiko==3.2.0",
     "importlib_resources>=5.4.0"

@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional, Tuple, Any
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
+from invoke.exceptions import UnexpectedExit
 from paramiko import SSHException
 import configparser
 import re
@@ -89,7 +90,11 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
-    _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)'"
+    # Note, grep returns exitcode 1 if no match is found!
+    # This will translate into a UnexpectedExit error, so mute that if you don't care about empty.
+    # Like below with the "|| :".
+    # Data could legit be empty.
+    _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
     _ZIP_CMD = "7z a -y {filename} -tzip {data_location}/data/out"
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
@@ -98,6 +103,7 @@ class SlurmClient(Connection):
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
     _TAIL_LOG_CMD = "tail -n {n} {log_file} | strings"
+    _LOGFILE_DATA_CMD = "cat {log_file} | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -307,6 +313,42 @@ class SlurmClient(Connection):
                    slurm_script_repo=slurm_script_repo,
                    init_slurm=init_slurm)
 
+    def cleanup_tmp_files(self, 
+                          slurm_job_id: str, 
+                          filename: str, 
+                          data_location: str = None,
+                          logfile: str = None,
+                          ) -> Result:
+        """ Cleanup zip and unzipped files/folders
+
+        Args:
+            slurm_job_id (str): Script job id
+            filename (str): Zip filename on Slurm
+            logfile (str): Logfile of slurm. Optional.
+        """
+        cmds = []
+        # zip
+        rmzip = f"rm {filename}.*"
+        cmds.appends(rmzip)
+        # log
+        if logfile is None:
+            logfile = self._LOGFILE
+            logfile = logfile.format(slurm_job_id=slurm_job_id)
+        rmlog = f"rm {logfile}"
+        cmds.append(rmlog)
+        # data
+        if data_location is None:
+            dataLoc = self.extract_data_location_from_log(logfile)
+        rmdata = f"rm -rf {dataLoc} {dataLoc}.*"
+        cmds.append(rmdata)
+                
+        try:
+            result = self.run_commands([cmds])    
+        except UnexpectedExit as e:
+            logger.warn(e)
+            result = e.result
+        return result or None
+    
     def validate(self, validate_slurm_setup: bool = False):
         """Validate the connection to the Slurm cluster by running
         a simple command.
@@ -418,7 +460,7 @@ class SlurmClient(Connection):
             logger.info(f"{result.stdout}")
         except UnicodeEncodeError as e:
             logger.error(f"Unicode error: {e}")
-            # TODO: ONLY stdout RECODE NEEDED?? don't know
+            # TODO: ONLY stdout RECODE NEEDED?? or also error?
             result.stdout = result.stdout.encode(
                 'utf-8', 'ignore').decode('utf-8')
         return result
@@ -474,9 +516,13 @@ class SlurmClient(Connection):
         Raises:
             SSHException: If any of the commands fail to execute successfully.
         """
-        result = self.run_commands(cmdlist=cmdlist,
+        try:
+            result = self.run_commands(cmdlist=cmdlist,
                                    env=env,
                                    sep=f" ; echo {self._OUT_SEP} ; ")
+        except UnexpectedExit as e:
+            logger.warn(e)
+            result = e.result
         if result.ok:
             response = result.stdout
             split_responses = response.split(self._OUT_SEP)
@@ -869,6 +915,30 @@ class SlurmClient(Connection):
         # concat multiple jobs if needed
         slurm_job_id = " -j ".join([str(id) for id in slurm_job_ids])
         return self._JOB_STATUS_CMD.format(slurm_job_id=slurm_job_id)
+    
+    def extract_data_location_from_log(self, slurm_job_id: str = None,
+                                       logfile: str = None) -> str:
+        """Read SLURM job logfile to find location of the data
+        
+        One of the parameters is required, either id or file.
+
+        Args:
+            slurm_job_id (String): Id of the slurm job
+            logfile (String): Path to the logfile
+
+        Returns:
+            String: Data location according to the log
+        """
+        if logfile is None and slurm_job_id is not None:
+            logfile = self._LOGFILE
+            logfile = logfile.format(slurm_job_id=slurm_job_id)
+        cmd = self._LOGFILE_DATA_CMD.format(log_file=logfile)
+        result = self.run_commands([cmd])
+        if result.ok:
+            return result.stdout
+        else:
+            raise SSHException(result)
+        
 
     def get_workflow_parameters(self,
                                 workflow: str) -> Dict[str, Dict[str, Any]]:

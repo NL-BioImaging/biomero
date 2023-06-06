@@ -1,3 +1,3 @@
 from setuptools import setup
 
-setup()
+setup(name="omero_slurm_client")

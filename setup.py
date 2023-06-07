@@ -12,4 +12,7 @@ setup(name="omero_slurm_client",
       ],
       packages=find_packages(),  # py3.6 again
       include_package_data=True,
+      package_data={
+            "resources": ["*"]
+      },
       )

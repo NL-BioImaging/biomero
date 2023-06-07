@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>omero_slurm_client &mdash; Omero Slurm Client 1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="omero_slurm_client" href="modules.html" />
+    <link rel="prev" title="Welcome to Omero Slurm Client’s documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Omero Slurm Client
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">omero_slurm_client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#slurmclient">SlurmClient</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#setup-your-ssh-connection-to-slurm">Setup your SSH connection to Slurm</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Omero Slurm Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">omero_slurm_client</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/readme_link.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="omero-slurm-client">
+<h1>omero_slurm_client<a class="headerlink" href="#omero-slurm-client" title="Permalink to this headline"></a></h1>
+<p>The Omero-Slurm Python package is a library that facilitates working with a Slurm cluster in the context of the Omero platform. The package includes the SlurmClient class, which extends the Fabric library’s Connection class to provide SSH-based connectivity and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories. Overall, the Omero-Slurm package simplifies the integration of Slurm functionality within the Omero platform and provides an efficient workflow for working with Slurm clusters.</p>
+</div>
+<div class="section" id="slurmclient">
+<h1>SlurmClient<a class="headerlink" href="#slurmclient" title="Permalink to this headline"></a></h1>
+<p>The SlurmClient class is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH.</p>
+<p>It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models. The class provides methods for running commands on the remote Slurm host, submitting jobs, checking job status, retrieving job output, and tailing log files. It also offers a from_config class method to create a SlurmClient object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.</p>
+</div>
+<div class="section" id="slurm-config-ini">
+<h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h1>
+<p>The slurm-config.ini file is a configuration file used by the Omero-Slurm Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:</p>
+<p>[SSH]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user’s SSH config file or in /etc/fabric.yml.</p>
+<p>[SLURM]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.</p>
+<p>[MODELS]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for <key>_repo (repository containing the descriptor.json file), <key>_image (image location, such as Dockerhub), and <key>_job (jobscript in the slurm_script_repo). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.</p>
+<p>The slurm-config.ini file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the Omero-Slurm package, providing flexibility and customization options.</p>
+</div>
+<div class="section" id="setup-your-ssh-connection-to-slurm">
+<h1>Setup your SSH connection to Slurm<a class="headerlink" href="#setup-your-ssh-connection-to-slurm" title="Permalink to this headline"></a></h1>
+<p>To connect an Omero processor to a Slurm cluster using the Omero-Slurm library, users can follow these steps. First, ensure that the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. Next, create an SSH config file named <code class="docutils literal notranslate"><span class="pre">config</span></code> in the <code class="docutils literal notranslate"><span class="pre">.ssh</span></code> directory within the user’s home directory (<code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>). This file should specify the hostname, username, port, and private key path for the Slurm cluster. With the configuration files in place, users can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.</p>
+<p>Examples of these files are given in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> folder.</p>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to Omero Slurm Client’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="omero_slurm_client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

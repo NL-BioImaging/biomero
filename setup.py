@@ -11,4 +11,5 @@ setup(name="omero_slurm_client",
             "importlib_resources>=5.4.0"
       ],
       packages=find_packages(),  # py3.6 again
+      include_package_data=True,
       )

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name="omero_slurm_client",
       use_scm_version=True,
@@ -9,4 +9,6 @@ setup(name="omero_slurm_client",
             "fabric==3.1.0",
             "paramiko==3.2.0",
             "importlib_resources>=5.4.0"
-      ])
+      ],
+      packages=find_packages(),  # py3.6 again
+      )

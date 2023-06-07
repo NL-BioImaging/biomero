@@ -12,7 +12,7 @@
 import os
 import sys
 from importlib.metadata import version as dynamicversion
-import omero_slurm_client
+# import omero_slurm_client
 sys.path.append(os.path.abspath('../..'))
 sys.path.append(os.path.abspath('../omero_slurm_client'))
 sys.path.append(os.path.abspath('..'))

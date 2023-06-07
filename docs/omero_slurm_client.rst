@@ -1,8 +1,8 @@
 omero\_slurm\_client package
 ============================
 
-Submodules
-----------
+.. Submodules
+.. ----------
 
 omero\_slurm\_client.slurm\_client module
 -----------------------------------------
@@ -12,10 +12,10 @@ omero\_slurm\_client.slurm\_client module
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
+.. Module contents
+.. ---------------
 
-.. automodule:: omero_slurm_client
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: omero_slurm_client
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:

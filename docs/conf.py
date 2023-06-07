@@ -11,7 +11,7 @@
 #
 import os
 import sys
-from importlib.metadata import version
+from importlib.metadata import version as dynamicversion
 sys.path.append(os.path.abspath('../..'))
 sys.path.append(os.path.abspath('../omero_slurm_client'))
 sys.path.append(os.path.abspath('..'))
@@ -22,7 +22,7 @@ sys.path.append(os.path.abspath('..'))
 project = 'Omero Slurm Client'
 copyright = '2023, T.T.Luik'
 author = 'T.T.Luik'
-release = version('omero_slurm_client')
+release = dynamicversion('omero_slurm_client')
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -35,7 +35,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.githubpages'
+    'sphinx.ext.githubpages',
+    'myst_parser'
 ]
 
 templates_path = ['_templates']

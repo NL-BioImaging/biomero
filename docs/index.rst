@@ -6,16 +6,24 @@
 Welcome to Omero Slurm Client's documentation!
 ==============================================
 
+
+Get started
+***********************
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 4
+
+   readme_link
+
+Package
+***********************
+
+.. toctree::
+   :maxdepth: 5
 
    modules
-
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

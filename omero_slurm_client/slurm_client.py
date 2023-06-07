@@ -169,7 +169,7 @@ class SlurmClient(Connection):
                 image = json_descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
 
-    def init_slurm(self):
+    def setup_slurm(self):
         """
         Validates or creates the required setup on the Slurm cluster.
 
@@ -365,7 +365,7 @@ class SlurmClient(Connection):
         connected = self.run('echo " "').ok
         if connected and validate_slurm_setup:
             try:
-                self.init_slurm()
+                self.setup_slurm()
             except SSHException as e:
                 logger.error(e)
                 return False

@@ -15,4 +15,8 @@ setup(name="omero_slurm_client",
       package_data={
             "": ["resources/*"]
       },
+      data_files=[
+            ('resources', ['resources/job_template.sh', 
+                           'resources/slurm-config.ini'])
+      ]
       )

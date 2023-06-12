@@ -15,6 +15,7 @@ import warnings
 from string import Template
 from importlib_resources import files
 import io
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -218,17 +219,38 @@ class SlurmClient(Connection):
                         raise SSHException(r)
 
                 if self.slurm_model_images:
+                    pull_commands = []
                     for wf, image in self.slurm_model_images.items():
                         repo = self.slurm_model_repos[wf]
                         path = self.slurm_model_paths[wf]
                         _, version = self.extract_parts_from_url(repo)
                         if version == "master":
                             version = "latest"
-                        # run in background, we don't need to wait
-                        cmd = f"singularity pull --disable-cache --dir {path} docker://{image}:{version} >> sing.log 2>&1 &"
-                        r = self.run_commands([cmd])
-                        if not r.ok:
-                            raise SSHException(r)
+                        pull_template = "time singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1 ; echo 'finished $path' &"
+                        t = Template(pull_template)
+                        substitutes = {}
+                        substitutes['path'] = path
+                        substitutes['image'] = image
+                        substitutes['version'] = version
+                        cmd = t.safe_substitute(substitutes)
+                        logger.debug(f"substituted: {cmd}")
+                        pull_commands.append(cmd)
+                    script_name = "pull_images.sh"
+                    template_script = files("resources").joinpath(script_name)
+                    with template_script.open('r') as f:
+                        src = Template(f.read())
+                        substitute = {'pullcommands': "\n".join(pull_commands)}
+                        job_script = src.safe_substitute(substitute)
+                    logger.debug(f"substituted:\n {job_script}")
+                    # copy to remote file
+                    full_path = self.slurm_images_path+"/"+script_name
+                    _ = self.put(local=io.StringIO(job_script),
+                                 remote=full_path)
+                    cmd = f"time sh {script_name}"
+                    r = self.run_commands([cmd])
+                    if not r.ok:
+                        raise SSHException(r)
+                    logger.info(r.stdout)
                     # # cleanup giant singularity cache!
                     # using --disable-cache because we run in the background
                     # cmd = "singularity cache clean -f"
@@ -714,11 +736,17 @@ class SlurmClient(Connection):
         if generate_jobs:
             logger.info("Generating Slurm job scripts")
             for wf, job_path in self.slurm_model_jobs.items():
+                # generate job script
                 params = self.get_workflow_parameters(wf)
                 subs = self.workflow_params_to_subs(params)
                 job_script = self.generate_slurm_job_for_workflow(wf, subs)
+                # ensure all dirs exist remotely
+                full_path = self.slurm_script_path+"/"+job_path
+                job_dir, _ = os.path.split(full_path)
+                self.run(f"mkdir -p {job_dir}")
+                # copy to remote file
                 result = self.put(local=io.StringIO(job_script),
-                                  remote=self.slurm_script_path+"/"+job_path)
+                                  remote=full_path)
         else:
             cmd = self.get_update_slurm_scripts_command()
             logger.info("Updating Slurm job scripts on Slurm")

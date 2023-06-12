@@ -182,7 +182,9 @@ class SlurmClient(Connection):
             # a. data
             if self.slurm_data_path:
                 dir_cmds.append(f"mkdir -p {self.slurm_data_path}")
-            # b. scripts # let git clone create it
+            # b. scripts
+            if self.slurm_images_path:
+                dir_cmds.append(f"mkdir -p {self.slurm_script_path}")
             # c. workflows
             if self.slurm_images_path:
                 dir_cmds.append(f"mkdir -p {self.slurm_images_path}")
@@ -313,9 +315,9 @@ class SlurmClient(Connection):
                    slurm_script_repo=slurm_script_repo,
                    init_slurm=init_slurm)
 
-    def cleanup_tmp_files(self, 
-                          slurm_job_id: str, 
-                          filename: str, 
+    def cleanup_tmp_files(self,
+                          slurm_job_id: str,
+                          filename: str,
                           data_location: str = None,
                           logfile: str = None,
                           ) -> Result:
@@ -341,14 +343,14 @@ class SlurmClient(Connection):
             dataLoc = self.extract_data_location_from_log(logfile)
         rmdata = f"rm -rf {dataLoc} {dataLoc}.*"
         cmds.append(rmdata)
-                
+
         try:
-            result = self.run_commands([cmds])    
+            result = self.run_commands([cmds])
         except UnexpectedExit as e:
             logger.warn(e)
             result = e.result
         return result or None
-    
+
     def validate(self, validate_slurm_setup: bool = False):
         """Validate the connection to the Slurm cluster by running
         a simple command.
@@ -518,8 +520,8 @@ class SlurmClient(Connection):
         """
         try:
             result = self.run_commands(cmdlist=cmdlist,
-                                   env=env,
-                                   sep=f" ; echo {self._OUT_SEP} ; ")
+                                       env=env,
+                                       sep=f" ; echo {self._OUT_SEP} ; ")
         except UnexpectedExit as e:
             logger.warn(e)
             result = e.result
@@ -915,11 +917,11 @@ class SlurmClient(Connection):
         # concat multiple jobs if needed
         slurm_job_id = " -j ".join([str(id) for id in slurm_job_ids])
         return self._JOB_STATUS_CMD.format(slurm_job_id=slurm_job_id)
-    
+
     def extract_data_location_from_log(self, slurm_job_id: str = None,
                                        logfile: str = None) -> str:
         """Read SLURM job logfile to find location of the data
-        
+
         One of the parameters is required, either id or file.
 
         Args:
@@ -938,7 +940,6 @@ class SlurmClient(Connection):
             return result.stdout
         else:
             raise SSHException(result)
-        
 
     def get_workflow_parameters(self,
                                 workflow: str) -> Dict[str, Dict[str, Any]]:

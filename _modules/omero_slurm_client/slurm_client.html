@@ -257,7 +257,9 @@
             <span class="c1"># a. data</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">:</span>
                 <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_data_path}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="c1"># b. scripts # let git clone create it</span>
+            <span class="c1"># b. scripts</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
+                <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_script_path}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="c1"># c. workflows</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
                 <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_images_path}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -388,9 +390,9 @@
                    <span class="n">slurm_script_repo</span><span class="o">=</span><span class="n">slurm_script_repo</span><span class="p">,</span>
                    <span class="n">init_slurm</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                          <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
-                          <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+<div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                          <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
@@ -416,14 +418,14 @@
             <span class="n">dataLoc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_data_location_from_log</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>
         <span class="n">rmdata</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm -rf </span><span class="si">{dataLoc}</span><span class="s2"> </span><span class="si">{dataLoc}</span><span class="s2">.*&quot;</span>
         <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmdata</span><span class="p">)</span>
-                
+
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmds</span><span class="p">])</span>    
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmds</span><span class="p">])</span>
         <span class="k">except</span> <span class="n">UnexpectedExit</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">result</span>
         <span class="k">return</span> <span class="n">result</span> <span class="ow">or</span> <span class="kc">None</span></div>
-    
+
 <div class="viewcode-block" id="SlurmClient.validate"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validate_slurm_setup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Validate the connection to the Slurm cluster by running</span>
 <span class="sd">        a simple command.</span>
@@ -593,8 +595,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">cmdlist</span><span class="o">=</span><span class="n">cmdlist</span><span class="p">,</span>
-                                   <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
-                                   <span class="n">sep</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot; ; echo </span><span class="si">{self._OUT_SEP}</span><span class="s2"> ; &quot;</span><span class="p">)</span>
+                                       <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
+                                       <span class="n">sep</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot; ; echo </span><span class="si">{self._OUT_SEP}</span><span class="s2"> ; &quot;</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">UnexpectedExit</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">result</span>
@@ -990,11 +992,11 @@
         <span class="c1"># concat multiple jobs if needed</span>
         <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="s2">&quot; -j &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">])</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_JOB_STATUS_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span></div>
-    
+
 <div class="viewcode-block" id="SlurmClient.extract_data_location_from_log"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.extract_data_location_from_log">[docs]</a>    <span class="k">def</span> <span class="nf">extract_data_location_from_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                                        <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Read SLURM job logfile to find location of the data</span>
-<span class="sd">        </span>
+
 <span class="sd">        One of the parameters is required, either id or file.</span>
 
 <span class="sd">        Args:</span>
@@ -1013,7 +1015,6 @@
             <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
-        
 
 <div class="viewcode-block" id="SlurmClient.get_workflow_parameters"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_workflow_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                 <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>

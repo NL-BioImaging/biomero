@@ -362,8 +362,8 @@ class SlurmClient(Connection):
         cmds.append(rmlog)
         # data
         if data_location is None:
-            dataLoc = self.extract_data_location_from_log(logfile)
-        rmdata = f"rm -rf {dataLoc} {dataLoc}.*"
+            data_location = self.extract_data_location_from_log(logfile)
+        rmdata = f"rm -rf {data_location} {data_location}.*"
         cmds.append(rmdata)
 
         try:

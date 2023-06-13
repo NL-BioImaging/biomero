@@ -367,7 +367,7 @@ class SlurmClient(Connection):
         cmds.append(rmdata)
 
         try:
-            result = self.run_commands([cmds])
+            result = self.run_commands(cmds)
         except UnexpectedExit as e:
             logger.warn(e)
             result = e.result

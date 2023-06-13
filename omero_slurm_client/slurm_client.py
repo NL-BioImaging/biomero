@@ -353,7 +353,7 @@ class SlurmClient(Connection):
         cmds = []
         # zip
         rmzip = f"rm {filename}.*"
-        cmds.appends(rmzip)
+        cmds.append(rmzip)
         # log
         if logfile is None:
             logfile = self._LOGFILE

@@ -57,9 +57,14 @@
 <li class="toctree-l1"><a class="reference internal" href="#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurm-jobs">Slurm jobs</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#generating-jobs">Generating jobs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#how-to-add-your-own-slurm-job">How to add your own Slurm job</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-to-add-your-own-slurm-job">How to add your own Slurm job</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#parameters">Parameters</a></li>
 </ul>
 </li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#transfering-data">Transfering data</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
@@ -210,15 +215,20 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <ol class="arabic simple">
 <li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p></li>
 <li><p>Describe these commandline parameters in a <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (see previous chapter). E.g. <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">like this</a>.</p></li>
-<li><p>Describe the requirements / environment of your script in a <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code></p></li>
+<li><p>Describe the requirements / environment of your script in a <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>, <a class="reference external" href="https://learnpython.com/blog/python-requirements-file/">like this</a>. Make sure to pin your versions for future reproducability!</p></li>
 <li><p>Package your script in a Docker container. E.g. <a class="reference external" href="https://www.docker.com/blog/how-to-dockerize-your-python-applications/">like this</a>.</p>
 <ul class="simple">
-<li><p>Note: Please watch out for the pitfalls</p></li>
+<li><p>Note: Please watch out for the pitfalls of reproducability with Dockerfiles: <a class="reference external" href="https://pythonspeed.com/articles/dockerizing-python-is-hard/">Always version your packages!</a>.</p></li>
 </ul>
 </li>
-<li><p>Publish your source code, Dockerfile and descriptor.json to a new Github repository (free for public repositories).</p></li>
-<li><p>(Optional) Publish a new version of your code (e.g. v1.0.0).</p></li>
-<li><p>Publish your container on Dockerhub (free for public repositories), using the same versioning as your source code.</p></li>
+<li><p>Publish your source code, Dockerfile and descriptor.json to a new Github repository (free for public repositories). You can generate a new repository <a class="reference external" href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template">from template</a>, using <a class="reference external" href="https://github.com/Neubias-WG5/W_Template">this template</a> provided by Neubias (BIAFLOWS). Then replace the input of the files with yours.</p></li>
+<li><p>(Recommended) Publish a new version of your code (e.g. v1.0.0). E.g. <a class="reference external" href="https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository">like this</a>.</p></li>
+<li><p>Publish your container on Dockerhub (free for public repositories), using the same versioning as your source code. <a class="reference external" href="https://docs.docker.com/get-started/publish-your-own-image/">Like this</a> from Windows Docker or <a class="reference external" href="https://www.geeksforgeeks.org/docker-publishing-images-to-docker-hub/">like this</a> from a commandline.</p>
+<ul class="simple">
+<li><p>(Recommended) Please use a tag that equals your repository version, instead of <code class="docutils literal notranslate"><span class="pre">latest</span></code>. This improves reproducability!</p></li>
+<li><p>(Optional) this library grabs <code class="docutils literal notranslate"><span class="pre">latest</span></code> if the code repository is given no version, but the <code class="docutils literal notranslate"><span class="pre">master</span></code> branch.</p></li>
+</ul>
+</li>
 <li><p>Follow the steps from the previous chapter:</p>
 <ul class="simple">
 <li><p>Add details to <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code></p></li>
@@ -266,7 +276,75 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 </pre></div>
 </div>
 <p>You can update the jobs by calling <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts()</span></code>, which will pull the repository(‘s default branch).</p>
+<p>This might be useful, for example if you have other hardware requirements for your workflow(s) than the default job asks for, or if you want to run more than just 1 singularity container.</p>
+<div class="section" id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline"></a></h3>
+<p>The library will provide the parameters from your <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> as environment variables to the call. E.g. <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">DIAMETER=0;</span> <span class="pre">sbatch</span> <span class="pre">...</span></code>.</p>
+<p>Other environment variables provided are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DATA_PATH</span></code></p>
+<ul>
+<li><p>Made of <code class="docutils literal notranslate"><span class="pre">&lt;slurm_data_path&gt;/&lt;input_folder&gt;</span></code>. The base dir for data folders for this execution. We expect it to contain <code class="docutils literal notranslate"><span class="pre">/data/in</span></code>, <code class="docutils literal notranslate"><span class="pre">/data/in</span></code> and <code class="docutils literal notranslate"><span class="pre">/data/in</span></code> folders in our template and data transfer setup.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IMAGE_PATH</span></code></p>
+<ul>
+<li><p>Made of <code class="docutils literal notranslate"><span class="pre">&lt;slurm_images_path&gt;/&lt;model_path&gt;</span></code>, as described in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IMAGE_VERSION</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SINGULARITY_IMAGE</span></code></p>
+<ul>
+<li><p>Already uses the <code class="docutils literal notranslate"><span class="pre">IMAGE_VERSION</span></code> above, as <code class="docutils literal notranslate"><span class="pre">&lt;container_name&gt;_&lt;IMAGE_VERSION&gt;.sif</span></code></p></li>
+</ul>
+</li>
+</ul>
+<p>We (potentially) override the following Slurm job settings programmatically:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--mail-user={email}</span></code> (optional)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--time={time}</span></code> (optional)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--output=omero-%4j.log</span></code> (mandatory)</p></li>
+</ul>
+<p>We could add more overrides in the future, and perhaps make them available as global configuration variables in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>.</p>
 </div>
+</div>
+</div>
+<div class="section" id="batching">
+<h1>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h1>
+<p>We can simply use <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> for running your workflow 1:1, so 1 job to 1 workflow. This could speed up your workflow already, as <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> servers are likely equipped with strong CPU and GPU.</p>
+<p>However, <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> is also built for parallel processing on multiple (or the same) servers. We can accomplish this by running multiple jobs for 1 workflow. This is simple for <a class="reference external" href="https://en.wikipedia.org/wiki/Embarrassingly_parallel#:~:text=In%20parallel%20computing%2C%20an%20embarrassingly,a%20number%20of%20parallel%20tasks.">embarrassingly parallel</a> tasks, like segmenting multiple images: just provide each job with a different set of input images. If you have 100 images, you could run 10 jobs on 10 images and (given enough resources available for you on Slurm) that could be 10x faster. In theory, you could run 1 job per image, but at some point you run into the overhead cost of Slurm (and Omero) and it might actually slow down again (as you incur this cost a 100 times instead of 10 times).</p>
+</div>
+<div class="section" id="transfering-data">
+<h1>Transfering data<a class="headerlink" href="#transfering-data" title="Permalink to this headline"></a></h1>
+<p>We have added methods to this library to help with transferring data to the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> cluster, using the same SSH connection (via SCP or SFTP).</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmClient.transfer_data(...)</span></code></p>
+<ul>
+<li><p>Transfer data to the Slurm cluster</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmClient.unpack_data(...)</span></code></p>
+<ul>
+<li><p>Unpack zip file on the Slurm cluster</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmClient.zip_data_on_slurm_server(...)</span></code></p>
+<ul>
+<li><p>Zip data on the Slurm cluster</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmClient.copy_zip_locally(...)</span></code></p>
+<ul>
+<li><p>Transfer (zip) data from the Slurm cluster</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmClient.get_logfile_from_slurm(...)</span></code></p>
+<ul>
+<li><p>Transfer logfile from the Slurm cluster</p></li>
+</ul>
+</li>
+</ul>
+<p>And more; see the docstring of <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and example Omero scripts.</p>
 </div>
 
 

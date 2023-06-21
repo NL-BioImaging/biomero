@@ -118,12 +118,14 @@ These are the steps required:
 
 1. Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.
 2. Describe these commandline parameters in a `descriptor.json` (see previous chapter). E.g. [like this](https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor).
-3. Describe the requirements / environment of your script in a `requirements.txt` 
+3. Describe the requirements / environment of your script in a `requirements.txt`, [like this](https://learnpython.com/blog/python-requirements-file/). Make sure to pin your versions for future reproducability!
 2. Package your script in a Docker container. E.g. [like this](https://www.docker.com/blog/how-to-dockerize-your-python-applications/).
-    - Note: Please watch out for the pitfalls 
-3. Publish your source code, Dockerfile and descriptor.json to a new Github repository (free for public repositories).
-4. (Optional) Publish a new version of your code (e.g. v1.0.0).
-5. Publish your container on Dockerhub (free for public repositories), using the same versioning as your source code.
+    - Note: Please watch out for the pitfalls of reproducability with Dockerfiles: [Always version your packages!](https://pythonspeed.com/articles/dockerizing-python-is-hard/).
+3. Publish your source code, Dockerfile and descriptor.json to a new Github repository (free for public repositories). You can generate a new repository [from template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template), using [this template](https://github.com/Neubias-WG5/W_Template) provided by Neubias (BIAFLOWS). Then replace the input of the files with yours.
+4. (Recommended) Publish a new version of your code (e.g. v1.0.0). E.g. [like this](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository).
+5. Publish your container on Dockerhub (free for public repositories), using the same versioning as your source code. [Like this](https://docs.docker.com/get-started/publish-your-own-image/) from Windows Docker or [like this](https://www.geeksforgeeks.org/docker-publishing-images-to-docker-hub/) from a commandline.
+    - (Recommended) Please use a tag that equals your repository version, instead of `latest`. This improves reproducability!
+    - (Optional) this library grabs `latest` if the code repository is given no version, but the `master` branch.
 6. Follow the steps from the previous chapter:
     - Add details to `slurm-config.ini`
     - Run `SlurmClient.from_config(init_slurm=True)`
@@ -168,3 +170,45 @@ cellpose_job=jobs/cellpose.sh
 ```
 
 You can update the jobs by calling `slurmClient.update_slurm_scripts()`, which will pull the repository('s default branch).
+
+This might be useful, for example if you have other hardware requirements for your workflow(s) than the default job asks for, or if you want to run more than just 1 singularity container.
+
+### Parameters
+The library will provide the parameters from your `descriptor.json` as environment variables to the call. E.g. `set DIAMETER=0; sbatch ...`.
+
+Other environment variables provided are:
+- `DATA_PATH` 
+    - Made of `<slurm_data_path>/<input_folder>`. The base dir for data folders for this execution. We expect it to contain `/data/in`, `/data/in` and `/data/in` folders in our template and data transfer setup.
+- `IMAGE_PATH`
+    - Made of `<slurm_images_path>/<model_path>`, as described in `slurm-config.ini`
+- `IMAGE_VERSION`
+- `SINGULARITY_IMAGE`
+    - Already uses the `IMAGE_VERSION` above, as `<container_name>_<IMAGE_VERSION>.sif`
+
+We (potentially) override the following Slurm job settings programmatically:
+- `--mail-user={email}` (optional)
+- `--time={time}` (optional)
+- `--output=omero-%4j.log` (mandatory)
+
+We could add more overrides in the future, and perhaps make them available as global configuration variables in `slurm-config.ini`.
+# Batching
+We can simply use `Slurm` for running your workflow 1:1, so 1 job to 1 workflow. This could speed up your workflow already, as `Slurm` servers are likely equipped with strong CPU and GPU.
+
+However, `Slurm` is also built for parallel processing on multiple (or the same) servers. We can accomplish this by running multiple jobs for 1 workflow. This is simple for [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel#:~:text=In%20parallel%20computing%2C%20an%20embarrassingly,a%20number%20of%20parallel%20tasks.) tasks, like segmenting multiple images: just provide each job with a different set of input images. If you have 100 images, you could run 10 jobs on 10 images and (given enough resources available for you on Slurm) that could be 10x faster. In theory, you could run 1 job per image, but at some point you run into the overhead cost of Slurm (and Omero) and it might actually slow down again (as you incur this cost a 100 times instead of 10 times).
+
+# Transfering data
+
+We have added methods to this library to help with transferring data to the `Slurm` cluster, using the same SSH connection (via SCP or SFTP).
+
+- `slurmClient.transfer_data(...)`
+    - Transfer data to the Slurm cluster
+- `slurmClient.unpack_data(...)`
+    - Unpack zip file on the Slurm cluster
+- `slurmClient.zip_data_on_slurm_server(...)`
+    - Zip data on the Slurm cluster
+- `slurmClient.copy_zip_locally(...)`
+    - Transfer (zip) data from the Slurm cluster
+- `slurmClient.get_logfile_from_slurm(...)`
+    - Transfer logfile from the Slurm cluster
+
+And more; see the docstring of `SlurmClient` and example Omero scripts.

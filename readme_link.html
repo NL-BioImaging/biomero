@@ -43,8 +43,10 @@
               <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">omero_slurm_client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurmclient">SlurmClient</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started">Prerequisites &amp; Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#setup-your-ssh-connection-to-slurm">Setup your SSH connection to Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#how-to-add-a-existing-workflow">How to add a existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#how-to-add-a-new-custom-workflow">How to add a new custom workflow</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
@@ -76,25 +78,66 @@
              
   <div class="section" id="omero-slurm-client">
 <h1>omero_slurm_client<a class="headerlink" href="#omero-slurm-client" title="Permalink to this headline"></a></h1>
-<p>The Omero-Slurm Python package is a library that facilitates working with a Slurm cluster in the context of the Omero platform. The package includes the SlurmClient class, which extends the Fabric library’s Connection class to provide SSH-based connectivity and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories. Overall, the Omero-Slurm package simplifies the integration of Slurm functionality within the Omero platform and provides an efficient workflow for working with Slurm clusters.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> Python package is a library that facilitates working with a Slurm cluster in the context of the Omero platform.</p>
+<p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which extends the Fabric library’s <code class="docutils literal notranslate"><span class="pre">Connection</span></code> class to provide SSH-based connectivity and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks.</p>
+<p>Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories.</p>
+<p>Overall, the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> package simplifies the integration of Slurm functionality within the Omero platform and provides an efficient workflow for working with Slurm clusters.</p>
 </div>
 <div class="section" id="slurmclient">
 <h1>SlurmClient<a class="headerlink" href="#slurmclient" title="Permalink to this headline"></a></h1>
-<p>The SlurmClient class is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH.</p>
-<p>It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models. The class provides methods for running commands on the remote Slurm host, submitting jobs, checking job status, retrieving job output, and tailing log files. It also offers a from_config class method to create a SlurmClient object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.</p>
+<p>The SlurmClient class is the main entrypoint in using this library.
+It is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH.</p>
+<p>It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models.</p>
+<p>The class provides methods for running commands on the remote Slurm host, submitting jobs, checking job status, retrieving job output, and tailing log files.</p>
+<p>It also offers a <code class="docutils literal notranslate"><span class="pre">from_config</span></code> class method to create a <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.</p>
+</div>
+<div class="section" id="prerequisites-getting-started">
+<h1>Prerequisites &amp; Getting Started<a class="headerlink" href="#prerequisites-getting-started" title="Permalink to this headline"></a></h1>
+<p>To connect an Omero processor to a Slurm cluster using the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> library, users can follow these steps:</p>
+<ol class="arabic simple">
+<li><p>Setup public key authentication between your Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and your HPC server. E.g. follow  a <a class="reference external" href="https://www.ssh.com/academy/ssh/public-key-authentication">SSH tutorial</a>.</p>
+<ul class="simple">
+<li><p>You could use 1 Slurm account for all <code class="docutils literal notranslate"><span class="pre">processor</span></code> servers, and share the same private key to all of them.</p></li>
+</ul>
+</li>
+<li><p>Create a SSH config file named <code class="docutils literal notranslate"><span class="pre">config</span></code> in the <code class="docutils literal notranslate"><span class="pre">.ssh</span></code> directory of (all) the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> servers, within the <code class="docutils literal notranslate"><span class="pre">omero</span></code> user’s home directory (<code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>). This file should specify the hostname, username, port, and private key path for the Slurm cluster. We provide an example in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> directory.</p>
+<ul class="simple">
+<li><p>This will allow a uniform SSH naming, making it easy for the library.</p></li>
+</ul>
+</li>
+<li><p>Test the SSH connection manually! <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">slurm</span></code> (as the omero user) should connect you to the Slurm server (given that you named it <code class="docutils literal notranslate"><span class="pre">slurm</span></code> in the <code class="docutils literal notranslate"><span class="pre">config</span></code>).</p></li>
+<li><p>Congratulations! Now the servers are connected. Next, we make sure to setup the connection between Omero and Slurm.</p></li>
+<li><p>At this point, ensure that the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. We provide an example in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> section. Place this <code class="docutils literal notranslate"><span class="pre">ini</span></code> file in one of the following locations (on the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
+</ul>
+</li>
+<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This will make it create the directories you provided in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:</p></li>
+</ol>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">SlurmClient</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">configfile</span><span class="o">=</span><span class="n">configfile</span><span class="p">,</span>
+                            <span class="n">init_slurm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">slurmClient</span><span class="p">:</span>
+    <span class="n">slurmClient</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="7">
+<li><p>With the configuration files in place, users can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.</p></li>
+</ol>
+<p>Examples of these files are given in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> folder.</p>
 </div>
 <div class="section" id="slurm-config-ini">
 <h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h1>
-<p>The slurm-config.ini file is a configuration file used by the Omero-Slurm Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:</p>
-<p>[SSH]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user’s SSH config file or in /etc/fabric.yml.</p>
-<p>[SLURM]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.</p>
-<p>[MODELS]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for <key>_repo (repository containing the descriptor.json file), <key>_image (image location, such as Dockerhub), and <key>_job (jobscript in the slurm_script_repo). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.</p>
-<p>The slurm-config.ini file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the Omero-Slurm package, providing flexibility and customization options.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is a configuration file used by the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:</p>
+<p>[<strong>SSH</strong>]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user’s SSH config file or in <code class="docutils literal notranslate"><span class="pre">/etc/fabric.yml</span></code>.</p>
+<p>[<strong>SLURM</strong>]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.</p>
+<p>[<strong>MODELS</strong>]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_repo</span></code> (repository containing the descriptor.json file, which will describe parameters and where to find the image), and <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_job</span></code> (jobscript name and location in the <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> package, providing flexibility and customization options.</p>
 </div>
-<div class="section" id="setup-your-ssh-connection-to-slurm">
-<h1>Setup your SSH connection to Slurm<a class="headerlink" href="#setup-your-ssh-connection-to-slurm" title="Permalink to this headline"></a></h1>
-<p>To connect an Omero processor to a Slurm cluster using the Omero-Slurm library, users can follow these steps. First, ensure that the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. Next, create an SSH config file named <code class="docutils literal notranslate"><span class="pre">config</span></code> in the <code class="docutils literal notranslate"><span class="pre">.ssh</span></code> directory within the user’s home directory (<code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>). This file should specify the hostname, username, port, and private key path for the Slurm cluster. With the configuration files in place, users can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.</p>
-<p>Examples of these files are given in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> folder.</p>
+<div class="section" id="how-to-add-a-existing-workflow">
+<h1>How to add a existing workflow<a class="headerlink" href="#how-to-add-a-existing-workflow" title="Permalink to this headline"></a></h1>
+</div>
+<div class="section" id="how-to-add-a-new-custom-workflow">
+<h1>How to add a new custom workflow<a class="headerlink" href="#how-to-add-a-new-custom-workflow" title="Permalink to this headline"></a></h1>
 </div>
 
 

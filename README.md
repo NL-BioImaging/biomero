@@ -1,4 +1,6 @@
 # Omero Slurm Client library
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Python](https://img.shields.io/badge/python-3.6-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8B%20%20%E2%97%8B-yellow)](https://fair-software.eu) [![Sphinx build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment)
+
 The `omero_slurm_client` Python package is a library that facilitates working with a Slurm cluster in the context of the Omero platform. 
 
 The package includes the `SlurmClient` class, which extends the Fabric library's `Connection` class to provide **SSH-based connectivity** and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. 
@@ -110,14 +112,14 @@ Note that while it is possible to have multiple versions of the same workflow on
 
 
 # How to add your new custom workflow
-Building workflows like this will make them more [FAIR](https://www.go-fair.org/fair-principles/) and will make you more skilled!
+Building workflows like this will make them more [FAIR](https://www.go-fair.org/fair-principles/) (also for [software](https://fair-software.eu/about)) and might make you more skilled in the process!
 
 Say you have a script in Python and you want to make it available on Omero and Slurm.
 
 These are the steps required:
 
 1. Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.
-2. Describe these commandline parameters in a `descriptor.json` (see previous chapter). E.g. [like this](https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor).
+2. Describe these commandline parameters in a `descriptor.json` (see previous [chapter](#workflow-metadata-via-descriptorjson)). E.g. [like this](https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor).
 3. Describe the requirements / environment of your script in a `requirements.txt`, [like this](https://learnpython.com/blog/python-requirements-file/). Make sure to pin your versions for future reproducability!
 2. Package your script in a Docker container. E.g. [like this](https://www.docker.com/blog/how-to-dockerize-your-python-applications/).
     - Note: Please watch out for the pitfalls of reproducability with Dockerfiles: [Always version your packages!](https://pythonspeed.com/articles/dockerizing-python-is-hard/).
@@ -126,7 +128,7 @@ These are the steps required:
 5. Publish your container on Dockerhub (free for public repositories), using the same versioning as your source code. [Like this](https://docs.docker.com/get-started/publish-your-own-image/) from Windows Docker or [like this](https://www.geeksforgeeks.org/docker-publishing-images-to-docker-hub/) from a commandline.
     - (Recommended) Please use a tag that equals your repository version, instead of `latest`. This improves reproducability!
     - (Optional) this library grabs `latest` if the code repository is given no version, but the `master` branch.
-6. Follow the steps from the previous chapter:
+6. Follow the steps from the previous [chapter](#how-to-add-an-existing-workflow):
     - Add details to `slurm-config.ini`
     - Run `SlurmClient.from_config(init_slurm=True)`
 
@@ -134,7 +136,7 @@ These are the steps required:
 
 ## Generating jobs
 By default, `omero_slurm_client` will generate basic slurm jobs for each workflow, based on the metadata provided in `descriptor.json` and a [job template](./resources/job_template.sh).
-It will replace `$PARAMS` with the (non-`cytomine_`) parameters given in 
+It will replace `$PARAMS` with the (non-`cytomine_`) parameters given in `descriptor.json`. See also the [Parameters](#parameters) section below.
 
 ## How to add your own Slurm job
 You could change the [job template](./resources/job_template.sh) and generate new jobs, by running `SlurmClient.from_config(init_slurm=True)` (or `slurmClient.update_slurm_scripts(generate_jobs=True)`) 

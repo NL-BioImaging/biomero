@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>omero_slurm_client &mdash; Omero Slurm Client 1 documentation</title>
+  <title>Omero Slurm Client library &mdash; Omero Slurm Client 1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -41,12 +41,25 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">omero_slurm_client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#slurmclient">SlurmClient</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Omero Slurm Client library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#slurmclient-class">SlurmClient class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started">Prerequisites &amp; Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#how-to-add-a-existing-workflow">How to add a existing workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#how-to-add-a-new-custom-workflow">How to add a new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#how-to-add-an-existing-workflow">How to add an existing workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-metadata-via-descriptor-json">Workflow metadata via descriptor.json</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#schema">Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-versions">Multiple versions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#slurm-jobs">Slurm jobs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#generating-jobs">Generating jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-to-add-your-own-slurm-job">How to add your own Slurm job</a></li>
+</ul>
+</li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
@@ -66,7 +79,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">omero_slurm_client</li>
+      <li class="breadcrumb-item active">Omero Slurm Client library</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/readme_link.md.txt" rel="nofollow"> View page source</a>
       </li>
@@ -76,15 +89,22 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="omero-slurm-client">
-<h1>omero_slurm_client<a class="headerlink" href="#omero-slurm-client" title="Permalink to this headline"></a></h1>
+  <div class="section" id="omero-slurm-client-library">
+<h1>Omero Slurm Client library<a class="headerlink" href="#omero-slurm-client-library" title="Permalink to this headline"></a></h1>
 <p>The <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> Python package is a library that facilitates working with a Slurm cluster in the context of the Omero platform.</p>
-<p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which extends the Fabric library’s <code class="docutils literal notranslate"><span class="pre">Connection</span></code> class to provide SSH-based connectivity and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks.</p>
+<p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which extends the Fabric library’s <code class="docutils literal notranslate"><span class="pre">Connection</span></code> class to provide <strong>SSH-based connectivity</strong> and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks.</p>
 <p>Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories.</p>
 <p>Overall, the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> package simplifies the integration of Slurm functionality within the Omero platform and provides an efficient workflow for working with Slurm clusters.</p>
 </div>
-<div class="section" id="slurmclient">
-<h1>SlurmClient<a class="headerlink" href="#slurmclient" title="Permalink to this headline"></a></h1>
+<div class="section" id="ssh">
+<h1>SSH<a class="headerlink" href="#ssh" title="Permalink to this headline"></a></h1>
+<p>Note: this library is built for SSH-based connections. If you could, it would be a lot easier to just have the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and the <code class="docutils literal notranslate"><span class="pre">slurm</span></code> client server be (on) the same computer: then you can just directly call <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> and other <code class="docutils literal notranslate"><span class="pre">slurm</span></code> commands from Omero scripts.</p>
+<p>This is for those cases where you already have an external HPC cluster and want to connect your Omero instance, but cannot connect it so directly by joining the HPC cluster.</p>
+<p>Despite that, the approach to workflows and control via a Python API in this library could still be interesting to those with direct access to a <code class="docutils literal notranslate"><span class="pre">slurm</span></code> cluster. You could extend the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class and change the <code class="docutils literal notranslate"><span class="pre">run</span></code> commands to not use SSH, but just a <code class="docutils literal notranslate"><span class="pre">subprocess</span></code>.
+But you could also look at other python libraries like <a class="reference external" href="https://github.com/facebookincubator/submitit">submitit</a>.</p>
+</div>
+<div class="section" id="slurmclient-class">
+<h1>SlurmClient class<a class="headerlink" href="#slurmclient-class" title="Permalink to this headline"></a></h1>
 <p>The SlurmClient class is the main entrypoint in using this library.
 It is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH.</p>
 <p>It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models.</p>
@@ -95,27 +115,28 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <h1>Prerequisites &amp; Getting Started<a class="headerlink" href="#prerequisites-getting-started" title="Permalink to this headline"></a></h1>
 <p>To connect an Omero processor to a Slurm cluster using the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> library, users can follow these steps:</p>
 <ol class="arabic simple">
-<li><p>Setup public key authentication between your Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and your HPC server. E.g. follow  a <a class="reference external" href="https://www.ssh.com/academy/ssh/public-key-authentication">SSH tutorial</a>.</p>
+<li><p>Setup passwordless public key authentication between your Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and your HPC server. E.g. follow  a <a class="reference external" href="https://www.ssh.com/academy/ssh/public-key-authentication">SSH tutorial</a> or <a class="reference external" href="https://linuxize.com/post/how-to-setup-passwordless-ssh-login/">this one</a>.</p>
 <ul class="simple">
 <li><p>You could use 1 Slurm account for all <code class="docutils literal notranslate"><span class="pre">processor</span></code> servers, and share the same private key to all of them.</p></li>
+<li><p>Or you could use unique accounts, but give them all the same alias in step 2.</p></li>
 </ul>
 </li>
-<li><p>Create a SSH config file named <code class="docutils literal notranslate"><span class="pre">config</span></code> in the <code class="docutils literal notranslate"><span class="pre">.ssh</span></code> directory of (all) the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> servers, within the <code class="docutils literal notranslate"><span class="pre">omero</span></code> user’s home directory (<code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>). This file should specify the hostname, username, port, and private key path for the Slurm cluster. We provide an example in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> directory.</p>
+<li><p>Create a SSH config file named <code class="docutils literal notranslate"><span class="pre">config</span></code> in the <code class="docutils literal notranslate"><span class="pre">.ssh</span></code> directory of (all) the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> servers, within the <code class="docutils literal notranslate"><span class="pre">omero</span></code> user’s home directory (<code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>). This file should specify the hostname, username, port, and private key path for the Slurm cluster, under some alias. This alias we will provide to the library. We provide an example in the <a class="reference internal" href="#./resources/config"><span class="xref myst">resources</span></a> directory.</p>
 <ul class="simple">
-<li><p>This will allow a uniform SSH naming, making it easy for the library.</p></li>
+<li><p>This will allow a uniform SSH naming, and makes the connection headless; making it easy for the library.</p></li>
 </ul>
 </li>
 <li><p>Test the SSH connection manually! <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">slurm</span></code> (as the omero user) should connect you to the Slurm server (given that you named it <code class="docutils literal notranslate"><span class="pre">slurm</span></code> in the <code class="docutils literal notranslate"><span class="pre">config</span></code>).</p></li>
 <li><p>Congratulations! Now the servers are connected. Next, we make sure to setup the connection between Omero and Slurm.</p></li>
-<li><p>At this point, ensure that the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. We provide an example in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> section. Place this <code class="docutils literal notranslate"><span class="pre">ini</span></code> file in one of the following locations (on the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server):</p>
+<li><p>At this point, ensure that the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. We provide an example in the <a class="reference internal" href="#./resources/slurm-config.ini"><span class="xref myst">resources</span></a> section. To read it automatically, place this <code class="docutils literal notranslate"><span class="pre">ini</span></code> file in one of the following locations (on the Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server):</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
 </ul>
 </li>
-<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This will make it create the directories you provided in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:</p></li>
+<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. Provide the configfile location explicitly if it is not a default one from the previous step, otherwise you can omit it. This operation will make it create the directories you provided in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:</p></li>
 </ol>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">SlurmClient</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">configfile</span><span class="o">=</span><span class="n">configfile</span><span class="p">,</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">SlurmClient</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">configfile</span><span class="o">=</span><span class="n">configfile</span><span class="p">,</span>
                             <span class="n">init_slurm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">slurmClient</span><span class="p">:</span>
     <span class="n">slurmClient</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -123,7 +144,6 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <ol class="arabic simple" start="7">
 <li><p>With the configuration files in place, users can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.</p></li>
 </ol>
-<p>Examples of these files are given in the <a class="reference internal" href="#resources"><span class="xref myst">resources</span></a> folder.</p>
 </div>
 <div class="section" id="slurm-config-ini">
 <h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h1>
@@ -133,11 +153,120 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <p>[<strong>MODELS</strong>]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_repo</span></code> (repository containing the descriptor.json file, which will describe parameters and where to find the image), and <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_job</span></code> (jobscript name and location in the <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> package, providing flexibility and customization options.</p>
 </div>
-<div class="section" id="how-to-add-a-existing-workflow">
-<h1>How to add a existing workflow<a class="headerlink" href="#how-to-add-a-existing-workflow" title="Permalink to this headline"></a></h1>
+<div class="section" id="how-to-add-an-existing-workflow">
+<h1>How to add an existing workflow<a class="headerlink" href="#how-to-add-an-existing-workflow" title="Permalink to this headline"></a></h1>
+<p>To add an existing (containerized) workflow, add it to the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file like in our example:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+</pre></div>
 </div>
-<div class="section" id="how-to-add-a-new-custom-workflow">
-<h1>How to add a new custom workflow<a class="headerlink" href="#how-to-add-a-new-custom-workflow" title="Permalink to this headline"></a></h1>
+<p>Here,</p>
+<ol class="arabic simple">
+<li><p>the name referenced for this workflow is <code class="docutils literal notranslate"><span class="pre">cellpose</span></code></p></li>
+<li><p>the location of the container on slurm will be <code class="docutils literal notranslate"><span class="pre">&lt;slurm_images_path&gt;/cellpose</span></code></p></li>
+<li><p>the code repository is <code class="docutils literal notranslate"><span class="pre">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose</span></code></p></li>
+<li><p>the specific version we want is <code class="docutils literal notranslate"><span class="pre">v1.2.7</span></code></p></li>
+<li><p>the container can be found on bitbucket</p>
+<ul class="simple">
+<li><p>under the path given in the metadata file: <a class="reference external" href="https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/blob/v1.2.7/descriptor.json">descriptor.json</a></p></li>
+</ul>
+</li>
+<li><p>the location of the jobscript on slurm will be <code class="docutils literal notranslate"><span class="pre">&lt;slurm_script_repo&gt;/jobs/cellpose.sh</span></code>.</p>
+<ul class="simple">
+<li><p>This either references a git repo, where it matches this path,</p></li>
+<li><p>or it will be the location where the library will generate a jobscript (if no repo is given)</p></li>
+</ul>
+</li>
+</ol>
+<div class="section" id="workflow-metadata-via-descriptor-json">
+<h2>Workflow metadata via descriptor.json<a class="headerlink" href="#workflow-metadata-via-descriptor-json" title="Permalink to this headline"></a></h2>
+<p>A lot of the automation in this library is based on metadata of the workflow, provided in the source code of the workflow, specifically the <a class="reference external" href="https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/blob/v1.2.7/descriptor.json">descriptor.json</a>.</p>
+<p>For example, the Omero script UI can be generated automatically, based on this descriptor. And also, the Slurm job script can be generated automatically, based on this descriptor.</p>
+<p>This metadata scheme is (based on) Cytomine / BIAFLOWS, and you can find details of it and how to create one yourself on their website, e.g. this <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">Cytomine dev-guide</a> or this <a class="reference external" href="https://neubias-wg5.github.io/developer_guide_add_new_workflow_to_biaflows_instance.html">BIAFLOWS dev-guide</a>.</p>
+<p><strong>NOTE!</strong> We do not require the <code class="docutils literal notranslate"><span class="pre">cytomine_&lt;...&gt;</span></code> authentication parameters. They are not mandatory. In fact, we ignore them. But it might be beneficial to make your workflow compatible with Cytomine as well.</p>
+<div class="section" id="schema">
+<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline"></a></h3>
+<p>At this point, we are using the <code class="docutils literal notranslate"><span class="pre">cytomine-0.1</span></code> <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/descriptor-reference">schema</a>, but we could diverge from it in the future if we need to support other fields/datatypes. For example, Cytomine 0.1 uses Number for both Integer and Double, which is not nice in Python. For now, we handle that internally, to stay compatible with Cytomine apps.</p>
+<p>At this point, we also do not validate the schema, we just read some expected fields from the <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code>.</p>
+</div>
+</div>
+<div class="section" id="multiple-versions">
+<h2>Multiple versions<a class="headerlink" href="#multiple-versions" title="Permalink to this headline"></a></h2>
+<p>Note that while it is possible to have multiple versions of the same workflow on Slurm (and select the desired one in Omero), it is not possible to configure this yet. We assume for now you only want one version to start with. You can always update this config to download a new version to Slurm.</p>
+</div>
+</div>
+<div class="section" id="how-to-add-your-new-custom-workflow">
+<h1>How to add your new custom workflow<a class="headerlink" href="#how-to-add-your-new-custom-workflow" title="Permalink to this headline"></a></h1>
+<p>Building workflows like this will make them more <a class="reference external" href="https://www.go-fair.org/fair-principles/">FAIR</a> and will make you more skilled!</p>
+<p>Say you have a script in Python and you want to make it available on Omero and Slurm.</p>
+<p>These are the steps required:</p>
+<ol class="arabic simple">
+<li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p></li>
+<li><p>Describe these commandline parameters in a <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (see previous chapter). E.g. <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">like this</a>.</p></li>
+<li><p>Describe the requirements / environment of your script in a <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code></p></li>
+<li><p>Package your script in a Docker container. E.g. <a class="reference external" href="https://www.docker.com/blog/how-to-dockerize-your-python-applications/">like this</a>.</p>
+<ul class="simple">
+<li><p>Note: Please watch out for the pitfalls</p></li>
+</ul>
+</li>
+<li><p>Publish your source code, Dockerfile and descriptor.json to a new Github repository (free for public repositories).</p></li>
+<li><p>(Optional) Publish a new version of your code (e.g. v1.0.0).</p></li>
+<li><p>Publish your container on Dockerhub (free for public repositories), using the same versioning as your source code.</p></li>
+<li><p>Follow the steps from the previous chapter:</p>
+<ul class="simple">
+<li><p>Add details to <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code></p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=True)</span></code></p></li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section" id="slurm-jobs">
+<h1>Slurm jobs<a class="headerlink" href="#slurm-jobs" title="Permalink to this headline"></a></h1>
+<div class="section" id="generating-jobs">
+<h2>Generating jobs<a class="headerlink" href="#generating-jobs" title="Permalink to this headline"></a></h2>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> will generate basic slurm jobs for each workflow, based on the metadata provided in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> and a <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a>.
+It will replace <code class="docutils literal notranslate"><span class="pre">$PARAMS</span></code> with the (non-<code class="docutils literal notranslate"><span class="pre">cytomine_</span></code>) parameters given in</p>
+</div>
+<div class="section" id="how-to-add-your-own-slurm-job">
+<h2>How to add your own Slurm job<a class="headerlink" href="#how-to-add-your-own-slurm-job" title="Permalink to this headline"></a></h2>
+<p>You could change the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a> and generate new jobs, by running <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=True)</span></code> (or <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts(generate_jobs=True)</span></code>)</p>
+<p>Or you could add your jobs to a <a class="reference external" href="https://github.com/TorecLuik/slurm-scripts">Github repository</a> and reference this in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, both in the field <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> and every <code class="docutils literal notranslate"><span class="pre">&lt;workflow&gt;_job</span></code>:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># REPOSITORIES</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># A (github) repository to pull the slurm scripts from.</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># If you provide no repository, we will generate scripts instead!</span>
+<span class="c1"># Based on the job_template and the descriptor.json</span>
+<span class="c1">#</span>
+<span class="na">slurm_script_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/slurm-scripts</span>
+
+<span class="k">[MODELS]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Model settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># ...</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+</pre></div>
+</div>
+<p>You can update the jobs by calling <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts()</span></code>, which will pull the repository(‘s default branch).</p>
+</div>
 </div>
 
 

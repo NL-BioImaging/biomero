@@ -96,6 +96,7 @@
              
   <div class="section" id="omero-slurm-client-library">
 <h1>Omero Slurm Client library<a class="headerlink" href="#omero-slurm-client-library" title="Permalink to this headline"></a></h1>
+<p><a class="reference external" href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" /></a> <img alt="Python" src="https://img.shields.io/badge/python-3.6-blue.svg" /> <a class="reference external" href="https://fair-software.eu"><img alt="fair-software.eu" src="https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8B%20%20%E2%97%8B-yellow" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml"><img alt="Sphinx build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment"><img alt="pages-build-deployment" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg" /></a></p>
 <p>The <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> Python package is a library that facilitates working with a Slurm cluster in the context of the Omero platform.</p>
 <p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which extends the Fabric library’s <code class="docutils literal notranslate"><span class="pre">Connection</span></code> class to provide <strong>SSH-based connectivity</strong> and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks.</p>
 <p>Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories.</p>
@@ -209,12 +210,12 @@ It is a Python class that extends the Connection class from the Fabric library. 
 </div>
 <div class="section" id="how-to-add-your-new-custom-workflow">
 <h1>How to add your new custom workflow<a class="headerlink" href="#how-to-add-your-new-custom-workflow" title="Permalink to this headline"></a></h1>
-<p>Building workflows like this will make them more <a class="reference external" href="https://www.go-fair.org/fair-principles/">FAIR</a> and will make you more skilled!</p>
+<p>Building workflows like this will make them more <a class="reference external" href="https://www.go-fair.org/fair-principles/">FAIR</a> (also for <a class="reference external" href="https://fair-software.eu/about">software</a>) and might make you more skilled in the process!</p>
 <p>Say you have a script in Python and you want to make it available on Omero and Slurm.</p>
 <p>These are the steps required:</p>
 <ol class="arabic simple">
 <li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p></li>
-<li><p>Describe these commandline parameters in a <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (see previous chapter). E.g. <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">like this</a>.</p></li>
+<li><p>Describe these commandline parameters in a <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (see previous <a class="reference internal" href="#workflow-metadata-via-descriptorjson"><span class="xref myst">chapter</span></a>). E.g. <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">like this</a>.</p></li>
 <li><p>Describe the requirements / environment of your script in a <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>, <a class="reference external" href="https://learnpython.com/blog/python-requirements-file/">like this</a>. Make sure to pin your versions for future reproducability!</p></li>
 <li><p>Package your script in a Docker container. E.g. <a class="reference external" href="https://www.docker.com/blog/how-to-dockerize-your-python-applications/">like this</a>.</p>
 <ul class="simple">
@@ -229,7 +230,7 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <li><p>(Optional) this library grabs <code class="docutils literal notranslate"><span class="pre">latest</span></code> if the code repository is given no version, but the <code class="docutils literal notranslate"><span class="pre">master</span></code> branch.</p></li>
 </ul>
 </li>
-<li><p>Follow the steps from the previous chapter:</p>
+<li><p>Follow the steps from the previous <a class="reference internal" href="#how-to-add-an-existing-workflow"><span class="xref myst">chapter</span></a>:</p>
 <ul class="simple">
 <li><p>Add details to <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code></p></li>
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=True)</span></code></p></li>
@@ -242,7 +243,7 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <div class="section" id="generating-jobs">
 <h2>Generating jobs<a class="headerlink" href="#generating-jobs" title="Permalink to this headline"></a></h2>
 <p>By default, <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> will generate basic slurm jobs for each workflow, based on the metadata provided in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> and a <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a>.
-It will replace <code class="docutils literal notranslate"><span class="pre">$PARAMS</span></code> with the (non-<code class="docutils literal notranslate"><span class="pre">cytomine_</span></code>) parameters given in</p>
+It will replace <code class="docutils literal notranslate"><span class="pre">$PARAMS</span></code> with the (non-<code class="docutils literal notranslate"><span class="pre">cytomine_</span></code>) parameters given in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code>. See also the <a class="reference internal" href="#parameters"><span class="xref myst">Parameters</span></a> section below.</p>
 </div>
 <div class="section" id="how-to-add-your-own-slurm-job">
 <h2>How to add your own Slurm job<a class="headerlink" href="#how-to-add-your-own-slurm-job" title="Permalink to this headline"></a></h2>

@@ -52,6 +52,10 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#multiple-versions">Multiple versions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#i-o">I/O</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#wrapper-py">Wrapper.py</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
@@ -207,6 +211,124 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <h2>Multiple versions<a class="headerlink" href="#multiple-versions" title="Permalink to this headline"></a></h2>
 <p>Note that while it is possible to have multiple versions of the same workflow on Slurm (and select the desired one in Omero), it is not possible to configure this yet. We assume for now you only want one version to start with. You can always update this config to download a new version to Slurm.</p>
 </div>
+<div class="section" id="i-o">
+<h2>I/O<a class="headerlink" href="#i-o" title="Permalink to this headline"></a></h2>
+<p>Unless you change the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> job, the input is expected to be:</p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">infolder</span></code> parameter</p>
+<ul>
+<li><p>pointing to a folder with multiple input files/images</p></li>
+</ul>
+</li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">gtfolder</span></code> parameter (Optional)</p>
+<ul>
+<li><p>pointing to a <code class="docutils literal notranslate"><span class="pre">ground-truth</span></code> input files, generally not needed for prediction / processing purposes.</p></li>
+</ul>
+</li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">outfolder</span></code> parameter</p>
+<ul>
+<li><p>where you write all your output files (to get copied back to Omero)</p></li>
+</ul>
+</li>
+</ul>
+<div class="section" id="wrapper-py">
+<h3>Wrapper.py<a class="headerlink" href="#wrapper-py" title="Permalink to this headline"></a></h3>
+<p>Note that you can also use the <a class="reference external" href="https://github.com/Neubias-WG5/W_Template/blob/master/wrapper.py">wrapper.py</a> setup from BIAFLOWS to handle the I/O for you:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">BiaflowsJob</span><span class="o">.</span><span class="n">from_cli</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="k">as</span> <span class="n">bj</span><span class="p">:</span>
+        <span class="c1"># Change following to the actual problem class of the workflow</span>
+        <span class="o">...</span>
+        
+        <span class="c1"># 1. Prepare data for workflow</span>
+        <span class="n">in_imgs</span><span class="p">,</span> <span class="n">gt_imgs</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="n">gt_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">prepare_data</span><span class="p">(</span><span class="n">problem_cls</span><span class="p">,</span> <span class="n">bj</span><span class="p">,</span> <span class="n">is_2d</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">bj</span><span class="o">.</span><span class="n">flags</span><span class="p">)</span>
+
+        <span class="c1"># 2. Run image analysis workflow</span>
+        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Add here the code for running the analysis script</span>
+
+        <span class="c1"># 3. Upload data to BIAFLOWS</span>
+        <span class="o">...</span>
+        
+        <span class="c1"># 4. Compute and upload metrics</span>
+        <span class="o">...</span>
+
+        <span class="c1"># 5. Pipeline finished</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<p>This wrapper handles the input parameters for you, providing the input images as <code class="docutils literal notranslate"><span class="pre">in_imgs</span></code>, et cetera. Then you add your commandline call between point 2 and 3, and possibly some preprocessing between point 1 and 2:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#add here the code for running the analysis script</span>
+</pre></div>
+</div>
+<p>For example, from <a class="reference external" href="https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/blob/master/wrapper.py">Cellpose</a> container workflow:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+
+<span class="c1"># 2. Run image analysis workflow</span>
+<span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+
+<span class="c1"># Add here the code for running the analysis script</span>
+<span class="n">prob_thresh</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">prob_threshold</span>
+<span class="n">diameter</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">diameter</span>
+<span class="n">cp_model</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">cp_model</span>
+<span class="n">use_gpu</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">use_gpu</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chosen model: </span><span class="si">{cp_model}</span><span class="s2"> | Channel </span><span class="si">{nuc_channel}</span><span class="s2"> | Diameter </span><span class="si">{diameter}</span><span class="s2"> | Cell prob threshold </span><span class="si">{prob_thresh}</span><span class="s2"> | GPU </span><span class="si">{use_gpu}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">,</span> <span class="s2">&quot;--dir&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;--pretrained_model&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{cp_model}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;--save_tif&quot;</span><span class="p">,</span> <span class="s2">&quot;--no_npy&quot;</span><span class="p">,</span> <span class="s2">&quot;--chan&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">&quot;--diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">&quot;--cellprob_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prob_thresh</span><span class="p">)]</span>
+<span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using GPU!&quot;</span><span class="p">)</span>
+    <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;--use_gpu&quot;</span><span class="p">)</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running Cellpose failed, terminate&quot;</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># Crop to original shape</span>
+<span class="k">for</span> <span class="n">bimg</span> <span class="ow">in</span> <span class="n">in_imgs</span><span class="p">:</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">resized</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">shape</span><span class="p">:</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename_no_extension</span><span class="o">+</span><span class="s2">&quot;_cp_masks.tif&quot;</span><span class="p">))</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">:</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">imageio</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span> <span class="n">img</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename_no_extension</span><span class="o">+</span><span class="s2">&quot;_cp_masks.tif&quot;</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">))</span>
+
+<span class="c1"># 3. Upload data to BIAFLOWS</span>
+</pre></div>
+</div>
+<p>We get the commandline parameters from <code class="docutils literal notranslate"><span class="pre">bj.parameters</span></code> (biaflows job) and provide that the <code class="docutils literal notranslate"><span class="pre">cmd</span></code> commandline string. Then we run it with <code class="docutils literal notranslate"><span class="pre">subprocess.run(cmd)</span></code> and check the <code class="docutils literal notranslate"><span class="pre">status</span></code>.</p>
+<p>We use a <code class="docutils literal notranslate"><span class="pre">tmp_path</span></code> to store both input and output, then move the output to the <code class="docutils literal notranslate"><span class="pre">out_path</span></code> after the processing is done.</p>
+<p>Also note that some preprocessing is done in step 1:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Make sure all images have at least 224x224 dimensions</span>
+<span class="c1"># and that minshape / maxshape * minshape &gt;= 224</span>
+<span class="c1"># 0 = Grayscale (if input RGB, convert to grayscale)</span>
+<span class="c1"># 1,2,3 = rgb channel</span>
+<span class="n">nuc_channel</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">nuc_channel</span>
+<span class="n">resized</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">bfimg</span> <span class="ow">in</span> <span class="n">in_imgs</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="n">imageio</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span> <span class="n">bfimg</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span> <span class="n">img</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Another example is this <code class="docutils literal notranslate"><span class="pre">imageJ</span></code> <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation3D-ImageJ/blob/master/wrapper.py">wrapper</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+
+<span class="c1"># 3. Call the image analysis workflow using the run script</span>
+<span class="n">nj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+
+<span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;/usr/bin/xvfb-run java -Xmx6000m -cp /fiji/jars/ij.jar ij.ImageJ --headless --console &quot;</span> \
+            <span class="s2">&quot;-macro macro.ijm </span><span class="se">\&quot;</span><span class="s2">input=</span><span class="si">{}</span><span class="s2">, output=</span><span class="si">{}</span><span class="s2">, radius=</span><span class="si">{}</span><span class="s2">, min_threshold=</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">in_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">nj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">ij_radius</span><span class="p">,</span> <span class="n">nj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">ij_min_threshold</span><span class="p">)</span>
+<span class="n">return_code</span> <span class="o">=</span> <span class="n">call</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="s2">&quot;/fiji&quot;</span><span class="p">)</span>  <span class="c1"># waits for the subprocess to return</span>
+
+<span class="k">if</span> <span class="n">return_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">err_desc</span> <span class="o">=</span> <span class="s2">&quot;Failed to execute the ImageJ macro (return code: </span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">return_code</span><span class="p">)</span>
+    <span class="n">nj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="n">err_desc</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err_desc</span><span class="p">)</span>
+    
+</pre></div>
+</div>
+<p>Once again, just a commandline <code class="docutils literal notranslate"><span class="pre">--headless</span></code> call to <code class="docutils literal notranslate"><span class="pre">ImageJ</span></code>, wrapped in this Python script and this container.</p>
+</div>
+</div>
 </div>
 <div class="section" id="how-to-add-your-new-custom-workflow">
 <h1>How to add your new custom workflow<a class="headerlink" href="#how-to-add-your-new-custom-workflow" title="Permalink to this headline"></a></h1>
@@ -214,7 +336,11 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <p>Say you have a script in Python and you want to make it available on Omero and Slurm.</p>
 <p>These are the steps required:</p>
 <ol class="arabic simple">
-<li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p></li>
+<li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p>
+<ul class="simple">
+<li><p>Make sure the I/O matches the Slurm job, see <a class="reference external" href="https://docs.python.org/3/library/io.html#module-io" title="Python 3.11"><span class="xref myst">previous chapter</span></a>.</p></li>
+</ul>
+</li>
 <li><p>Describe these commandline parameters in a <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (see previous <a class="reference internal" href="#workflow-metadata-via-descriptorjson"><span class="xref myst">chapter</span></a>). E.g. <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">like this</a>.</p></li>
 <li><p>Describe the requirements / environment of your script in a <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>, <a class="reference external" href="https://learnpython.com/blog/python-requirements-file/">like this</a>. Make sure to pin your versions for future reproducability!</p></li>
 <li><p>Package your script in a Docker container. E.g. <a class="reference external" href="https://www.docker.com/blog/how-to-dockerize-your-python-applications/">like this</a>.</p>

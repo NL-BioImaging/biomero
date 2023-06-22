@@ -110,6 +110,117 @@ At this point, we also do not validate the schema, we just read some expected fi
 ## Multiple versions
 Note that while it is possible to have multiple versions of the same workflow on Slurm (and select the desired one in Omero), it is not possible to configure this yet. We assume for now you only want one version to start with. You can always update this config to download a new version to Slurm.
 
+## I/O
+Unless you change the `Slurm` job, the input is expected to be:
+- The `infolder` parameter
+    - pointing to a folder with multiple input files/images
+- The `gtfolder` parameter (Optional)
+    - pointing to a `ground-truth` input files, generally not needed for prediction / processing purposes.
+- The `outfolder` parameter
+    - where you write all your output files (to get copied back to Omero)
+
+### Wrapper.py
+Note that you can also use the [wrapper.py](https://github.com/Neubias-WG5/W_Template/blob/master/wrapper.py) setup from BIAFLOWS to handle the I/O for you: 
+
+```python
+with BiaflowsJob.from_cli(argv) as bj:
+        # Change following to the actual problem class of the workflow
+        ...
+        
+        # 1. Prepare data for workflow
+        in_imgs, gt_imgs, in_path, gt_path, out_path, tmp_path = prepare_data(problem_cls, bj, is_2d=True, **bj.flags)
+
+        # 2. Run image analysis workflow
+        bj.job.update(progress=25, statusComment="Launching workflow...")
+
+        # Add here the code for running the analysis script
+
+        # 3. Upload data to BIAFLOWS
+        ...
+        
+        # 4. Compute and upload metrics
+        ...
+
+        # 5. Pipeline finished
+        ...
+```
+
+This wrapper handles the input parameters for you, providing the input images as `in_imgs`, et cetera. Then you add your commandline call between point 2 and 3, and possibly some preprocessing between point 1 and 2:
+```python
+#add here the code for running the analysis script
+```
+
+For example, from [Cellpose](https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/blob/master/wrapper.py) container workflow:
+```python
+...
+
+# 2. Run image analysis workflow
+bj.job.update(progress=25, statusComment="Launching workflow...")
+
+# Add here the code for running the analysis script
+prob_thresh = bj.parameters.prob_threshold
+diameter = bj.parameters.diameter
+cp_model = bj.parameters.cp_model
+use_gpu = bj.parameters.use_gpu
+print(f"Chosen model: {cp_model} | Channel {nuc_channel} | Diameter {diameter} | Cell prob threshold {prob_thresh} | GPU {use_gpu}")
+cmd = ["python", "-m", "cellpose", "--dir", tmp_path, "--pretrained_model", f"{cp_model}", "--save_tif", "--no_npy", "--chan", "{:d}".format(nuc_channel), "--diameter", "{:f}".format(diameter), "--cellprob_threshold", "{:f}".format(prob_thresh)]
+if use_gpu:
+    print("Using GPU!")
+    cmd.append("--use_gpu")
+status = subprocess.run(cmd)
+
+if status.returncode != 0:
+    print("Running Cellpose failed, terminate")
+    sys.exit(1)
+
+# Crop to original shape
+for bimg in in_imgs:
+    shape = resized.get(bimg.filename, None)
+    if shape:
+        img = imageio.imread(os.path.join(tmp_path,bimg.filename_no_extension+"_cp_masks.tif"))
+        img = img[0:shape[0], 0:shape[1]]
+        imageio.imwrite(os.path.join(out_path,bimg.filename), img)
+    else:
+        shutil.copy(os.path.join(tmp_path,bimg.filename_no_extension+"_cp_masks.tif"), os.path.join(out_path,bimg.filename))
+
+# 3. Upload data to BIAFLOWS
+```
+We get the commandline parameters from `bj.parameters` (biaflows job) and provide that the `cmd` commandline string. Then we run it with `subprocess.run(cmd)` and check the `status`. 
+
+We use a `tmp_path` to store both input and output, then move the output to the `out_path` after the processing is done.
+
+Also note that some preprocessing is done in step 1: 
+```python
+# Make sure all images have at least 224x224 dimensions
+# and that minshape / maxshape * minshape >= 224
+# 0 = Grayscale (if input RGB, convert to grayscale)
+# 1,2,3 = rgb channel
+nuc_channel = bj.parameters.nuc_channel
+resized = {}
+for bfimg in in_imgs:
+    ...
+    imageio.imwrite(os.path.join(tmp_path, bfimg.filename), img)
+```
+
+Another example is this `imageJ` [wrapper](https://github.com/Neubias-WG5/W_NucleiSegmentation3D-ImageJ/blob/master/wrapper.py):
+```python
+...
+
+# 3. Call the image analysis workflow using the run script
+nj.job.update(progress=25, statusComment="Launching workflow...")
+
+command = "/usr/bin/xvfb-run java -Xmx6000m -cp /fiji/jars/ij.jar ij.ImageJ --headless --console " \
+            "-macro macro.ijm \"input={}, output={}, radius={}, min_threshold={}\"".format(in_path, out_path, nj.parameters.ij_radius, nj.parameters.ij_min_threshold)
+return_code = call(command, shell=True, cwd="/fiji")  # waits for the subprocess to return
+
+if return_code != 0:
+    err_desc = "Failed to execute the ImageJ macro (return code: {})".format(return_code)
+    nj.job.update(progress=50, statusComment=err_desc)
+    raise ValueError(err_desc)
+    
+```
+Once again, just a commandline `--headless` call to `ImageJ`, wrapped in this Python script and this container.
+
 
 # How to add your new custom workflow
 Building workflows like this will make them more [FAIR](https://www.go-fair.org/fair-principles/) (also for [software](https://fair-software.eu/about)) and might make you more skilled in the process!
@@ -119,6 +230,7 @@ Say you have a script in Python and you want to make it available on Omero and S
 These are the steps required:
 
 1. Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.
+    - Make sure the I/O matches the Slurm job, see [previous chapter](#io).
 2. Describe these commandline parameters in a `descriptor.json` (see previous [chapter](#workflow-metadata-via-descriptorjson)). E.g. [like this](https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor).
 3. Describe the requirements / environment of your script in a `requirements.txt`, [like this](https://learnpython.com/blog/python-requirements-file/). Make sure to pin your versions for future reproducability!
 2. Package your script in a Docker container. E.g. [like this](https://www.docker.com/blog/how-to-dockerize-your-python-applications/).

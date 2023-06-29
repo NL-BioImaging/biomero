@@ -223,8 +223,11 @@ Once again, just a commandline `--headless` call to `ImageJ`, wrapped in this Py
 
 
 # How to add your new custom workflow
-Building workflows like this will make them more [FAIR](https://www.go-fair.org/fair-principles/) (also for [software](https://fair-software.eu/about)) and might make you more skilled in the process!
+Building workflows like this will make them more [FAIR](https://www.go-fair.org/fair-principles/) (also for [software](https://fair-software.eu/about)) and uses best practices like code versioning and containerization!
 
+Also take a look at our in-depth tutorial on adding a Cellprofiler pipeline as a workflow to Omero Slurm Client.
+
+Here is a shorter version:
 Say you have a script in Python and you want to make it available on Omero and Slurm.
 
 These are the steps required:

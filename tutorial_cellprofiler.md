@@ -339,7 +339,10 @@ cellprofiler_spot_job=jobs/cellprofiler_spot.sh
 ```
 Note that we link to the `v1.0.0` specifically.
 
-For me, that is rebuilding my docker:
+When using a new version, like `v1.0.1`, update this config again.
+For example, I had a bugfix, so I released [my workflow](https://hub.docker.com/r/torecluik/w_spotcounting-cellprofiler/tags) to `v1.0.1`, using the release + push + update steps.
+
+For me, updating is done by rebuilding my docker container for the processor worker:
 `docker-compose up -d --build omeroworker-5`
 
 2. and recreate the Slurm environment:
@@ -454,7 +457,7 @@ For now, we have 3 options:
 For 1., this is where `parseCPparam` [function](https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/blob/master/wrapper.py#L8C1-L26C1) comes in (in `wrapper.py`). I have updated it a bit in [my version](https://github.com/TorecLuik/W_SpotCounting-CellProfiler/blob/master/wrapper.py#L10C1-L51C24).
 It matches the `name` in `descriptor.json` literally with the same string in `.cppipe`, and then changes the values to the new ones provided on the commandline.
 However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
-In our example, that does not work properly, e.g. the size of a nucleus should be the same as the size of a spot.
+In our example, that does not work properly, e.g. the size of a nucleus should NOT be the same as the size of a spot.
 
 Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs of using the CellProfiler Python API: [Getting started with CellProfiler and OMERO](https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html).
 
@@ -469,7 +472,7 @@ To make this easier for the future, always add a license. I [asked](https://gith
 
 A nice permissive default is [Apache 2.0](https://choosealicense.com/licenses/apache-2.0/). It allows people to generally use it however they want, private / commercial / open / closed etc.
 
-But there is also `copyleft`, where people can only use your code if they also keep that license in their versions; e.g. [GNU](https://choosealicense.com/licenses/gpl-3.0/). That is a bit more restrictive.
+But there is also `copyleft`, where people can only adapt your code if they also keep the same license on all their code; e.g. [GNU](https://choosealicense.com/licenses/gpl-3.0/). That is a bit more restrictive.
 
 
 

@@ -11,6 +11,7 @@ Get started
 ***********************
 
 .. toctree::
+   :caption: Get Started
    :maxdepth: 4
 
    readme_link
@@ -18,6 +19,7 @@ Get started
 Tutorials
 ***********************
 .. toctree::
+   :caption: Tutorials
    :maxdepth: 2
 
    tutorial_link
@@ -27,6 +29,7 @@ Package
 ***********************
 
 .. toctree::
+   :caption: Package
    :maxdepth: 5
 
    modules

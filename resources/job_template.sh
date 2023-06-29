@@ -19,9 +19,6 @@
 # Note that we use the timeout command in the actual script to requeue the job.
 #SBATCH --time=00:15:00
 
-# Define, if and what GPU your job requires. 
-#SBATCH --gres=gpu:1g.10gb:1
-
 # How much memory you need.
 # --mem will define memory per node
 #SBATCH --mem=5GB

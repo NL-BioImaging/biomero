@@ -842,6 +842,8 @@ class SlurmClient(Connection):
         """
         sbatch_cmd, sbatch_env = self.get_workflow_command(
             workflow_name, workflow_version, input_data, email, time, **kwargs)
+        print(f"Running {workflow_name} job on {input_data} on Slurm:\
+            {sbatch_cmd} w/ {sbatch_env}")
         logger.info(f"Running {workflow_name} job on {input_data} on Slurm")
         res = self.run_commands([sbatch_cmd], sbatch_env)
         return res, self.extract_job_id(res)

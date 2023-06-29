@@ -122,6 +122,7 @@ class SlurmClient(Connection):
                  slurm_model_repos: dict = None,
                  slurm_model_images: dict = None,
                  slurm_model_jobs: dict = None,
+                 slurm_model_jobs_params: dict = None,
                  slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
                  slurm_script_repo: str = None,
                  init_slurm: bool = False,
@@ -143,6 +144,7 @@ class SlurmClient(Connection):
         self.slurm_model_repos = slurm_model_repos
         self.slurm_model_images = slurm_model_images
         self.slurm_model_jobs = slurm_model_jobs
+        self.slurm_model_jobs_params = slurm_model_jobs_params
 
         self.init_workflows()
         self.validate(validate_slurm_setup=init_slurm)
@@ -306,13 +308,20 @@ class SlurmClient(Connection):
         slurm_model_paths = {}
         slurm_model_repos = {}
         slurm_model_jobs = {}
+        slurm_model_jobs_params = {}
         for k, v in models_dict.items():
             suffix_repo = '_repo'
             suffix_job = '_job'
+            job_param_pattern = "(.+)_job_(.+)"
+            job_param_match = re.match(job_param_pattern, k)
             if k.endswith(suffix_repo):
                 slurm_model_repos[k[:-len(suffix_repo)]] = v
             elif k.endswith(suffix_job):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
+                slurm_model_jobs_params[k[:-len(suffix_job)]] = []
+            elif job_param_match:
+                slurm_model_jobs_params[job_param_match.group(1)].append(
+                    f" --{job_param_match.group(2)}={v}")
             else:
                 slurm_model_paths[k] = v
 
@@ -1151,6 +1160,7 @@ class SlurmClient(Connection):
         """
         model_path = self.slurm_model_paths[workflow.lower()]
         job_script = self.slurm_model_jobs[workflow.lower()]
+        job_params = self.slurm_model_jobs_params[workflow.lower()]
         # grab only the image name, not the group/creator
         image = self.slurm_model_images[workflow.lower()].split("/")[1]
 
@@ -1165,7 +1175,8 @@ class SlurmClient(Connection):
 
         email_param = "" if email is None else f" --mail-user={email}"
         time_param = "" if time is None else f" --time={time}"
-        job_params = [time_param, email_param]
+        job_params.append(time_param)
+        job_params.append(email_param)
         job_param = "".join(job_params)
         sbatch_cmd = f"sbatch{job_param} --output=omero-%4j.log \
             {self.slurm_script_path}/{job_script}"

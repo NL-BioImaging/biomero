@@ -313,6 +313,56 @@ We can simply use `Slurm` for running your workflow 1:1, so 1 job to 1 workflow.
 
 However, `Slurm` is also built for parallel processing on multiple (or the same) servers. We can accomplish this by running multiple jobs for 1 workflow. This is simple for [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel#:~:text=In%20parallel%20computing%2C%20an%20embarrassingly,a%20number%20of%20parallel%20tasks.) tasks, like segmenting multiple images: just provide each job with a different set of input images. If you have 100 images, you could run 10 jobs on 10 images and (given enough resources available for you on Slurm) that could be 10x faster. In theory, you could run 1 job per image, but at some point you run into the overhead cost of Slurm (and Omero) and it might actually slow down again (as you incur this cost a 100 times instead of 10 times).
 
+# Using the GPU on Slurm
+
+Note, the [default](./resources/job_template.sh) Slurm job script will not request any GPU resources.
+
+This is because GPU resources are expensive and some programs do not work with GPU.
+
+We can instead _enable_ the use of GPU by either providing our own Slurm job scripts, or setting an override value in `slurm-config.ini`:
+
+```ini
+# -------------------------------------
+# CELLPOSE SEGMENTATION
+# -------------------------------------
+# The path to store the container on the slurm_images_path
+cellpose=cellpose
+# The (e.g. github) repository with the descriptor.json file
+cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7
+# The jobscript in the 'slurm_script_repo'
+cellpose_job=jobs/cellpose.sh
+# Override the default job values for this workflow
+# Or add a job value to this workflow
+# If you don't want to override, comment out / delete the line.
+# Run CellPose Slurm with 10 GB GPU
+cellpose_job_gres=gpu:1g.10gb:1
+```
+
+In fact, any `..._job_...=...` configuration value will be forwarded to the Slurm commandline.
+
+Slurm commandline parameters override those in the script, so the above one requests 1 10GB gpu for Cellpose.
+
+E.g. you could also set the time limit higher:
+
+```ini
+# -------------------------------------
+# CELLPOSE SEGMENTATION
+# -------------------------------------
+# The path to store the container on the slurm_images_path
+cellpose=cellpose
+# The (e.g. github) repository with the descriptor.json file
+cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7
+# The jobscript in the 'slurm_script_repo'
+cellpose_job=jobs/cellpose.sh
+# Override the default job values for this workflow
+# Or add a job value to this workflow
+# If you don't want to override, comment out / delete the line.
+# Run with longer time limit
+cellpose_job_time=00:30:00
+```
+
+Now the CellPose job should run for maximum of 30 minutes, instead of the default.
+
 # Transfering data
 
 We have added methods to this library to help with transferring data to the `Slurm` cluster, using the same SSH connection (via SCP or SFTP).

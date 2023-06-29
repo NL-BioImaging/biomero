@@ -205,6 +205,7 @@
                  <span class="n">slurm_model_repos</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_model_images</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_model_jobs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">slurm_model_jobs_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_script_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span><span class="p">,</span>
                  <span class="n">slurm_script_repo</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">init_slurm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -226,6 +227,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span> <span class="o">=</span> <span class="n">slurm_model_repos</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span> <span class="o">=</span> <span class="n">slurm_model_images</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs</span> <span class="o">=</span> <span class="n">slurm_model_jobs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs_params</span> <span class="o">=</span> <span class="n">slurm_model_jobs_params</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">init_workflows</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
@@ -389,13 +391,20 @@
         <span class="n">slurm_model_paths</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">slurm_model_repos</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">slurm_model_jobs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">slurm_model_jobs_params</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">models_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">suffix_repo</span> <span class="o">=</span> <span class="s1">&#39;_repo&#39;</span>
             <span class="n">suffix_job</span> <span class="o">=</span> <span class="s1">&#39;_job&#39;</span>
+            <span class="n">job_param_pattern</span> <span class="o">=</span> <span class="s2">&quot;(.+)_job_(.+)&quot;</span>
+            <span class="n">job_param_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">job_param_pattern</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">suffix_repo</span><span class="p">):</span>
                 <span class="n">slurm_model_repos</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_repo</span><span class="p">)]]</span> <span class="o">=</span> <span class="n">v</span>
             <span class="k">elif</span> <span class="n">k</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">suffix_job</span><span class="p">):</span>
                 <span class="n">slurm_model_jobs</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_job</span><span class="p">)]]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="n">slurm_model_jobs_params</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_job</span><span class="p">)]]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">elif</span> <span class="n">job_param_match</span><span class="p">:</span>
+                <span class="n">slurm_model_jobs_params</span><span class="p">[</span><span class="n">job_param_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot; --{job_param_match.group(2)}=</span><span class="si">{v}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">slurm_model_paths</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
 
@@ -1234,6 +1243,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">model_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">[</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
         <span class="n">job_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs</span><span class="p">[</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+        <span class="n">job_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs_params</span><span class="p">[</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
         <span class="c1"># grab only the image name, not the group/creator</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="p">[</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
 
@@ -1248,7 +1258,8 @@
 
         <span class="n">email_param</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">email</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot; --mail-user=</span><span class="si">{email}</span><span class="s2">&quot;</span>
         <span class="n">time_param</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">time</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot; --time=</span><span class="si">{time}</span><span class="s2">&quot;</span>
-        <span class="n">job_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_param</span><span class="p">,</span> <span class="n">email_param</span><span class="p">]</span>
+        <span class="n">job_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">time_param</span><span class="p">)</span>
+        <span class="n">job_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">email_param</span><span class="p">)</span>
         <span class="n">job_param</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_params</span><span class="p">)</span>
         <span class="n">sbatch_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;sbatch</span><span class="si">{job_param}</span><span class="s2"> --output=omero-%4j.log </span><span class="se">\</span>
 <span class="s2">            </span><span class="si">{self.slurm_script_path}</span><span class="s2">/</span><span class="si">{job_script}</span><span class="s2">&quot;</span>

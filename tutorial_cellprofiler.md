@@ -263,7 +263,7 @@ In theory we could also use the cellprofiler python package here, for more contr
             "cellprofiler", "-c", "-r", "-p", mod_pipeline,
             "-i", in_path, "-o", out_path, "-t", tmp_path,
         ]
-        status = run(" ".join(shArgs), shell=True, cwd="/app/")
+        status = run(" ".join(shArgs), shell=True)
 ```
 
 Finally, we don't change much to the rest of the script and just handle the return code. 0 means success, so then we just log to the logfile. 
@@ -423,12 +423,15 @@ Now your Slurm cluster has
 
 ## 6. Add a Omero script to run this from the Web UI
 
-##TODO
 1. select a screen / dataset
 2. select workflow
 3. run workflow!
 4. check progress
-5. check resulting data
+5. Import resulting data
+
+I have created several Omero scripts using this library, and the [`run_workflow`]() can do this for us.
+It will attach the results as a zipfile attachment to the screen.
+Perhaps we can integrate with OMERO.Tables in the future.
 
 ## Extra: How to add workflow parameters to cellprofiler?
 
@@ -453,7 +456,7 @@ It matches the `name` in `descriptor.json` literally with the same string in `.c
 However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
 In our example, that does not work properly, e.g. the size of a nucleus should be the same as the size of a spot.
 
-Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs: [Getting started with CellProfiler and OMERO](https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html).
+Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs of using the CellProfiler Python API: [Getting started with CellProfiler and OMERO](https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html).
 
 ## Extra 2: We should add a LICENSE
 

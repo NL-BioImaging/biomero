@@ -69,6 +69,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#transfering-data">Transfering data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
@@ -444,6 +445,48 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 <h1>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h1>
 <p>We can simply use <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> for running your workflow 1:1, so 1 job to 1 workflow. This could speed up your workflow already, as <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> servers are likely equipped with strong CPU and GPU.</p>
 <p>However, <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> is also built for parallel processing on multiple (or the same) servers. We can accomplish this by running multiple jobs for 1 workflow. This is simple for <a class="reference external" href="https://en.wikipedia.org/wiki/Embarrassingly_parallel#:~:text=In%20parallel%20computing%2C%20an%20embarrassingly,a%20number%20of%20parallel%20tasks.">embarrassingly parallel</a> tasks, like segmenting multiple images: just provide each job with a different set of input images. If you have 100 images, you could run 10 jobs on 10 images and (given enough resources available for you on Slurm) that could be 10x faster. In theory, you could run 1 job per image, but at some point you run into the overhead cost of Slurm (and Omero) and it might actually slow down again (as you incur this cost a 100 times instead of 10 times).</p>
+</div>
+<div class="section" id="using-the-gpu-on-slurm">
+<h1>Using the GPU on Slurm<a class="headerlink" href="#using-the-gpu-on-slurm" title="Permalink to this headline"></a></h1>
+<p>Note, the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">default</span></a> Slurm job script will not request any GPU resources.</p>
+<p>This is because GPU resources are expensive and some programs do not work with GPU.</p>
+<p>We can instead <em>enable</em> the use of GPU by either providing our own Slurm job scripts, or setting an override value in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+<span class="c1"># Override the default job values for this workflow</span>
+<span class="c1"># Or add a job value to this workflow</span>
+<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
+<span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
+</pre></div>
+</div>
+<p>In fact, any <code class="docutils literal notranslate"><span class="pre">..._job_...=...</span></code> configuration value will be forwarded to the Slurm commandline.</p>
+<p>Slurm commandline parameters override those in the script, so the above one requests 1 10GB gpu for Cellpose.</p>
+<p>E.g. you could also set the time limit higher:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+<span class="c1"># Override the default job values for this workflow</span>
+<span class="c1"># Or add a job value to this workflow</span>
+<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># Run with longer time limit</span>
+<span class="na">cellpose_job_time</span><span class="o">=</span><span class="s">00:30:00</span>
+</pre></div>
+</div>
+<p>Now the CellPose job should run for maximum of 30 minutes, instead of the default.</p>
 </div>
 <div class="section" id="transfering-data">
 <h1>Transfering data<a class="headerlink" href="#transfering-data" title="Permalink to this headline"></a></h1>

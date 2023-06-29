@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cellprofiler tutorial &mdash; Omero Slurm Client 1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="omero_slurm_client" href="modules.html" />
+    <link rel="prev" title="Omero Slurm Client library" href="readme_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Omero Slurm Client
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">Omero Slurm Client library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#prerequisites-getting-started">Prerequisites &amp; Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cellprofiler tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisite-omero-slurm-and-omero-slurm-client">0. Prerequisite: Omero, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#grab-the-data-and-pipeline">1. Grab the data and pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#try-the-pipeline-locally">2. Try the pipeline locally</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ui">UI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#export-pipeline-file-only">Export pipeline file only</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#headless">headless</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#upload-the-data-to-omero">3. Upload the data to Omero</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#package-the-cellprofiler-in-a-fair-package">4. Package the cellprofiler in a FAIR package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#create-a-workflow-github-repository">0. Create a workflow Github repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#a-create-a-dockerfile-for-cellprofiler">a. Create a Dockerfile for cellprofiler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#b-setup-the-metadata-in-descriptor-json">b. Setup the metadata in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#c-update-the-command-in-wrapper-py">c. Update the command in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#d-run-locally">d. Run locally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#e-publish-to-github-and-bitbucket">e. Publish to github and bitbucket</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#add-this-workflow-to-the-omero-slurm-client">5. Add this workflow to the Omero Slurm Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-a-omero-script-to-run-this-from-the-web-ui">6. Add a Omero script to run this from the Web UI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extra-how-to-add-workflow-parameters-to-cellprofiler">Extra: How to add workflow parameters to cellprofiler?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extra-2-we-should-add-a-license">Extra 2: We should add a LICENSE</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Omero Slurm Client</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Cellprofiler tutorial</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tutorial_link.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="cellprofiler-tutorial">
+<h1>Cellprofiler tutorial<a class="headerlink" href="#cellprofiler-tutorial" title="Permalink to this headline"></a></h1>
+<p>Cellprofiler is already known for excellent interoperability with Omero. You can directly load images into the cellprofiler pipelines.</p>
+<p>Cellprofiler also has options to run in batch mode and headless, for analyzing big data on compute clusters, like we want as well.</p>
+<p>However, for our purposes, this is insufficient, as we want to run it from Omero, and on a compute cluster that only has SSH access.</p>
+<p>In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to Omero and Slurm, with this client library.</p>
+<div class="section" id="prerequisite-omero-slurm-and-omero-slurm-client">
+<h2>0. Prerequisite: Omero, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<p>We assume you have these 3 components setup and connected. If not, follow the main <a class="reference internal" href="#README.md"><span class="xref myst">README</span></a> first.</p>
+</div>
+<div class="section" id="grab-the-data-and-pipeline">
+<h2>1. Grab the data and pipeline<a class="headerlink" href="#grab-the-data-and-pipeline" title="Permalink to this headline"></a></h2>
+<p>We want to try something ready-made, and we like spots here at the AMC.</p>
+<p>So let’s grab this spot-counting example from the cellprofiler website:
+https://github.com/tischi/cellprofiler-practical-NeuBIAS-Lisbon-2017/blob/master/practical-handout.md</p>
+</div>
+<div class="section" id="try-the-pipeline-locally">
+<h2>2. Try the pipeline locally<a class="headerlink" href="#try-the-pipeline-locally" title="Permalink to this headline"></a></h2>
+<div class="section" id="ui">
+<h3>UI<a class="headerlink" href="#ui" title="Permalink to this headline"></a></h3>
+<p>It is always a good idea to test your algorithms locally before jumping to remote compute.
+You can walk through the readme, or open the <a class="reference external" href="https://github.com/tischi/cellprofiler-practical-NeuBIAS-Lisbon-2017/blob/master/PLA-dot-counting-with-speckle-enhancement.cpproj">PLA-dot-counting-with-speckle-enhancement.cpproj</a>. It seems to be a bit older, so we have to fix the threshold (<code class="docutils literal notranslate"><span class="pre">(0.0</span></code> to <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) and change the input to our local file location.</p>
+</div>
+<div class="section" id="export-pipeline-file-only">
+<h3>Export pipeline file only<a class="headerlink" href="#export-pipeline-file-only" title="Permalink to this headline"></a></h3>
+<p>Cellprofiler works with both <code class="docutils literal notranslate"><span class="pre">.cpproj</span></code> and <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code>. The project version hardcodes the filepaths in there, which we don’t want. So go to <code class="docutils literal notranslate"><span class="pre">File</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Export</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> and save this as a <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code> file.</p>
+<p>Another bonus is that <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code> is human-readable and editable. Important later on.</p>
+</div>
+<div class="section" id="headless">
+<h3>headless<a class="headerlink" href="#headless" title="Permalink to this headline"></a></h3>
+<p>After it works, let’s try it headless too:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./cellprofiler.exe -c -p &#39;&lt;path-to&gt;\PLA-dot-counting-with-speckle-enhancement.cppipe&#39; -o &#39;&lt;path-to&gt;\cellprofiler_results&#39; -i &#39;&lt;path-to&gt;\PLA_data
+</pre></div>
+</div>
+<p>Here we provide the input images (<code class="docutils literal notranslate"><span class="pre">-i</span></code>), the output folder (<code class="docutils literal notranslate"><span class="pre">-o</span></code>), the project (<code class="docutils literal notranslate"><span class="pre">-p</span></code>) and headless mode (<code class="docutils literal notranslate"><span class="pre">-c</span></code>).</p>
+<p>See <a class="reference external" href="https://carpenter-singh-lab.broadinstitute.org/blog/getting-started-using-cellprofiler-command-line">this blog</a> for more info on the commandline parameters.</p>
+</div>
+</div>
+<div class="section" id="upload-the-data-to-omero">
+<h2>3. Upload the data to Omero<a class="headerlink" href="#upload-the-data-to-omero" title="Permalink to this headline"></a></h2>
+<p>Let’s make a screen out of these 8 wells, for fun.</p>
+<ul class="simple">
+<li><p>Open the importer.</p></li>
+<li><p>Since there is no screen metadata in the files, first create a project and dataset in Omero.</p></li>
+<li><p>Import the PLA_data folder there.</p></li>
+<li><p>Go to the Web UI.</p></li>
+<li><p>Select the new dataset.</p></li>
+<li><p>Activate script <code class="docutils literal notranslate"><span class="pre">Dataset</span> <span class="pre">to</span> <span class="pre">Plate</span></code> (under omero/util_scripts/).</p>
+<ul>
+<li><p>Fill in 8 wells per row (optional)</p></li>
+<li><p>Screen: PLA_data</p></li>
+</ul>
+</li>
+<li><p>Now we have a plate with 8 wells in a screen in Omero.</p></li>
+</ul>
+</div>
+<div class="section" id="package-the-cellprofiler-in-a-fair-package">
+<h2>4. Package the cellprofiler in a FAIR package<a class="headerlink" href="#package-the-cellprofiler-in-a-fair-package" title="Permalink to this headline"></a></h2>
+<p>To create a FAIR workflow, let’s follow the steps from Biaflows for creating a new workflow, as they explained it quite well already: https://neubias-wg5.github.io/creating_bia_workflow_and_adding_to_biaflows_instance.html</p>
+<p>We just ignore some parts specific to the BIAFLOWS server, like adding as a trusted source. We will add the workflow to Omero and Slurm instead, as a final step.</p>
+<div class="section" id="create-a-workflow-github-repository">
+<h3>0. Create a workflow Github repository<a class="headerlink" href="#create-a-workflow-github-repository" title="Permalink to this headline"></a></h3>
+<p>To kickstart, we can reuse some of the workflow setup for CellProfiler from <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler">Neubias</a> github.</p>
+<p>You can follow along, or just use my version at the end (https://github.com/TorecLuik/W_SpotCounting-CellProfiler)</p>
+<ul class="simple">
+<li><p>Login/create an account on Github</p></li>
+<li><p>Go to link above.</p></li>
+<li><p>Go to <code class="docutils literal notranslate"><span class="pre">Use</span> <span class="pre">this</span> <span class="pre">template</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">repository</span></code></p>
+<ul>
+<li><p>Name it <code class="docutils literal notranslate"><span class="pre">W_SpotCounting-CellProfiler</span></code></p></li>
+<li><p>Keep it Public</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>Clone your new repository locally</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Code</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Clone</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">HTTPS</span></code> &gt; Copy</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/&lt;...&gt;/W_SpotCounting-CellProfiler.git</span></code></p></li>
+</ul>
+</li>
+<li><p>Open the folder in your favorite <a class="reference external" href="https://code.visualstudio.com/">editor</a></p></li>
+<li><p>Copy the project we want to this folder e.g. <code class="docutils literal notranslate"><span class="pre">PLA-dot-counting-with-speckle-enhancement.cpproj</span></code></p></li>
+</ul>
+</div>
+<div class="section" id="a-create-a-dockerfile-for-cellprofiler">
+<h3>a. Create a Dockerfile for cellprofiler<a class="headerlink" href="#a-create-a-dockerfile-for-cellprofiler" title="Permalink to this headline"></a></h3>
+<p>The Dockerfile installs our whole environment.</p>
+<p>We want:</p>
+<ol class="arabic simple">
+<li><p>Cellprofiler</p></li>
+<li><p>Cytomine/Biaflows helper libraries (for Input/Output)</p></li>
+<li><p>Our workflow files:</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> (the logic to run our workflow)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (the metadata of our workflow)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*.cppipe</span></code> (our cellprofiler pipeline)</p></li>
+</ul>
+<p>Now it turns out that this <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler">Dockerfile</a> uses an old version of CellProfiler (with Python 2).
+We want the newest one, so I rewrote the Dockerfile:</p>
+<details>
+  <summary>Our new/changed Dockerfile</summary>
+<div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span> <span class="s">cellprofiler/cellprofiler</span>
+</pre></div>
+</div>
+<p>Instead of installing cellprofiler manually, it turns out they host containers images themselves, so let’s reuse <a class="reference external" href="https://hub.docker.com/r/cellprofiler/cellprofiler">those</a>.</p>
+<div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># Install Python3.7</span>
+<span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install -y python3.7 python3.7-dev python3.7-venv
+<span class="k">RUN</span> python3.7 -m pip install --upgrade pip <span class="o">&amp;&amp;</span> python3.7 -m pip install Cython
+</pre></div>
+</div>
+<p>This cellprofiler image is quite modern, but we need an older Python to work with the Cytomine/Biaflows libraries. So we Install Python3.7 (and Cython package).</p>
+<div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># ------------------------------------------------------------------------------</span>
+<span class="c"># Install Cytomine python client</span>
+<span class="k">RUN</span> git clone https://github.com/cytomine-uliege/Cytomine-python-client.git <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    <span class="nb">cd</span> Cytomine-python-client <span class="o">&amp;&amp;</span> git checkout tags/v2.7.3 <span class="o">&amp;&amp;</span> <span class="se">\ </span>
+    python3.7 -m pip install . <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    <span class="nb">cd</span> .. <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    rm -r Cytomine-python-client
+
+<span class="c"># ------------------------------------------------------------------------------</span>
+<span class="c"># Install BIAFLOWS utilities (annotation exporter, compute metrics, helpers,...)</span>
+<span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install libgeos-dev -y <span class="o">&amp;&amp;</span> apt-get clean
+<span class="k">RUN</span> git clone https://github.com/Neubias-WG5/biaflows-utilities.git <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    <span class="nb">cd</span> biaflows-utilities/ <span class="o">&amp;&amp;</span> git checkout tags/v0.9.1 <span class="o">&amp;&amp;</span> python3.7 -m pip install .
+
+<span class="c"># install utilities binaries</span>
+<span class="k">RUN</span> chmod +x biaflows-utilities/bin/*
+<span class="k">RUN</span> cp biaflows-utilities/bin/* /usr/bin/ <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    rm -r biaflows-utilities
+</pre></div>
+</div>
+<p>These 2 parts install specific versions of the biaflows library and Cytomine library with Python 3.7.</p>
+<div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># ------------------------------------------------------------------------------</span>
+<span class="c"># Add repository files: wrapper, command and descriptor</span>
+<span class="k">RUN</span> mkdir /app
+<span class="k">ADD</span> wrapper.py /app/wrapper.py
+<span class="k">ADD</span> PLA-dot-counting-with-speckle-enhancement.cppipe /app/PLA-dot-counting-with-speckle-enhancement.cppipe
+<span class="k">ADD</span> descriptor.json /app/descriptor.json
+
+<span class="k">ENTRYPOINT</span> <span class="p">[</span><span class="s2">&quot;python3.7&quot;</span><span class="p">,</span><span class="s2">&quot;/app/wrapper.py&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Finally we add our own workflow to <code class="docutils literal notranslate"><span class="pre">/app</span></code> folder:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.cppipe</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code></p></li>
+</ul>
+<p>And we tell the image to call <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> with python3.7 when we start it up using an <code class="docutils literal notranslate"><span class="pre">ENTRYPOINT</span></code>. This also forwards commandline parameters that you provide to the <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> script, e.g. workflow parameters.</p>
+</details>
+</div>
+<div class="section" id="b-setup-the-metadata-in-descriptor-json">
+<h3>b. Setup the metadata in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code><a class="headerlink" href="#b-setup-the-metadata-in-descriptor-json" title="Permalink to this headline"></a></h3>
+<p>We actually don’t have any input parameters (except the default input/output) at this moment. Look at <a class="reference internal" href="#extra-how-to-add-workflow-parameters-to-cellprofiler"><span class="xref myst">this</span></a> extra chapter for more info on how to approach that.</p>
+<p>So we can just use the basic <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> that was given and remove the last 2 non-cytomine parameters.
+Mainly, update the name, description and where we will publish the container (your new dockerhub account).</p>
+<details>
+  <summary>Example full json</summary>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;SpotCounting-CellProfiler&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Workflow for spot counting in CellProfiler&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;container-image&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;image&quot;</span><span class="p">:</span> <span class="s2">&quot;torecluik/w_spotcounting-cellprofiler&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;singularity&quot;</span>
+  <span class="p">},</span>
+  <span class="nt">&quot;command-line&quot;</span><span class="p">:</span> <span class="s2">&quot;python wrapper.py CYTOMINE_HOST CYTOMINE_PUBLIC_KEY CYTOMINE_PRIVATE_KEY CYTOMINE_ID_PROJECT CYTOMINE_ID_SOFTWARE&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_host&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS host&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;String&quot;</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_public_key&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS public key&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;String&quot;</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_private_key&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS private key&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;String&quot;</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_id_project&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS project ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Number&quot;</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_id_software&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS software ID&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Number&quot;</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+
+  <span class="nt">&quot;schema-version&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine-0.1&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</details>
+</div>
+<div class="section" id="c-update-the-command-in-wrapper-py">
+<h3>c. Update the command in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code><a class="headerlink" href="#c-update-the-command-in-wrapper-py" title="Permalink to this headline"></a></h3>
+<p>So the wrapper gets called when the container starts.
+This is where we ‘wrap’ our pipeline by handling input/output and parameters.
+We also have to make sure that we call the pipeline correctly here.</p>
+<details>
+  <summary>Our changes to the wrapper</summary>
+<p>This first part we keep the same: the <code class="docutils literal notranslate"><span class="pre">BiaflowsJob</span></code> will parse the commandline parameters for us and provide those as <code class="docutils literal notranslate"><span class="pre">bj.parameter.&lt;param_name&gt;</span></code> if we did want them. But we don’t use any right now.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+    <span class="n">base_path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;HOME&quot;</span><span class="p">))</span> <span class="c1"># Mandatory for Singularity</span>
+    <span class="n">problem_cls</span> <span class="o">=</span> <span class="n">CLASS_OBJSEG</span>
+
+    <span class="k">with</span> <span class="n">BiaflowsJob</span><span class="o">.</span><span class="n">from_cli</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="k">as</span> <span class="n">bj</span><span class="p">:</span>
+        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Initialisation...&quot;</span><span class="p">)</span>
+        <span class="c1"># 1. Prepare data for workflow</span>
+        <span class="n">in_imgs</span><span class="p">,</span> <span class="n">gt_imgs</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="n">gt_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">prepare_data</span><span class="p">(</span><span class="n">problem_cls</span><span class="p">,</span> <span class="n">bj</span><span class="p">,</span> <span class="n">is_2d</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">bj</span><span class="o">.</span><span class="n">flags</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The second part (where we call our pipeline) we can simplify a bit, as we don’t need to parse parameters for cellprofiler. See <a class="reference internal" href="#extra-how-to-add-workflow-parameters-to-cellprofiler"><span class="xref myst">later</span></a> for how to start handling that.</p>
+<p>We specifically name the cppipe that we added to <code class="docutils literal notranslate"><span class="pre">/app</span></code>, and we use <code class="docutils literal notranslate"><span class="pre">subprocess.run(...)</span></code> to execute our cellprofiler headless on the commandline: <code class="docutils literal notranslate"><span class="pre">cellprofiler</span> <span class="pre">-c</span> <span class="pre">-r</span> <span class="pre">-p</span> <span class="pre">...</span> <span class="pre">-i</span> <span class="pre">...</span> <span class="pre">-o</span> <span class="pre">...</span> <span class="pre">-t</span></code>.</p>
+<p>In theory we could also use the cellprofiler python package here, for more control. But in general, we can run any commandline program with <code class="docutils literal notranslate"><span class="pre">subprocess.run</span></code>, so this wrapper will look similar for most workflows.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>        <span class="n">pipeline</span> <span class="o">=</span> <span class="s2">&quot;/app/PLA-dot-counting-with-speckle-enhancement.cppipe&quot;</span>
+
+        <span class="c1"># 2. Run CellProfiler pipeline</span>
+        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+        
+        <span class="c1">## If we want to allow parameters, we have to parse them into the pipeline here</span>
+        <span class="c1"># mod_pipeline = parse_cellprofiler_parameters(bj, pipeline, tmp_path)</span>
+        <span class="n">mod_pipeline</span> <span class="o">=</span> <span class="n">pipeline</span>
+
+        <span class="n">shArgs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;cellprofiler&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="n">mod_pipeline</span><span class="p">,</span>
+            <span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shArgs</span><span class="p">),</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, we don’t change much to the rest of the script and just handle the return code. 0 means success, so then we just log to the logfile.</p>
+<p>There is some built-in logic for <code class="docutils literal notranslate"><span class="pre">Biaflows</span></code>, like uploading results and metrics.
+We keep it in for the logs, but they are essentially a <a class="reference external" href="https://en.wikipedia.org/wiki/NOP_(code)"><code class="docutils literal notranslate"><span class="pre">no-op</span></code></a> because we will provide the command-line parameters <code class="docutils literal notranslate"><span class="pre">--local</span></code> and <code class="docutils literal notranslate"><span class="pre">-nmc</span></code> (<code class="docutils literal notranslate"><span class="pre">n</span></code>o <code class="docutils literal notranslate"><span class="pre">m</span></code>etric <code class="docutils literal notranslate"><span class="pre">c</span></code>omputation).</p>
+</details>
+<p>Full changes can be found <a class="reference external" href="https://github.com/TorecLuik/W_SpotCounting-CellProfiler/blob/master/wrapper.py">here</a></p>
+</div>
+<div class="section" id="d-run-locally">
+<h3>d. Run locally<a class="headerlink" href="#d-run-locally" title="Permalink to this headline"></a></h3>
+<p>Now that we have a docker, we can run this locally or anywhere that we have docker installed, without the need for having the right version of cellprofiler, etc.
+Let’s try it out:</p>
+<ol class="arabic simple" start="0">
+<li><p>Setup your data folder like this:</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">PLA</span></code> as main folder</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">PLA_data</span></code> with the 8 images, as subfolder</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">out</span></code> as empty subfolder</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gt</span></code> as empty subfolder</p></li>
+</ul>
+</li>
+</ul>
+<ol class="arabic simple">
+<li><p>Build a container: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">spotcounting-cp</span> <span class="pre">.</span></code> (Note the <code class="docutils literal notranslate"><span class="pre">.</span></code> is important, it means <code class="docutils literal notranslate"><span class="pre">this</span> <span class="pre">folder</span></code>)</p></li>
+<li><p>Run the container on the <code class="docutils literal notranslate"><span class="pre">PLA</span></code> folder like this: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">spotcounting-cp</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span>&#160; <span class="pre">-nmc</span> </code></p></li>
+</ol>
+<p>This should work the same as <a class="reference internal" href="#2-try-the-pipeline-locally"><span class="xref myst">before</span></a>, with a bit of extra logging thrown in.
+Except now, we didn’t need to have cellprofiler installed! Anyone with <code class="docutils literal notranslate"><span class="pre">Docker</span></code> (or <code class="docutils literal notranslate"><span class="pre">Podman</span></code> or <code class="docutils literal notranslate"><span class="pre">Singularity</span></code>) can run this workflow now.</p>
+</div>
+<div class="section" id="e-publish-to-github-and-bitbucket">
+<h3>e. Publish to github and bitbucket<a class="headerlink" href="#e-publish-to-github-and-bitbucket" title="Permalink to this headline"></a></h3>
+<p>So how do other people get to use our workflow?</p>
+<ol class="arabic simple">
+<li><p>We publish the source online on Github:</p></li>
+</ol>
+<ul class="simple">
+<li><p>Commit to git: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">commit</span> <span class="pre">-m</span> <span class="pre">'Update</span> <span class="pre">with</span> <span class="pre">spotcounting</span> <span class="pre">pipeline'</span> <span class="pre">-a</span></code></p></li>
+<li><p>Push to github: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span></code></p></li>
+<li><p>(Optional) tag and release this as a new version.</p>
+<ul>
+<li><p>Pretty easy to do from Github page: <code class="docutils literal notranslate"><span class="pre">Releases</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">release</span></code>.</p></li>
+<li><p>Add a tag like <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code>. Match this version later with the tag of your Dockerhub image.</p></li>
+<li><p>Note: this might take care of step 2 with a <code class="docutils literal notranslate"><span class="pre">Github</span> <span class="pre">action</span></code>, but we will do it manually, as the Dockerhub integration for Github is not free anymore.</p></li>
+</ul>
+</li>
+</ul>
+<ol class="arabic simple" start="2">
+<li><p>And we publish the image on Dockerhub:</p></li>
+</ol>
+<ul class="simple">
+<li><p>First, create an account on Dockerhub if you don’t have one</p></li>
+<li><p>Login locally to this account too: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">login</span></code></p></li>
+<li><p>Tag your local Docker image with a new tag to match this Dockerhub account and release: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">tag</span> <span class="pre">spotcounting-cp:latest</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span></code></p></li>
+<li><p>Push your tagged image to Dockerhub: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">push</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span></code></p></li>
+<li><p>Now you can verify that it is available online:
+https://hub.docker.com/u/your-dockerhub-user</p></li>
+</ul>
+<p>E.g. mine can be found &#64; https://hub.docker.com/r/torecluik/w_spotcounting-cellprofiler/tags</p>
+<ul class="simple">
+<li><p>Great! now everybody (with internet access) can pull your workflow image and run it <a class="reference internal" href="#d-run-locally"><span class="xref myst">locally</span></a>: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span> <span class="pre">-nmc</span></code></p></li>
+</ul>
+<p>And this is what we will make Omero do on the Slurm cluster next.</p>
+</div>
+</div>
+<div class="section" id="add-this-workflow-to-the-omero-slurm-client">
+<h2>5. Add this workflow to the Omero Slurm Client<a class="headerlink" href="#add-this-workflow-to-the-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple">
+<li><p>Let’s adjust the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> on our Omero processor server.</p></li>
+</ol>
+<p>In the <code class="docutils literal notranslate"><span class="pre">[MODEL]</span></code> section we add our new workflow:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPROFILER SPOT COUNTING</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellprofiler_spot</span><span class="o">=</span><span class="s">cellprofiler_spot</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellprofiler_spot_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_SpotCounting-CellProfiler/tree/v1.0.0</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellprofiler_spot_job</span><span class="o">=</span><span class="s">jobs/cellprofiler_spot.sh</span>
+</pre></div>
+</div>
+<p>Note that we link to the <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code> specifically.</p>
+<p>For me, that is rebuilding my docker:
+<code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span> <span class="pre">omeroworker-5</span></code></p>
+<ol class="arabic simple" start="2">
+<li><p>and recreate the Slurm environment:</p></li>
+</ol>
+<ul class="simple">
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=true)</span></code> on the Omero processor server.</p></li>
+</ul>
+<details>
+  <summary>E.g. using this omero script</summary>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1">#</span>
+<span class="c1"># Original work Copyright (C) 2014 University of Dundee</span>
+<span class="c1">#                                   &amp; Open Microscopy Environment.</span>
+<span class="c1">#                    All Rights Reserved.</span>
+<span class="c1"># Modified work Copyright 2022 Torec Luik, Amsterdam UMC</span>
+<span class="c1"># Use is subject to license terms supplied in LICENSE.txt</span>
+<span class="c1">#</span>
+<span class="c1"># Example OMERO.script to instantiate a &#39;empty&#39; Slurm connection.</span>
+
+<span class="kn">import</span> <span class="nn">omero</span>
+<span class="kn">import</span> <span class="nn">omero.gateway</span>
+<span class="kn">from</span> <span class="nn">omero</span> <span class="kn">import</span> <span class="n">scripts</span>
+<span class="kn">from</span> <span class="nn">omero.rtypes</span> <span class="kn">import</span> <span class="n">rstring</span><span class="p">,</span> <span class="n">unwrap</span>
+<span class="kn">from</span> <span class="nn">omero_slurm_client</span> <span class="kn">import</span> <span class="n">SlurmClient</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">runScript</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The main entry point of the script</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">client</span> <span class="o">=</span> <span class="n">scripts</span><span class="o">.</span><span class="n">client</span><span class="p">(</span>
+        <span class="s1">&#39;Slurm Init&#39;</span><span class="p">,</span>
+        <span class="sd">&#39;&#39;&#39;Will initiate the Slurm environment for workflow execution.</span>
+
+<span class="sd">        You can provide a config file location, </span>
+<span class="sd">        and/or it will look for default locations:</span>
+<span class="sd">        /etc/slurm-config.ini</span>
+<span class="sd">        ~/slurm-config.ini</span>
+<span class="sd">        &#39;&#39;&#39;</span><span class="p">,</span>
+        <span class="n">scripts</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="s2">&quot;Init Slurm&quot;</span><span class="p">,</span> <span class="n">grouping</span><span class="o">=</span><span class="s2">&quot;01&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">scripts</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s2">&quot;Config file&quot;</span><span class="p">,</span> <span class="n">optional</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">grouping</span><span class="o">=</span><span class="s2">&quot;01.1&quot;</span><span class="p">,</span>
+                       <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The path to your configuration file. Optional.&quot;</span><span class="p">),</span>
+        <span class="n">namespaces</span><span class="o">=</span><span class="p">[</span><span class="n">omero</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">namespaces</span><span class="o">.</span><span class="n">NSDYNAMIC</span><span class="p">],</span>
+    <span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">init_slurm</span> <span class="o">=</span> <span class="n">unwrap</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="s2">&quot;Init Slurm&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">init_slurm</span><span class="p">:</span>
+            <span class="n">configfile</span> <span class="o">=</span> <span class="n">unwrap</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="s2">&quot;Config file&quot;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">configfile</span><span class="p">:</span>
+                <span class="n">configfile</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">with</span> <span class="n">SlurmClient</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">configfile</span><span class="o">=</span><span class="n">configfile</span><span class="p">,</span>
+                                         <span class="n">init_slurm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">slurmClient</span><span class="p">:</span>
+                <span class="n">slurmClient</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Slurm is setup:&quot;</span>
+                <span class="n">models</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">get_all_image_versions_and_data_files</span><span class="p">()</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Models: </span><span class="si">{models}</span><span class="se">\n</span><span class="s2">Data:</span><span class="si">{data}</span><span class="s2">&quot;</span>
+
+        <span class="n">client</span><span class="o">.</span><span class="n">setOutput</span><span class="p">(</span><span class="s2">&quot;Message&quot;</span><span class="p">,</span> <span class="n">rstring</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">message</span><span class="p">)))</span>
+
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">closeSession</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">runScript</span><span class="p">()</span>
+
+</pre></div>
+</div>
+</details>
+<p>Now your Slurm cluster has</p>
+<ul class="simple">
+<li><p>your image ‘v1.0.0’.</p></li>
+<li><p>And also a job-script for Slurm, automatically generated (unless you changed that behaviour in the <code class="docutils literal notranslate"><span class="pre">slurm-config</span></code>).</p></li>
+</ul>
+</div>
+<div class="section" id="add-a-omero-script-to-run-this-from-the-web-ui">
+<h2>6. Add a Omero script to run this from the Web UI<a class="headerlink" href="#add-a-omero-script-to-run-this-from-the-web-ui" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple">
+<li><p>select a screen / dataset</p></li>
+<li><p>select workflow</p></li>
+<li><p>run workflow!</p></li>
+<li><p>check progress</p></li>
+<li><p>Import resulting data</p></li>
+</ol>
+<p>I have created several Omero scripts using this library, and the <a class="reference internal" href="#"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">run_workflow</span></code></span></a> can do this for us.
+It will attach the results as a zipfile attachment to the screen.
+Perhaps we can integrate with OMERO.Tables in the future.</p>
+</div>
+<div class="section" id="extra-how-to-add-workflow-parameters-to-cellprofiler">
+<h2>Extra: How to add workflow parameters to cellprofiler?<a class="headerlink" href="#extra-how-to-add-workflow-parameters-to-cellprofiler" title="Permalink to this headline"></a></h2>
+<p>So normally, adding workflow parameters to your commandline in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> is easy, like <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-Cellpose/blob/master/wrapper.py#L62C8-L65C37">this</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>        <span class="c1"># Add here the code for running the analysis script</span>
+        <span class="c1">#&quot;--chan&quot;, &quot;{:d}&quot;.format(nuc_channel)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">,</span> <span class="s2">&quot;--dir&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;--pretrained_model&quot;</span><span class="p">,</span> <span class="s2">&quot;nuclei&quot;</span><span class="p">,</span> <span class="s2">&quot;--save_tif&quot;</span><span class="p">,</span> <span class="s2">&quot;--no_npy&quot;</span><span class="p">,</span> <span class="s2">&quot;--chan&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">&quot;--diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">&quot;--cellprob_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">prob_threshold</span><span class="p">)]</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here we add <code class="docutils literal notranslate"><span class="pre">bj.parameters.diameter</span></code> (described <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-Cellpose/blob/master/descriptor.json#L54C6-L65C7">here</a>) as <code class="docutils literal notranslate"><span class="pre">&quot;--diameter&quot;,</span> <span class="pre">&quot;{:f}&quot;.format(bj.parameters.diameter)</span></code>.</p>
+<p>However, cellprofiler does not support changing pipeline parameters from the commandline. Maybe it will in the future.
+For now, we have 3 options:</p>
+<ol class="arabic simple">
+<li><p>Edit the <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code> file and override our parameters there automatically</p></li>
+<li><p>Use the Python <code class="docutils literal notranslate"><span class="pre">cellprofiler</span></code> library in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> and open and edit the <code class="docutils literal notranslate"><span class="pre">pipeline</span></code>.</p></li>
+<li><p>Add an extra python script that does number 2, which we call from the <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> and which does accept commandline arguments.</p></li>
+</ol>
+<p>For 1., this is where <code class="docutils literal notranslate"><span class="pre">parseCPparam</span></code> <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/blob/master/wrapper.py#L8C1-L26C1">function</a> comes in (in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code>). I have updated it a bit in <a class="reference external" href="https://github.com/TorecLuik/W_SpotCounting-CellProfiler/blob/master/wrapper.py#L10C1-L51C24">my version</a>.
+It matches the <code class="docutils literal notranslate"><span class="pre">name</span></code> in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> literally with the same string in <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code>, and then changes the values to the new ones provided on the commandline.
+However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
+In our example, that does not work properly, e.g. the size of a nucleus should be the same as the size of a spot.</p>
+<p>Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs of using the CellProfiler Python API: <a class="reference external" href="https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html">Getting started with CellProfiler and OMERO</a>.</p>
+</div>
+<div class="section" id="extra-2-we-should-add-a-license">
+<h2>Extra 2: We should add a LICENSE<a class="headerlink" href="#extra-2-we-should-add-a-license" title="Permalink to this headline"></a></h2>
+<p>See the importance of a license <a class="reference external" href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository#choosing-the-right-license">here</a>:</p>
+<blockquote>
+<div><p>You’re under no obligation to choose a license. However, without a license, the default copyright laws apply, meaning that you retain all rights to your source code and no one may reproduce, distribute, or create derivative works from your work. If you’re creating an open source project, we strongly encourage you to include an open source license.</p>
+</div></blockquote>
+<p>So, we are essentially not allowed to make all these changes and use their template without a license. We will just assume we have a license as they explain all these steps in their docs.
+To make this easier for the future, always add a license. I <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/issues/2">asked</a> them to add one to the example workflows.</p>
+<p>A nice permissive default is <a class="reference external" href="https://choosealicense.com/licenses/apache-2.0/">Apache 2.0</a>. It allows people to generally use it however they want, private / commercial / open / closed etc.</p>
+<p>But there is also <code class="docutils literal notranslate"><span class="pre">copyleft</span></code>, where people can only use your code if they also keep that license in their versions; e.g. <a class="reference external" href="https://choosealicense.com/licenses/gpl-3.0/">GNU</a>. That is a bit more restrictive.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="readme_link.html" class="btn btn-neutral float-left" title="Omero Slurm Client library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="omero_slurm_client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

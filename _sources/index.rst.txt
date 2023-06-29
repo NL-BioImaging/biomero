@@ -7,7 +7,7 @@ Welcome to Omero Slurm Client's documentation!
 ==============================================
 
 
-Get started
+.. Get started
 ***********************
 
 .. toctree::
@@ -16,7 +16,7 @@ Get started
 
    readme_link
 
-Tutorials
+.. Tutorials
 ***********************
 .. toctree::
    :caption: Tutorials
@@ -25,7 +25,7 @@ Tutorials
    tutorial_link
 
 
-Package
+.. Package
 ***********************
 
 .. toctree::

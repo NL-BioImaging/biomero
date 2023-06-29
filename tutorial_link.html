@@ -40,7 +40,8 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html">Omero Slurm Client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurmclient-class">SlurmClient class</a></li>
@@ -52,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#batching">Batching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Cellprofiler tutorial</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#prerequisite-omero-slurm-and-omero-slurm-client">0. Prerequisite: Omero, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.</a></li>
@@ -79,6 +81,7 @@
 </ul>
 </li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
 </ul>
@@ -93,7 +96,7 @@
       </nav>
 
       <div class="wy-nav-content">
-        <div class="rst-content">
+        <div class="rst-content style-external-links">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
@@ -450,7 +453,9 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 </pre></div>
 </div>
 <p>Note that we link to the <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code> specifically.</p>
-<p>For me, that is rebuilding my docker:
+<p>When using a new version, like <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>, update this config again.
+For example, I had a bugfix, so I released <a class="reference external" href="https://hub.docker.com/r/torecluik/w_spotcounting-cellprofiler/tags">my workflow</a> to <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>, using the release + push + update steps.</p>
+<p>For me, updating is done by rebuilding my docker container for the processor worker:
 <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span> <span class="pre">omeroworker-5</span></code></p>
 <ol class="arabic simple" start="2">
 <li><p>and recreate the Slurm environment:</p></li>
@@ -566,7 +571,7 @@ For now, we have 3 options:</p>
 <p>For 1., this is where <code class="docutils literal notranslate"><span class="pre">parseCPparam</span></code> <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/blob/master/wrapper.py#L8C1-L26C1">function</a> comes in (in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code>). I have updated it a bit in <a class="reference external" href="https://github.com/TorecLuik/W_SpotCounting-CellProfiler/blob/master/wrapper.py#L10C1-L51C24">my version</a>.
 It matches the <code class="docutils literal notranslate"><span class="pre">name</span></code> in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> literally with the same string in <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code>, and then changes the values to the new ones provided on the commandline.
 However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
-In our example, that does not work properly, e.g. the size of a nucleus should be the same as the size of a spot.</p>
+In our example, that does not work properly, e.g. the size of a nucleus should NOT be the same as the size of a spot.</p>
 <p>Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs of using the CellProfiler Python API: <a class="reference external" href="https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html">Getting started with CellProfiler and OMERO</a>.</p>
 </div>
 <div class="section" id="extra-2-we-should-add-a-license">
@@ -578,7 +583,7 @@ In our example, that does not work properly, e.g. the size of a nucleus should b
 <p>So, we are essentially not allowed to make all these changes and use their template without a license. We will just assume we have a license as they explain all these steps in their docs.
 To make this easier for the future, always add a license. I <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/issues/2">asked</a> them to add one to the example workflows.</p>
 <p>A nice permissive default is <a class="reference external" href="https://choosealicense.com/licenses/apache-2.0/">Apache 2.0</a>. It allows people to generally use it however they want, private / commercial / open / closed etc.</p>
-<p>But there is also <code class="docutils literal notranslate"><span class="pre">copyleft</span></code>, where people can only use your code if they also keep that license in their versions; e.g. <a class="reference external" href="https://choosealicense.com/licenses/gpl-3.0/">GNU</a>. That is a bit more restrictive.</p>
+<p>But there is also <code class="docutils literal notranslate"><span class="pre">copyleft</span></code>, where people can only adapt your code if they also keep the same license on all their code; e.g. <a class="reference external" href="https://choosealicense.com/licenses/gpl-3.0/">GNU</a>. That is a bit more restrictive.</p>
 </div>
 </div>
 

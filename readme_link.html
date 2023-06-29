@@ -40,7 +40,8 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul class="current">
+              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Omero Slurm Client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurmclient-class">SlurmClient class</a></li>
@@ -70,9 +71,11 @@
 <li class="toctree-l1"><a class="reference internal" href="#batching">Batching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#transfering-data">Transfering data</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial_link.html">Cellprofiler tutorial</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
 </ul>
@@ -87,7 +90,7 @@
       </nav>
 
       <div class="wy-nav-content">
-        <div class="rst-content">
+        <div class="rst-content style-external-links">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
@@ -335,8 +338,10 @@ It is a Python class that extends the Connection class from the Fabric library. 
 </div>
 <div class="section" id="how-to-add-your-new-custom-workflow">
 <h1>How to add your new custom workflow<a class="headerlink" href="#how-to-add-your-new-custom-workflow" title="Permalink to this headline"></a></h1>
-<p>Building workflows like this will make them more <a class="reference external" href="https://www.go-fair.org/fair-principles/">FAIR</a> (also for <a class="reference external" href="https://fair-software.eu/about">software</a>) and might make you more skilled in the process!</p>
-<p>Say you have a script in Python and you want to make it available on Omero and Slurm.</p>
+<p>Building workflows like this will make them more <a class="reference external" href="https://www.go-fair.org/fair-principles/">FAIR</a> (also for <a class="reference external" href="https://fair-software.eu/about">software</a>) and uses best practices like code versioning and containerization!</p>
+<p>Also take a look at our in-depth tutorial on adding a Cellprofiler pipeline as a workflow to Omero Slurm Client.</p>
+<p>Here is a shorter version:
+Say you have a script in Python and you want to make it available on Omero and Slurm.</p>
 <p>These are the steps required:</p>
 <ol class="arabic simple">
 <li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p>

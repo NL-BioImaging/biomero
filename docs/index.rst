@@ -8,6 +8,7 @@ Welcome to Omero Slurm Client's documentation!
 
 
 .. Get started
+
 ***********************
 
 .. toctree::
@@ -17,7 +18,9 @@ Welcome to Omero Slurm Client's documentation!
    readme_link
 
 .. Tutorials
+
 ***********************
+
 .. toctree::
    :caption: Tutorials
    :maxdepth: 2
@@ -26,6 +29,7 @@ Welcome to Omero Slurm Client's documentation!
 
 
 .. Package
+
 ***********************
 
 .. toctree::

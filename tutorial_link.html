@@ -81,6 +81,18 @@
 <li class="toctree-l2"><a class="reference internal" href="#extra-2-we-should-add-a-license">Extra 2: We should add a LICENSE</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="#cellexpansion-tutorial">CellExpansion tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#import-data-to-omero">1. Import data to Omero</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extract-masks-with-cellpose">2. Extract masks with Cellpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cellexpansion">3. CellExpansion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#calculate-overlap">Calculate overlap</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#extra">Extra</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#out-of-memory">Out of memory</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -585,6 +597,93 @@ In our example, that does not work properly, e.g. the size of a nucleus should N
 To make this easier for the future, always add a license. I <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/issues/2">asked</a> them to add one to the example workflows.</p>
 <p>A nice permissive default is <a class="reference external" href="https://choosealicense.com/licenses/apache-2.0/">Apache 2.0</a>. It allows people to generally use it however they want, private / commercial / open / closed etc.</p>
 <p>But there is also <code class="docutils literal notranslate"><span class="pre">copyleft</span></code>, where people can only adapt your code if they also keep the same license on all their code; e.g. <a class="reference external" href="https://choosealicense.com/licenses/gpl-3.0/">GNU</a>. That is a bit more restrictive.</p>
+</div>
+</div>
+<div class="section" id="cellexpansion-tutorial">
+<h1>CellExpansion tutorial<a class="headerlink" href="#cellexpansion-tutorial" title="Permalink to this headline"></a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline"></a></h2>
+<p>Different type of aggregates of proteins can form inside a nucleus or inside the cytoplasm of a cell.
+In our example, we have aggregates (spots) outside of the nucleus and we want to quantify these per cell.</p>
+</div>
+<div class="section" id="import-data-to-omero">
+<h2>1. Import data to Omero<a class="headerlink" href="#import-data-to-omero" title="Permalink to this headline"></a></h2>
+<p>Import <a class="reference internal" href="#./images/Cells.tif"><span class="xref myst">data</span></a> as you would normally.</p>
+<p>We use this image, shown as part of this png with a mask here:
+<img alt="Nuclei label image" src="images/nuclei_labels.png" /></p>
+</div>
+<div class="section" id="extract-masks-with-cellpose">
+<h2>2. Extract masks with Cellpose<a class="headerlink" href="#extract-masks-with-cellpose" title="Permalink to this headline"></a></h2>
+<p>This process is actually 2 steps: we want the nuclei masks and also the aggregates masks.
+Luckily these were stained with different colors and are available in different channels:</p>
+<ul class="simple">
+<li><p>Channel 3 = Nuclei</p></li>
+<li><p>Channel 2 = Aggregates</p></li>
+</ul>
+<p>So we can run 2 CellPose workflows on Omero and retrieve both masks.</p>
+</div>
+<div class="section" id="cellexpansion">
+<h2>3. CellExpansion<a class="headerlink" href="#cellexpansion" title="Permalink to this headline"></a></h2>
+<p>To estimate the amount of aggregates per cell, we actually need the cytoplasm in our example. Then we can calculate overlap.</p>
+<p>One could segment the cytoplasm possibly, but we have a Python script that does this algorithmically instead.</p>
+<p>We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.</p>
+<p><img alt="4 images showing cell expansion" src="images/cellexpansion.png" /></p>
+<p>For this, we have to first add it to Omero:
+We could just add the Python code to a Omero job script. But then the Processor needs to have the right Python libraries installed.
+Instead, we should package it in a lightweight container with the correct Python environment. This in turn makes the workflow more FAIR.</p>
+<ol class="arabic simple">
+<li><p>I made this workflow container for it: <a class="reference external" href="https://github.com/TorecLuik/W_CellExpansion">github repo</a>.</p></li>
+<li><p>Release a version and publish a <a class="reference external" href="https://hub.docker.com/layers/torecluik/w_cellexpansion/v1.0.1/images/sha256-8d2f9e663614588f11f41c09375568b448b6d158478a968dac23dbbd8d7fdebc?context=explore">docker image</a></p></li>
+<li><p>Add the workflow to Slurm and Omero:</p></li>
+</ol>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLEXPANSION SPOT COUNTING</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellexpansion</span><span class="o">=</span><span class="s">cellexpansion</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellexpansion_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Run the workflow on our Nuclei mask:</p></li>
+</ol>
+<p>For this, we need to rename our mask files first.</p>
+</div>
+<div class="section" id="calculate-overlap">
+<h2>Calculate overlap<a class="headerlink" href="#calculate-overlap" title="Permalink to this headline"></a></h2>
+<p>We calculate overlap with another very short Python script, which I added to the <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> of the cellexpansion workflow.
+It outputs a <code class="docutils literal notranslate"><span class="pre">.csv</span></code> file with the counts.</p>
+</div>
+</div>
+<div class="section" id="extra">
+<h1>Extra<a class="headerlink" href="#extra" title="Permalink to this headline"></a></h1>
+<div class="section" id="out-of-memory">
+<h2>Out of memory<a class="headerlink" href="#out-of-memory" title="Permalink to this headline"></a></h2>
+<p>While running CellPose on the Aggregates, my job ran out of memory. So I had to bump up the default memory used by the generated job scripts, in <code class="docutils literal notranslate"><span class="pre">slurm_config.ini</span></code>:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+<span class="c1"># Override the default job values for this workflow</span>
+<span class="c1"># Or add a job value to this workflow</span>
+<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
+<span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
+<span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
+<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">15GB</span>
+</pre></div>
+</div>
+<p>I added the <code class="docutils literal notranslate"><span class="pre">...mem=15GB</span></code> configuration, which will add <code class="docutils literal notranslate"><span class="pre">mem=15GB</span></code> to the Slurm job command from now on for CellPose workflows.
+No need to restart the server, these changes get picked up whenever we start a new client from this config file (which is when we start a new script).</p>
+<p>So after updating that <code class="docutils literal notranslate"><span class="pre">ini</span></code> file, I kickstart the workflow for channel 2 again and this time it works and returns the mask.</p>
 </div>
 </div>
 

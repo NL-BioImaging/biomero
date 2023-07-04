@@ -609,8 +609,8 @@ In our example, we have aggregates (spots) outside of the nucleus and we want to
 <div class="section" id="import-data-to-omero">
 <h2>1. Import data to Omero<a class="headerlink" href="#import-data-to-omero" title="Permalink to this headline"></a></h2>
 <p>Import <a class="reference internal" href="#./images/Cells.tif"><span class="xref myst">data</span></a> as you would normally.</p>
-<p>We use this image, shown as part of this png with a mask here:
-<img alt="Nuclei label image" src="images/nuclei_labels.png" /></p>
+<p>We use this image, shown as part of this png with a mask here:</p>
+<p><img alt="Nuclei label image" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/nuclei_labels.png?raw=true" /></p>
 </div>
 <div class="section" id="extract-masks-with-cellpose">
 <h2>2. Extract masks with Cellpose<a class="headerlink" href="#extract-masks-with-cellpose" title="Permalink to this headline"></a></h2>
@@ -627,7 +627,7 @@ Luckily these were stained with different colors and are available in different 
 <p>To estimate the amount of aggregates per cell, we actually need the cytoplasm in our example. Then we can calculate overlap.</p>
 <p>One could segment the cytoplasm possibly, but we have a Python script that does this algorithmically instead.</p>
 <p>We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.</p>
-<p><img alt="4 images showing cell expansion" src="images/cellexpansion.png" /></p>
+<p><img alt="4 images showing cell expansion" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/cellexpansion.png?raw=true" /></p>
 <p>For this, we have to first add it to Omero:
 We could just add the Python code to a Omero job script. But then the Processor needs to have the right Python libraries installed.
 Instead, we should package it in a lightweight container with the correct Python environment. This in turn makes the workflow more FAIR.</p>

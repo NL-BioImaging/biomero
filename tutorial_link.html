@@ -620,7 +620,9 @@ Luckily these were stained with different colors and are available in different 
 <li><p>Channel 3 = Nuclei</p></li>
 <li><p>Channel 2 = Aggregates</p></li>
 </ul>
-<p>So we can run 2 CellPose workflows on Omero and retrieve both masks.</p>
+<p>So we can run 2 CellPose workflows on Omero and retrieve both masks.
+We store them as images in a new dataset and particularly name them: “{original_file}NucleiLabels.{ext}”  and “{original_file}GranulesLabels.{ext}”.</p>
+<p>Combine both in the same dataset afterward, this will be our input dataset for the CellExpansion algorithm.</p>
 </div>
 <div class="section" id="cellexpansion">
 <h2>3. CellExpansion<a class="headerlink" href="#cellexpansion" title="Permalink to this headline"></a></h2>

@@ -1129,7 +1129,9 @@ class SlurmClient(Connection):
         raw_url = self.convert_url(git_repo)
         # pull workflow params
         # TODO: cache?
-        ghfile = requests.get(raw_url)
+        if not self.github_session:
+            self.github_session = requests.Session()
+        ghfile = self.github_session.get(raw_url)
         if ghfile.ok:
             json_descriptor = json.loads(ghfile.text)
         else:

@@ -1219,7 +1219,9 @@
         <span class="n">raw_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_url</span><span class="p">(</span><span class="n">git_repo</span><span class="p">)</span>
         <span class="c1"># pull workflow params</span>
         <span class="c1"># TODO: cache?</span>
-        <span class="n">ghfile</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">raw_url</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">github_session</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">github_session</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+        <span class="n">ghfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">github_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">raw_url</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ghfile</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="n">json_descriptor</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ghfile</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>

@@ -105,6 +105,8 @@ class SlurmClient(Connection):
     _LOGFILE = "omero-{slurm_job_id}.log"
     _TAIL_LOG_CMD = "tail -n {n} {log_file} | strings"
     _LOGFILE_DATA_CMD = "cat {log_file} | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
+    
+    github_session = None
 
     def __init__(self,
                  host=_DEFAULT_HOST,

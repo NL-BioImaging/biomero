@@ -6,8 +6,7 @@ from invoke.exceptions import UnexpectedExit
 from paramiko import SSHException
 import configparser
 import re
-import json
-import requests
+import requests_cache
 import importlib
 import logging
 import time as timesleep
@@ -105,8 +104,6 @@ class SlurmClient(Connection):
     _LOGFILE = "omero-{slurm_job_id}.log"
     _TAIL_LOG_CMD = "tail -n {n} {log_file} | strings"
     _LOGFILE_DATA_CMD = "cat {log_file} | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
-    
-    github_session = None
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -147,6 +144,11 @@ class SlurmClient(Connection):
         self.slurm_model_images = slurm_model_images
         self.slurm_model_jobs = slurm_model_jobs
         self.slurm_model_jobs_params = slurm_model_jobs_params
+
+        # Init cache. Keep responses for 360 seconds
+        self.cache = requests_cache.backends.sqlite.DbCache(use_temp=True)
+        requests_cache.CachedSession('github_cache', backend=self.cache,
+                                     expire_after=360)
 
         self.init_workflows()
         self.validate(validate_slurm_setup=init_slurm)
@@ -1129,17 +1131,19 @@ class SlurmClient(Connection):
         git_repo = self.slurm_model_repos[workflow]
         # convert git repo to json file
         raw_url = self.convert_url(git_repo)
+        logger.debug(f"Pull workflow: {workflow}: {git_repo} >> {raw_url}")
         # pull workflow params
-        # TODO: cache?
-        if not self.github_session:
-            self.github_session = requests.Session()
-        ghfile = self.github_session.get(raw_url)
+        github_session = requests_cache.CachedSession('github_cache',
+                                                      backend=self.cache,
+                                                      expire_after=360)
+        ghfile = github_session.get(raw_url)
         if ghfile.ok:
-            json_descriptor = json.loads(ghfile.text)
+            logger.debug(f"Cached? {ghfile.from_cache}")
+            json_descriptor = ghfile.json()
         else:
             raise ValueError(
                 f'Error while pulling descriptor file for workflow {workflow},\
-                    from {raw_url}: {ghfile}')
+                    from {raw_url}: {ghfile.__dict__}')
         return json_descriptor
 
     def get_workflow_command(self,

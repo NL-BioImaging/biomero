@@ -195,6 +195,8 @@
     <span class="n">_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;omero-</span><span class="si">{slurm_job_id}</span><span class="s2">.log&quot;</span>
     <span class="n">_TAIL_LOG_CMD</span> <span class="o">=</span> <span class="s2">&quot;tail -n </span><span class="si">{n}</span><span class="s2"> </span><span class="si">{log_file}</span><span class="s2"> | strings&quot;</span>
     <span class="n">_LOGFILE_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;cat </span><span class="si">{log_file}</span><span class="s2"> | perl -wne &#39;/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1&#39;&quot;</span>
+    
+    <span class="n">github_session</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">host</span><span class="o">=</span><span class="n">_DEFAULT_HOST</span><span class="p">,</span>

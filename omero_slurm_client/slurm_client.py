@@ -1191,7 +1191,7 @@ class SlurmClient(Connection):
         job_params.append(time_param)
         job_params.append(email_param)
         job_param = "".join(job_params)
-        sbatch_cmd = f"sbatch{job_param} --output=omero-%4j.log \
+        sbatch_cmd = f"sbatch{job_param} --output=omero-%j.log \
             {self.slurm_script_path}/{job_script}"
 
         return sbatch_cmd, env

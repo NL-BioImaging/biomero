@@ -23,10 +23,10 @@
 # --mem will define memory per node
 #SBATCH --mem=5GB
 
-# Define a name for the logfile of this job. %4j will add the 'j'ob ID variable
+# Define a name for the logfile of this job. %j will add the 'j'ob ID variable
 # Use append so that we keep the old log when we requeue this job
 # We use omero, so that we can recognize them from Omero job code
-#SBATCH --output=omero-%4j.log
+#SBATCH --output=omero-%j.log
 #SBATCH --open-mode=append
 
 # Turn on mail notification. There are many possible self-explaining values:

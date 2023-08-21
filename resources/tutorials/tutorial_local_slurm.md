@@ -532,3 +532,17 @@ You can see that this script recognized that we downloaded 3 workflows, and what
 Let's select `cellpose` and click `use gpu` off (sadly). Tune the other parameters as you like for your images. Also, for output let's select `Import into NEW Dataset` by filling in a dataset name: cellpose_images. Click `Run Script`.
 
 ![Slurm Run Cellpose](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_cellpose.PNG?raw=true)
+
+Result: Job 1 is FAILED.
+Turns out, our Slurm doesn't have the compute nodes to execute this operation.
+
+### Improve Slurm
+
+```conf
+# COMPUTE NODES
+NodeName=c[1-2] RealMemory=5120 CPUs=8 State=UNKNOWN
+```
+
+Here, 5GB and 8 CPU should do the trick!
+
+

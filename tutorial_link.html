@@ -983,8 +983,8 @@ c2
 </ol>
 <details>
   <summary>Details</summary>
-<p>======= Omero in Docker =======
-You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
+<p>======= Omero in Docker =======</p>
+<p>You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
@@ -992,13 +992,13 @@ You can use your own Omero setup, but for this tutorial I will refer to a docker
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
 </pre></div>
 </div>
-<p>======= Omero web =======
-Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
+<p>======= Omero web =======</p>
+<p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
 <p>Import some example data with Omero Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
-<p>======= Connect to Slurm =======
-This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
-<p>======= Add ssh config to Omero Processor =======
-Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
+<p>======= Connect to Slurm =======</p>
+<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
+<p>======= Add ssh config to Omero Processor =======</p>
+<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>However, we need to change the <code class="docutils literal notranslate"><span class="pre">HostName</span></code> to match one that the container can understand. <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from our machine, but not from within a Docker container. Instead, we need to use <code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> (<a class="reference external" href="https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host">documentation</a>).</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>

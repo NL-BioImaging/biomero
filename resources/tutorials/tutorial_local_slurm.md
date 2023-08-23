@@ -76,7 +76,7 @@ We need to setup our library with SSH access between Omero and Slurm, but this i
 
 Luckily, people have already worked on SSH access into containers too, like [here](https://goteleport.com/blog/shell-access-docker-container-with-ssh-and-docker-exec/). So let's borrow their OpenSSH setup and add it to the _Dockerfile_ of the Slurm Control Daemon (`slurmctld`):
 
-### 2a. Make a new Dockerfile for the slurmctld
+======= 2a. Make a new Dockerfile for the slurmctld =======
 
 We want to combine the 2 Dockerfiles. However, one is `ubuntu` and the other is `rockylinux`. The biggest difference is that `rockylinux` uses the `yum` package manager to install software, instead of `apt`. We will stick to the Slurm image as the base image and just add the OpenSSH on top of it. 
 
@@ -142,7 +142,7 @@ We added the command to start the SSH daemon on the CTLD here, where it is actua
 We also added some quick bugfixes to make the tutorial SSH work.
 If you still run into issues with permissions in `/data`, login as superuser and also apply write access again.
 
-### 2b. Tell Docker Compose to use the new Dockerfile for `slurmctld`
+======= 2b. Tell Docker Compose to use the new Dockerfile for `slurmctld` =======
 
 Currently, [Docker Compose](https://github.com/giovtorres/slurm-docker-cluster/blob/master/docker-compose.yml) will spin up all containers from the same Dockerfile definition.
 
@@ -198,7 +198,7 @@ Last login: Tue Aug  8 15:48:31 2023 from 172.21.0.1
 
 Congratulations!
 
-### 2c. Add SSH config for simple login
+======= 2c. Add SSH config for simple login =======
 
 But, we can simplify the SSH, and our library needs a simple way to login.
 
@@ -217,7 +217,7 @@ Host slurm
 Then try it out:
 `ssh slurm`
 
-#### StrictHostKeyChecking
+======= StrictHostKeyChecking =======
 Note that I added `StrictHostKeyChecking no`, as our Slurm container will have different keys all the time. A normal Slurm server likely does not, and won't require this flag. This is also where we get our pretty warning from:
 ```
 ...> ssh slurm
@@ -301,7 +301,7 @@ Ok, now we need a Omero server and a correctly configured Omero Slurm Client.
 <details>
   <summary>Details</summary>
 
-### Omero in Docker
+======= Omero in Docker =======
 You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: [get it here](https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors).
 
 ```bash
@@ -314,15 +314,15 @@ Let's (build it and) fire it up:
 docker-compose up -d --build
 ```
 
-### Omero web
+======= Omero web =======
 Once they are running, you should be able to access web at `localhost:4080`. Login with user `root` / pw `omero`. 
 
 Import some example data with Omero Insight (connect with `localhost`).
 
-### Connect to Slurm
+======= Connect to Slurm =======
 This container's processor node (`worker-5`) has already installed our `omero-slurm-client` library. 
 
-#### Add ssh config to Omero Processor
+======= Add ssh config to Omero Processor =======
 Ok, so `localhost` works fine from your machine, but we need the Omero processing server `worker-5` to be able to do it too, like [we did before](#2c-add-ssh-config-for-simple-login).
 
 By some smart tricks, we have mounted our `~/.ssh` folder to the worker container, so it knows and can use our SSH settings and config.
@@ -355,8 +355,8 @@ bash-4.2$ exit
 exit
 ```
 
-#### slurm-config.ini
-
+======= slurm-config.ini =======
+ 
 Let us setup the library's config file [slurm-config.ini](../slurm-config.ini) correctly.
 
 Now, the `omero-slurm-client` library by default expects the `Slurm` ssh connection to be called `slurm`, but you can adjust it to whatever you named your ssh _Host_ in config. 
@@ -570,13 +570,13 @@ cellexpansion_repo=https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1
 cellexpansion_job=jobs/cellexpansion.sh
 ```
 
-#### Init environment
+======= Init environment =======
 
 Now we go to Omero web and run the `slurm/init_environment` script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.
 
-![Slurm Init Busy](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env.PNG?raw=true)
+![Slurm Init Busy](./images/webclient_init_env.PNG)
 
-![Slurm Init Done](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env_done.PNG?raw=true)
+![Slurm Init Done](./images/webclient_init_env_done.PNG)
 
 </details>
 
@@ -606,18 +606,18 @@ So, I hope you added some data already; if not, import some images now.
 
 Let's run `slurm/SLURM Run Workflow`:
 
-![Slurm Run Workflow](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_workflow.PNG?raw=true)
+![Slurm Run Workflow](./images/webclient_run_workflow.PNG?raw=true)
 
 You can see that this script recognized that we downloaded 3 workflows, and what their parameters are. For more information on this magic, follow the other tutorials.
 
 Let's select `cellpose` and click `use gpu` off (sadly). Tune the other parameters as you like for your images. Also, for output let's select `Import into NEW Dataset` by filling in a dataset name: cellpose_images. Click `Run Script`.
 
-![Slurm Run Cellpose](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_cellpose.PNG?raw=true)
+![Slurm Run Cellpose](./images/webclient_run_cellpose.PNG?raw=true)
 
 Result: Job 1 is FAILED.
 Turns out, our Slurm doesn't have the compute nodes to execute this operation.
 
-### Improve Slurm
+======= Improve Slurm =======
 
 Update the `slurm.conf` file in the git repository.
 
@@ -638,7 +638,7 @@ docker-compose up --build
 
 </details>
 
-The world is your oyster! 
+That should take you through connecting Omero with a local Slurm setup.
 
 ### Batching
 

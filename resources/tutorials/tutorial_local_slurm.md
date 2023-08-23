@@ -12,8 +12,26 @@ This is what we will cover in this tutorial.
 To follow this tutorial, you need:
 - Git
 - Docker
+- Omero Insight
+- \> 18GB memory
+- \> 8 CPU cores
 
-## 1. Setup Slurm containers
+I use Windows here, but it should work on Linux/Mac too. If not, let me know.
+
+System requirements could be less, but then you have to change some configurations for Slurm.
+
+I provide ready-to-go TL;DR, but in the details of each chapter I walk through the steps I took to make these containers ready.
+
+## 1. Setup Docker containers for Slurm
+
+### TL;DR:
+- Clone my example `slurm-docker-cluster` locally: [here](https://github.com/TorecLuik/slurm-docker-cluster)
+
+
+
+
+<details>
+  <summary>Details</summary>
 
 Always a good idea to stand on the shoulders of giants, so we want to spin up a ready-made Slurm container cluster. [Here on Github](https://github.com/giovtorres/slurm-docker-cluster) is a nice example with a open source license. It uses [Docker](https://www.docker.com/) containers and [Docker Compose](https://docs.docker.com/compose/) to easily orchestrate their interactions.
 
@@ -32,10 +50,27 @@ git clone https://github.com/giovtorres/slurm-docker-cluster.git .
 ```
 
 You can build and run these containers as described in their [README](https://github.com/giovtorres/slurm-docker-cluster/blob/master/README.md). Then you can already play around with Slurm that way, so try it out!
+</details>
 
 However, we are missing an ingredient: SSH access!
 
-## 2. Add SSH access to the Slurm Control Daemon container
+## 2. Add SSH access
+
+### TL;DR:
+1. Copy your public SSH key (`id_rsa.pub`) into this git folder (it will get copied into the Docker image when you build it)
+2. Add a SSH config file, store it as `~/.ssh/config` (no extension):
+
+```yaml
+Host localslurm
+	HostName host.docker.internal
+	User slurm
+	Port 2222
+	IdentityFile ~/.ssh/id_rsa
+	StrictHostKeyChecking no
+```
+
+<details>
+  <summary>Details</summary>
 
 We need to setup our library with SSH access between Omero and Slurm, but this is not built-in to these containers yet (because Docker actually has a built-in alternative, `docker exec`).
 
@@ -140,13 +175,21 @@ slurmctld:
 We also mapped port 22 (SSH) from the container to our localhost port 2222.
 So now we can connect SSH to our localhost and be forwarded to this Slurm container.
 
+
+
 Test it out:
 
+1. Fire up the Slurm cluster:
+```powershell
+docker-compose up -d --build
+```
+
+2. SSH into the control node:
 ```powershell
 ssh -i C:\Users\<you>\.ssh\id_rsa slurm@localhost -p 2222 -o UserKnownHostsFile=/dev/null
 ```
 
-This should connect as the `slurm` user to the control container on port 2222 (type yes to connect, we will have to fix promptless login later).
+This should connect as the `slurm` user to the control container on port 2222 (type yes to connect, we will fix promptless login later).
 
 ```shell
 Last login: Tue Aug  8 15:48:31 2023 from 172.21.0.1
@@ -189,8 +232,20 @@ The host key changed =)
 
 If you don't add this flag, it will safe you from danger and deny access. Of course, that is not very useful for our tutorial.
 
+</details>
+
 
 ## 3. Test Slurm
+
+### TL;DR:
+1. Spin up the Slurm cluster: `docker-compose up -d --build`
+2. SSH into the control node: `ssh localslurm`
+3. Start some filler jobs: `sbatch --wrap="sleep 5 && hostname" &&  sbatch --wrap="sleep 5 && hostname" &&  sbatch --wrap="sleep 5 && hostname" &&  sbatch --wrap="sleep 5 && hostname"`
+4. Check the progress: `squeue` 
+5. Check some output, e.g. job 1: `cat slurm-1.out`
+
+<details>
+  <summary>Details</summary>
 
 Now connect via SSH to Slurm, change to `/data` (our fileserver shared between the Slurm nodes) and let's see if Slurm works:
 ```bash
@@ -202,7 +257,7 @@ Now connect via SSH to Slurm, change to `/data` (our fileserver shared between t
 The queue is empty!
 Let's fill it up with some short tasks:
 ```bash
-[slurm@slurmctld data]$ sbatch --wrap="sleep 2 && hostname" &&  sbatch --wrap="sleep 2 && hostname" &&  sbatch --wrap="sleep 2 && hostname" &&  sbatch --wrap="sleep 2 && hostname"
+[slurm@slurmctld data]$ sbatch --wrap="sleep 5 && hostname" &&  sbatch --wrap="sleep 5 && hostname" &&  sbatch --wrap="sleep 5 && hostname" &&  sbatch --wrap="sleep 5 && hostname"
 Submitted batch job 5
 Submitted batch job 6
 Submitted batch job 7
@@ -225,6 +280,9 @@ c1
 c2
 [slurm@slurmctld data]$
 ```
+
+</details>
+
 They logged the `hostname` command, which returned `c1` for some and `c2` for others, as those were the hosts the compute was used from.
 
 Now let's connect Omero to our Slurm!
@@ -232,6 +290,16 @@ Now let's connect Omero to our Slurm!
 ## 4. Omero & Omero Slurm Client
 
 Ok, now we need a Omero server and a correctly configured Omero Slurm Client.
+
+### TL;DR:
+1.  Clone my example `docker-example-omero-grid-amc` locally: `git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git`
+2. Fire up the Omero containers: `docker-compose up -d --build`
+3. Go to Omero.web (`localhost:4080`), login `root` pw `omero`
+4. Upload some images (to `localhost`) with Omero.Insight (not included).
+5. In web, run the `slurm/init_environment` script
+
+<details>
+  <summary>Details</summary>
 
 ### Omero in Docker
 You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: [get it here](https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors).
@@ -362,8 +430,6 @@ We will also comment out some of the other algorithms, so we have to download le
 
 This brings us to the following configuration file:
 
-<details>
-  <summary>slurm-config.ini</summary>
 
 ```ini
 [SSH]
@@ -503,7 +569,6 @@ cellexpansion_repo=https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1
 # The jobscript in the 'slurm_script_repo'
 cellexpansion_job=jobs/cellexpansion.sh
 ```
-</details>
 
 #### Init environment
 
@@ -511,15 +576,31 @@ Now we go to Omero web and run the `slurm/init_environment` script to apply this
 
 ![Slurm Init Busy](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env.PNG?raw=true)
 
-Note, this will take a while, since it is downloading these docker images and building singularity containers from them. 
-
 ![Slurm Init Done](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env_done.PNG?raw=true)
 
-Congratulations! We have setup workflows CellPose `v1.2.7`, Cellprofiler Spot `v1.0.1` and CellExpansion `v1.0.1`. And there is no data files yet.
+</details>
+
+Note, this will take a while, since it is downloading workflow docker images and building (singularity) containers from them. 
+
+Congratulations! We have setup workflows CellPose `v1.2.7`, Cellprofiler Spot `v1.0.1` and CellExpansion `v1.0.1`. And there are no data files yet.
 
 Let's go run some segmentation workflow then!
 
 ## 5. Workflows!
+
+### TL;DR:
+1. In web, select your images and run script `slurm/SLURM Run Workflow`
+    - Tick off `E-mail` box (not implemented in this Slurm docker setup)
+    - For importing results, change `3a) Import into NEW Dataset` to `CellPose_Masks`
+    - For importing results, change `3b) Rename the imported images` to `{original_file}_cpmask.{ext}`
+    - Select `cellpose`, but tick off `use_gpu` off (sadly not implemented in this docker setup)
+    - Click `Run Script`
+2. Check activity window (or get a coffee), it should take a few minutes (about 3m:30s for 4 256x256 images for me) and then say (a.o.): `COMPLETE`
+    - Or it `FAILED`, in which case you should check all the details anyway and get your hands dirty with debugging! Or try less and smaller images.
+3. Refresh your Explore window, there should be a new dataset `CellPose_Masks` with a mask for every input image. 
+
+<details>
+  <summary>Details</summary>
 
 So, I hope you added some data already; if not, import some images now.
 
@@ -538,11 +619,31 @@ Turns out, our Slurm doesn't have the compute nodes to execute this operation.
 
 ### Improve Slurm
 
-```conf
+Update the `slurm.conf` file in the git repository.
+
+```ini
 # COMPUTE NODES
 NodeName=c[1-2] RealMemory=5120 CPUs=8 State=UNKNOWN
 ```
 
-Here, 5GB and 8 CPU should do the trick!
+Here, 5GB and 8 CPU each should do the trick!
 
+Rebuild the containers. Note that the config is on a shared volume, so we have to destroy that volume too (it took some headbashing to find this out):
+```powershell
+docker-compose down --volumes 
+```
+```powershell
+docker-compose up --build
+```
 
+</details>
+
+The world is your oyster! 
+
+### Batching
+
+Try `slurm/SLURM Run Workflow Batched` to see if there is any speedup by splitting your images over multiple jobs/batches. 
+
+We have installed 2 nodes in this Slurm cluster, so theoretically you could make 2 batches of half the images and get your results quicker. However we can only compute 2 batches/jobs in parallel, so smaller batches will just wait in the queue (with some overhead).
+
+Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.

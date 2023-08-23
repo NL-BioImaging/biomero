@@ -63,9 +63,9 @@ For this, we need to rename our mask files first.
 We calculate overlap with another very short Python script, which I added to the `wrapper.py` of the cellexpansion workflow.
 It outputs a `.csv` file with the counts.
 
-# Extra
+## Extra
 
-## Out of memory
+### Out of memory
 
 While running CellPose on the Aggregates, my job ran out of memory. So I had to bump up the default memory used by the generated job scripts, in `slurm_config.ini`:
 

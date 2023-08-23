@@ -644,6 +644,23 @@ The world is your oyster!
 
 Try `slurm/SLURM Run Workflow Batched` to see if there is any speedup by splitting your images over multiple jobs/batches. 
 
-We have installed 2 nodes in this Slurm cluster, so theoretically you could make 2 batches of half the images and get your results quicker. However we can only compute 2 batches/jobs in parallel, so smaller batches will just wait in the queue (with some overhead).
+We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer.
 
+<details>
 Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
+
+Let's check on the Slurm node:
+```bash
+$ sacct --starttime "2023-06-13T17:00:00" --format Jobid,State,start,end,JobName%-18,Elapsed -n -X --endtime "now"
+``` 
+
+In my latest example, it was 1 minute (30%) faster to have 2 batches/jobs (`32` & `33`) vs 1 job (`31`):
+```yaml
+31            COMPLETED 2023-08-23T08:41:28 2023-08-23T08:45:02 omero-job-cellpose   00:03:34
+
+32            COMPLETED 2023-08-23T09:22:00 2023-08-23T09:24:27 omero-job-cellpose   00:02:27
+33            COMPLETED 2023-08-23T09:22:03 2023-08-23T09:24:40 omero-job-cellpose   00:02:37
+```
+
+
+</details>

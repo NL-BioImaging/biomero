@@ -302,6 +302,7 @@ Ok, now we need a Omero server and a correctly configured Omero Slurm Client.
   <summary>Details</summary>
 
 ======= Omero in Docker =======
+
 You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: [get it here](https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors).
 
 ```bash
@@ -315,14 +316,17 @@ docker-compose up -d --build
 ```
 
 ======= Omero web =======
+
 Once they are running, you should be able to access web at `localhost:4080`. Login with user `root` / pw `omero`. 
 
 Import some example data with Omero Insight (connect with `localhost`).
 
 ======= Connect to Slurm =======
+
 This container's processor node (`worker-5`) has already installed our `omero-slurm-client` library. 
 
 ======= Add ssh config to Omero Processor =======
+
 Ok, so `localhost` works fine from your machine, but we need the Omero processing server `worker-5` to be able to do it too, like [we did before](#2c-add-ssh-config-for-simple-login).
 
 By some smart tricks, we have mounted our `~/.ssh` folder to the worker container, so it knows and can use our SSH settings and config.

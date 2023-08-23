@@ -102,12 +102,6 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#add-ssh-access">2. Add SSH access</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">TL;DR:</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#a-make-a-new-dockerfile-for-the-slurmctld">2a. Make a new Dockerfile for the slurmctld</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#b-tell-docker-compose-to-use-the-new-dockerfile-for-slurmctld">2b. Tell Docker Compose to use the new Dockerfile for <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#c-add-ssh-config-for-simple-login">2c. Add SSH config for simple login</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#stricthostkeychecking">StrictHostKeyChecking</a></li>
-</ul>
-</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#test-slurm">3. Test Slurm</a><ul>
@@ -116,19 +110,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#omero-omero-slurm-client">4. Omero &amp; Omero Slurm Client</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id4">TL;DR:</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#omero-in-docker">Omero in Docker</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#omero-web">Omero web</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#connect-to-slurm">Connect to Slurm</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#add-ssh-config-to-omero-processor">Add ssh config to Omero Processor</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#init-environment">Init environment</a></li>
-</ul>
-</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#workflows">5. Workflows!</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id5">TL;DR:</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#improve-slurm">Improve Slurm</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#batching">Batching</a></li>
 </ul>
 </li>
@@ -798,9 +783,7 @@ This is what we will cover in this tutorial.</p>
   <summary>Details</summary>
 <p>We need to setup our library with SSH access between Omero and Slurm, but this is not built-in to these containers yet (because Docker actually has a built-in alternative, <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">exec</span></code>).</p>
 <p>Luckily, people have already worked on SSH access into containers too, like <a class="reference external" href="https://goteleport.com/blog/shell-access-docker-container-with-ssh-and-docker-exec/">here</a>. So let’s borrow their OpenSSH setup and add it to the <em>Dockerfile</em> of the Slurm Control Daemon (<code class="docutils literal notranslate"><span class="pre">slurmctld</span></code>):</p>
-</div>
-<div class="section" id="a-make-a-new-dockerfile-for-the-slurmctld">
-<h3>2a. Make a new Dockerfile for the slurmctld<a class="headerlink" href="#a-make-a-new-dockerfile-for-the-slurmctld" title="Permalink to this headline"></a></h3>
+<p>======= 2a. Make a new Dockerfile for the slurmctld =======</p>
 <p>We want to combine the 2 Dockerfiles. However, one is <code class="docutils literal notranslate"><span class="pre">ubuntu</span></code> and the other is <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code>. The biggest difference is that <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code> uses the <code class="docutils literal notranslate"><span class="pre">yum</span></code> package manager to install software, instead of <code class="docutils literal notranslate"><span class="pre">apt</span></code>. We will stick to the Slurm image as the base image and just add the OpenSSH on top of it.</p>
 <p>Turns out, another difference is the use of <code class="docutils literal notranslate"><span class="pre">systemctld</span></code> causing all kinds of issues.
 So I spent the time to activate OpenSSH server on Rocky linux:</p>
@@ -859,9 +842,7 @@ This is performed in this line:</p>
 <p>We added the command to start the SSH daemon on the CTLD here, where it is actually called.
 We also added some quick bugfixes to make the tutorial SSH work.
 If you still run into issues with permissions in <code class="docutils literal notranslate"><span class="pre">/data</span></code>, login as superuser and also apply write access again.</p>
-</div>
-<div class="section" id="b-tell-docker-compose-to-use-the-new-dockerfile-for-slurmctld">
-<h3>2b. Tell Docker Compose to use the new Dockerfile for <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code><a class="headerlink" href="#b-tell-docker-compose-to-use-the-new-dockerfile-for-slurmctld" title="Permalink to this headline"></a></h3>
+<p>======= 2b. Tell Docker Compose to use the new Dockerfile for <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code> =======</p>
 <p>Currently, <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster/blob/master/docker-compose.yml">Docker Compose</a> will spin up all containers from the same Dockerfile definition.</p>
 <p>So we will change the Dockerfile for the <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code> as defined in the <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code>, by replacing <code class="docutils literal notranslate"><span class="pre">image</span></code> with <code class="docutils literal notranslate"><span class="pre">build</span></code>:</p>
 <div class="highlight-yml notranslate"><div class="highlight"><pre><span></span>slurmctld:
@@ -908,9 +889,7 @@ So now we can connect SSH to our localhost and be forwarded to this Slurm contai
 </pre></div>
 </div>
 <p>Congratulations!</p>
-</div>
-<div class="section" id="c-add-ssh-config-for-simple-login">
-<h3>2c. Add SSH config for simple login<a class="headerlink" href="#c-add-ssh-config-for-simple-login" title="Permalink to this headline"></a></h3>
+<p>======= 2c. Add SSH config for simple login =======</p>
 <p>But, we can simplify the SSH, and our library needs a simple way to login.</p>
 <p>For this, add <a class="reference internal" href="#../example.config"><span class="xref myst">this</span></a> config file as your <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>, no extension. See <a class="reference external" href="https://www.ssh.com/academy/ssh/config">here</a> for more information.</p>
 <p>Of course, first update the values with those you used to SSH before, e.g.:</p>
@@ -924,9 +903,8 @@ So now we can connect SSH to our localhost and be forwarded to this Slurm contai
 </div>
 <p>Then try it out:
 <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">slurm</span></code></p>
-<div class="section" id="stricthostkeychecking">
-<h4>StrictHostKeyChecking<a class="headerlink" href="#stricthostkeychecking" title="Permalink to this headline"></a></h4>
-<p>Note that I added <code class="docutils literal notranslate"><span class="pre">StrictHostKeyChecking</span> <span class="pre">no</span></code>, as our Slurm container will have different keys all the time. A normal Slurm server likely does not, and won’t require this flag. This is also where we get our pretty warning from:</p>
+<p>======= StrictHostKeyChecking =======
+Note that I added <code class="docutils literal notranslate"><span class="pre">StrictHostKeyChecking</span> <span class="pre">no</span></code>, as our Slurm container will have different keys all the time. A normal Slurm server likely does not, and won’t require this flag. This is also where we get our pretty warning from:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>...&gt; ssh slurm
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
@@ -939,7 +917,6 @@ It is also possible that a host key has just been changed.
 <p>The host key changed =)</p>
 <p>If you don’t add this flag, it will safe you from danger and deny access. Of course, that is not very useful for our tutorial.</p>
 </details>
-</div>
 </div>
 </div>
 <div class="section" id="test-slurm">
@@ -1006,10 +983,8 @@ c2
 </ol>
 <details>
   <summary>Details</summary>
-</div>
-<div class="section" id="omero-in-docker">
-<h3>Omero in Docker<a class="headerlink" href="#omero-in-docker" title="Permalink to this headline"></a></h3>
-<p>You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
+<p>======= Omero in Docker =======
+You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
@@ -1017,18 +992,13 @@ c2
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
 </pre></div>
 </div>
-</div>
-<div class="section" id="omero-web">
-<h3>Omero web<a class="headerlink" href="#omero-web" title="Permalink to this headline"></a></h3>
-<p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
+<p>======= Omero web =======
+Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
 <p>Import some example data with Omero Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
-</div>
-<div class="section" id="connect-to-slurm">
-<h3>Connect to Slurm<a class="headerlink" href="#connect-to-slurm" title="Permalink to this headline"></a></h3>
-<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
-<div class="section" id="add-ssh-config-to-omero-processor">
-<h4>Add ssh config to Omero Processor<a class="headerlink" href="#add-ssh-config-to-omero-processor" title="Permalink to this headline"></a></h4>
-<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
+<p>======= Connect to Slurm =======
+This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
+<p>======= Add ssh config to Omero Processor =======
+Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>However, we need to change the <code class="docutils literal notranslate"><span class="pre">HostName</span></code> to match one that the container can understand. <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from our machine, but not from within a Docker container. Instead, we need to use <code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> (<a class="reference external" href="https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host">documentation</a>).</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
@@ -1054,9 +1024,7 @@ bash-4.2$ exit
 exit
 </pre></div>
 </div>
-</div>
-<div class="section" id="slurm-config-ini">
-<h4>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h4>
+<p>======= slurm-config.ini =======</p>
 <p>Let us setup the library’s config file <a class="reference internal" href="#../slurm-config.ini"><span class="xref myst">slurm-config.ini</span></a> correctly.</p>
 <p>Now, the <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library by default expects the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> ssh connection to be called <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, but you can adjust it to whatever you named your ssh <em>Host</em> in config.</p>
 <p>In this Docker setup, the config file is located at the <code class="docutils literal notranslate"><span class="pre">worker-gpu</span></code> folder and in the Dockerfile it is copied to <code class="docutils literal notranslate"><span class="pre">/etc/</span></code>, where the library will pick it up.</p>
@@ -1257,17 +1225,14 @@ exit
 <span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="init-environment">
-<h4>Init environment<a class="headerlink" href="#init-environment" title="Permalink to this headline"></a></h4>
+<p>======= Init environment =======</p>
 <p>Now we go to Omero web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
-<p><img alt="Slurm Init Busy" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env.PNG?raw=true" /></p>
-<p><img alt="Slurm Init Done" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env_done.PNG?raw=true" /></p>
+<p><img alt="Slurm Init Busy" src="images/webclient_init_env.PNG" /></p>
+<p><img alt="Slurm Init Done" src="images/webclient_init_env_done.PNG" /></p>
 </details>
 <p>Note, this will take a while, since it is downloading workflow docker images and building (singularity) containers from them.</p>
 <p>Congratulations! We have setup workflows CellPose <code class="docutils literal notranslate"><span class="pre">v1.2.7</span></code>, Cellprofiler Spot <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code> and CellExpansion <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>. And there are no data files yet.</p>
 <p>Let’s go run some segmentation workflow then!</p>
-</div>
 </div>
 </div>
 <div class="section" id="workflows">
@@ -1295,15 +1260,13 @@ exit
   <summary>Details</summary>
 <p>So, I hope you added some data already; if not, import some images now.</p>
 <p>Let’s run <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code>:</p>
-<p><img alt="Slurm Run Workflow" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_workflow.PNG?raw=true" /></p>
+<p><img alt="Slurm Run Workflow" src="images/webclient_run_workflow.PNG?raw=true" /></p>
 <p>You can see that this script recognized that we downloaded 3 workflows, and what their parameters are. For more information on this magic, follow the other tutorials.</p>
 <p>Let’s select <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> and click <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">gpu</span></code> off (sadly). Tune the other parameters as you like for your images. Also, for output let’s select <code class="docutils literal notranslate"><span class="pre">Import</span> <span class="pre">into</span> <span class="pre">NEW</span> <span class="pre">Dataset</span></code> by filling in a dataset name: cellpose_images. Click <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code>.</p>
-<p><img alt="Slurm Run Cellpose" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_cellpose.PNG?raw=true" /></p>
+<p><img alt="Slurm Run Cellpose" src="images/webclient_run_cellpose.PNG?raw=true" /></p>
 <p>Result: Job 1 is FAILED.
 Turns out, our Slurm doesn’t have the compute nodes to execute this operation.</p>
-</div>
-<div class="section" id="improve-slurm">
-<h3>Improve Slurm<a class="headerlink" href="#improve-slurm" title="Permalink to this headline"></a></h3>
+<p>======= Improve Slurm =======</p>
 <p>Update the <code class="docutils literal notranslate"><span class="pre">slurm.conf</span></code> file in the git repository.</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># COMPUTE NODES</span>
 <span class="na">NodeName</span><span class="o">=</span><span class="s">c[1-2] RealMemory=5120 CPUs=8 State=UNKNOWN</span>
@@ -1318,7 +1281,7 @@ Turns out, our Slurm doesn’t have the compute nodes to execute this operation.
 </pre></div>
 </div>
 </details>
-<p>The world is your oyster!</p>
+<p>That should take you through connecting Omero with a local Slurm setup.</p>
 </div>
 <div class="section" id="batching">
 <h3>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h3>

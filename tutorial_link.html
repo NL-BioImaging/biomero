@@ -87,10 +87,10 @@
 <li class="toctree-l2"><a class="reference internal" href="#extract-masks-with-cellpose">2. Extract masks with Cellpose</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cellexpansion">3. CellExpansion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#calculate-overlap">Calculate overlap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extra">Extra</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#out-of-memory">Out of memory</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#extra">Extra</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#out-of-memory">Out of memory</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#local-slurm-tutorial">Local Slurm tutorial</a><ul>
@@ -149,7 +149,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="cellprofiler-tutorial">
+  <hr class="docutils" />
+<div class="section" id="cellprofiler-tutorial">
 <h1>Cellprofiler tutorial<a class="headerlink" href="#cellprofiler-tutorial" title="Permalink to this headline"></a></h1>
 <p>Cellprofiler is already known for excellent interoperability with Omero. You can directly load images into the cellprofiler pipelines.</p>
 <p>Cellprofiler also has options to run in batch mode and headless, for analyzing big data on compute clusters, like we want as well.</p>
@@ -625,6 +626,7 @@ To make this easier for the future, always add a license. I <a class="reference 
 <p>But there is also <code class="docutils literal notranslate"><span class="pre">copyleft</span></code>, where people can only adapt your code if they also keep the same license on all their code; e.g. <a class="reference external" href="https://choosealicense.com/licenses/gpl-3.0/">GNU</a>. That is a bit more restrictive.</p>
 </div>
 </div>
+<hr class="docutils" />
 <div class="section" id="cellexpansion-tutorial">
 <h1>CellExpansion tutorial<a class="headerlink" href="#cellexpansion-tutorial" title="Permalink to this headline"></a></h1>
 <div class="section" id="introduction">
@@ -685,11 +687,10 @@ Instead, we should package it in a lightweight container with the correct Python
 <p>We calculate overlap with another very short Python script, which I added to the <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> of the cellexpansion workflow.
 It outputs a <code class="docutils literal notranslate"><span class="pre">.csv</span></code> file with the counts.</p>
 </div>
-</div>
 <div class="section" id="extra">
-<h1>Extra<a class="headerlink" href="#extra" title="Permalink to this headline"></a></h1>
+<h2>Extra<a class="headerlink" href="#extra" title="Permalink to this headline"></a></h2>
 <div class="section" id="out-of-memory">
-<h2>Out of memory<a class="headerlink" href="#out-of-memory" title="Permalink to this headline"></a></h2>
+<h3>Out of memory<a class="headerlink" href="#out-of-memory" title="Permalink to this headline"></a></h3>
 <p>While running CellPose on the Aggregates, my job ran out of memory. So I had to bump up the default memory used by the generated job scripts, in <code class="docutils literal notranslate"><span class="pre">slurm_config.ini</span></code>:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
 <span class="c1"># CELLPOSE SEGMENTATION</span>
@@ -714,6 +715,8 @@ No need to restart the server, these changes get picked up whenever we start a n
 <p>So after updating that <code class="docutils literal notranslate"><span class="pre">ini</span></code> file, I kickstart the workflow for channel 2 again and this time it works and returns the mask.</p>
 </div>
 </div>
+</div>
+<hr class="docutils" />
 <div class="section" id="local-slurm-tutorial">
 <h1>Local Slurm tutorial<a class="headerlink" href="#local-slurm-tutorial" title="Permalink to this headline"></a></h1>
 <div class="section" id="id1">

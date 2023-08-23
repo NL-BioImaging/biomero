@@ -93,6 +93,47 @@
 <li class="toctree-l2"><a class="reference internal" href="#out-of-memory">Out of memory</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="#local-slurm-tutorial">Local Slurm tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">0. Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-docker-containers-for-slurm">1. Setup Docker containers for Slurm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tl-dr">TL;DR:</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#add-ssh-access">2. Add SSH access</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">TL;DR:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#a-make-a-new-dockerfile-for-the-slurmctld">2a. Make a new Dockerfile for the slurmctld</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#b-tell-docker-compose-to-use-the-new-dockerfile-for-slurmctld">2b. Tell Docker Compose to use the new Dockerfile for <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#c-add-ssh-config-for-simple-login">2c. Add SSH config for simple login</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#stricthostkeychecking">StrictHostKeyChecking</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#test-slurm">3. Test Slurm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id3">TL;DR:</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#omero-omero-slurm-client">4. Omero &amp; Omero Slurm Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id4">TL;DR:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#omero-in-docker">Omero in Docker</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#omero-web">Omero web</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#connect-to-slurm">Connect to Slurm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#add-ssh-config-to-omero-processor">Add ssh config to Omero Processor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#init-environment">Init environment</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#workflows">5. Workflows!</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id5">TL;DR:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#improve-slurm">Improve Slurm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#batching">Batching</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -686,6 +727,605 @@ It outputs a <code class="docutils literal notranslate"><span class="pre">.csv</
 <p>I added the <code class="docutils literal notranslate"><span class="pre">...mem=15GB</span></code> configuration, which will add <code class="docutils literal notranslate"><span class="pre">mem=15GB</span></code> to the Slurm job command from now on for CellPose workflows.
 No need to restart the server, these changes get picked up whenever we start a new client from this config file (which is when we start a new script).</p>
 <p>So after updating that <code class="docutils literal notranslate"><span class="pre">ini</span></code> file, I kickstart the workflow for channel 2 again and this time it works and returns the mask.</p>
+</div>
+</div>
+<div class="section" id="local-slurm-tutorial">
+<h1>Local Slurm tutorial<a class="headerlink" href="#local-slurm-tutorial" title="Permalink to this headline"></a></h1>
+<div class="section" id="id1">
+<h2>Introduction<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
+<p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (Omero) compute to servers suited for it.</p>
+<p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up locally and connect your (local) Omero to it.
+This is what we will cover in this tutorial.</p>
+</div>
+<div class="section" id="requirements">
+<h2>0. Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline"></a></h2>
+<p>To follow this tutorial, you need:</p>
+<ul class="simple">
+<li><p>Git</p></li>
+<li><p>Docker</p></li>
+<li><p>Omero Insight</p></li>
+<li><p>&gt; 18GB memory</p></li>
+<li><p>&gt; 8 CPU cores</p></li>
+</ul>
+<p>I use Windows here, but it should work on Linux/Mac too. If not, let me know.</p>
+<p>System requirements could be less, but then you have to change some configurations for Slurm.</p>
+<p>I provide ready-to-go TL;DR, but in the details of each chapter I walk through the steps I took to make these containers ready.</p>
+</div>
+<div class="section" id="setup-docker-containers-for-slurm">
+<h2>1. Setup Docker containers for Slurm<a class="headerlink" href="#setup-docker-containers-for-slurm" title="Permalink to this headline"></a></h2>
+<div class="section" id="tl-dr">
+<h3>TL;DR:<a class="headerlink" href="#tl-dr" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">slurm-docker-cluster</span></code> locally: <a class="reference external" href="https://github.com/TorecLuik/slurm-docker-cluster">here</a></p></li>
+</ul>
+<details>
+  <summary>Details</summary>
+<p>Always a good idea to stand on the shoulders of giants, so we want to spin up a ready-made Slurm container cluster. <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster">Here on Github</a> is a nice example with a open source license. It uses <a class="reference external" href="https://www.docker.com/">Docker</a> containers and <a class="reference external" href="https://docs.docker.com/compose/">Docker Compose</a> to easily orchestrate their interactions.</p>
+<p>This setup will spin up a few separate containers (on the same computer) to make 1 slurm cluster:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmdbd</span></code>, the Slurm DataBase Daemon</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurmctld</span></code>, the Slurm Control Daemon, our entrypoint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mysql</span></code>, the actual database</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">c1</span></code> and <code class="docutils literal notranslate"><span class="pre">c2</span></code>, 2 compute nodes</p></li>
+</ul>
+<p>Note: these compute nodes are not setup to use GPU, that is a whole other challenge that we will not get into. But even on CPU, Slurm can be useful for parallel processing and keeping track of a queue of jobs.</p>
+<p>So let’s clone this <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster">repository</a> to our local system:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/giovtorres/slurm-docker-cluster.git .
+</pre></div>
+</div>
+<p>You can build and run these containers as described in their <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster/blob/master/README.md">README</a>. Then you can already play around with Slurm that way, so try it out!</p>
+</details>
+<p>However, we are missing an ingredient: SSH access!</p>
+</div>
+</div>
+<div class="section" id="add-ssh-access">
+<h2>2. Add SSH access<a class="headerlink" href="#add-ssh-access" title="Permalink to this headline"></a></h2>
+<div class="section" id="id2">
+<h3>TL;DR:<a class="headerlink" href="#id2" title="Permalink to this headline"></a></h3>
+<ol class="arabic simple">
+<li><p>Copy your public SSH key (<code class="docutils literal notranslate"><span class="pre">id_rsa.pub</span></code>) into this git folder (it will get copied into the Docker image when you build it)</p></li>
+<li><p>Add a SSH config file, store it as <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code> (no extension):</p></li>
+</ol>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span>Host localslurm
+	HostName host.docker.internal
+	User slurm
+	Port 2222
+	IdentityFile ~/.ssh/id_rsa
+	StrictHostKeyChecking no
+</pre></div>
+</div>
+<details>
+  <summary>Details</summary>
+<p>We need to setup our library with SSH access between Omero and Slurm, but this is not built-in to these containers yet (because Docker actually has a built-in alternative, <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">exec</span></code>).</p>
+<p>Luckily, people have already worked on SSH access into containers too, like <a class="reference external" href="https://goteleport.com/blog/shell-access-docker-container-with-ssh-and-docker-exec/">here</a>. So let’s borrow their OpenSSH setup and add it to the <em>Dockerfile</em> of the Slurm Control Daemon (<code class="docutils literal notranslate"><span class="pre">slurmctld</span></code>):</p>
+</div>
+<div class="section" id="a-make-a-new-dockerfile-for-the-slurmctld">
+<h3>2a. Make a new Dockerfile for the slurmctld<a class="headerlink" href="#a-make-a-new-dockerfile-for-the-slurmctld" title="Permalink to this headline"></a></h3>
+<p>We want to combine the 2 Dockerfiles. However, one is <code class="docutils literal notranslate"><span class="pre">ubuntu</span></code> and the other is <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code>. The biggest difference is that <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code> uses the <code class="docutils literal notranslate"><span class="pre">yum</span></code> package manager to install software, instead of <code class="docutils literal notranslate"><span class="pre">apt</span></code>. We will stick to the Slurm image as the base image and just add the OpenSSH on top of it.</p>
+<p>Turns out, another difference is the use of <code class="docutils literal notranslate"><span class="pre">systemctld</span></code> causing all kinds of issues.
+So I spent the time to activate OpenSSH server on Rocky linux:</p>
+<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span> <span class="s">rockylinux:8</span>
+
+... # all the Slurm stuff from original Dockerfile ... 
+
+<span class="c">## ------- Setup SSH ------</span>
+<span class="k">RUN</span> yum update <span class="o">&amp;&amp;</span> yum install  openssh-server initscripts sudo -y
+<span class="c"># Create a user “sshuser” and group “sshgroup”</span>
+<span class="c"># RUN groupadd sshgroup &amp;&amp; useradd -ms /bin/bash -g sshgroup sshuser</span>
+<span class="c"># Create sshuser directory in home</span>
+<span class="k">RUN</span> mkdir -p /home/slurm/.ssh
+<span class="c"># Copy the ssh public key in the authorized_keys file. The idkey.pub below is a public key file you get from ssh-keygen. They are under ~/.ssh directory by default.</span>
+<span class="k">COPY</span> id_rsa.pub /home/slurm/.ssh/authorized_keys
+<span class="c"># change ownership of the key file. </span>
+<span class="k">RUN</span> chown slurm:slurm /home/slurm/.ssh/authorized_keys <span class="o">&amp;&amp;</span> chmod <span class="m">600</span> /home/slurm/.ssh/authorized_keys
+<span class="c"># Start SSH service</span>
+<span class="c"># RUN service ssh start</span>
+<span class="c"># RUN /etc/init.d/sshd start</span>
+<span class="k">RUN</span> /usr/bin/ssh-keygen -A
+<span class="c"># Expose docker port 22</span>
+<span class="k">EXPOSE</span><span class="s"> 22</span>
+<span class="k">CMD</span> <span class="p">[</span><span class="s2">&quot;/usr/sbin/sshd&quot;</span><span class="p">,</span><span class="s2">&quot;-D&quot;</span><span class="p">]</span>
+<span class="c"># CMD [&quot;slurmdbd&quot;]</span>
+</pre></div>
+</div>
+<p>We have replaced the <code class="docutils literal notranslate"><span class="pre">slurmdbd</span></code> command (CMD) with our setup from <code class="docutils literal notranslate"><span class="pre">sshdocker</span></code>, starting a ssh daemon (<code class="docutils literal notranslate"><span class="pre">sshd</span></code>) with our SSH public key associated to the <code class="docutils literal notranslate"><span class="pre">slurm</span></code> user
+.
+This last part is important: to build this new version, you need to copy your public SSH key into this Docker image.
+This is performed in this line:</p>
+<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># Copy the ssh public key in the authorized_keys file. The idkey.pub below is a public key file you get from ssh-keygen. They are under ~/.ssh directory by default.</span>
+<span class="k">COPY</span> id_rsa.pub /home/&lt;user&gt;/.ssh/authorized_keys
+</pre></div>
+</div>
+<p>So, you need to add your <code class="docutils literal notranslate"><span class="pre">id_rsa.pub</span></code> public key to this directory, so Docker can copy it when it builds the image.</p>
+<p>Turns out, we also need to change the entrypoint script:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>... <span class="c1"># other stuff from script</span>
+
+<span class="k">if</span> <span class="o">[</span> <span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span> <span class="o">=</span> <span class="s2">&quot;slurmctld&quot;</span> <span class="o">]</span>
+<span class="k">then</span>
+    <span class="nb">echo</span> <span class="s2">&quot;---&gt; Starting the MUNGE Authentication service (munged) ...&quot;</span>
+    gosu munge /usr/sbin/munged
+
+    <span class="nb">echo</span> <span class="s2">&quot;---&gt; Starting SSH Daemon (sshd) ...&quot;</span>
+    <span class="c1"># exec /usr/bin/ssh-keygen -A</span>
+    <span class="nb">exec</span> /usr/sbin/sshd -D <span class="p">&amp;</span>
+    <span class="nb">exec</span> rm /run/nologin <span class="p">&amp;</span>
+    <span class="nb">exec</span> chmod <span class="m">777</span> /data <span class="p">&amp;</span>
+
+    <span class="nb">echo</span> <span class="s2">&quot;---&gt; Waiting for slurmdbd to become active before starting slurmctld ...&quot;</span>
+
+    ... <span class="c1"># other stuff from script</span>
+</pre></div>
+</div>
+<p>We added the command to start the SSH daemon on the CTLD here, where it is actually called.
+We also added some quick bugfixes to make the tutorial SSH work.
+If you still run into issues with permissions in <code class="docutils literal notranslate"><span class="pre">/data</span></code>, login as superuser and also apply write access again.</p>
+</div>
+<div class="section" id="b-tell-docker-compose-to-use-the-new-dockerfile-for-slurmctld">
+<h3>2b. Tell Docker Compose to use the new Dockerfile for <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code><a class="headerlink" href="#b-tell-docker-compose-to-use-the-new-dockerfile-for-slurmctld" title="Permalink to this headline"></a></h3>
+<p>Currently, <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster/blob/master/docker-compose.yml">Docker Compose</a> will spin up all containers from the same Dockerfile definition.</p>
+<p>So we will change the Dockerfile for the <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code> as defined in the <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code>, by replacing <code class="docutils literal notranslate"><span class="pre">image</span></code> with <code class="docutils literal notranslate"><span class="pre">build</span></code>:</p>
+<div class="highlight-yml notranslate"><div class="highlight"><pre><span></span>slurmctld:
+    # image: slurm-docker-cluster:${IMAGE_TAG:-21.08.6}
+    # Build this image from current folder
+    # Use a specific file: Dockerfile_slurmctld
+    build: 
+      context: ./
+      dockerfile: Dockerfile_slurmctld
+    command: [&quot;slurmctld&quot;]
+    container_name: slurmctld
+    hostname: slurmctld
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - &quot;6817&quot;
+    ports:
+      - &quot;2222:22&quot;
+    depends_on:
+      - &quot;slurmdbd&quot;
+</pre></div>
+</div>
+<p>We also mapped port 22 (SSH) from the container to our localhost port 2222.
+So now we can connect SSH to our localhost and be forwarded to this Slurm container.</p>
+<p>Test it out:</p>
+<ol class="arabic simple">
+<li><p>Fire up the Slurm cluster:</p></li>
+</ol>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">docker-compose</span> <span class="n">up</span> <span class="n">-d</span> <span class="p">-</span><span class="n">-build</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>SSH into the control node:</p></li>
+</ol>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>ssh -i C:\Users\&lt;you&gt;\.ssh\id_rsa slurm@localhost -p 2222 -o UserKnownHostsFile=/dev/null
+</pre></div>
+</div>
+<p>This should connect as the <code class="docutils literal notranslate"><span class="pre">slurm</span></code> user to the control container on port 2222 (type yes to connect, we will fix promptless login later).</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>Last login: Tue Aug  <span class="m">8</span> <span class="m">15</span>:48:31 <span class="m">2023</span> from <span class="m">172</span>.21.0.1
+<span class="o">[</span>slurm@slurmctld ~<span class="o">]</span>$
+</pre></div>
+</div>
+<p>Congratulations!</p>
+</div>
+<div class="section" id="c-add-ssh-config-for-simple-login">
+<h3>2c. Add SSH config for simple login<a class="headerlink" href="#c-add-ssh-config-for-simple-login" title="Permalink to this headline"></a></h3>
+<p>But, we can simplify the SSH, and our library needs a simple way to login.</p>
+<p>For this, add <a class="reference internal" href="#../example.config"><span class="xref myst">this</span></a> config file as your <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>, no extension. See <a class="reference external" href="https://www.ssh.com/academy/ssh/config">here</a> for more information.</p>
+<p>Of course, first update the values with those you used to SSH before, e.g.:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
+	<span class="na">HostName localhost</span>
+	<span class="na">User slurm</span>
+	<span class="na">Port 2222</span>
+	<span class="na">IdentityFile ~/.ssh/id_rsa</span>
+	<span class="na">StrictHostKeyChecking no</span>
+</pre></div>
+</div>
+<p>Then try it out:
+<code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">slurm</span></code></p>
+<div class="section" id="stricthostkeychecking">
+<h4>StrictHostKeyChecking<a class="headerlink" href="#stricthostkeychecking" title="Permalink to this headline"></a></h4>
+<p>Note that I added <code class="docutils literal notranslate"><span class="pre">StrictHostKeyChecking</span> <span class="pre">no</span></code>, as our Slurm container will have different keys all the time. A normal Slurm server likely does not, and won’t require this flag. This is also where we get our pretty warning from:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>...&gt; ssh slurm
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+</pre></div>
+</div>
+<p>The host key changed =)</p>
+<p>If you don’t add this flag, it will safe you from danger and deny access. Of course, that is not very useful for our tutorial.</p>
+</details>
+</div>
+</div>
+</div>
+<div class="section" id="test-slurm">
+<h2>3. Test Slurm<a class="headerlink" href="#test-slurm" title="Permalink to this headline"></a></h2>
+<div class="section" id="id3">
+<h3>TL;DR:<a class="headerlink" href="#id3" title="Permalink to this headline"></a></h3>
+<ol class="arabic simple">
+<li><p>Spin up the Slurm cluster: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
+<li><p>SSH into the control node: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">localslurm</span></code></p></li>
+<li><p>Start some filler jobs: <code class="docutils literal notranslate"><span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span></code></p></li>
+<li><p>Check the progress: <code class="docutils literal notranslate"><span class="pre">squeue</span></code></p></li>
+<li><p>Check some output, e.g. job 1: <code class="docutils literal notranslate"><span class="pre">cat</span> <span class="pre">slurm-1.out</span></code></p></li>
+</ol>
+<details>
+  <summary>Details</summary>
+<p>Now connect via SSH to Slurm, change to <code class="docutils literal notranslate"><span class="pre">/data</span></code> (our fileserver shared between the Slurm nodes) and let’s see if Slurm works:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld ~<span class="o">]</span>$ <span class="nb">cd</span> /data
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ squeue
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$
+</pre></div>
+</div>
+<p>The queue is empty!
+Let’s fill it up with some short tasks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
+Submitted batch job <span class="m">5</span>
+Submitted batch job <span class="m">6</span>
+Submitted batch job <span class="m">7</span>
+Submitted batch job <span class="m">8</span>
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ squeue
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+                 <span class="m">7</span>    normal     wrap    slurm  R       <span class="m">0</span>:01      <span class="m">1</span> c1
+                 <span class="m">8</span>    normal     wrap    slurm  R       <span class="m">0</span>:01      <span class="m">1</span> c2
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$
+</pre></div>
+</div>
+<p>I fired off 4 jobs that take 2 seconds, so a few remained in the queue by the time I called for an update. You can also see they split over the 2 compute nodes <code class="docutils literal notranslate"><span class="pre">c1</span></code> and <code class="docutils literal notranslate"><span class="pre">c2</span></code>.</p>
+<p>The jobs wrote their stdout output in the current dir (<code class="docutils literal notranslate"><span class="pre">/data</span></code>, which is where permission issues might come in):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ ls
+slurm-3.out  slurm-4.out  slurm-5.out  slurm-6.out  slurm-7.out  slurm-8.out
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ cat slurm-7.out
+c1
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ cat slurm-8.out
+c2
+<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$
+</pre></div>
+</div>
+</details>
+<p>They logged the <code class="docutils literal notranslate"><span class="pre">hostname</span></code> command, which returned <code class="docutils literal notranslate"><span class="pre">c1</span></code> for some and <code class="docutils literal notranslate"><span class="pre">c2</span></code> for others, as those were the hosts the compute was used from.</p>
+<p>Now let’s connect Omero to our Slurm!</p>
+</div>
+</div>
+<div class="section" id="omero-omero-slurm-client">
+<h2>4. Omero &amp; Omero Slurm Client<a class="headerlink" href="#omero-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<p>Ok, now we need a Omero server and a correctly configured Omero Slurm Client.</p>
+<div class="section" id="id4">
+<h3>TL;DR:<a class="headerlink" href="#id4" title="Permalink to this headline"></a></h3>
+<ol class="arabic simple">
+<li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
+<li><p>Fire up the Omero containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
+<li><p>Go to Omero.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
+<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with Omero.Insight (not included).</p></li>
+<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script</p></li>
+</ol>
+<details>
+  <summary>Details</summary>
+</div>
+<div class="section" id="omero-in-docker">
+<h3>Omero in Docker<a class="headerlink" href="#omero-in-docker" title="Permalink to this headline"></a></h3>
+<p>You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+</pre></div>
+</div>
+<p>Let’s (build it and) fire it up:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
+</pre></div>
+</div>
+</div>
+<div class="section" id="omero-web">
+<h3>Omero web<a class="headerlink" href="#omero-web" title="Permalink to this headline"></a></h3>
+<p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
+<p>Import some example data with Omero Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
+</div>
+<div class="section" id="connect-to-slurm">
+<h3>Connect to Slurm<a class="headerlink" href="#connect-to-slurm" title="Permalink to this headline"></a></h3>
+<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
+<div class="section" id="add-ssh-config-to-omero-processor">
+<h4>Add ssh config to Omero Processor<a class="headerlink" href="#add-ssh-config-to-omero-processor" title="Permalink to this headline"></a></h4>
+<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
+<p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
+<p>However, we need to change the <code class="docutils literal notranslate"><span class="pre">HostName</span></code> to match one that the container can understand. <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from our machine, but not from within a Docker container. Instead, we need to use <code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> (<a class="reference external" href="https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host">documentation</a>).</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
+	<span class="na">HostName host.docker.internal</span>
+	<span class="na">User slurm</span>
+	<span class="na">Port 2222</span>
+	<span class="na">IdentityFile ~/.ssh/id_rsa</span>
+	<span class="na">StrictHostKeyChecking no</span>
+</pre></div>
+</div>
+<p>Restart your Omero cluster if you already started it:
+<code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p>
+<p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>...\docker-example-omero-grid&gt; docker-compose exec omeroworker-5 /bin/bash
+bash-4.2$ ssh slurm
+Last login: Wed Aug  9 13:08:54 2023 from 172.21.0.1
+[slurm@slurmctld ~]$ squeue
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+[slurm@slurmctld ~]$ exit
+logout
+Connection to host.docker.internal closed.
+bash-4.2$ exit
+exit
+</pre></div>
+</div>
+</div>
+<div class="section" id="slurm-config-ini">
+<h4>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h4>
+<p>Let us setup the library’s config file <a class="reference internal" href="#../slurm-config.ini"><span class="xref myst">slurm-config.ini</span></a> correctly.</p>
+<p>Now, the <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library by default expects the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> ssh connection to be called <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, but you can adjust it to whatever you named your ssh <em>Host</em> in config.</p>
+<p>In this Docker setup, the config file is located at the <code class="docutils literal notranslate"><span class="pre">worker-gpu</span></code> folder and in the Dockerfile it is copied to <code class="docutils literal notranslate"><span class="pre">/etc/</span></code>, where the library will pick it up.</p>
+<p>Let’s use these values:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># SSH settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The alias for the SLURM SSH connection</span>
+<span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
+<span class="c1"># Set the rest of your SSH configuration in your SSH config under this host name/alias</span>
+<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric&#39;s documentation for details on config loading)</span>
+
+<span class="k">[SLURM]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Slurm settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># General settings for where to find things on the Slurm cluster.</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># PATHS</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/my-scratch/data</span>
+<span class="c1"># The path on SLURM entrypoint for storing container image files</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">/data/my-scratch/singularity_images/workflows</span>
+<span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">/data/my-scratch/slurm-scripts</span>
+</pre></div>
+</div>
+<p>We have put all the storage paths on <code class="docutils literal notranslate"><span class="pre">/data/my-scratch/</span></code> and named the SSH Host connection <code class="docutils literal notranslate"><span class="pre">slurm</span></code>.</p>
+<p>The other values we can keep as <a class="reference internal" href="#../slurm-config.ini"><span class="xref myst">default</span></a>, except we don’t have a GPU, so let’s turn that off for CellPose:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+<span class="c1"># Override the default job values for this workflow</span>
+<span class="c1"># Or add a job value to this workflow</span>
+<span class="c1"># For more examples of such parameters, google SBATCH parameters.</span>
+<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
+<span class="c1"># cellpose_job_gres=gpu:1g.10gb:1</span>
+<span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
+<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">15GB</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">gres</span></code> will request a 10GB GPU on the Slurm cluster, but we only set up CPU docker slurm.</p>
+<p>We will also comment out some of the other algorithms, so we have to download less containers to our Slurm cluster and speed up the tutorial.</p>
+<p>This brings us to the following configuration file:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># SSH settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The alias for the SLURM SSH connection</span>
+<span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
+<span class="c1"># Set the rest of your SSH configuration in your SSH config under this host name/alias</span>
+<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric&#39;s documentation for details on config loading)</span>
+
+<span class="k">[SLURM]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Slurm settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># General settings for where to find things on the Slurm cluster.</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># PATHS</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/my-scratch/data</span>
+<span class="c1"># The path on SLURM entrypoint for storing container image files</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">/data/my-scratch/singularity_images/workflows</span>
+<span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">/data/my-scratch/slurm-scripts</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># REPOSITORIES</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># A (github) repository to pull the slurm scripts from.</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># If you provide no repository, we will generate scripts instead!</span>
+<span class="c1"># Based on the job_template and the descriptor.json</span>
+<span class="c1">#</span>
+<span class="c1"># Example:</span>
+<span class="c1">#slurm_script_repo=https://github.com/TorecLuik/slurm-scripts</span>
+<span class="na">slurm_script_repo</span><span class="o">=</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Processing settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># General/default settings for processing jobs.</span>
+<span class="c1"># Note: NOT YET IMPLEMENTED</span>
+<span class="c1"># Note: If you need to change it for a specific case only,</span>
+<span class="c1"># you should change the job script instead, either in Omero or Slurm </span>
+
+
+<span class="k">[MODELS]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Model settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Settings for models/singularity images that we want to run on Slurm</span>
+<span class="c1">#</span>
+<span class="c1"># NOTE: keys have to be unique, and require a &lt;key&gt;_repo and &lt;key&gt;_image value as well.</span>
+<span class="c1">#</span>
+<span class="c1"># NOTE 2: Versions for the repo are highly encouraged! </span>
+<span class="c1"># Latest/master can change and cause issues with reproducability!</span>
+<span class="c1"># We pickup the container version based on the version of the repository.</span>
+<span class="c1"># For generic master branch, we pick up generic latest container.</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPOSE SEGMENTATION</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+<span class="c1"># Override the default job values for this workflow</span>
+<span class="c1"># Or add a job value to this workflow</span>
+<span class="c1"># For more examples of such parameters, google SBATCH parameters.</span>
+<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
+<span class="c1"># cellpose_job_gres=gpu:1g.10gb:1</span>
+<span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
+<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">15GB</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># # STARDIST SEGMENTATION</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># # The path to store the container on the slurm_images_path</span>
+<span class="c1"># stardist=stardist</span>
+<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
+<span class="c1"># stardist_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-Stardist/tree/v1.3.2</span>
+<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># stardist_job=jobs/stardist.sh</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># CELLPROFILER SEGMENTATION</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># # The path to store the container on the slurm_images_path</span>
+<span class="c1"># cellprofiler=cellprofiler</span>
+<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
+<span class="c1"># cellprofiler_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/tree/v1.6.4</span>
+<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># cellprofiler_job=jobs/cellprofiler.sh</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># DEEPCELL SEGMENTATION</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># # The path to store the container on the slurm_images_path</span>
+<span class="c1"># deepcell=deepcell</span>
+<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
+<span class="c1"># deepcell_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-DeepCell/tree/v.1.4.3</span>
+<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># deepcell_job=jobs/deepcell.sh</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># IMAGEJ SEGMENTATION</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># # The path to store the container on the slurm_images_path</span>
+<span class="c1"># imagej=imagej</span>
+<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
+<span class="c1"># imagej_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-ImageJ/tree/v1.12.10</span>
+<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># imagej_job=jobs/imagej.sh</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># # CELLPROFILER SPOT COUNTING</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellprofiler_spot</span><span class="o">=</span><span class="s">cellprofiler_spot</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellprofiler_spot_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_SpotCounting-CellProfiler/tree/v1.0.1</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellprofiler_spot_job</span><span class="o">=</span><span class="s">jobs/cellprofiler_spot.sh</span>
+<span class="c1"># # -------------------------------------</span>
+<span class="c1"># CELLEXPANSION SPOT COUNTING</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path to store the container on the slurm_images_path</span>
+<span class="na">cellexpansion</span><span class="o">=</span><span class="s">cellexpansion</span>
+<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
+<span class="na">cellexpansion_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1</span>
+<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="init-environment">
+<h4>Init environment<a class="headerlink" href="#init-environment" title="Permalink to this headline"></a></h4>
+<p>Now we go to Omero web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
+<p><img alt="Slurm Init Busy" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env.PNG?raw=true" /></p>
+<p><img alt="Slurm Init Done" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_init_env_done.PNG?raw=true" /></p>
+</details>
+<p>Note, this will take a while, since it is downloading workflow docker images and building (singularity) containers from them.</p>
+<p>Congratulations! We have setup workflows CellPose <code class="docutils literal notranslate"><span class="pre">v1.2.7</span></code>, Cellprofiler Spot <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code> and CellExpansion <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>. And there are no data files yet.</p>
+<p>Let’s go run some segmentation workflow then!</p>
+</div>
+</div>
+</div>
+<div class="section" id="workflows">
+<h2>5. Workflows!<a class="headerlink" href="#workflows" title="Permalink to this headline"></a></h2>
+<div class="section" id="id5">
+<h3>TL;DR:<a class="headerlink" href="#id5" title="Permalink to this headline"></a></h3>
+<ol class="arabic simple">
+<li><p>In web, select your images and run script <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code></p>
+<ul class="simple">
+<li><p>Tick off <code class="docutils literal notranslate"><span class="pre">E-mail</span></code> box (not implemented in this Slurm docker setup)</p></li>
+<li><p>For importing results, change <code class="docutils literal notranslate"><span class="pre">3a)</span> <span class="pre">Import</span> <span class="pre">into</span> <span class="pre">NEW</span> <span class="pre">Dataset</span></code> to <code class="docutils literal notranslate"><span class="pre">CellPose_Masks</span></code></p></li>
+<li><p>For importing results, change <code class="docutils literal notranslate"><span class="pre">3b)</span> <span class="pre">Rename</span> <span class="pre">the</span> <span class="pre">imported</span> <span class="pre">images</span></code> to <code class="docutils literal notranslate"><span class="pre">{original_file}_cpmask.{ext}</span></code></p></li>
+<li><p>Select <code class="docutils literal notranslate"><span class="pre">cellpose</span></code>, but tick off <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> off (sadly not implemented in this docker setup)</p></li>
+<li><p>Click <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code></p></li>
+</ul>
+</li>
+<li><p>Check activity window (or get a coffee), it should take a few minutes (about 3m:30s for 4 256x256 images for me) and then say (a.o.): <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code></p>
+<ul class="simple">
+<li><p>Or it <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>, in which case you should check all the details anyway and get your hands dirty with debugging! Or try less and smaller images.</p></li>
+</ul>
+</li>
+<li><p>Refresh your Explore window, there should be a new dataset <code class="docutils literal notranslate"><span class="pre">CellPose_Masks</span></code> with a mask for every input image.</p></li>
+</ol>
+<details>
+  <summary>Details</summary>
+<p>So, I hope you added some data already; if not, import some images now.</p>
+<p>Let’s run <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code>:</p>
+<p><img alt="Slurm Run Workflow" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_workflow.PNG?raw=true" /></p>
+<p>You can see that this script recognized that we downloaded 3 workflows, and what their parameters are. For more information on this magic, follow the other tutorials.</p>
+<p>Let’s select <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> and click <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">gpu</span></code> off (sadly). Tune the other parameters as you like for your images. Also, for output let’s select <code class="docutils literal notranslate"><span class="pre">Import</span> <span class="pre">into</span> <span class="pre">NEW</span> <span class="pre">Dataset</span></code> by filling in a dataset name: cellpose_images. Click <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code>.</p>
+<p><img alt="Slurm Run Cellpose" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/webclient_run_cellpose.PNG?raw=true" /></p>
+<p>Result: Job 1 is FAILED.
+Turns out, our Slurm doesn’t have the compute nodes to execute this operation.</p>
+</div>
+<div class="section" id="improve-slurm">
+<h3>Improve Slurm<a class="headerlink" href="#improve-slurm" title="Permalink to this headline"></a></h3>
+<p>Update the <code class="docutils literal notranslate"><span class="pre">slurm.conf</span></code> file in the git repository.</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># COMPUTE NODES</span>
+<span class="na">NodeName</span><span class="o">=</span><span class="s">c[1-2] RealMemory=5120 CPUs=8 State=UNKNOWN</span>
+</pre></div>
+</div>
+<p>Here, 5GB and 8 CPU each should do the trick!</p>
+<p>Rebuild the containers. Note that the config is on a shared volume, so we have to destroy that volume too (it took some headbashing to find this out):</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">docker-compose</span> <span class="n">down</span> <span class="p">-</span><span class="n">-volumes</span> 
+</pre></div>
+</div>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">docker-compose</span> <span class="n">up</span> <span class="p">-</span><span class="n">-build</span>
+</pre></div>
+</div>
+</details>
+<p>The world is your oyster!</p>
+</div>
+<div class="section" id="batching">
+<h3>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h3>
+<p>Try <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code> to see if there is any speedup by splitting your images over multiple jobs/batches.</p>
+<p>We have installed 2 nodes in this Slurm cluster, so theoretically you could make 2 batches of half the images and get your results quicker. However we can only compute 2 batches/jobs in parallel, so smaller batches will just wait in the queue (with some overhead).</p>
+<p>Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.</p>
+</div>
 </div>
 </div>
 

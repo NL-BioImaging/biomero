@@ -1323,8 +1323,21 @@ Turns out, our Slurm doesn’t have the compute nodes to execute this operation.
 <div class="section" id="batching">
 <h3>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h3>
 <p>Try <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code> to see if there is any speedup by splitting your images over multiple jobs/batches.</p>
-<p>We have installed 2 nodes in this Slurm cluster, so theoretically you could make 2 batches of half the images and get your results quicker. However we can only compute 2 batches/jobs in parallel, so smaller batches will just wait in the queue (with some overhead).</p>
-<p>Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.</p>
+<p>We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer.</p>
+<details>
+Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
+<p>Let’s check on the Slurm node:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sacct --starttime <span class="s2">&quot;2023-06-13T17:00:00&quot;</span> --format Jobid,State,start,end,JobName%-18,Elapsed -n -X --endtime <span class="s2">&quot;now&quot;</span>
+</pre></div>
+</div>
+<p>In my latest example, it was 1 minute (30%) faster to have 2 batches/jobs (<code class="docutils literal notranslate"><span class="pre">32</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">33</span></code>) vs 1 job (<code class="docutils literal notranslate"><span class="pre">31</span></code>):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">31            COMPLETED 2023-08-23T08:41:28 2023-08-23T08:45:02 omero-job-cellpose   00:03:34</span>
+
+<span class="l l-Scalar l-Scalar-Plain">32            COMPLETED 2023-08-23T09:22:00 2023-08-23T09:24:27 omero-job-cellpose   00:02:27</span>
+<span class="l l-Scalar l-Scalar-Plain">33            COMPLETED 2023-08-23T09:22:03 2023-08-23T09:24:40 omero-job-cellpose   00:02:37</span>
+</pre></div>
+</div>
+</details>
 </div>
 </div>
 </div>

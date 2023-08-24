@@ -42,8 +42,8 @@ However, we are missing an ingredient: SSH access!
 1. Add your public SSH key (`~/.ssh/id_rsa.pub`) to the Google Cloud instance, like [here](https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud).
 2. Turn the [firewall](https://console.cloud.google.com/net-security/firewall-manager/firewall-policies/list) setting (e.g. `hpc-small-net-fw-allow-iap-ingress`) to allow `0.0.0.0/0` as IP ranges for `tcp:22`.
 3. Promote the login node's IP address to a static one: [here](https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address#promote_ephemeral_ip)
-3. Copy that IP and your username.
-3. On your own computer, add a SSH config file, store it as `~/.ssh/config` (no extension) with the ip and user filled in:
+4. Copy that IP and your username.
+5. On your own computer, add a SSH config file, store it as `~/.ssh/config` (no extension) with the ip and user filled in:
 
 ```yaml
 Host gcslurm
@@ -152,7 +152,11 @@ All on the same node that was spun up, on-demand, by Google Cloud. You should be
 
 ### TL;DR:
 1. Follow this [guide](https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine) to install Singularity in /app
+2. Execute the following to update `~/.bashrc`:
 
+```
+echo 'export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:${PATH}' >> ~/.bashrc && source ~/.bashrc
+```
 
 <details>
 
@@ -170,10 +174,10 @@ Use this URL for the singularity tar:
 wget https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz && cd singularity-${SINGULARITY_VERSION}
 ```
 
-The module step did not work for me, so instead we need to make singularity available in the PATH.
+The module step did not work for me, so instead we need to make singularity and `/usr/sbin` available in the PATH.
 
 ```
-echo 'export PATH=/apps/singularity/3.8.7/bin:${PATH}' >> ~/.bashrc
+echo 'export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:${PATH}' >> ~/.bashrc
 ```
 
 Follow up with `source ~/.bashrc` and now `singularity --version` should give you `singularity version 3.8.7`.
@@ -276,7 +280,7 @@ This container's processor node (`worker-5`) has already installed our `omero-sl
 
 ======= Add ssh config to Omero Processor =======
 
-Ok, so `localhost` works fine from your machine, but we need the Omero processing server `worker-5` to be able to do it too, like [we did before](#2c-add-ssh-config-for-simple-login).
+Ok, so SSH works fine from your machine, but we need the Omero processing server `worker-5` to be able to do it too.
 
 By some smart tricks, we have mounted our `~/.ssh` folder to the worker container, so it knows and can use our SSH settings and config.
 
@@ -292,221 +296,6 @@ logout
 Connection to host.docker.internal closed.
 bash-4.2$ exit
 exit
-```
-
-======= slurm-config.ini =======
- 
-Let us setup the library's config file [slurm-config.ini](../slurm-config.ini) correctly.
-
-Now, the `omero-slurm-client` library by default expects the `Slurm` ssh connection to be called `slurm`, but you can adjust it to whatever you named your ssh _Host_ in config. 
-
-In this Docker setup, the config file is located at the `worker-gpu` folder and in the Dockerfile it is copied to `/etc/`, where the library will pick it up.
-
-Let's use these values:
-
-```ini
-[SSH]
-# -------------------------------------
-# SSH settings
-# -------------------------------------
-# The alias for the SLURM SSH connection
-host=slurm
-# Set the rest of your SSH configuration in your SSH config under this host name/alias
-# Or in e.g. /etc/fabric.yml (see Fabric's documentation for details on config loading)
-
-[SLURM]
-# -------------------------------------
-# Slurm settings
-# -------------------------------------
-# General settings for where to find things on the Slurm cluster.
-# -------------------------------------
-# PATHS
-# -------------------------------------
-# The path on SLURM entrypoint for storing datafiles
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_data_path=/data/my-scratch/data
-# The path on SLURM entrypoint for storing container image files
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_images_path=/data/my-scratch/singularity_images/workflows
-# The path on SLURM entrypoint for storing the slurm job scripts
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_script_path=/data/my-scratch/slurm-scripts
-```
-
-We have put all the storage paths on `/data/my-scratch/` and named the SSH Host connection `slurm`.
-
-The other values we can keep as [default](../slurm-config.ini), except we don't have a GPU, so let's turn that off for CellPose:
-
-```ini
-# -------------------------------------
-# CELLPOSE SEGMENTATION
-# -------------------------------------
-# The path to store the container on the slurm_images_path
-cellpose=cellpose
-# The (e.g. github) repository with the descriptor.json file
-cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7
-# The jobscript in the 'slurm_script_repo'
-cellpose_job=jobs/cellpose.sh
-# Override the default job values for this workflow
-# Or add a job value to this workflow
-# For more examples of such parameters, google SBATCH parameters.
-# If you don't want to override, comment out / delete the line.
-# Run CellPose Slurm with 10 GB GPU
-# cellpose_job_gres=gpu:1g.10gb:1
-# Run CellPose Slurm with 15 GB CPU memory
-cellpose_job_mem=15GB
-```
-
-The `gres` will request a 10GB GPU on the Slurm cluster, but we only set up CPU docker slurm.
-
-We will also comment out some of the other algorithms, so we have to download less containers to our Slurm cluster and speed up the tutorial.
-
-This brings us to the following configuration file:
-
-
-```ini
-[SSH]
-# -------------------------------------
-# SSH settings
-# -------------------------------------
-# The alias for the SLURM SSH connection
-host=slurm
-# Set the rest of your SSH configuration in your SSH config under this host name/alias
-# Or in e.g. /etc/fabric.yml (see Fabric's documentation for details on config loading)
-
-[SLURM]
-# -------------------------------------
-# Slurm settings
-# -------------------------------------
-# General settings for where to find things on the Slurm cluster.
-# -------------------------------------
-# PATHS
-# -------------------------------------
-# The path on SLURM entrypoint for storing datafiles
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_data_path=/data/my-scratch/data
-# The path on SLURM entrypoint for storing container image files
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_images_path=/data/my-scratch/singularity_images/workflows
-# The path on SLURM entrypoint for storing the slurm job scripts
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_script_path=/data/my-scratch/slurm-scripts
-# -------------------------------------
-# REPOSITORIES
-# -------------------------------------
-# A (github) repository to pull the slurm scripts from.
-#
-# Note: 
-# If you provide no repository, we will generate scripts instead!
-# Based on the job_template and the descriptor.json
-#
-# Example:
-#slurm_script_repo=https://github.com/TorecLuik/slurm-scripts
-slurm_script_repo=
-# -------------------------------------
-# Processing settings
-# -------------------------------------
-# General/default settings for processing jobs.
-# Note: NOT YET IMPLEMENTED
-# Note: If you need to change it for a specific case only,
-# you should change the job script instead, either in Omero or Slurm 
-
-
-[MODELS]
-# -------------------------------------
-# Model settings
-# -------------------------------------
-# Settings for models/singularity images that we want to run on Slurm
-#
-# NOTE: keys have to be unique, and require a <key>_repo and <key>_image value as well.
-#
-# NOTE 2: Versions for the repo are highly encouraged! 
-# Latest/master can change and cause issues with reproducability!
-# We pickup the container version based on the version of the repository.
-# For generic master branch, we pick up generic latest container.
-# -------------------------------------
-# CELLPOSE SEGMENTATION
-# -------------------------------------
-# The path to store the container on the slurm_images_path
-cellpose=cellpose
-# The (e.g. github) repository with the descriptor.json file
-cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7
-# The jobscript in the 'slurm_script_repo'
-cellpose_job=jobs/cellpose.sh
-# Override the default job values for this workflow
-# Or add a job value to this workflow
-# For more examples of such parameters, google SBATCH parameters.
-# If you don't want to override, comment out / delete the line.
-# Run CellPose Slurm with 10 GB GPU
-# cellpose_job_gres=gpu:1g.10gb:1
-# Run CellPose Slurm with 15 GB CPU memory
-cellpose_job_mem=15GB
-# -------------------------------------
-# # STARDIST SEGMENTATION
-# # -------------------------------------
-# # The path to store the container on the slurm_images_path
-# stardist=stardist
-# # The (e.g. github) repository with the descriptor.json file
-# stardist_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-Stardist/tree/v1.3.2
-# # The jobscript in the 'slurm_script_repo'
-# stardist_job=jobs/stardist.sh
-# -------------------------------------
-# CELLPROFILER SEGMENTATION
-# # -------------------------------------
-# # The path to store the container on the slurm_images_path
-# cellprofiler=cellprofiler
-# # The (e.g. github) repository with the descriptor.json file
-# cellprofiler_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/tree/v1.6.4
-# # The jobscript in the 'slurm_script_repo'
-# cellprofiler_job=jobs/cellprofiler.sh
-# -------------------------------------
-# DEEPCELL SEGMENTATION
-# # -------------------------------------
-# # The path to store the container on the slurm_images_path
-# deepcell=deepcell
-# # The (e.g. github) repository with the descriptor.json file
-# deepcell_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-DeepCell/tree/v.1.4.3
-# # The jobscript in the 'slurm_script_repo'
-# deepcell_job=jobs/deepcell.sh
-# -------------------------------------
-# IMAGEJ SEGMENTATION
-# # -------------------------------------
-# # The path to store the container on the slurm_images_path
-# imagej=imagej
-# # The (e.g. github) repository with the descriptor.json file
-# imagej_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-ImageJ/tree/v1.12.10
-# # The jobscript in the 'slurm_script_repo'
-# imagej_job=jobs/imagej.sh
-# # -------------------------------------
-# # CELLPROFILER SPOT COUNTING
-# # -------------------------------------
-# The path to store the container on the slurm_images_path
-cellprofiler_spot=cellprofiler_spot
-# The (e.g. github) repository with the descriptor.json file
-cellprofiler_spot_repo=https://github.com/TorecLuik/W_SpotCounting-CellProfiler/tree/v1.0.1
-# The jobscript in the 'slurm_script_repo'
-cellprofiler_spot_job=jobs/cellprofiler_spot.sh
-# # -------------------------------------
-# CELLEXPANSION SPOT COUNTING
-# -------------------------------------
-# The path to store the container on the slurm_images_path
-cellexpansion=cellexpansion
-# The (e.g. github) repository with the descriptor.json file
-cellexpansion_repo=https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1
-# The jobscript in the 'slurm_script_repo'
-cellexpansion_job=jobs/cellexpansion.sh
 ```
 
 ======= Init environment =======

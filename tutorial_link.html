@@ -1480,7 +1480,11 @@ hpcsmall-debug-ghpc-3
 <h3>TL;DR:<a class="headerlink" href="#id13" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
 <li><p>Follow this <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> to install Singularity in /app</p></li>
+<li><p>Execute the following to update <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code>:</p></li>
 </ol>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span> <span class="o">&amp;&amp;</span> <span class="n">source</span> <span class="o">~/.</span><span class="n">bashrc</span>
+</pre></div>
+</div>
 <details>
 <p>Now we want to run containers on our Slurm cluster using <code class="docutils literal notranslate"><span class="pre">singularity</span></code>, but this is not installed by default.</p>
 <p>Luckily the folks at Google have a <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> for it, so let’s follow that one.</p>
@@ -1490,8 +1494,8 @@ hpcsmall-debug-ghpc-3
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz <span class="o">&amp;&amp;</span> tar -xzf singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>.tar.gz <span class="o">&amp;&amp;</span> <span class="nb">cd</span> singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>
 </pre></div>
 </div>
-<p>The module step did not work for me, so instead we need to make singularity available in the PATH.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span>
+<p>The module step did not work for me, so instead we need to make singularity and <code class="docutils literal notranslate"><span class="pre">/usr/sbin</span></code> available in the PATH.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span>
 </pre></div>
 </div>
 <p>Follow up with <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">~/.bashrc</span></code> and now <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">--version</span></code> should give you <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">version</span> <span class="pre">3.8.7</span></code>.</p>
@@ -1581,7 +1585,7 @@ hpcsmall-debug-ghpc-3
 <p>======= Connect to Slurm =======</p>
 <p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
 <p>======= Add ssh config to Omero Processor =======</p>
-<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
+<p>Ok, so SSH works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
 <div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>...\docker-example-omero-grid&gt; docker-compose exec omeroworker-5 /bin/bash
@@ -1594,207 +1598,6 @@ logout
 Connection to host.docker.internal closed.
 bash-4.2$ exit
 exit
-</pre></div>
-</div>
-<p>======= slurm-config.ini =======</p>
-<p>Let us setup the library’s config file <a class="reference internal" href="#../slurm-config.ini"><span class="xref myst">slurm-config.ini</span></a> correctly.</p>
-<p>Now, the <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library by default expects the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> ssh connection to be called <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, but you can adjust it to whatever you named your ssh <em>Host</em> in config.</p>
-<p>In this Docker setup, the config file is located at the <code class="docutils literal notranslate"><span class="pre">worker-gpu</span></code> folder and in the Dockerfile it is copied to <code class="docutils literal notranslate"><span class="pre">/etc/</span></code>, where the library will pick it up.</p>
-<p>Let’s use these values:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># SSH settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The alias for the SLURM SSH connection</span>
-<span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
-<span class="c1"># Set the rest of your SSH configuration in your SSH config under this host name/alias</span>
-<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric&#39;s documentation for details on config loading)</span>
-
-<span class="k">[SLURM]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># Slurm settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># General settings for where to find things on the Slurm cluster.</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># PATHS</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/my-scratch/data</span>
-<span class="c1"># The path on SLURM entrypoint for storing container image files</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">/data/my-scratch/singularity_images/workflows</span>
-<span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">/data/my-scratch/slurm-scripts</span>
-</pre></div>
-</div>
-<p>We have put all the storage paths on <code class="docutils literal notranslate"><span class="pre">/data/my-scratch/</span></code> and named the SSH Host connection <code class="docutils literal notranslate"><span class="pre">slurm</span></code>.</p>
-<p>The other values we can keep as <a class="reference internal" href="#../slurm-config.ini"><span class="xref myst">default</span></a>, except we don’t have a GPU, so let’s turn that off for CellPose:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
-<span class="c1"># CELLPOSE SEGMENTATION</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The path to store the container on the slurm_images_path</span>
-<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
-<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
-<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
-<span class="c1"># Override the default job values for this workflow</span>
-<span class="c1"># Or add a job value to this workflow</span>
-<span class="c1"># For more examples of such parameters, google SBATCH parameters.</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
-<span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
-<span class="c1"># cellpose_job_gres=gpu:1g.10gb:1</span>
-<span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
-<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">15GB</span>
-</pre></div>
-</div>
-<p>The <code class="docutils literal notranslate"><span class="pre">gres</span></code> will request a 10GB GPU on the Slurm cluster, but we only set up CPU docker slurm.</p>
-<p>We will also comment out some of the other algorithms, so we have to download less containers to our Slurm cluster and speed up the tutorial.</p>
-<p>This brings us to the following configuration file:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># SSH settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The alias for the SLURM SSH connection</span>
-<span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
-<span class="c1"># Set the rest of your SSH configuration in your SSH config under this host name/alias</span>
-<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric&#39;s documentation for details on config loading)</span>
-
-<span class="k">[SLURM]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># Slurm settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># General settings for where to find things on the Slurm cluster.</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># PATHS</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/my-scratch/data</span>
-<span class="c1"># The path on SLURM entrypoint for storing container image files</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">/data/my-scratch/singularity_images/workflows</span>
-<span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">/data/my-scratch/slurm-scripts</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># REPOSITORIES</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># A (github) repository to pull the slurm scripts from.</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># If you provide no repository, we will generate scripts instead!</span>
-<span class="c1"># Based on the job_template and the descriptor.json</span>
-<span class="c1">#</span>
-<span class="c1"># Example:</span>
-<span class="c1">#slurm_script_repo=https://github.com/TorecLuik/slurm-scripts</span>
-<span class="na">slurm_script_repo</span><span class="o">=</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># Processing settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># General/default settings for processing jobs.</span>
-<span class="c1"># Note: NOT YET IMPLEMENTED</span>
-<span class="c1"># Note: If you need to change it for a specific case only,</span>
-<span class="c1"># you should change the job script instead, either in Omero or Slurm </span>
-
-
-<span class="k">[MODELS]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># Model settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># Settings for models/singularity images that we want to run on Slurm</span>
-<span class="c1">#</span>
-<span class="c1"># NOTE: keys have to be unique, and require a &lt;key&gt;_repo and &lt;key&gt;_image value as well.</span>
-<span class="c1">#</span>
-<span class="c1"># NOTE 2: Versions for the repo are highly encouraged! </span>
-<span class="c1"># Latest/master can change and cause issues with reproducability!</span>
-<span class="c1"># We pickup the container version based on the version of the repository.</span>
-<span class="c1"># For generic master branch, we pick up generic latest container.</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># CELLPOSE SEGMENTATION</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The path to store the container on the slurm_images_path</span>
-<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
-<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
-<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
-<span class="c1"># Override the default job values for this workflow</span>
-<span class="c1"># Or add a job value to this workflow</span>
-<span class="c1"># For more examples of such parameters, google SBATCH parameters.</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
-<span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
-<span class="c1"># cellpose_job_gres=gpu:1g.10gb:1</span>
-<span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
-<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">15GB</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># # STARDIST SEGMENTATION</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># # The path to store the container on the slurm_images_path</span>
-<span class="c1"># stardist=stardist</span>
-<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
-<span class="c1"># stardist_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-Stardist/tree/v1.3.2</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="c1"># stardist_job=jobs/stardist.sh</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># CELLPROFILER SEGMENTATION</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># # The path to store the container on the slurm_images_path</span>
-<span class="c1"># cellprofiler=cellprofiler</span>
-<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
-<span class="c1"># cellprofiler_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/tree/v1.6.4</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="c1"># cellprofiler_job=jobs/cellprofiler.sh</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># DEEPCELL SEGMENTATION</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># # The path to store the container on the slurm_images_path</span>
-<span class="c1"># deepcell=deepcell</span>
-<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
-<span class="c1"># deepcell_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-DeepCell/tree/v.1.4.3</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="c1"># deepcell_job=jobs/deepcell.sh</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># IMAGEJ SEGMENTATION</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># # The path to store the container on the slurm_images_path</span>
-<span class="c1"># imagej=imagej</span>
-<span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
-<span class="c1"># imagej_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-ImageJ/tree/v1.12.10</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="c1"># imagej_job=jobs/imagej.sh</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># # CELLPROFILER SPOT COUNTING</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># The path to store the container on the slurm_images_path</span>
-<span class="na">cellprofiler_spot</span><span class="o">=</span><span class="s">cellprofiler_spot</span>
-<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
-<span class="na">cellprofiler_spot_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_SpotCounting-CellProfiler/tree/v1.0.1</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="na">cellprofiler_spot_job</span><span class="o">=</span><span class="s">jobs/cellprofiler_spot.sh</span>
-<span class="c1"># # -------------------------------------</span>
-<span class="c1"># CELLEXPANSION SPOT COUNTING</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The path to store the container on the slurm_images_path</span>
-<span class="na">cellexpansion</span><span class="o">=</span><span class="s">cellexpansion</span>
-<span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
-<span class="na">cellexpansion_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
-<span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
 </pre></div>
 </div>
 <p>======= Init environment =======</p>

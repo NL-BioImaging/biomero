@@ -134,7 +134,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#id12">TL;DR:</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#b-install-singularity-apptainer">3b. Install Singularity / Apptainer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#b-install-requirements-singularity-apptainer-and-7zip">3b. Install requirements: Singularity / Apptainer and 7zip</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id13">TL;DR:</a></li>
 </ul>
 </li>
@@ -1378,7 +1378,7 @@ This is what we will cover in this tutorial, specifically Google Cloud.</p>
 <div class="section" id="id10">
 <h3>TL;DR:<a class="headerlink" href="#id10" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
-<li><p>Add your public SSH key (<code class="docutils literal notranslate"><span class="pre">~/.ssh/id_rsa.pub</span></code>) to the Google Cloud instance, like <a class="reference external" href="https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud">here</a>.</p></li>
+<li><p>Add your public SSH key (<code class="docutils literal notranslate"><span class="pre">~/.ssh/id_rsa.pub</span></code>) to the Google Cloud instance, like <a class="reference external" href="https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud">here</a>. Easiest is with Cloud shell, upload your public key, and run <code class="docutils literal notranslate"><span class="pre">gcloud</span> <span class="pre">compute</span> <span class="pre">os-login</span> <span class="pre">ssh-keys</span> <span class="pre">add</span>&#160;&#160;&#160; <span class="pre">--key-file=id_rsa.pub</span></code></p></li>
 <li><p>Turn the <a class="reference external" href="https://console.cloud.google.com/net-security/firewall-manager/firewall-policies/list">firewall</a> setting (e.g. <code class="docutils literal notranslate"><span class="pre">hpc-small-net-fw-allow-iap-ingress</span></code>) to allow <code class="docutils literal notranslate"><span class="pre">0.0.0.0/0</span></code> as IP ranges for <code class="docutils literal notranslate"><span class="pre">tcp:22</span></code>.</p></li>
 <li><p>Promote the login node’s IP address to a static one: <a class="reference external" href="https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address#promote_ephemeral_ip">here</a></p></li>
 <li><p>Copy that IP and your username.</p></li>
@@ -1401,7 +1401,7 @@ We will forward our local SSH to our Omero (in this tutorial), so we just need t
 <li><p>Note that this tutorial by default seems to use the “OS Login” method, using the mail account you signed up with.</p></li>
 <li><p>Open a Cloud Shell</p></li>
 <li><p>Upload your public key to this Cloud Shell (with the <code class="docutils literal notranslate"><span class="pre">...</span></code> button).</p></li>
-<li><p>Run the <code class="docutils literal notranslate"><span class="pre">gcloud</span> <span class="pre">compute</span> <span class="pre">...</span></code> command they show, pointing at your newly uploaded public key. Leave out the optional <code class="docutils literal notranslate"><span class="pre">project</span></code> and <code class="docutils literal notranslate"><span class="pre">expire_time</span></code>.</p></li>
+<li><p>Run the <code class="docutils literal notranslate"><span class="pre">gcloud</span> <span class="pre">compute</span> <span class="pre">os-login</span> <span class="pre">ssh-keys</span> <span class="pre">add</span>&#160;&#160;&#160; <span class="pre">--key-file=id_rsa.pub</span></code> command they show, pointing at your newly uploaded public key. Leave out the optional <code class="docutils literal notranslate"><span class="pre">project</span></code> and <code class="docutils literal notranslate"><span class="pre">expire_time</span></code>.</p></li>
 </ol>
 <p>Then, we have to ensure that the firewall accepts requests from outside Google Cloud, if it doesn’t already.</p>
 <p>Go to the <a class="reference external" href="https://console.cloud.google.com/net-security/firewall-manager/firewall-policies/list">firewall</a> settings and edit the tcp:22 (e.g. <code class="docutils literal notranslate"><span class="pre">hpc-small-net-fw-allow-iap-ingress</span></code>) and add the <code class="docutils literal notranslate"><span class="pre">0.0.0.0/0</span></code> ip ranges.</p>
@@ -1474,8 +1474,8 @@ hpcsmall-debug-ghpc-3
 </details>
 </div>
 </div>
-<div class="section" id="b-install-singularity-apptainer">
-<h2>3b. Install Singularity / Apptainer<a class="headerlink" href="#b-install-singularity-apptainer" title="Permalink to this headline"></a></h2>
+<div class="section" id="b-install-requirements-singularity-apptainer-and-7zip">
+<h2>3b. Install requirements: Singularity / Apptainer and 7zip<a class="headerlink" href="#b-install-requirements-singularity-apptainer-and-7zip" title="Permalink to this headline"></a></h2>
 <div class="section" id="id13">
 <h3>TL;DR:<a class="headerlink" href="#id13" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
@@ -1485,6 +1485,9 @@ hpcsmall-debug-ghpc-3
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span> <span class="o">&amp;&amp;</span> <span class="n">source</span> <span class="o">~/.</span><span class="n">bashrc</span>
 </pre></div>
 </div>
+<ol class="arabic simple" start="3">
+<li><p>Install 7zip: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">yum</span> <span class="pre">install</span> <span class="pre">-y</span> <span class="pre">p7zip</span> <span class="pre">p7zip-plugins</span></code></p></li>
+</ol>
 <details>
 <p>Now we want to run containers on our Slurm cluster using <code class="docutils literal notranslate"><span class="pre">singularity</span></code>, but this is not installed by default.</p>
 <p>Luckily the folks at Google have a <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> for it, so let’s follow that one.</p>

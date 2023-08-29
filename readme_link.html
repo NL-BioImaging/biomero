@@ -45,7 +45,12 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Omero Slurm Client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurmclient-class">SlurmClient class</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started">Prerequisites &amp; Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started">Prerequisites &amp; Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#slurm-requirements">Slurm Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#omero-requirements">Omero Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#how-to-add-an-existing-workflow">How to add an existing workflow</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#workflow-metadata-via-descriptor-json">Workflow metadata via descriptor.json</a><ul>
@@ -133,7 +138,41 @@ It is a Python class that extends the Connection class from the Fabric library. 
 </div>
 <div class="section" id="prerequisites-getting-started">
 <h1>Prerequisites &amp; Getting Started<a class="headerlink" href="#prerequisites-getting-started" title="Permalink to this headline"></a></h1>
-<p>Note: This library has only been tested on Slurm version 21.08.6 !</p>
+<div class="section" id="slurm-requirements">
+<h2>Slurm Requirements<a class="headerlink" href="#slurm-requirements" title="Permalink to this headline"></a></h2>
+<p>Note: This library has only been tested on Slurm version 21.08.6 and 22.05.09 !</p>
+<p>Your Slurm cluster/login node needs to have:</p>
+<ol class="arabic simple">
+<li><p>SSH access w/ public key (headless)</p></li>
+<li><p>SCP access (generally comes with SSH)</p></li>
+<li><p>7zip</p></li>
+<li><p>Singularity/Apptainer</p></li>
+<li><p>(Optional) Git</p></li>
+</ol>
+</div>
+<div class="section" id="omero-requirements">
+<h2>Omero Requirements<a class="headerlink" href="#omero-requirements" title="Permalink to this headline"></a></h2>
+<p>Your Omero <em>processing</em> node needs to have:</p>
+<ol class="arabic simple">
+<li><p>SSH client and access to the Slurm cluster (w/ private key / headless)</p></li>
+<li><p>SCP access to the Slurm cluster</p></li>
+<li><p>Python3.6+</p></li>
+<li><p>This library installed (<code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'git+https://github.com/NL-BioImaging/omero-slurm-client'</span></code>)</p></li>
+<li><p>Configuration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
+<li><p>(Optional) requirements for some scripts: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code></p></li>
+</ol>
+<p>Your Omero <em>server</em> node needs to have:</p>
+<ol class="arabic simple">
+<li><p>Some Omero example scripts installed to interact with this library:</p>
+<ul class="simple">
+<li><p>My examples on github: <code class="docutils literal notranslate"><span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors/scripts/slurm</span></code></p></li>
+<li><p>Install those <code class="docutils literal notranslate"><span class="pre">scripts/slurm/*</span></code> at <code class="docutils literal notranslate"><span class="pre">/opt/omero/server/OMERO.server/lib/scripts/slurm/</span></code> (or make some more subfolders)</p></li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h2>
 <p>To connect an Omero processor to a Slurm cluster using the <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code> library, users can follow these steps:</p>
 <ol class="arabic simple">
 <li><p>Setup passwordless public key authentication between your Omero <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and your HPC server. E.g. follow  a <a class="reference external" href="https://www.ssh.com/academy/ssh/public-key-authentication">SSH tutorial</a> or <a class="reference external" href="https://linuxize.com/post/how-to-setup-passwordless-ssh-login/">this one</a>.</p>
@@ -165,6 +204,8 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <ol class="arabic simple" start="7">
 <li><p>With the configuration files in place, users can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.</p></li>
 </ol>
+<p>I have also provided a tutorial on connecting to a Local or Cloud Slurm. Those can give some more insights as well.</p>
+</div>
 </div>
 <div class="section" id="slurm-config-ini">
 <h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h1>

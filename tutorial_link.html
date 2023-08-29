@@ -144,7 +144,6 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#id16">5. Workflows!</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id17">TL;DR:</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id18">Batching</a></li>
 </ul>
 </li>
 </ul>
@@ -1479,7 +1478,7 @@ hpcsmall-debug-ghpc-3
 <div class="section" id="id13">
 <h3>TL;DR:<a class="headerlink" href="#id13" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
-<li><p>Follow this <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> to install Singularity in /app</p></li>
+<li><p>Follow this <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> to install Singularity, but in step 5 please install in <code class="docutils literal notranslate"><span class="pre">/opt/apps</span></code> ! <code class="docutils literal notranslate"><span class="pre">/apps</span></code> is not actually shared with all nodes.</p></li>
 <li><p>Execute the following to update <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code>:</p></li>
 </ol>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span> <span class="o">&amp;&amp;</span> <span class="n">source</span> <span class="o">~/.</span><span class="n">bashrc</span>
@@ -1497,11 +1496,15 @@ hpcsmall-debug-ghpc-3
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz <span class="o">&amp;&amp;</span> tar -xzf singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>.tar.gz <span class="o">&amp;&amp;</span> <span class="nb">cd</span> singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>
 </pre></div>
 </div>
-<p>The module step did not work for me, so instead we need to make singularity and <code class="docutils literal notranslate"><span class="pre">/usr/sbin</span></code> available in the PATH.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span>
+<p>The module step did not work for me, because it is the wrong directory in the guide!</p>
+<p>In step 5, we need to install to <code class="docutils literal notranslate"><span class="pre">/opt/apps</span></code> instead! This is very important because the compute nodes that have to execute the job need to have access to this software too, and this directory is the actual shared directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./mconfig --prefix<span class="o">=</span>/opt/apps/singularity/<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span> <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    make -C ./builddir <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    sudo make -C ./builddir install
 </pre></div>
 </div>
-<p>Follow up with <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">~/.bashrc</span></code> and now <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">--version</span></code> should give you <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">version</span> <span class="pre">3.8.7</span></code>.</p>
+<p>Now <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">avail</span></code> should list <code class="docutils literal notranslate"><span class="pre">singularity</span></code>.</p>
+<p>So <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">singularity</span></code> and now <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">--version</span></code> should give you <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">version</span> <span class="pre">3.8.7</span></code>.</p>
 </details>
 <p>Now let’s connect Omero to our Slurm!</p>
 </div>
@@ -1513,49 +1516,7 @@ hpcsmall-debug-ghpc-3
 <h3>TL;DR:<a class="headerlink" href="#id15" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
-<li><p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file</p>
-<ul class="simple">
-<li><p>to point to <code class="docutils literal notranslate"><span class="pre">gcslurm</span></code> profile (or rename your SSH profile to <code class="docutils literal notranslate"><span class="pre">slurm</span></code>)</p></li>
-</ul>
-</li>
-</ol>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># SSH settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The alias for the SLURM SSH connection</span>
-<span class="na">host</span><span class="o">=</span><span class="s">gcslurm</span>
-</pre></div>
-</div>
-<ul class="simple">
-<li><p>and to point to directories relative to the user’s home dir:</p></li>
-</ul>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># Slurm settings</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># General settings for where to find things on the Slurm cluster.</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># PATHS</span>
-<span class="c1"># -------------------------------------</span>
-<span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">my-scratch/data</span>
-<span class="c1"># The path on SLURM entrypoint for storing container image files</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">my-scratch/singularity_images/workflows</span>
-<span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
-<span class="c1">#</span>
-<span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
-<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">my-scratch/slurm-scripts</span>
-</pre></div>
-</div>
-<ol class="arabic simple" start="3">
+<li><p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to point to <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already)</p></li>
 <li><p>Fire up the Omero containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>Go to Omero.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
 <li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with Omero.Insight (not included).</p></li>
@@ -1568,7 +1529,8 @@ hpcsmall-debug-ghpc-3
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
-<p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to point to <code class="docutils literal notranslate"><span class="pre">gcslurm</span></code> profile (or rename your SSH profile to <code class="docutils literal notranslate"><span class="pre">slurm</span></code>)</p>
+<p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to be the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already).</p>
+<p>What we did was point to <code class="docutils literal notranslate"><span class="pre">gcslurm</span></code> profile (or rename your SSH profile to <code class="docutils literal notranslate"><span class="pre">slurm</span></code>)</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
 <span class="c1"># -------------------------------------</span>
 <span class="c1"># SSH settings</span>
@@ -1577,6 +1539,7 @@ hpcsmall-debug-ghpc-3
 <span class="na">host</span><span class="o">=</span><span class="s">gcslurm</span>
 </pre></div>
 </div>
+<p>And we also set all directories to be relative to the home dir, and we reduced CellPose memory and CPU drastically to fit into the small Slurm cluster we made in Google Cloud.</p>
 <p>This way, it will use the right SSH setting to connect with our Google Cloud Slurm.</p>
 <p>Let’s (build it and) fire it up:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
@@ -1591,16 +1554,13 @@ hpcsmall-debug-ghpc-3
 <p>Ok, so SSH works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>...\docker-example-omero-grid&gt; docker-compose exec omeroworker-5 /bin/bash
-bash-4.2$ ssh slurm
-Last login: Wed Aug  9 13:08:54 2023 from 172.21.0.1
-[slurm@slurmctld ~]$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
-[slurm@slurmctld ~]$ exit
-logout
-Connection to host.docker.internal closed.
-bash-4.2$ exit
-exit
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">docker-example-omero-grid</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">omeroworker</span><span class="p">-</span><span class="n">5</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
+<span class="n">bash</span><span class="p">-</span><span class="n">4</span><span class="p">.</span><span class="n">2</span><span class="p">$</span> <span class="n">ssh</span> <span class="n">gcslurm</span>
+
+<span class="p">&lt;</span><span class="n">pretty-slurm-art</span><span class="p">&gt;</span>
+
+<span class="p">[</span><span class="n">t_t_luik_amsterdamumc_nl</span><span class="nv">@hpcsmall</span><span class="n">-login</span><span class="p">-</span><span class="n">2aoamjs0</span><span class="p">-</span><span class="n">001</span> <span class="p">~]$</span> <span class="n">squeue</span>
+             <span class="n">JOBID</span> <span class="n">PARTITION</span>     <span class="n">NAME</span>     <span class="n">USER</span> <span class="n">ST</span>       <span class="n">TIME</span>  <span class="n">NODES</span> <span class="n">NODELIST</span><span class="p">(</span><span class="n">REASON</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>======= Init environment =======</p>
@@ -1627,7 +1587,7 @@ exit
 <li><p>Click <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code></p></li>
 </ul>
 </li>
-<li><p>Check activity window (or get a coffee), it should take a few minutes (about 3m:30s for 4 256x256 images for me) and then say (a.o.): <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code></p>
+<li><p>Now go get a coffee or something, it should take a lot of minutes (about 12m:30s for 4 256x256 images for me!) and then say (a.o.): <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code></p>
 <ul class="simple">
 <li><p>Or it <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>, in which case you should check all the details anyway and get your hands dirty with debugging! Or try less and smaller images.</p></li>
 </ul>
@@ -1642,43 +1602,10 @@ exit
 <p>You can see that this script recognized that we downloaded 3 workflows, and what their parameters are. For more information on this magic, follow the other tutorials.</p>
 <p>Let’s select <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> and click <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">gpu</span></code> off (sadly). Tune the other parameters as you like for your images. Also, for output let’s select <code class="docutils literal notranslate"><span class="pre">Import</span> <span class="pre">into</span> <span class="pre">NEW</span> <span class="pre">Dataset</span></code> by filling in a dataset name: cellpose_images. Click <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code>.</p>
 <p><img alt="Slurm Run Cellpose" src="images/webclient_run_cellpose.PNG?raw=true" /></p>
-<p>Result: Job 1 is FAILED.
-Turns out, our Slurm doesn’t have the compute nodes to execute this operation.</p>
-<p>======= Improve Slurm =======</p>
-<p>Update the <code class="docutils literal notranslate"><span class="pre">slurm.conf</span></code> file in the git repository.</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># COMPUTE NODES</span>
-<span class="na">NodeName</span><span class="o">=</span><span class="s">c[1-2] RealMemory=5120 CPUs=8 State=UNKNOWN</span>
-</pre></div>
-</div>
-<p>Here, 5GB and 8 CPU each should do the trick!</p>
-<p>Rebuild the containers. Note that the config is on a shared volume, so we have to destroy that volume too (it took some headbashing to find this out):</p>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">docker-compose</span> <span class="n">down</span> <span class="p">-</span><span class="n">-volumes</span> 
-</pre></div>
-</div>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">docker-compose</span> <span class="n">up</span> <span class="p">-</span><span class="n">-build</span>
-</pre></div>
-</div>
+<p>This will take ages because we did not invest in good compute on the Slurm cluster. It took 12m:30s for 4 small images for me.</p>
+<p>You can check the progress with the <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code> script.</p>
 </details>
-<p>That should take you through connecting Omero with a local Slurm setup.</p>
-</div>
-<div class="section" id="id18">
-<h3>Batching<a class="headerlink" href="#id18" title="Permalink to this headline"></a></h3>
-<p>Try <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code> to see if there is any speedup by splitting your images over multiple jobs/batches.</p>
-<p>We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer.</p>
-<details>
-Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
-<p>Let’s check on the Slurm node:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sacct --starttime <span class="s2">&quot;2023-06-13T17:00:00&quot;</span> --format Jobid,State,start,end,JobName%-18,Elapsed -n -X --endtime <span class="s2">&quot;now&quot;</span>
-</pre></div>
-</div>
-<p>In my latest example, it was 1 minute (30%) faster to have 2 batches/jobs (<code class="docutils literal notranslate"><span class="pre">32</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">33</span></code>) vs 1 job (<code class="docutils literal notranslate"><span class="pre">31</span></code>):</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">31            COMPLETED 2023-08-23T08:41:28 2023-08-23T08:45:02 omero-job-cellpose   00:03:34</span>
-
-<span class="l l-Scalar l-Scalar-Plain">32            COMPLETED 2023-08-23T09:22:00 2023-08-23T09:24:27 omero-job-cellpose   00:02:27</span>
-<span class="l l-Scalar l-Scalar-Plain">33            COMPLETED 2023-08-23T09:22:03 2023-08-23T09:24:40 omero-job-cellpose   00:02:37</span>
-</pre></div>
-</div>
-</details>
+<p>That should take you through connecting Omero with a Google Cloud Slurm setup!</p>
 </div>
 </div>
 </div>

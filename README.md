@@ -28,7 +28,36 @@ The class provides methods for running commands on the remote Slurm host, submit
 It also offers a `from_config` class method to create a `SlurmClient` object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.
 
 # Prerequisites & Getting Started
-Note: This library has only been tested on Slurm version 21.08.6 !
+
+## Slurm Requirements
+Note: This library has only been tested on Slurm version 21.08.6 and 22.05.09 !
+
+Your Slurm cluster/login node needs to have:
+1. SSH access w/ public key (headless)
+2. SCP access (generally comes with SSH)
+3. 7zip
+4. Singularity/Apptainer
+5. (Optional) Git
+
+## Omero Requirements
+
+Your Omero _processing_ node needs to have:
+1. SSH client and access to the Slurm cluster (w/ private key / headless)
+2. SCP access to the Slurm cluster
+3. Python3.6+
+4. This library installed (`python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client'`)
+5. Configuration setup at `/etc/slurm-config.ini`
+6. (Optional) requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3`
+
+Your Omero _server_ node needs to have:
+1. Some Omero example scripts installed to interact with this library:
+    - My examples on github: `https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors/scripts/slurm`
+    - Install those `scripts/slurm/*` at `/opt/omero/server/OMERO.server/lib/scripts/slurm/` (or make some more subfolders)
+
+
+
+
+## Getting Started
 
 To connect an Omero processor to a Slurm cluster using the `omero_slurm_client` library, users can follow these steps:
 
@@ -57,6 +86,8 @@ with SlurmClient.from_config(configfile=configfile,
     slurmClient.validate(validate_slurm_setup=True)
 ```
 7. With the configuration files in place, users can utilize the `SlurmClient` class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.
+
+I have also provided a tutorial on connecting to a Local or Cloud Slurm. Those can give some more insights as well.
 
 
 # slurm-config.ini

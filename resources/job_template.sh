@@ -16,8 +16,7 @@
 # force-stopped by the server. If you make the expected time too long, it will
 # take longer for the job to start. Here, we say the job will take 15 minutes.
 #              d-hh:mm:ss
-# Note that we use the timeout command in the actual script to requeue the job.
-#SBATCH --time=00:15:00
+#SBATCH --time=00:45:00
 
 # How much memory you need.
 # --mem will define memory per node

@@ -39,7 +39,7 @@ However, we are missing an ingredient: SSH access!
 ## 2. Add SSH access
 
 ### TL;DR:
-1. Add your public SSH key (`~/.ssh/id_rsa.pub`) to the Google Cloud instance, like [here](https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud).
+1. Add your public SSH key (`~/.ssh/id_rsa.pub`) to the Google Cloud instance, like [here](https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud). Easiest is with Cloud shell, upload your public key, and run `gcloud compute os-login ssh-keys add    --key-file=id_rsa.pub`
 2. Turn the [firewall](https://console.cloud.google.com/net-security/firewall-manager/firewall-policies/list) setting (e.g. `hpc-small-net-fw-allow-iap-ingress`) to allow `0.0.0.0/0` as IP ranges for `tcp:22`.
 3. Promote the login node's IP address to a static one: [here](https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address#promote_ephemeral_ip)
 4. Copy that IP and your username.
@@ -66,7 +66,7 @@ Follow the steps at [here](https://cloud.google.com/compute/docs/connect/add-ssh
 0. Note that this tutorial by default seems to use the "OS Login" method, using the mail account you signed up with.
 1. Open a Cloud Shell
 2. Upload your public key to this Cloud Shell (with the `...` button).
-3. Run the `gcloud compute ...` command they show, pointing at your newly uploaded public key. Leave out the optional `project` and `expire_time`.
+3. Run the `gcloud compute os-login ssh-keys add    --key-file=id_rsa.pub` command they show, pointing at your newly uploaded public key. Leave out the optional `project` and `expire_time`.
 
 Then, we have to ensure that the firewall accepts requests from outside Google Cloud, if it doesn't already. 
 
@@ -148,7 +148,7 @@ All on the same node that was spun up, on-demand, by Google Cloud. You should be
 
 </details>
 
-## 3b. Install Singularity / Apptainer
+## 3b. Install requirements: Singularity / Apptainer and 7zip
 
 ### TL;DR:
 1. Follow this [guide](https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine) to install Singularity in /app
@@ -157,6 +157,7 @@ All on the same node that was spun up, on-demand, by Google Cloud. You should be
 ```
 echo 'export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:${PATH}' >> ~/.bashrc && source ~/.bashrc
 ```
+3. Install 7zip: `sudo yum install -y p7zip p7zip-plugins`
 
 <details>
 

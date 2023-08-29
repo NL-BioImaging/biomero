@@ -43,6 +43,8 @@
 echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | \
 	$PARAMS" 
 
+module load singularity || true
+
 # We run a (singularity) container with the provided ENV variables.
 # The container is already downloaded as a .simg file at $IMAGE_PATH.
 singularity run --nv $IMAGE_PATH/$SINGULARITY_IMAGE \

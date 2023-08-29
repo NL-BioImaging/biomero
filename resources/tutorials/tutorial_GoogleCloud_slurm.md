@@ -151,7 +151,7 @@ All on the same node that was spun up, on-demand, by Google Cloud. You should be
 ## 3b. Install requirements: Singularity / Apptainer and 7zip
 
 ### TL;DR:
-1. Follow this [guide](https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine) to install Singularity in /app
+1. Follow this [guide](https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine) to install Singularity, but in step 5 please install in `/opt/apps` ! `/apps` is not actually shared with all nodes.
 2. Execute the following to update `~/.bashrc`:
 
 ```
@@ -175,13 +175,19 @@ Use this URL for the singularity tar:
 wget https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz && cd singularity-${SINGULARITY_VERSION}
 ```
 
-The module step did not work for me, so instead we need to make singularity and `/usr/sbin` available in the PATH.
+The module step did not work for me, because it is the wrong directory in the guide!
 
-```
-echo 'export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:${PATH}' >> ~/.bashrc
+In step 5, we need to install to `/opt/apps` instead! This is very important because the compute nodes that have to execute the job need to have access to this software too, and this directory is the actual shared directory:
+
+```bash
+./mconfig --prefix=/opt/apps/singularity/${SINGULARITY_VERSION} && \
+    make -C ./builddir && \
+    sudo make -C ./builddir install
 ```
 
-Follow up with `source ~/.bashrc` and now `singularity --version` should give you `singularity version 3.8.7`.
+Now `module avail` should list `singularity`.
+
+So `module load singularity` and now `singularity --version` should give you `singularity version 3.8.7`.
 
 </details>
 
@@ -193,47 +199,7 @@ Ok, now we need a Omero server and a correctly configured Omero Slurm Client.
 
 ### TL;DR:
 1.  Clone my example `docker-example-omero-grid-amc` locally: `git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git`
-2. Change the `worker-gpu/slurm-config.ini` file 
-    - to point to `gcslurm` profile (or rename your SSH profile to `slurm`)
-
-```ini
-[SSH]
-# -------------------------------------
-# SSH settings
-# -------------------------------------
-# The alias for the SLURM SSH connection
-host=gcslurm
-```
-    
-- and to point to directories relative to the user's home dir:
-  
-```ini
-[SLURM]
-# -------------------------------------
-# Slurm settings
-# -------------------------------------
-# General settings for where to find things on the Slurm cluster.
-# -------------------------------------
-# PATHS
-# -------------------------------------
-# The path on SLURM entrypoint for storing datafiles
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_data_path=my-scratch/data
-# The path on SLURM entrypoint for storing container image files
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_images_path=my-scratch/singularity_images/workflows
-# The path on SLURM entrypoint for storing the slurm job scripts
-#
-# Note: 
-# This example is relative to the Slurm user's home dir
-slurm_script_path=my-scratch/slurm-scripts
-```
-
-
+2. Change the `worker-gpu/slurm-config.ini` file to point to `worker-gpu/slurm-config.gcslurm.ini` file (if it is not the same file already)
 3. Fire up the Omero containers: `docker-compose up -d --build`
 4. Go to Omero.web (`localhost:4080`), login `root` pw `omero`
 5. Upload some images (to `localhost`) with Omero.Insight (not included).
@@ -250,7 +216,9 @@ You can use your own Omero setup, but for this tutorial I will refer to a docker
 git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 ```
 
-Change the `worker-gpu/slurm-config.ini` file to point to `gcslurm` profile (or rename your SSH profile to `slurm`)
+Change the `worker-gpu/slurm-config.ini` file to be the `worker-gpu/slurm-config.gcslurm.ini` file (if it is not the same file already).
+
+What we did was point to `gcslurm` profile (or rename your SSH profile to `slurm`)
 ```ini
 [SSH]
 # -------------------------------------
@@ -259,6 +227,8 @@ Change the `worker-gpu/slurm-config.ini` file to point to `gcslurm` profile (or 
 # The alias for the SLURM SSH connection
 host=gcslurm
 ```
+
+And we also set all directories to be relative to the home dir, and we reduced CellPose memory and CPU drastically to fit into the small Slurm cluster we made in Google Cloud.
 
 This way, it will use the right SSH setting to connect with our Google Cloud Slurm.
 
@@ -288,15 +258,12 @@ By some smart tricks, we have mounted our `~/.ssh` folder to the worker containe
 Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:
 ```powershell
 ...\docker-example-omero-grid> docker-compose exec omeroworker-5 /bin/bash
-bash-4.2$ ssh slurm
-Last login: Wed Aug  9 13:08:54 2023 from 172.21.0.1
-[slurm@slurmctld ~]$ squeue
+bash-4.2$ ssh gcslurm
+
+<pretty-slurm-art>
+
+[t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~]$ squeue
              JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
-[slurm@slurmctld ~]$ exit
-logout
-Connection to host.docker.internal closed.
-bash-4.2$ exit
-exit
 ```
 
 ======= Init environment =======
@@ -324,7 +291,7 @@ Let's go run some segmentation workflow then!
     - For importing results, change `3b) Rename the imported images` to `{original_file}_cpmask.{ext}`
     - Select `cellpose`, but tick off `use_gpu` off (sadly not implemented in this docker setup)
     - Click `Run Script`
-2. Check activity window (or get a coffee), it should take a few minutes (about 3m:30s for 4 256x256 images for me) and then say (a.o.): `COMPLETE`
+2. Now go get a coffee or something, it should take a lot of minutes (about 12m:30s for 4 256x256 images for me!) and then say (a.o.): `COMPLETE`
     - Or it `FAILED`, in which case you should check all the details anyway and get your hands dirty with debugging! Or try less and smaller images.
 3. Refresh your Explore window, there should be a new dataset `CellPose_Masks` with a mask for every input image. 
 
@@ -343,53 +310,12 @@ Let's select `cellpose` and click `use gpu` off (sadly). Tune the other paramete
 
 ![Slurm Run Cellpose](./images/webclient_run_cellpose.PNG?raw=true)
 
-Result: Job 1 is FAILED.
-Turns out, our Slurm doesn't have the compute nodes to execute this operation.
+This will take ages because we did not invest in good compute on the Slurm cluster. It took 12m:30s for 4 small images for me.
 
-======= Improve Slurm =======
-
-Update the `slurm.conf` file in the git repository.
-
-```ini
-# COMPUTE NODES
-NodeName=c[1-2] RealMemory=5120 CPUs=8 State=UNKNOWN
-```
-
-Here, 5GB and 8 CPU each should do the trick!
-
-Rebuild the containers. Note that the config is on a shared volume, so we have to destroy that volume too (it took some headbashing to find this out):
-```powershell
-docker-compose down --volumes 
-```
-```powershell
-docker-compose up --build
-```
+You can check the progress with the `Slurm Get Update` script.
 
 </details>
 
-That should take you through connecting Omero with a local Slurm setup.
-
-### Batching
-
-Try `slurm/SLURM Run Workflow Batched` to see if there is any speedup by splitting your images over multiple jobs/batches. 
-
-We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer.
-
-<details>
-Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
-
-Let's check on the Slurm node:
-```bash
-$ sacct --starttime "2023-06-13T17:00:00" --format Jobid,State,start,end,JobName%-18,Elapsed -n -X --endtime "now"
-``` 
-
-In my latest example, it was 1 minute (30%) faster to have 2 batches/jobs (`32` & `33`) vs 1 job (`31`):
-```yaml
-31            COMPLETED 2023-08-23T08:41:28 2023-08-23T08:45:02 omero-job-cellpose   00:03:34
-
-32            COMPLETED 2023-08-23T09:22:00 2023-08-23T09:24:27 omero-job-cellpose   00:02:27
-33            COMPLETED 2023-08-23T09:22:03 2023-08-23T09:24:40 omero-job-cellpose   00:02:37
-```
+That should take you through connecting Omero with a Google Cloud Slurm setup!
 
 
-</details>

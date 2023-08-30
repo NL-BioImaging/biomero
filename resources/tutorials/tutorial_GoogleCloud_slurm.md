@@ -228,7 +228,7 @@ What we did was point to `gcslurm` profile (or rename your SSH profile to `slurm
 host=gcslurm
 ```
 
-And we also set all directories to be relative to the home dir, and we reduced CellPose memory and CPU drastically to fit into the small Slurm cluster we made in Google Cloud.
+And we also set all directories to be relative to the home dir, and we reduced CellPose CPU drastically to fit into the small Slurm cluster we made in Google Cloud.
 
 This way, it will use the right SSH setting to connect with our Google Cloud Slurm.
 

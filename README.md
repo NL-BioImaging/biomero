@@ -69,25 +69,49 @@ To connect an Omero processor to a Slurm cluster using the `omero_slurm_client` 
 
     - This will allow a uniform SSH naming, and makes the connection headless; making it easy for the library.
 
-3. Test the SSH connection manually! `ssh slurm` (as the omero user) should connect you to the Slurm server (given that you named it `slurm` in the `config`).
+    - Test the SSH connection manually! `ssh slurm` (as the omero user) should connect you to the Slurm server (given that you named it `slurm` in the `config`).
 
-4. Congratulations! Now the servers are connected. Next, we make sure to setup the connection between Omero and Slurm.
+    - Congratulations! Now the servers are connected. Next, we make sure to setup the connection between Omero and Slurm.
 
-2. At this point, ensure that the `slurm-config.ini` file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. We provide an example in the [resources](./resources/slurm-config.ini) section. To read it automatically, place this `ini` file in one of the following locations (on the Omero `processor` server):
+3. At this point, ensure that the `slurm-config.ini` file is correctly configured with the necessary SSH and Slurm settings, including the host, data path, images path, and model details. Customize the configuration according to the specific Slurm cluster setup. We provide an example in the [resources](./resources/slurm-config.ini) section. To read it automatically, place this `ini` file in one of the following locations (on the Omero `processor` server):
     - `/etc/slurm-config.ini`
     - `~/slurm-config.ini`
 
+4. Install Omero scripts from [Omero Slurm Scripts](https://github.com/NL-BioImaging/omero-slurm-scripts), e.g. 
+    - `cd OMERO_DIST/lib/scripts`
+    - `git clone https://github.com/NL-BioImaging/omero-slurm-scripts.git slurm`
 
-6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. Provide the configfile location explicitly if it is not a default one from the previous step, otherwise you can omit it. This operation will make it create the directories you provided in the `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:
+6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in a Omero script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/init/SLURM_Init_environment.py) , which you just installed in previous step.
+    - Provide the configfile location explicitly if it is not a default one defined earlier, otherwise you can omit that field. 
+    - Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).
+    - This operation will make it create the directories you provided in the `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:
 
 ```python
 with SlurmClient.from_config(configfile=configfile,
                             init_slurm=True) as slurmClient:
     slurmClient.validate(validate_slurm_setup=True)
 ```
-7. With the configuration files in place, users can utilize the `SlurmClient` class from the Omero-Slurm library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor.
 
-I have also provided a tutorial on connecting to a Local or Cloud Slurm. Those can give some more insights as well.
+With the configuration files in place, you can utilize the `SlurmClient` class from the Omero-Slurm-client library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor. 
+
+## Use the Omero Slurm scripts
+We have provided example Omero scripts of how to use this in https://github.com/NL-BioImaging/omero-slurm-scripts (hopefully installed in a previous step). 
+
+
+For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
+
+-  [`data/Slurm Image Transfer`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/_SLURM_Image_Transfer.py): to export your selected images / dataset / screen as TIFF files to a Slurm dir.
+- [`data/Slurm Get Results`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/SLURM_Get_Results.py): to import your Slurm job results back into Omero as a zip, dataset or attachment.
+
+Other example Omero scripts are:
+- [`data/Slurm Get Update`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/SLURM_Get_Update.py): to run while you are waiting on a job to finish on Slurm; it will try to get a `%` progress from your job's logfile. Depends on your job/workflow logging a `%` of course.
+
+- [`workflows/Slurm Run Workflow Batched`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py): This will allow you to run several `workflows/Slurm Run Workflow` in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.
+
+- [`workflows/Slurm CellPose Segmentation`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py): This is a more primitive script that only runs the actual workflow `CellPose` (if correctly configured). You will need to manually transfer data first (with `Slurm Image Transfer`) and manually retrieve data afterward (with `Slurm Get Results`).
+
+## See the tutorials
+I have also provided tutorials on connecting to a Local or Cloud Slurm, and tutorials on how to add your FAIR workflows to this setup. Those can give some more insights as well.
 
 
 # slurm-config.ini

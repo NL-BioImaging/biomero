@@ -51,8 +51,8 @@ Your Omero _processing_ node needs to have:
 
 Your Omero _server_ node needs to have:
 1. Some Omero example scripts installed to interact with this library:
-    - My examples on github: `https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors/scripts/slurm`
-    - Install those `scripts/slurm/*` at `/opt/omero/server/OMERO.server/lib/scripts/slurm/` (or make some more subfolders)
+    - My examples on github: `https://github.com/NL-BioImaging/omero-slurm-scripts`
+    - Install those at `/opt/omero/server/OMERO.server/lib/scripts/slurm/`, e.g. `git clone https://github.com/NL-BioImaging/omero-slurm-scripts.git <path>/slurm`
 
 
 

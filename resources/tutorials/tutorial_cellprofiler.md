@@ -310,6 +310,7 @@ So how do other people get to use our workflow?
 
 - First, create an account on Dockerhub if you don't have one
 - Login locally to this account too: `docker login` 
+- (Optional) Build your latest docker image if you didn't do that yet
 - Tag your local Docker image with a new tag to match this Dockerhub account and release: `docker tag spotcounting-cp:latest <your-dockerhub-user>/w_spotcounting-cellprofiler:v1.0.0`
 - Push your tagged image to Dockerhub: `docker push <your-dockerhub-user>/w_spotcounting-cellprofiler:v1.0.0`
 - Now you can verify that it is available online:

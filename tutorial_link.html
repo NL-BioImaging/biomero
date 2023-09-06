@@ -492,6 +492,7 @@ Except now, we didn’t need to have cellprofiler installed! Anyone with <code c
 <ul class="simple">
 <li><p>First, create an account on Dockerhub if you don’t have one</p></li>
 <li><p>Login locally to this account too: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">login</span></code></p></li>
+<li><p>(Optional) Build your latest docker image if you didn’t do that yet</p></li>
 <li><p>Tag your local Docker image with a new tag to match this Dockerhub account and release: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">tag</span> <span class="pre">spotcounting-cp:latest</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span></code></p></li>
 <li><p>Push your tagged image to Dockerhub: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">push</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span></code></p></li>
 <li><p>Now you can verify that it is available online:

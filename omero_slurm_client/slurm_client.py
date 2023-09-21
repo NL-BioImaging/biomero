@@ -213,8 +213,40 @@ class SlurmClient(Connection):
             elif self.slurm_script_path:
                 # generate scripts
                 self.update_slurm_scripts(generate_jobs=True)
+                
+            # 3. Setup converters
+            slurm_convert_path = self.slurm_images_path + "/converters"
+            convert_cmds = []
+            if self.slurm_images_path and slurm_convert_path:
+                convert_cmds.append(f"mkdir -p {slurm_convert_path}")
+            r = self.run_commands(convert_cmds)
+            # currently known converters
+            # 3a. ZARR to TIFF
+            convert_name = "convert_zarr_to_tiff"            
+            convert_py = f"{convert_name}.py"
+            convert_script_local = files("resources").joinpath(
+                convert_py)
+            convert_def = f"{convert_name}.def"
+            convert_def_local = files("resources").joinpath(
+                convert_def)
+            copy_script = self.put(local=convert_script_local,
+                                   remote=slurm_convert_path)
+            copy_def = self.put(local=convert_def_local,
+                                remote=slurm_convert_path)
+            if not copy_def.ok or not copy_script.ok:
+                raise SSHException(f"Failed to copy the ZARR-to-TIFF converter \
+                                   scripts: {copy_script} / {copy_def}")
+            # Build singularity container from definition
+            with self.cd(slurm_convert_path):
+                convert_cmds = []
+                if self.slurm_images_path:
+                    # TODO Change the tmp dir
+                    # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
+                    convert_cmds.append(
+                        f"singularity build {convert_name}.sif {convert_def}")
+                r = self.run_commands(convert_cmds)
 
-            # 3. Download workflow images
+            # 4. Download workflow images
             # Create specific workflow dirs
             with self.cd(self.slurm_images_path):
                 if self.slurm_model_paths:

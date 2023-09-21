@@ -1,0 +1,14 @@
+Bootstrap: docker
+From: python:3.9-slim
+
+%post
+    # Install required libraries with specific versions
+    pip install zarr==2.8.3 tifffile==2020.9.3 dask==2021.3.0
+
+
+%files
+    convert_zarr_to_tiff.py /app/convert_zarr_to_tiff.py
+
+%runscript
+    # Run the script with the provided arguments
+    exec python /app/convert_zarr_to_tiff.py "$@"

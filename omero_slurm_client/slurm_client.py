@@ -229,13 +229,10 @@ class SlurmClient(Connection):
             convert_def = f"{convert_name}.def"
             convert_def_local = files("resources").joinpath(
                 convert_def)
-            copy_script = self.put(local=convert_script_local,
-                                   remote=slurm_convert_path)
-            copy_def = self.put(local=convert_def_local,
-                                remote=slurm_convert_path)
-            if not copy_def.ok or not copy_script.ok:
-                raise SSHException(f"Failed to copy the ZARR-to-TIFF converter \
-                                   scripts: {copy_script} / {copy_def}")
+            _ = self.put(local=convert_script_local,
+                         remote=slurm_convert_path)
+            _ = self.put(local=convert_def_local,
+                         remote=slurm_convert_path)
             # Build singularity container from definition
             with self.cd(slurm_convert_path):
                 convert_cmds = []

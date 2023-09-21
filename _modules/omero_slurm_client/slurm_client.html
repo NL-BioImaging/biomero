@@ -304,8 +304,40 @@
             <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">:</span>
                 <span class="c1"># generate scripts</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_slurm_scripts</span><span class="p">(</span><span class="n">generate_jobs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                
+            <span class="c1"># 3. Setup converters</span>
+            <span class="n">slurm_convert_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span> <span class="o">+</span> <span class="s2">&quot;/converters&quot;</span>
+            <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span> <span class="ow">and</span> <span class="n">slurm_convert_path</span><span class="p">:</span>
+                <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{slurm_convert_path}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>
+            <span class="c1"># currently known converters</span>
+            <span class="c1"># 3a. ZARR to TIFF</span>
+            <span class="n">convert_name</span> <span class="o">=</span> <span class="s2">&quot;convert_zarr_to_tiff&quot;</span>            
+            <span class="n">convert_py</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.py&quot;</span>
+            <span class="n">convert_script_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="n">convert_py</span><span class="p">)</span>
+            <span class="n">convert_def</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.def&quot;</span>
+            <span class="n">convert_def_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="n">convert_def</span><span class="p">)</span>
+            <span class="n">copy_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_script_local</span><span class="p">,</span>
+                                   <span class="n">remote</span><span class="o">=</span><span class="n">slurm_convert_path</span><span class="p">)</span>
+            <span class="n">copy_def</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_def_local</span><span class="p">,</span>
+                                <span class="n">remote</span><span class="o">=</span><span class="n">slurm_convert_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">copy_def</span><span class="o">.</span><span class="n">ok</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">copy_script</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to copy the ZARR-to-TIFF converter </span><span class="se">\</span>
+<span class="s2">                                   scripts: </span><span class="si">{copy_script}</span><span class="s2"> / </span><span class="si">{copy_def}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Build singularity container from definition</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="n">slurm_convert_path</span><span class="p">):</span>
+                <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
+                    <span class="c1"># TODO Change the tmp dir</span>
+                    <span class="c1"># export SINGULARITY_TMPDIR=~/my-scratch/tmp;</span>
+                    <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;singularity build </span><span class="si">{convert_name}</span><span class="s2">.sif </span><span class="si">{convert_def}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>
 
-            <span class="c1"># 3. Download workflow images</span>
+            <span class="c1"># 4. Download workflow images</span>
             <span class="c1"># Create specific workflow dirs</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">):</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">:</span>

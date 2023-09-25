@@ -9,35 +9,38 @@ Additionally, the package offers functionality for configuring and managing path
 
 Overall, the `omero_slurm_client` package simplifies the integration of Slurm functionality within the Omero platform and provides an efficient workflow for working with Slurm clusters.
 
-# SSH
-Note: this library is built for SSH-based connections. If you could, it would be a lot easier to just have the Omero `processor` server and the `slurm` client server be (on) the same computer: then you can just directly call `sbatch` and other `slurm` commands from Omero scripts.
+# Quickstart
 
-This is for those cases where you already have an external HPC cluster and want to connect your Omero instance, but cannot connect it so directly by joining the HPC cluster.
+For a quick overview of what this library can do for you, we can install an example setup locally with Docker:
 
-Despite that, the approach to workflows and control via a Python API in this library could still be interesting to those with direct access to a `slurm` cluster. You could extend the `SlurmClient` class and change the `run` commands to not use SSH, but just a `subprocess`. 
-But you could also look at other python libraries like [submitit](https://github.com/facebookincubator/submitit).
+1. Setup a local Omero w/ this library: 
+    - Follow Quickstart of https://github.com/TorecLuik/docker-example-omero-grid-amc
+2. Setup a local Slurm w/ SSH access: 
+    - Follow Quickstart of https://github.com/TorecLuik/slurm-docker-cluster
+3. Upload some data with OMERO.insight to `localhost` server
+4. Try out some scripts from https://github.com/NL-BioImaging/omero-slurm-scripts (already installed!):
+    1. Run script `slurm/init/SLURM Init environment...`
+    2. Get a coffee or something. This will take at least 10 min to download all the workflow images. Maybe write a nice review on `image.sc` of this software, or here on the `Discussions` tab of Github.
+    3. Select your image / dataset and run script `slurm/workflows/SLURM Run Workflow...`
+        - Select at least one of the `Select how to import your results`, e.g. change `Import into NEW Dataset` text to `hello world`
+        - Select a fun workflow, e.g. `cellpose`.
+            - Change the `nuc channel` to the channel to segment
+            - Uncheck the `use gpu` unless you setup a nice Slurm w/ GPU
+        - Refresh your Omero `Explore` tab to see your `hello world` dataset with a mask image when the workflow is done.
 
-# SlurmClient class
-The SlurmClient class is the main entrypoint in using this library.
-It is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH. 
 
-It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models. 
-
-The class provides methods for running commands on the remote Slurm host, submitting jobs, checking job status, retrieving job output, and tailing log files. 
-
-It also offers a `from_config` class method to create a `SlurmClient` object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.
 
 # Prerequisites & Getting Started
 
 ## Slurm Requirements
-Note: This library has only been tested on Slurm version 21.08.6 and 22.05.09 !
+Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
 
 Your Slurm cluster/login node needs to have:
 1. SSH access w/ public key (headless)
 2. SCP access (generally comes with SSH)
-3. 7zip
-4. Singularity/Apptainer
-5. (Optional) Git
+3. 7zip installed
+4. Singularity/Apptainer installed
+5. (Optional) Git installed
 
 ## Omero Requirements
 
@@ -47,7 +50,7 @@ Your Omero _processing_ node needs to have:
 3. Python3.6+
 4. This library installed (`python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client'`)
 5. Configuration setup at `/etc/slurm-config.ini`
-6. (Optional) requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3`
+6. Requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3`
 
 Your Omero _server_ node needs to have:
 1. Some Omero example scripts installed to interact with this library:
@@ -94,9 +97,11 @@ with SlurmClient.from_config(configfile=configfile,
 
 With the configuration files in place, you can utilize the `SlurmClient` class from the Omero-Slurm-client library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an Omero processor. 
 
-## Use the Omero Slurm scripts
-We have provided example Omero scripts of how to use this in https://github.com/NL-BioImaging/omero-slurm-scripts (hopefully installed in a previous step). 
+# OMERO.scripts
 
+The easiest interaction from Omero with this library currently is through OMERO.scripts.
+
+We have provided example Omero scripts of how to use this in https://github.com/NL-BioImaging/omero-slurm-scripts (hopefully installed in a previous step). 
 
 For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
 
@@ -110,8 +115,28 @@ Other example Omero scripts are:
 
 - [`workflows/Slurm CellPose Segmentation`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py): This is a more primitive script that only runs the actual workflow `CellPose` (if correctly configured). You will need to manually transfer data first (with `Slurm Image Transfer`) and manually retrieve data afterward (with `Slurm Get Results`).
 
-## See the tutorials
+You can always create your custom scripts.
+
+# See the tutorials
 I have also provided tutorials on connecting to a Local or Cloud Slurm, and tutorials on how to add your FAIR workflows to this setup. Those can give some more insights as well.
+
+# SSH
+Note: this library is built for **SSH-based connections**. If you could, it would be a lot easier to just have the Omero `processor` server and the `slurm` client server be (on) the same machine: then you can just directly call `sbatch` and other `slurm` commands from Omero scripts and Slurm would have better access to your data. 
+
+This is mainly for those cases where you already have an external HPC cluster and want to connect your Omero instance.
+
+Theoretically, you could extend the `SlurmClient` class and change the `run` commands to not use SSH, but just a `subprocess`. 
+But then you could also look at other Python libraries like [submitit](https://github.com/facebookincubator/submitit).
+
+# SlurmClient class
+The SlurmClient class is the main entrypoint in using this library.
+It is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH. 
+
+It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models. 
+
+The class provides methods for running commands on the remote Slurm host, submitting jobs, checking job status, retrieving job output, and tailing log files. 
+
+It also offers a `from_config` class method to create a `SlurmClient` object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.
 
 
 # slurm-config.ini
@@ -160,9 +185,11 @@ This metadata scheme is (based on) Cytomine / BIAFLOWS, and you can find details
 **NOTE!** We do not require the `cytomine_<...>` authentication parameters. They are not mandatory. In fact, we ignore them. But it might be beneficial to make your workflow compatible with Cytomine as well.
 
 ### Schema
-At this point, we are using the `cytomine-0.1` [schema](https://doc.uliege.cytomine.org/dev-guide/algorithms/descriptor-reference), but we could diverge from it in the future if we need to support other fields/datatypes. For example, Cytomine 0.1 uses Number for both Integer and Double, which is not nice in Python. For now, we handle that internally, to stay compatible with Cytomine apps.
+At this point, we are using the `cytomine-0.1` [schema](https://doc.uliege.cytomine.org/dev-guide/algorithms/descriptor-reference), in the future we will also want to support other schemas, like [Boutiques](https://boutiques.github.io/), [commonwl](https://www.commonwl.org/) or [MLFlow](https://www.mlflow.org/docs/latest/projects.html). 
 
-At this point, we also do not validate the schema, we just read some expected fields from the `descriptor.json`.
+We will try to stay compatible with all such schemas (perhaps with less functionality because of missing metadata).
+
+At this point, we do not strictly validate the schema, we just read expected fields from the `descriptor.json`.
 
 ## Multiple versions
 Note that while it is possible to have multiple versions of the same workflow on Slurm (and select the desired one in Omero), it is not possible to configure this yet. We assume for now you only want one version to start with. You can always update this config to download a new version to Slurm.

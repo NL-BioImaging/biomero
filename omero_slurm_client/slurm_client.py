@@ -37,6 +37,8 @@ class SlurmClient(Connection):
             data files for Slurm jobs.
         slurm_images_path (str): The path to the directory containing
             the Singularity images for Slurm jobs.
+        slurm_converters_path (str): The path to the directory containing
+            the Singularity images for file converters.
         slurm_model_paths (dict): A dictionary containing the paths to
             the Singularity images for specific Slurm job models.
         slurm_model_repos (dict): A dictionary containing the git
@@ -87,6 +89,7 @@ class SlurmClient(Connection):
     _DEFAULT_INLINE_SSH_ENV = True
     _DEFAULT_SLURM_DATA_PATH = "my-scratch/data"
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
+    _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
@@ -117,6 +120,7 @@ class SlurmClient(Connection):
                  inline_ssh_env=_DEFAULT_INLINE_SSH_ENV,
                  slurm_data_path: str = _DEFAULT_SLURM_DATA_PATH,
                  slurm_images_path: str = _DEFAULT_SLURM_IMAGES_PATH,
+                 slurm_converters_path: str = _DEFAULT_SLURM_CONVERTERS_PATH,
                  slurm_model_paths: dict = None,
                  slurm_model_repos: dict = None,
                  slurm_model_images: dict = None,
@@ -137,6 +141,7 @@ class SlurmClient(Connection):
                                           inline_ssh_env)
         self.slurm_data_path = slurm_data_path
         self.slurm_images_path = slurm_images_path
+        self.slurm_converters_path = slurm_converters_path
         self.slurm_model_paths = slurm_model_paths
         self.slurm_script_path = slurm_script_path
         self.slurm_script_repo = slurm_script_repo
@@ -215,10 +220,9 @@ class SlurmClient(Connection):
                 self.update_slurm_scripts(generate_jobs=True)
                 
             # 3. Setup converters
-            slurm_convert_path = self.slurm_images_path + "/converters"
             convert_cmds = []
-            if self.slurm_images_path and slurm_convert_path:
-                convert_cmds.append(f"mkdir -p {slurm_convert_path}")
+            if self.slurm_converters_path:
+                convert_cmds.append(f"mkdir -p {self.slurm_converters_path}")
             r = self.run_commands(convert_cmds)
             # currently known converters
             # 3a. ZARR to TIFF
@@ -230,17 +234,21 @@ class SlurmClient(Connection):
             convert_def_local = files("resources").joinpath(
                 convert_def)
             _ = self.put(local=convert_script_local,
-                         remote=slurm_convert_path)
+                         remote=self.slurm_converters_path)
             _ = self.put(local=convert_def_local,
-                         remote=slurm_convert_path)
+                         remote=self.slurm_converters_path)
             # Build singularity container from definition
-            with self.cd(slurm_convert_path):
+            with self.cd(self.slurm_converters_path):
                 convert_cmds = []
                 if self.slurm_images_path:
-                    # TODO Change the tmp dir
+                    # TODO Change the tmp dir?
                     # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
+                    
+                    # only if file does not exist yet
+                    convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
+                    # download /build new container
                     convert_cmds.append(
-                        f"singularity build {convert_name}.sif {convert_def}")
+                        f"singularity build --detached {convert_name}.sif {convert_def}")
                 r = self.run_commands(convert_cmds)
 
             # 4. Download workflow images
@@ -335,6 +343,9 @@ class SlurmClient(Connection):
         slurm_images_path = configs.get(
             "SLURM", "slurm_images_path",
             fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
+        slurm_converters_path = configs.get(
+            "SLURM", "slurm_converters_path",
+            fallback=cls._DEFAULT_SLURM_CONVERTERS_PATH)
 
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
@@ -373,6 +384,7 @@ class SlurmClient(Connection):
                    inline_ssh_env=inline_ssh_env,
                    slurm_data_path=slurm_data_path,
                    slurm_images_path=slurm_images_path,
+                   slurm_converters_path=slurm_converters_path,
                    slurm_model_paths=slurm_model_paths,
                    slurm_model_repos=slurm_model_repos,
                    slurm_model_images=None,

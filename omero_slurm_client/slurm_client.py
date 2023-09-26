@@ -245,10 +245,12 @@ class SlurmClient(Connection):
                     # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
                     
                     # only if file does not exist yet
-                    convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
+                    # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
+                    # EDIT -- NO, then we can't update! Force rebuild!
+                    
                     # download /build new container
                     convert_cmds.append(
-                        f"singularity build {convert_name}.sif {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
+                        f"singularity build -F {convert_name}.sif {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
                 r = self.run_commands(convert_cmds)
 
             # 4. Download workflow images

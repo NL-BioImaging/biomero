@@ -248,7 +248,7 @@ class SlurmClient(Connection):
                     convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
                     # download /build new container
                     convert_cmds.append(
-                        f"singularity build --detached {convert_name}.sif {convert_def}")
+                        f"singularity build {convert_name}.sif {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
                 r = self.run_commands(convert_cmds)
 
             # 4. Download workflow images

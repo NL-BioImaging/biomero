@@ -13,23 +13,23 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
 
     try:
         # Open the Zarr file
-        zarr_file = zarr.open(zarr_file_path, mode='r')
+        with zarr.open(zarr_file_path, mode='r') as zarr_file:
 
-        # Get the available keys
-        available_keys = list(zarr_file.keys())
+            # Get the available keys
+            available_keys = list(zarr_file.keys())
 
-        if len(available_keys) == 0:
-            raise ValueError("No keys found in the Zarr file.")
-        
-        # Determine the key to use for conversion
-        if key is None:
-            # If no key is specified, use the first available key
-            key = available_keys[0]
-        elif key not in available_keys:
-            raise ValueError(f"Specified key '{key}' not found in the Zarr file.")
+            if len(available_keys) == 0:
+                raise ValueError("No keys found in the Zarr file.")
+            
+            # Determine the key to use for conversion
+            if key is None:
+                # If no key is specified, use the first available key
+                key = available_keys[0]
+            elif key not in available_keys:
+                raise ValueError(f"Specified key '{key}' not found in the Zarr file.")
 
-        # Create a Dask array from the specified Zarr key (lazy loading)
-        dask_image_data = da.from_zarr(zarr_file[key])
+            # Create a Dask array from the specified Zarr key (Ready for persist)
+            dask_image_data = da.from_zarr(zarr_file[key]).persist()
 
         # Generate the default output file name based on the input file name and key
         input_file_name = os.path.basename(zarr_file_path)

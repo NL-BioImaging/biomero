@@ -43,10 +43,43 @@
 echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | \
 	$PARAMS" 
 
+# Load singularity module if needed
+echo "Loading Singularity/Apptainer..."
 module load singularity || true
+
+# Convert datatype if needed
+echo "Preprocessing data..."
+if $DO_CONVERT; then
+    # Find all .zarr files and generate a config file
+    find "$DATA_PATH/data/in" -name "*.zarr" | awk '{print NR, $0}' > config.txt
+
+    # Get the total number of .zarr files
+    N=$(wc -l < config.txt)
+    echo "Number of .zarr files: $N"
+
+    # Submit the conversion job array and wait for it to complete
+    sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/config.txt" --array=1-$N --wait convert_job_array.sh
+
+    # Remove the config file after the conversion is done
+    rm config.txt
+fi
+# if $DO_CONVERT; then
+# 	# TODO: parallel? submit to the slurm again? srun? sbatch --wait
+# 	N = $(find "$DATA_PATH/data/in" -name "*.zarr" | wc -l)
+# 	echo "$N"
+# 	# sbatch --job-name=conversion --array=1-$N --wait convert_job_array.sh
+# 	sbatch --job-name=conversion --wait convert_job_array.sh
+
+# 	# sequential
+# 	# find $DATA_PATH/data/in -name "*.zarr" -exec singularity run $CONVERSION_PATH/$CONVERTER_IMAGE {} \;
+
+# 	# Remove the zarrs as input
+# 	# rm -rf $DATA_PATH/data/in/*.zarr
+# fi
 
 # We run a (singularity) container with the provided ENV variables.
 # The container is already downloaded as a .simg file at $IMAGE_PATH.
+echo "Running workflow..."
 singularity run --nv $IMAGE_PATH/$SINGULARITY_IMAGE \
 	--infolder $DATA_PATH/data/in \
 	--outfolder $DATA_PATH/data/out \

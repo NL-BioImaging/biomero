@@ -224,9 +224,15 @@ class SlurmClient(Connection):
             if self.slurm_converters_path:
                 convert_cmds.append(f"mkdir -p {self.slurm_converters_path}")
             r = self.run_commands(convert_cmds)
+            # copy generic job array script over to slurm
+            convert_job_local = files("resources").joinpath(
+                "convert_job_array.sh")
+            _ = self.put(local=convert_job_local,
+                         remote=self.slurm_converters_path)
             # currently known converters
             # 3a. ZARR to TIFF
-            convert_name = "convert_zarr_to_tiff"            
+            # TODO extract these values to e.g. config if we have more
+            convert_name = "convert_zarr_to_tiff"          
             convert_py = f"{convert_name}.py"
             convert_script_local = files("resources").joinpath(
                 convert_py)
@@ -1225,6 +1231,9 @@ class SlurmClient(Connection):
             "IMAGE_PATH": f"{self.slurm_images_path}/{model_path}",
             "IMAGE_VERSION": f"{workflow_version}",
             "SINGULARITY_IMAGE": f"{image}_{workflow_version}.sif",
+            "CONVERSION_PATH": f"{self.slurm_converters_path}",
+            "CONVERTER_IMAGE": "convert_zarr_to_tiff.sif",
+            "DO_CONVERT": "true"
         }
         workflow_env = self.workflow_params_to_envvars(**kwargs)
         env = {**sbatch_env, **workflow_env}

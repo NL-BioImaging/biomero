@@ -40,7 +40,7 @@
 ##############################
 
 # Std out will get parsed into the logfile, so it is useful to log all your steps and variables
-echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | \
+echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | $SCRIPT_PATH | $DO_CONVERT | \
 	$PARAMS" 
 
 # Load singularity module if needed
@@ -58,7 +58,7 @@ if $DO_CONVERT; then
     echo "Number of .zarr files: $N"
 
     # Submit the conversion job array and wait for it to complete
-    sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/config.txt" --array=1-$N --wait convert_job_array.sh
+    sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/config.txt" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh
 
     # Remove the config file after the conversion is done
     rm config.txt

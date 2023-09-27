@@ -322,7 +322,7 @@
             <span class="n">convert_job_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
                 <span class="s2">&quot;convert_job_array.sh&quot;</span><span class="p">)</span>
             <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_job_local</span><span class="p">,</span>
-                         <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
+                         <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">)</span>
             <span class="c1"># currently known converters</span>
             <span class="c1"># 3a. ZARR to TIFF</span>
             <span class="c1"># TODO extract these values to e.g. config if we have more</span>
@@ -1327,7 +1327,8 @@
             <span class="s2">&quot;SINGULARITY_IMAGE&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{image}</span><span class="s2">_</span><span class="si">{workflow_version}</span><span class="s2">.sif&quot;</span><span class="p">,</span>
             <span class="s2">&quot;CONVERSION_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{self.slurm_converters_path}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="s2">&quot;CONVERTER_IMAGE&quot;</span><span class="p">:</span> <span class="s2">&quot;convert_zarr_to_tiff.sif&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;DO_CONVERT&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span>
+            <span class="s2">&quot;DO_CONVERT&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SCRIPT_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{self.slurm_script_path}</span><span class="s2">&quot;</span>
         <span class="p">}</span>
         <span class="n">workflow_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflow_params_to_envvars</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">env</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">sbatch_env</span><span class="p">,</span> <span class="o">**</span><span class="n">workflow_env</span><span class="p">}</span>

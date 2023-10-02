@@ -1409,7 +1409,7 @@ class SlurmClient(Connection):
         return local_tmp_storage, export_file, result
 
     def get_unzip_command(self, zipfile: str,
-                          filter_filetypes: str = "*.tiff *.tif") -> str:
+                          filter_filetypes: str = "*.tiff *.tif *.zarr") -> str:
         """
         Generate a command string for unzipping a data archive and creating
         required directories for Slurm jobs.

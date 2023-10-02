@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=conversion
-#SBATCH --array=1-N
+#SBATCH --array=1-1
 
 # Log important values
 echo "Job Parameters:"

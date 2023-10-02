@@ -1435,7 +1435,7 @@ class SlurmClient(Connection):
                     {self.slurm_data_path}/{zipfile}/data/in \
                     {self.slurm_data_path}/{zipfile}/data/out \
                     {self.slurm_data_path}/{zipfile}/data/gt; \
-                    7z e -y -o{self.slurm_data_path}/{zipfile}/data/in \
+                    7z e -y -o*{self.slurm_data_path}/{zipfile}/data/in \
                     {self.slurm_data_path}/{zipfile}.zip {filter_filetypes}"
 
         return unzip_cmd

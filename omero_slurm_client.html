@@ -668,7 +668,7 @@ Defaults to 10.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="omero_slurm_client.slurm_client.SlurmClient.get_unzip_command">
-<span class="sig-name descname"><span class="pre">get_unzip_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zipfile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_filetypes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'*.tiff</span> <span class="pre">*.tif</span> <span class="pre">*.zarr'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/omero_slurm_client/slurm_client.html#SlurmClient.get_unzip_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#omero_slurm_client.slurm_client.SlurmClient.get_unzip_command" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_unzip_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zipfile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_filetypes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/omero_slurm_client/slurm_client.html#SlurmClient.get_unzip_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#omero_slurm_client.slurm_client.SlurmClient.get_unzip_command" title="Permalink to this definition"></a></dt>
 <dd><p>Generate a command string for unzipping a data archive and creating
 required directories for Slurm jobs.</p>
 <dl class="field-list simple">
@@ -678,9 +678,11 @@ required directories for Slurm jobs.</p>
 Without extension.</p></li>
 <li><p><strong>filter_filetypes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – A space-separated string
 containing the file extensions to extract from the zip file.
-Defaults to “<em>.tiff *.tif”.
-Setting this argument to `None` or ‘</em>’ will omit the file
-filter and extract all files.</p></li>
+E.g. “<a href="#id1"><span class="problematic" id="id2">*</span></a>.tiff <a href="#id3"><span class="problematic" id="id4">*</span></a>.tif”.
+Setting this argument to <cite>None</cite> will omit the file
+filter and extract all files.
+Note, this doesn’t work for ‘.zarr’ as they are seen as
+folders.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>

@@ -25,7 +25,7 @@ if [ -e "$file_to_convert" ]; then
     echo "Starting conversion for task $SLURM_ARRAY_TASK_ID..."
 
     # Run the conversion
-    singularity run $CONVERSION_PATH/$CONVERTER_IMAGE "$file_to_convert"
+    singularity run $CONVERSION_PATH/$CONVERTER_IMAGE "$file_to_convert" --output "$DATA_PATH/data/in/"
 
     # Remove the original zarr file after conversion
     rm "$file_to_convert"

@@ -32,9 +32,8 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
             dask_image_data = da.from_zarr(zarr_file[key]).persist()
 
         # Generate the default output file name based on the input file name and key
-        input_file_name = os.path.basename(zarr_file_path)
         if output_file is None:
-            output_file = os.path.splitext(input_file_name)[0] + f".{key}.tif"
+            output_file = os.path.splitext(zarr_file_path)[0] + f".{key}.tif"
 
         # Write the Dask array to the TIFF file
         tf.imwrite(output_file, dask_image_data)
@@ -52,7 +51,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert a Zarr file to a TIFF file.")
     parser.add_argument("zarr_file", help="Path to the input Zarr file")
     parser.add_argument("--key", help="Key name for the Zarr dataset to convert")
-    parser.add_argument("--output", help="Path to the output TIFF file (optional)")
+    parser.add_argument("--output", help="Path for the output TIFF file (optional)")
 
     args = parser.parse_args()
 

@@ -14,10 +14,7 @@ echo "Loading Singularity/Apptainer..."
 module load singularity || true
 
 # Extract the .zarr file for the current SLURM_ARRAY_TASK_ID
-zarr_file=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $2}' $CONFIG_PATH)
-
-# Set the full path to the zarr file
-file_to_convert="$DATA_PATH/data/in/$zarr_file"
+file_to_convert=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $2}' $CONFIG_PATH)
 
 # Log the current task and the corresponding zarr file
 echo "Processing task $SLURM_ARRAY_TASK_ID: $file_to_convert"

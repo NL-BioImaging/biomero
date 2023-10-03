@@ -50,18 +50,21 @@ module load singularity || true
 # Convert datatype if needed
 echo "Preprocessing data..."
 if $DO_CONVERT; then
+    # Generate a unique config file name using job ID
+    CONFIG_FILE="config_${SLURM_JOB_ID}.txt"
+
     # Find all .zarr files and generate a config file
-    find "$DATA_PATH/data/in" -name "*.zarr" | awk '{print NR, $0}' > config.txt
+    find "$DATA_PATH/data/in" -name "*.zarr" | awk '{print NR, $0}' > "$CONFIG_FILE"
 
     # Get the total number of .zarr files
-    N=$(wc -l < config.txt)
+    N=$(wc -l < "$CONFIG_FILE")
     echo "Number of .zarr files: $N"
 
     # Submit the conversion job array and wait for it to complete
-    sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/config.txt" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh
+    sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh
 
     # Remove the config file after the conversion is done
-    rm config.txt
+    rm "$CONFIG_FILE"
 fi
 # if $DO_CONVERT; then
 # 	# TODO: parallel? submit to the slurm again? srun? sbatch --wait

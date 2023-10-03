@@ -1409,7 +1409,7 @@ class SlurmClient(Connection):
         return local_tmp_storage, export_file, result
 
     def get_unzip_command(self, zipfile: str,
-                          filter_filetypes: str = "*.tiff *.tif *.zarr") -> str:
+                          filter_filetypes: str = "") -> str:
         """
         Generate a command string for unzipping a data archive and creating
         required directories for Slurm jobs.
@@ -1419,17 +1419,17 @@ class SlurmClient(Connection):
                 Without extension.
             filter_filetypes (str, optional): A space-separated string
                 containing the file extensions to extract from the zip file.
-                Defaults to "*.tiff *.tif".
-                Setting this argument to `None` or '*' will omit the file
+                E.g. "*.tiff *.tif".
+                Setting this argument to `None` will omit the file
                 filter and extract all files.
+                Note, this doesn't work for '.zarr' as they are seen as 
+                folders.
 
         Returns:
             str:
                 The command to extract the specified
                 filetypes from the zip file.
         """
-        if filter_filetypes is None:
-            filter_filetypes = '*'  # omit filter
         unzip_cmd = f"mkdir {self.slurm_data_path}/{zipfile} \
                     {self.slurm_data_path}/{zipfile}/data \
                     {self.slurm_data_path}/{zipfile}/data/in \

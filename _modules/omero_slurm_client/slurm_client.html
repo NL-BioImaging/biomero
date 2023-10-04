@@ -1503,7 +1503,7 @@
         <span class="k">return</span> <span class="n">local_tmp_storage</span><span class="p">,</span> <span class="n">export_file</span><span class="p">,</span> <span class="n">result</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_unzip_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_unzip_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_unzip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                          <span class="n">filter_filetypes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+                          <span class="n">filter_filetypes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.zarr *.tiff *.tif&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate a command string for unzipping a data archive and creating</span>
 <span class="sd">        required directories for Slurm jobs.</span>
@@ -1513,11 +1513,9 @@
 <span class="sd">                Without extension.</span>
 <span class="sd">            filter_filetypes (str, optional): A space-separated string</span>
 <span class="sd">                containing the file extensions to extract from the zip file.</span>
-<span class="sd">                E.g. &quot;*.tiff *.tif&quot;.</span>
+<span class="sd">                E.g. defaults to &quot;*.zarr *.tiff *.tif&quot;.</span>
 <span class="sd">                Setting this argument to `None` will omit the file</span>
 <span class="sd">                filter and extract all files.</span>
-<span class="sd">                Note, this doesn&#39;t work for &#39;.zarr&#39; as they are seen as </span>
-<span class="sd">                folders.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str:</span>

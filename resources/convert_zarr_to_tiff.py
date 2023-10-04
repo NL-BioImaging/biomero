@@ -37,6 +37,9 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
         num_dims = len(dask_image_data.shape)
         new_order = tuple(range(num_dims - 1, -1, -1))  # Reverses the dimensions
         dask_image_data = dask_image_data.transpose(new_order)
+        # it seems to be (x,y) are still inversed? Inverse those back
+        new_order = (1, 0) + tuple(range(2, num_dims))
+        dask_image_data = dask_image_data.transpose(*new_order)
 
         # Generate the default output file name based on the input file name and key
         if output_file is None:

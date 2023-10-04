@@ -657,7 +657,7 @@ class SlurmClient(Connection):
         cmd = self.get_jobs_info_command(states="cd")
         logger.info("Retrieving list of jobs from Slurm")
         result = self.run_commands([cmd], env=env)
-        job_list = result.stdout.strip().split('\n')
+        job_list = [job.strip() for job in result.stdout.strip().split('\n')]
         job_list.reverse()
         return job_list
 

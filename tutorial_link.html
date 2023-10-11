@@ -18,7 +18,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="omero_slurm_client" href="modules.html" />
-    <link rel="prev" title="Omero Slurm Client library" href="readme_link.html" /> 
+    <link rel="prev" title="OMERO Slurm Client library" href="readme_link.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -42,7 +42,7 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="readme_link.html">Omero Slurm Client library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">OMERO Slurm Client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#quickstart">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#prerequisites-getting-started">Prerequisites &amp; Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#omero-scripts">OMERO.scripts</a></li>
@@ -60,7 +60,7 @@
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Cellprofiler tutorial</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#prerequisite-omero-slurm-and-omero-slurm-client">0. Prerequisite: Omero, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisite-omero-slurm-and-omero-slurm-client">0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#grab-the-data-and-pipeline">1. Grab the data and pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#try-the-pipeline-locally">2. Try the pipeline locally</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#ui">UI</a></li>
@@ -68,7 +68,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#headless">headless</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#upload-the-data-to-omero">3. Upload the data to Omero</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#upload-the-data-to-omero">3. Upload the data to OMERO</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#package-the-cellprofiler-in-a-fair-package">4. Package the cellprofiler in a FAIR package</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#create-a-workflow-github-repository">0. Create a workflow Github repository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#a-create-a-dockerfile-for-cellprofiler">a. Create a Dockerfile for cellprofiler</a></li>
@@ -78,15 +78,15 @@
 <li class="toctree-l3"><a class="reference internal" href="#e-publish-to-github-and-bitbucket">e. Publish to github and bitbucket</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#add-this-workflow-to-the-omero-slurm-client">5. Add this workflow to the Omero Slurm Client</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#add-a-omero-script-to-run-this-from-the-web-ui">6. Add a Omero script to run this from the Web UI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-this-workflow-to-the-omero-slurm-client">5. Add this workflow to the OMERO Slurm Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-a-omero-script-to-run-this-from-the-web-ui">6. Add a OMERO script to run this from the Web UI</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#extra-how-to-add-workflow-parameters-to-cellprofiler">Extra: How to add workflow parameters to cellprofiler?</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#extra-2-we-should-add-a-license">Extra 2: We should add a LICENSE</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#cellexpansion-tutorial">CellExpansion tutorial</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#import-data-to-omero">1. Import data to Omero</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#import-data-to-omero">1. Import data to OMERO</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#extract-masks-with-cellpose">2. Extract masks with Cellpose</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cellexpansion">3. CellExpansion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#calculate-overlap">Calculate overlap</a></li>
@@ -111,7 +111,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#id3">TL;DR:</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#omero-omero-slurm-client">4. Omero &amp; Omero Slurm Client</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#omero-omero-slurm-client">4. OMERO &amp; OMERO Slurm Client</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id4">TL;DR:</a></li>
 </ul>
 </li>
@@ -141,7 +141,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#id13">TL;DR:</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#id14">4. Omero &amp; Omero Slurm Client</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id14">4. OMERO &amp; OMERO Slurm Client</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id15">TL;DR:</a></li>
 </ul>
 </li>
@@ -184,12 +184,12 @@
   <hr class="docutils" />
 <div class="section" id="cellprofiler-tutorial">
 <h1>Cellprofiler tutorial<a class="headerlink" href="#cellprofiler-tutorial" title="Permalink to this headline"></a></h1>
-<p>Cellprofiler is already known for excellent interoperability with Omero. You can directly load images into the cellprofiler pipelines.</p>
+<p>Cellprofiler is already known for excellent interoperability with OMERO. You can directly load images into the cellprofiler pipelines.</p>
 <p>Cellprofiler also has options to run in batch mode and headless, for analyzing big data on compute clusters, like we want as well.</p>
-<p>However, for our purposes, this is insufficient, as we want to run it from Omero, and on a compute cluster that only has SSH access.</p>
-<p>In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to Omero and Slurm, with this client library.</p>
+<p>However, for our purposes, this is insufficient, as we want to run it from OMERO, and on a compute cluster that only has SSH access.</p>
+<p>In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to OMERO and Slurm, with this client library.</p>
 <div class="section" id="prerequisite-omero-slurm-and-omero-slurm-client">
-<h2>0. Prerequisite: Omero, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<h2>0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-omero-slurm-client" title="Permalink to this headline"></a></h2>
 <p>We assume you have these 3 components setup and connected. If not, follow the main <a class="reference internal" href="#README.md"><span class="xref myst">README</span></a> first.</p>
 </div>
 <div class="section" id="grab-the-data-and-pipeline">
@@ -221,11 +221,11 @@ You can walk through the readme, or open the <a class="reference external" href=
 </div>
 </div>
 <div class="section" id="upload-the-data-to-omero">
-<h2>3. Upload the data to Omero<a class="headerlink" href="#upload-the-data-to-omero" title="Permalink to this headline"></a></h2>
+<h2>3. Upload the data to OMERO<a class="headerlink" href="#upload-the-data-to-omero" title="Permalink to this headline"></a></h2>
 <p>Let’s make a screen out of these 8 wells, for fun.</p>
 <ul class="simple">
 <li><p>Open the importer.</p></li>
-<li><p>Since there is no screen metadata in the files, first create a project and dataset in Omero.</p></li>
+<li><p>Since there is no screen metadata in the files, first create a project and dataset in OMERO.</p></li>
 <li><p>Import the PLA_data folder there.</p></li>
 <li><p>Go to the Web UI.</p></li>
 <li><p>Select the new dataset.</p></li>
@@ -235,13 +235,13 @@ You can walk through the readme, or open the <a class="reference external" href=
 <li><p>Screen: PLA_data</p></li>
 </ul>
 </li>
-<li><p>Now we have a plate with 8 wells in a screen in Omero.</p></li>
+<li><p>Now we have a plate with 8 wells in a screen in OMERO.</p></li>
 </ul>
 </div>
 <div class="section" id="package-the-cellprofiler-in-a-fair-package">
 <h2>4. Package the cellprofiler in a FAIR package<a class="headerlink" href="#package-the-cellprofiler-in-a-fair-package" title="Permalink to this headline"></a></h2>
 <p>To create a FAIR workflow, let’s follow the steps from Biaflows for creating a new workflow, as they explained it quite well already: https://neubias-wg5.github.io/creating_bia_workflow_and_adding_to_biaflows_instance.html</p>
-<p>We just ignore some parts specific to the BIAFLOWS server, like adding as a trusted source. We will add the workflow to Omero and Slurm instead, as a final step.</p>
+<p>We just ignore some parts specific to the BIAFLOWS server, like adding as a trusted source. We will add the workflow to OMERO and Slurm instead, as a final step.</p>
 <div class="section" id="create-a-workflow-github-repository">
 <h3>0. Create a workflow Github repository<a class="headerlink" href="#create-a-workflow-github-repository" title="Permalink to this headline"></a></h3>
 <p>To kickstart, we can reuse some of the workflow setup for CellProfiler from <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler">Neubias</a> github.</p>
@@ -505,13 +505,13 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 <ul class="simple">
 <li><p>Great! now everybody (with internet access) can pull your workflow image and run it <a class="reference internal" href="#d-run-locally"><span class="xref myst">locally</span></a>: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span> <span class="pre">-nmc</span></code></p></li>
 </ul>
-<p>And this is what we will make Omero do on the Slurm cluster next.</p>
+<p>And this is what we will make OMERO do on the Slurm cluster next.</p>
 </div>
 </div>
 <div class="section" id="add-this-workflow-to-the-omero-slurm-client">
-<h2>5. Add this workflow to the Omero Slurm Client<a class="headerlink" href="#add-this-workflow-to-the-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<h2>5. Add this workflow to the OMERO Slurm Client<a class="headerlink" href="#add-this-workflow-to-the-omero-slurm-client" title="Permalink to this headline"></a></h2>
 <ol class="arabic simple">
-<li><p>Let’s adjust the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> on our Omero processor server.</p></li>
+<li><p>Let’s adjust the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> on our OMERO processor server.</p></li>
 </ol>
 <p>In the <code class="docutils literal notranslate"><span class="pre">[MODEL]</span></code> section we add our new workflow:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
@@ -534,7 +534,7 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <li><p>and recreate the Slurm environment:</p></li>
 </ol>
 <ul class="simple">
-<li><p>Run <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=true)</span></code> on the Omero processor server.</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=true)</span></code> on the OMERO processor server.</p></li>
 </ul>
 <details>
   <summary>E.g. using this omero script</summary>
@@ -612,7 +612,7 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 </ul>
 </div>
 <div class="section" id="add-a-omero-script-to-run-this-from-the-web-ui">
-<h2>6. Add a Omero script to run this from the Web UI<a class="headerlink" href="#add-a-omero-script-to-run-this-from-the-web-ui" title="Permalink to this headline"></a></h2>
+<h2>6. Add a OMERO script to run this from the Web UI<a class="headerlink" href="#add-a-omero-script-to-run-this-from-the-web-ui" title="Permalink to this headline"></a></h2>
 <ol class="arabic simple">
 <li><p>select a screen / dataset</p></li>
 <li><p>select workflow</p></li>
@@ -620,7 +620,7 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <li><p>check progress</p></li>
 <li><p>Import resulting data</p></li>
 </ol>
-<p>I have created several Omero scripts using this library, and the <a class="reference internal" href="#"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">run_workflow</span></code></span></a> can do this for us.
+<p>I have created several OMERO scripts using this library, and the <a class="reference internal" href="#"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">run_workflow</span></code></span></a> can do this for us.
 It will attach the results as a zipfile attachment to the screen.
 Perhaps we can integrate with OMERO.Tables in the future.</p>
 </div>
@@ -645,7 +645,7 @@ For now, we have 3 options:</p>
 It matches the <code class="docutils literal notranslate"><span class="pre">name</span></code> in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> literally with the same string in <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code>, and then changes the values to the new ones provided on the commandline.
 However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
 In our example, that does not work properly, e.g. the size of a nucleus should NOT be the same as the size of a spot.</p>
-<p>Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs of using the CellProfiler Python API: <a class="reference external" href="https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html">Getting started with CellProfiler and OMERO</a>.</p>
+<p>Options 2 and 3 are an exercise for the reader. There is an example in the OMERO docs of using the CellProfiler Python API: <a class="reference external" href="https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html">Getting started with CellProfiler and OMERO</a>.</p>
 </div>
 <div class="section" id="extra-2-we-should-add-a-license">
 <h2>Extra 2: We should add a LICENSE<a class="headerlink" href="#extra-2-we-should-add-a-license" title="Permalink to this headline"></a></h2>
@@ -668,9 +668,9 @@ To make this easier for the future, always add a license. I <a class="reference 
 In our example, we have aggregates (spots) outside of the nucleus and we want to quantify these per cell.</p>
 </div>
 <div class="section" id="import-data-to-omero">
-<h2>1. Import data to Omero<a class="headerlink" href="#import-data-to-omero" title="Permalink to this headline"></a></h2>
+<h2>1. Import data to OMERO<a class="headerlink" href="#import-data-to-omero" title="Permalink to this headline"></a></h2>
 <p>Import <a class="reference internal" href="#./images/Cells.tif"><span class="xref myst">data</span></a> as you would normally.</p>
-<p>We use this image, shown as part of this png with a mask here:</p>
+<p>We use this image ‘Cells.tif’, shown as part of this png with a mask here:</p>
 <p><img alt="Nuclei label image" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/nuclei_labels.png?raw=true" /></p>
 </div>
 <div class="section" id="extract-masks-with-cellpose">
@@ -681,7 +681,7 @@ Luckily these were stained with different colors and are available in different 
 <li><p>Channel 3 = Nuclei</p></li>
 <li><p>Channel 2 = Aggregates</p></li>
 </ul>
-<p>So we can run 2 CellPose workflows on Omero and retrieve both masks.
+<p>So we can run 2 CellPose workflows on OMERO and retrieve both masks.
 We store them as images in a new dataset and particularly name them: “{original_file}NucleiLabels.{ext}”  and “{original_file}GranulesLabels.{ext}”.</p>
 <p>Combine both in the same dataset afterward, this will be our input dataset for the CellExpansion algorithm.</p>
 </div>
@@ -691,13 +691,13 @@ We store them as images in a new dataset and particularly name them: “{origina
 <p>One could segment the cytoplasm possibly, but we have a Python script that does this algorithmically instead.</p>
 <p>We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.</p>
 <p><img alt="4 images showing cell expansion" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/cellexpansion.png?raw=true" /></p>
-<p>For this, we have to first add it to Omero:
-We could just add the Python code to a Omero job script. But then the Processor needs to have the right Python libraries installed.
+<p>For this, we have to first add it to OMERO:
+We could just add the Python code to a OMERO job script. But then the Processor needs to have the right Python libraries installed.
 Instead, we should package it in a lightweight container with the correct Python environment. This in turn makes the workflow more FAIR.</p>
 <ol class="arabic simple">
 <li><p>I made this workflow container for it: <a class="reference external" href="https://github.com/TorecLuik/W_CellExpansion">github repo</a>.</p></li>
 <li><p>Release a version and publish a <a class="reference external" href="https://hub.docker.com/layers/torecluik/w_cellexpansion/v1.0.1/images/sha256-8d2f9e663614588f11f41c09375568b448b6d158478a968dac23dbbd8d7fdebc?context=explore">docker image</a></p></li>
-<li><p>Add the workflow to Slurm and Omero:</p></li>
+<li><p>Add the workflow to Slurm and OMERO:</p></li>
 </ol>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
 <span class="c1"># CELLEXPANSION SPOT COUNTING</span>
@@ -754,8 +754,8 @@ No need to restart the server, these changes get picked up whenever we start a n
 <h1>Local Slurm tutorial<a class="headerlink" href="#local-slurm-tutorial" title="Permalink to this headline"></a></h1>
 <div class="section" id="id1">
 <h2>Introduction<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
-<p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (Omero) compute to servers suited for it.</p>
-<p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up locally and connect your (local) Omero to it.
+<p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.</p>
+<p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up locally and connect your (local) OMERO to it.
 This is what we will cover in this tutorial.</p>
 </div>
 <div class="section" id="requirements">
@@ -764,7 +764,7 @@ This is what we will cover in this tutorial.</p>
 <ul class="simple">
 <li><p>Git</p></li>
 <li><p>Docker</p></li>
-<li><p>Omero Insight</p></li>
+<li><p>OMERO Insight</p></li>
 <li><p>&gt; 18GB memory</p></li>
 <li><p>&gt; 8 CPU cores</p></li>
 </ul>
@@ -817,7 +817,7 @@ This is what we will cover in this tutorial.</p>
 </div>
 <details>
   <summary>Details</summary>
-<p>We need to setup our library with SSH access between Omero and Slurm, but this is not built-in to these containers yet (because Docker actually has a built-in alternative, <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">exec</span></code>).</p>
+<p>We need to setup our library with SSH access between OMERO and Slurm, but this is not built-in to these containers yet (because Docker actually has a built-in alternative, <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">exec</span></code>).</p>
 <p>Luckily, people have already worked on SSH access into containers too, like <a class="reference external" href="https://goteleport.com/blog/shell-access-docker-container-with-ssh-and-docker-exec/">here</a>. So let’s borrow their OpenSSH setup and add it to the <em>Dockerfile</em> of the Slurm Control Daemon (<code class="docutils literal notranslate"><span class="pre">slurmctld</span></code>):</p>
 <p>======= 2a. Make a new Dockerfile for the slurmctld =======</p>
 <p>We want to combine the 2 Dockerfiles. However, one is <code class="docutils literal notranslate"><span class="pre">ubuntu</span></code> and the other is <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code>. The biggest difference is that <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code> uses the <code class="docutils literal notranslate"><span class="pre">yum</span></code> package manager to install software, instead of <code class="docutils literal notranslate"><span class="pre">apt</span></code>. We will stick to the Slurm image as the base image and just add the OpenSSH on top of it.</p>
@@ -1002,25 +1002,25 @@ c2
 </div>
 </details>
 <p>They logged the <code class="docutils literal notranslate"><span class="pre">hostname</span></code> command, which returned <code class="docutils literal notranslate"><span class="pre">c1</span></code> for some and <code class="docutils literal notranslate"><span class="pre">c2</span></code> for others, as those were the hosts the compute was used from.</p>
-<p>Now let’s connect Omero to our Slurm!</p>
+<p>Now let’s connect OMERO to our Slurm!</p>
 </div>
 </div>
 <div class="section" id="omero-omero-slurm-client">
-<h2>4. Omero &amp; Omero Slurm Client<a class="headerlink" href="#omero-omero-slurm-client" title="Permalink to this headline"></a></h2>
-<p>Ok, now we need a Omero server and a correctly configured Omero Slurm Client.</p>
+<h2>4. OMERO &amp; OMERO Slurm Client<a class="headerlink" href="#omero-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<p>Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.</p>
 <div class="section" id="id4">
 <h3>TL;DR:<a class="headerlink" href="#id4" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
-<li><p>Fire up the Omero containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
-<li><p>Go to Omero.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
-<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with Omero.Insight (not included).</p></li>
+<li><p>Fire up the OMERO containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
+<li><p>Go to OMERO.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
+<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight (not included).</p></li>
 <li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script</p></li>
 </ol>
 <details>
   <summary>Details</summary>
-<p>======= Omero in Docker =======</p>
-<p>You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
+<p>======= OMERO in Docker =======</p>
+<p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
@@ -1028,13 +1028,13 @@ c2
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
 </pre></div>
 </div>
-<p>======= Omero web =======</p>
+<p>======= OMERO web =======</p>
 <p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
-<p>Import some example data with Omero Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
+<p>Import some example data with OMERO Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
 <p>======= Connect to Slurm =======</p>
 <p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
-<p>======= Add ssh config to Omero Processor =======</p>
-<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
+<p>======= Add ssh config to OMERO Processor =======</p>
+<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the OMERO processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>However, we need to change the <code class="docutils literal notranslate"><span class="pre">HostName</span></code> to match one that the container can understand. <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from our machine, but not from within a Docker container. Instead, we need to use <code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> (<a class="reference external" href="https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host">documentation</a>).</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
@@ -1045,7 +1045,7 @@ c2
 	<span class="na">StrictHostKeyChecking no</span>
 </pre></div>
 </div>
-<p>Restart your Omero cluster if you already started it:
+<p>Restart your OMERO cluster if you already started it:
 <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p>
 <p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
 <div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>...\docker-example-omero-grid&gt; docker-compose exec omeroworker-5 /bin/bash
@@ -1173,7 +1173,7 @@ exit
 <span class="c1"># General/default settings for processing jobs.</span>
 <span class="c1"># Note: NOT YET IMPLEMENTED</span>
 <span class="c1"># Note: If you need to change it for a specific case only,</span>
-<span class="c1"># you should change the job script instead, either in Omero or Slurm </span>
+<span class="c1"># you should change the job script instead, either in OMERO or Slurm </span>
 
 
 <span class="k">[MODELS]</span>
@@ -1262,7 +1262,7 @@ exit
 </pre></div>
 </div>
 <p>======= Init environment =======</p>
-<p>Now we go to Omero web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
+<p>Now we go to OMERO web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
 <p><img alt="Slurm Init Busy" src="images/webclient_init_env.PNG" /></p>
 <p><img alt="Slurm Init Done" src="images/webclient_init_env_done.PNG" /></p>
 </details>
@@ -1317,7 +1317,7 @@ Turns out, our Slurm doesn’t have the compute nodes to execute this operation.
 </pre></div>
 </div>
 </details>
-<p>That should take you through connecting Omero with a local Slurm setup.</p>
+<p>That should take you through connecting OMERO with a local Slurm setup.</p>
 </div>
 <div class="section" id="batching">
 <h3>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h3>
@@ -1345,8 +1345,8 @@ Note that there is always overhead cost, so the speedup will not be linear. Howe
 <h1>Google Cloud Slurm tutorial<a class="headerlink" href="#google-cloud-slurm-tutorial" title="Permalink to this headline"></a></h1>
 <div class="section" id="id6">
 <h2>Introduction<a class="headerlink" href="#id6" title="Permalink to this headline"></a></h2>
-<p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (Omero) compute to servers suited for it.</p>
-<p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) Omero to it.
+<p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.</p>
+<p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) OMERO to it.
 This is what we will cover in this tutorial, specifically Google Cloud.</p>
 </div>
 <div class="section" id="id7">
@@ -1355,7 +1355,7 @@ This is what we will cover in this tutorial, specifically Google Cloud.</p>
 <ul class="simple">
 <li><p>Git</p></li>
 <li><p>Docker</p></li>
-<li><p>Omero Insight</p></li>
+<li><p>OMERO Insight</p></li>
 <li><p>A creditcard (but we’ll work with free credits)</p></li>
 </ul>
 <p>I use Windows here, but it should work on Linux/Mac too. If not, let me know.</p>
@@ -1396,8 +1396,8 @@ This is what we will cover in this tutorial, specifically Google Cloud.</p>
 </div>
 <details>
   <summary>Details</summary>
-<p>We need to setup our library with SSH access between Omero and Slurm, but this is not built-in to these Virtual Machines yet.
-We will forward our local SSH to our Omero (in this tutorial), so we just need to setup SSH access to the Google Cloud VMs.</p>
+<p>We need to setup our library with SSH access between OMERO and Slurm, but this is not built-in to these Virtual Machines yet.
+We will forward our local SSH to our OMERO (in this tutorial), so we just need to setup SSH access to the Google Cloud VMs.</p>
 <p>This sounds easier than it actually is.</p>
 <p>Follow the steps at <a class="reference external" href="https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud">here</a>:</p>
 <ol class="arabic simple" start="0">
@@ -1510,26 +1510,26 @@ hpcsmall-debug-ghpc-3
 <p>Now <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">avail</span></code> should list <code class="docutils literal notranslate"><span class="pre">singularity</span></code>.</p>
 <p>So <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">singularity</span></code> and now <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">--version</span></code> should give you <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">version</span> <span class="pre">3.8.7</span></code>.</p>
 </details>
-<p>Now let’s connect Omero to our Slurm!</p>
+<p>Now let’s connect OMERO to our Slurm!</p>
 </div>
 </div>
 <div class="section" id="id14">
-<h2>4. Omero &amp; Omero Slurm Client<a class="headerlink" href="#id14" title="Permalink to this headline"></a></h2>
-<p>Ok, now we need a Omero server and a correctly configured Omero Slurm Client.</p>
+<h2>4. OMERO &amp; OMERO Slurm Client<a class="headerlink" href="#id14" title="Permalink to this headline"></a></h2>
+<p>Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.</p>
 <div class="section" id="id15">
 <h3>TL;DR:<a class="headerlink" href="#id15" title="Permalink to this headline"></a></h3>
 <ol class="arabic simple">
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
 <li><p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to point to <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already)</p></li>
-<li><p>Fire up the Omero containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
-<li><p>Go to Omero.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
-<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with Omero.Insight (not included).</p></li>
+<li><p>Fire up the OMERO containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
+<li><p>Go to OMERO.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
+<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight (not included).</p></li>
 <li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script</p></li>
 </ol>
 <details>
   <summary>Details</summary>
-<p>======= Omero in Docker =======</p>
-<p>You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
+<p>======= OMERO in Docker =======</p>
+<p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
@@ -1549,13 +1549,13 @@ hpcsmall-debug-ghpc-3
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
 </pre></div>
 </div>
-<p>======= Omero web =======</p>
+<p>======= OMERO web =======</p>
 <p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
-<p>Import some example data with Omero Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
+<p>Import some example data with OMERO Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
 <p>======= Connect to Slurm =======</p>
 <p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
-<p>======= Add ssh config to Omero Processor =======</p>
-<p>Ok, so SSH works fine from your machine, but we need the Omero processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too.</p>
+<p>======= Add ssh config to OMERO Processor =======</p>
+<p>Ok, so SSH works fine from your machine, but we need the OMERO processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
 <div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">docker-example-omero-grid</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">omeroworker</span><span class="p">-</span><span class="n">5</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
@@ -1568,7 +1568,7 @@ hpcsmall-debug-ghpc-3
 </pre></div>
 </div>
 <p>======= Init environment =======</p>
-<p>Now we go to Omero web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
+<p>Now we go to OMERO web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
 <p><img alt="Slurm Init Busy" src="images/webclient_init_env.PNG" /></p>
 <p><img alt="Slurm Init Done" src="images/webclient_init_env_done.PNG" /></p>
 </details>
@@ -1609,7 +1609,7 @@ hpcsmall-debug-ghpc-3
 <p>This will take ages because we did not invest in good compute on the Slurm cluster. It took 12m:30s for 4 small images for me.</p>
 <p>You can check the progress with the <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code> script.</p>
 </details>
-<p>That should take you through connecting Omero with a Google Cloud Slurm setup!</p>
+<p>That should take you through connecting OMERO with a Google Cloud Slurm setup!</p>
 </div>
 </div>
 </div>
@@ -1618,7 +1618,7 @@ hpcsmall-debug-ghpc-3
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="readme_link.html" class="btn btn-neutral float-left" title="Omero Slurm Client library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="readme_link.html" class="btn btn-neutral float-left" title="OMERO Slurm Client library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="modules.html" class="btn btn-neutral float-right" title="omero_slurm_client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

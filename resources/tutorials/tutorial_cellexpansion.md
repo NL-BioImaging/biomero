@@ -5,11 +5,11 @@
 Different type of aggregates of proteins can form inside a nucleus or inside the cytoplasm of a cell.
 In our example, we have aggregates (spots) outside of the nucleus and we want to quantify these per cell.
 
-## 1. Import data to Omero
+## 1. Import data to OMERO
 
 Import [data](./images/Cells.tif) as you would normally.
 
-We use this image, shown as part of this png with a mask here:
+We use this image 'Cells.tif', shown as part of this png with a mask here:
 
 ![Nuclei label image](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/nuclei_labels.png?raw=true)
 
@@ -20,7 +20,7 @@ Luckily these were stained with different colors and are available in different 
 - Channel 3 = Nuclei
 - Channel 2 = Aggregates
 
-So we can run 2 CellPose workflows on Omero and retrieve both masks.
+So we can run 2 CellPose workflows on OMERO and retrieve both masks.
 We store them as images in a new dataset and particularly name them: "{original_file}NucleiLabels.{ext}"  and "{original_file}GranulesLabels.{ext}".
 
 Combine both in the same dataset afterward, this will be our input dataset for the CellExpansion algorithm.
@@ -35,13 +35,13 @@ We apply the CellExpansion algorithm on the nuclei mask and estimate the full re
 
 ![4 images showing cell expansion](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/cellexpansion.png?raw=true)
 
-For this, we have to first add it to Omero: 
-We could just add the Python code to a Omero job script. But then the Processor needs to have the right Python libraries installed. 
+For this, we have to first add it to OMERO: 
+We could just add the Python code to a OMERO job script. But then the Processor needs to have the right Python libraries installed. 
 Instead, we should package it in a lightweight container with the correct Python environment. This in turn makes the workflow more FAIR.
 
 1. I made this workflow container for it: [github repo](https://github.com/TorecLuik/W_CellExpansion).
 2. Release a version and publish a [docker image](https://hub.docker.com/layers/torecluik/w_cellexpansion/v1.0.1/images/sha256-8d2f9e663614588f11f41c09375568b448b6d158478a968dac23dbbd8d7fdebc?context=explore)
-2. Add the workflow to Slurm and Omero:
+2. Add the workflow to Slurm and OMERO:
 ```ini
 # -------------------------------------
 # CELLEXPANSION SPOT COUNTING

@@ -1,14 +1,14 @@
 # Cellprofiler tutorial
 
-Cellprofiler is already known for excellent interoperability with Omero. You can directly load images into the cellprofiler pipelines. 
+Cellprofiler is already known for excellent interoperability with OMERO. You can directly load images into the cellprofiler pipelines. 
 
 Cellprofiler also has options to run in batch mode and headless, for analyzing big data on compute clusters, like we want as well.
 
-However, for our purposes, this is insufficient, as we want to run it from Omero, and on a compute cluster that only has SSH access. 
+However, for our purposes, this is insufficient, as we want to run it from OMERO, and on a compute cluster that only has SSH access. 
 
-In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to Omero and Slurm, with this client library.
+In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to OMERO and Slurm, with this client library.
 
-## 0. Prerequisite: Omero, Slurm and `omero_slurm_client`.
+## 0. Prerequisite: OMERO, Slurm and `omero_slurm_client`.
 
 We assume you have these 3 components setup and connected. If not, follow the main [README](README.md) first.
 
@@ -40,25 +40,25 @@ Here we provide the input images (`-i`), the output folder (`-o`), the project (
 
 See [this blog](https://carpenter-singh-lab.broadinstitute.org/blog/getting-started-using-cellprofiler-command-line) for more info on the commandline parameters.
 
-## 3. Upload the data to Omero
+## 3. Upload the data to OMERO
 
 Let's make a screen out of these 8 wells, for fun.
 
 - Open the importer.
-- Since there is no screen metadata in the files, first create a project and dataset in Omero. 
+- Since there is no screen metadata in the files, first create a project and dataset in OMERO. 
 - Import the PLA_data folder there.
 - Go to the Web UI.
 - Select the new dataset.
 - Activate script `Dataset to Plate` (under omero/util_scripts/).
     - Fill in 8 wells per row (optional)
     - Screen: PLA_data
-- Now we have a plate with 8 wells in a screen in Omero.
+- Now we have a plate with 8 wells in a screen in OMERO.
 
 ## 4. Package the cellprofiler in a FAIR package
 
 To create a FAIR workflow, let's follow the steps from Biaflows for creating a new workflow, as they explained it quite well already: https://neubias-wg5.github.io/creating_bia_workflow_and_adding_to_biaflows_instance.html
 
-We just ignore some parts specific to the BIAFLOWS server, like adding as a trusted source. We will add the workflow to Omero and Slurm instead, as a final step.
+We just ignore some parts specific to the BIAFLOWS server, like adding as a trusted source. We will add the workflow to OMERO and Slurm instead, as a final step.
 
 ### 0. Create a workflow Github repository
 To kickstart, we can reuse some of the workflow setup for CellProfiler from [Neubias](https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler) github.
@@ -320,11 +320,11 @@ E.g. mine can be found @ https://hub.docker.com/r/torecluik/w_spotcounting-cellp
 
 - Great! now everybody (with internet access) can pull your workflow image and run it [locally](#d-run-locally): `docker run --rm -v <my-drive>\PLA\:/data-it <your-dockerhub-user>/w_spotcounting-cellprofiler:v1.0.0 --local --infolder /data-it/PLA_data --outfolder /data-it/out --gtfolder /data-it/gt -nmc`
 
-And this is what we will make Omero do on the Slurm cluster next.
+And this is what we will make OMERO do on the Slurm cluster next.
 
-## 5. Add this workflow to the Omero Slurm Client
+## 5. Add this workflow to the OMERO Slurm Client
 
-1. Let's adjust the `slurm-config.ini` on our Omero processor server.
+1. Let's adjust the `slurm-config.ini` on our OMERO processor server.
 
 In the `[MODEL]` section we add our new workflow:
 ```ini
@@ -348,7 +348,7 @@ For me, updating is done by rebuilding my docker container for the processor wor
 
 2. and recreate the Slurm environment:
 
-- Run `SlurmClient.from_config(init_slurm=true)` on the Omero processor server.
+- Run `SlurmClient.from_config(init_slurm=true)` on the OMERO processor server.
 
 <details>
   <summary>E.g. using this omero script</summary>
@@ -425,7 +425,7 @@ Now your Slurm cluster has
 - your image 'v1.0.0'.
 - And also a job-script for Slurm, automatically generated (unless you changed that behaviour in the `slurm-config`).
 
-## 6. Add a Omero script to run this from the Web UI
+## 6. Add a OMERO script to run this from the Web UI
 
 1. select a screen / dataset
 2. select workflow
@@ -433,7 +433,7 @@ Now your Slurm cluster has
 4. check progress
 5. Import resulting data
 
-I have created several Omero scripts using this library, and the [`run_workflow`]() can do this for us.
+I have created several OMERO scripts using this library, and the [`run_workflow`]() can do this for us.
 It will attach the results as a zipfile attachment to the screen.
 Perhaps we can integrate with OMERO.Tables in the future.
 
@@ -460,7 +460,7 @@ It matches the `name` in `descriptor.json` literally with the same string in `.c
 However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
 In our example, that does not work properly, e.g. the size of a nucleus should NOT be the same as the size of a spot.
 
-Options 2 and 3 are an exercise for the reader. There is an example in the Omero docs of using the CellProfiler Python API: [Getting started with CellProfiler and OMERO](https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html).
+Options 2 and 3 are an exercise for the reader. There is an example in the OMERO docs of using the CellProfiler Python API: [Getting started with CellProfiler and OMERO](https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html).
 
 ## Extra 2: We should add a LICENSE
 

@@ -2,9 +2,9 @@
 
 ## Introduction
 
-This library is meant to be used with some external HPC cluster using Slurm, to offload your (Omero) compute to servers suited for it.
+This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.
 
-However, if you don't have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) Omero to it. 
+However, if you don't have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) OMERO to it. 
 This is what we will cover in this tutorial, specifically Google Cloud.
 
 ## 0. Requirements
@@ -12,7 +12,7 @@ This is what we will cover in this tutorial, specifically Google Cloud.
 To follow this tutorial, you need:
 - Git
 - Docker
-- Omero Insight
+- OMERO Insight
 - A creditcard (but we'll work with free credits)
 
 I use Windows here, but it should work on Linux/Mac too. If not, let me know.
@@ -56,8 +56,8 @@ Host gcslurm
 <details>
   <summary>Details</summary>
 
-We need to setup our library with SSH access between Omero and Slurm, but this is not built-in to these Virtual Machines yet.
-We will forward our local SSH to our Omero (in this tutorial), so we just need to setup SSH access to the Google Cloud VMs.
+We need to setup our library with SSH access between OMERO and Slurm, but this is not built-in to these Virtual Machines yet.
+We will forward our local SSH to our OMERO (in this tutorial), so we just need to setup SSH access to the Google Cloud VMs.
 
 This sounds easier than it actually is.
 
@@ -191,26 +191,26 @@ So `module load singularity` and now `singularity --version` should give you `si
 
 </details>
 
-Now let's connect Omero to our Slurm!
+Now let's connect OMERO to our Slurm!
 
-## 4. Omero & Omero Slurm Client
+## 4. OMERO & OMERO Slurm Client
 
-Ok, now we need a Omero server and a correctly configured Omero Slurm Client.
+Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.
 
 ### TL;DR:
 1.  Clone my example `docker-example-omero-grid-amc` locally: `git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git`
 2. Change the `worker-gpu/slurm-config.ini` file to point to `worker-gpu/slurm-config.gcslurm.ini` file (if it is not the same file already)
-3. Fire up the Omero containers: `docker-compose up -d --build`
-4. Go to Omero.web (`localhost:4080`), login `root` pw `omero`
-5. Upload some images (to `localhost`) with Omero.Insight (not included).
+3. Fire up the OMERO containers: `docker-compose up -d --build`
+4. Go to OMERO.web (`localhost:4080`), login `root` pw `omero`
+5. Upload some images (to `localhost`) with OMERO.Insight (not included).
 6. In web, run the `slurm/init_environment` script
 
 <details>
   <summary>Details</summary>
 
-======= Omero in Docker =======
+======= OMERO in Docker =======
 
-You can use your own Omero setup, but for this tutorial I will refer to a dockerized Omero that I am working with: [get it here](https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors).
+You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: [get it here](https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors).
 
 ```bash
 git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
@@ -239,19 +239,19 @@ Let's (build it and) fire it up:
 docker-compose up -d --build
 ```
 
-======= Omero web =======
+======= OMERO web =======
 
 Once they are running, you should be able to access web at `localhost:4080`. Login with user `root` / pw `omero`. 
 
-Import some example data with Omero Insight (connect with `localhost`).
+Import some example data with OMERO Insight (connect with `localhost`).
 
 ======= Connect to Slurm =======
 
 This container's processor node (`worker-5`) has already installed our `omero-slurm-client` library. 
 
-======= Add ssh config to Omero Processor =======
+======= Add ssh config to OMERO Processor =======
 
-Ok, so SSH works fine from your machine, but we need the Omero processing server `worker-5` to be able to do it too.
+Ok, so SSH works fine from your machine, but we need the OMERO processing server `worker-5` to be able to do it too.
 
 By some smart tricks, we have mounted our `~/.ssh` folder to the worker container, so it knows and can use our SSH settings and config.
 
@@ -268,7 +268,7 @@ bash-4.2$ ssh gcslurm
 
 ======= Init environment =======
 
-Now we go to Omero web and run the `slurm/init_environment` script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.
+Now we go to OMERO web and run the `slurm/init_environment` script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.
 
 ![Slurm Init Busy](./images/webclient_init_env.PNG)
 
@@ -316,6 +316,6 @@ You can check the progress with the `Slurm Get Update` script.
 
 </details>
 
-That should take you through connecting Omero with a Google Cloud Slurm setup!
+That should take you through connecting OMERO with a Google Cloud Slurm setup!
 
 

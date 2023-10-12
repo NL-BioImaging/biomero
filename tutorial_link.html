@@ -75,7 +75,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#b-setup-the-metadata-in-descriptor-json">b. Setup the metadata in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#c-update-the-command-in-wrapper-py">c. Update the command in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#d-run-locally">d. Run locally</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#e-publish-to-github-and-bitbucket">e. Publish to github and bitbucket</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#e-publish-to-github-and-dockerhub">e. Publish to GitHub and DockerHub</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#optional-manually-publish-the-image-on-dockerhub">Optional: Manually publish the image on Dockerhub:</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#add-this-workflow-to-the-omero-slurm-client">5. Add this workflow to the OMERO Slurm Client</a></li>
@@ -90,6 +93,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#extract-masks-with-cellpose">2. Extract masks with Cellpose</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cellexpansion">3. CellExpansion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#calculate-overlap">Calculate overlap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-management">Workflow management?</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#extra">Extra</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#out-of-memory">Out of memory</a></li>
 </ul>
@@ -472,8 +476,8 @@ Let’s try it out:</p>
 <p>This should work the same as <a class="reference internal" href="#2-try-the-pipeline-locally"><span class="xref myst">before</span></a>, with a bit of extra logging thrown in.
 Except now, we didn’t need to have cellprofiler installed! Anyone with <code class="docutils literal notranslate"><span class="pre">Docker</span></code> (or <code class="docutils literal notranslate"><span class="pre">Podman</span></code> or <code class="docutils literal notranslate"><span class="pre">Singularity</span></code>) can run this workflow now.</p>
 </div>
-<div class="section" id="e-publish-to-github-and-bitbucket">
-<h3>e. Publish to github and bitbucket<a class="headerlink" href="#e-publish-to-github-and-bitbucket" title="Permalink to this headline"></a></h3>
+<div class="section" id="e-publish-to-github-and-dockerhub">
+<h3>e. Publish to GitHub and DockerHub<a class="headerlink" href="#e-publish-to-github-and-dockerhub" title="Permalink to this headline"></a></h3>
 <p>So how do other people get to use our workflow?</p>
 <ol class="arabic simple">
 <li><p>We publish the source online on Github:</p></li>
@@ -481,21 +485,36 @@ Except now, we didn’t need to have cellprofiler installed! Anyone with <code c
 <ul class="simple">
 <li><p>Commit to git: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">commit</span> <span class="pre">-m</span> <span class="pre">'Update</span> <span class="pre">with</span> <span class="pre">spotcounting</span> <span class="pre">pipeline'</span> <span class="pre">-a</span></code></p></li>
 <li><p>Push to github: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span></code></p></li>
-<li><p>(Optional) tag and release this as a new version.</p>
+<li><p>Setup automated release to Dockerhub:</p>
 <ul>
-<li><p>Pretty easy to do from Github page: <code class="docutils literal notranslate"><span class="pre">Releases</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">release</span></code>.</p></li>
-<li><p>Add a tag like <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code>. Match this version later with the tag of your Dockerhub image.</p></li>
-<li><p>Note: this might take care of step 2 with a <code class="docutils literal notranslate"><span class="pre">Github</span> <span class="pre">action</span></code>, but we will do it manually, as the Dockerhub integration for Github is not free anymore.</p></li>
+<li><p>First, create a free account on Dockerhub if you don’t have one</p></li>
+<li><p>On Dockerhub, login and create a new <code class="docutils literal notranslate"><span class="pre">Access</span> <span class="pre">Token</span></code> via <code class="docutils literal notranslate"><span class="pre">Account</span> <span class="pre">Settings</span></code> / <code class="docutils literal notranslate"><span class="pre">Security</span></code>. Name it <code class="docutils literal notranslate"><span class="pre">Github</span></code> or something. Copy this token (to a file).</p></li>
+<li><p>Back on your Github repository, add 2 secrets by going to <code class="docutils literal notranslate"><span class="pre">Settings</span></code> / <code class="docutils literal notranslate"><span class="pre">Secrets</span> <span class="pre">and</span> <span class="pre">variables</span></code> / <code class="docutils literal notranslate"><span class="pre">Actions</span></code> / <code class="docutils literal notranslate"><span class="pre">New</span> <span class="pre">repository</span> <span class="pre">secret</span></code></p>
+<ul>
+<li><p>First, add Name: <code class="docutils literal notranslate"><span class="pre">DOCKERHUB_USERNAME</span></code> and Secret: <code class="docutils literal notranslate"><span class="pre">&lt;your-dockerhub-username&gt;</span></code></p></li>
+<li><p>Also, add Name: <code class="docutils literal notranslate"><span class="pre">DOCKERHUB_TOKEN</span></code> and Secret: <code class="docutils literal notranslate"><span class="pre">&lt;token-that-you-copied&gt;</span></code></p></li>
 </ul>
 </li>
 </ul>
-<ol class="arabic simple" start="2">
-<li><p>And we publish the image on Dockerhub:</p></li>
-</ol>
+</li>
+<li><p>Now, tag and release this as a new version on Github (and automatically Dockerhub):</p>
+<ul>
+<li><p>Pretty easy to do from Github page: <code class="docutils literal notranslate"><span class="pre">Releases</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">release</span></code>.</p></li>
+<li><p>Add a tag like <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code>.</p></li>
+<li><p>Now, the Github Action <code class="docutils literal notranslate"><span class="pre">Docker</span> <span class="pre">Image</span> <span class="pre">CI</span></code> will build the container for you and publish it on Dockerhub via the credentials you provided. This will take a few minutes, you can follow along at the <code class="docutils literal notranslate"><span class="pre">Actions</span></code> tab.</p></li>
+<li><p>Now you can verify that it is available online:
+https://hub.docker.com/u/your-dockerhub-user</p></li>
+</ul>
+</li>
+<li><p>Great! now everybody (with internet access) can pull your workflow image and run it <a class="reference internal" href="#d-run-locally"><span class="xref myst">locally</span></a>: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span> <span class="pre">-nmc</span></code></p></li>
+</ul>
+<p>And this is what we will make OMERO do on the Slurm cluster next.</p>
+<div class="section" id="optional-manually-publish-the-image-on-dockerhub">
+<h4>Optional: Manually publish the image on Dockerhub:<a class="headerlink" href="#optional-manually-publish-the-image-on-dockerhub" title="Permalink to this headline"></a></h4>
 <ul class="simple">
 <li><p>First, create an account on Dockerhub if you don’t have one</p></li>
-<li><p>Login locally to this account too: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">login</span></code></p></li>
-<li><p>(Optional) Build your latest docker image if you didn’t do that yet</p></li>
+<li><p>Login locally on the commandline to this account too: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">login</span></code></p></li>
+<li><p>(Optional) Build your latest docker image if you didn’t do that yet (<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">spotcounting-cp</span> <span class="pre">.</span></code>).</p></li>
 <li><p>Tag your local Docker image with a new tag to match this Dockerhub account and release: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">tag</span> <span class="pre">spotcounting-cp:latest</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span></code></p></li>
 <li><p>Push your tagged image to Dockerhub: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">push</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span></code></p></li>
 <li><p>Now you can verify that it is available online:
@@ -506,6 +525,7 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 <li><p>Great! now everybody (with internet access) can pull your workflow image and run it <a class="reference internal" href="#d-run-locally"><span class="xref myst">locally</span></a>: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span> <span class="pre">-nmc</span></code></p></li>
 </ul>
 <p>And this is what we will make OMERO do on the Slurm cluster next.</p>
+</div>
 </div>
 </div>
 <div class="section" id="add-this-workflow-to-the-omero-slurm-client">
@@ -688,7 +708,7 @@ We store them as images in a new dataset and particularly name them: “{origina
 <div class="section" id="cellexpansion">
 <h2>3. CellExpansion<a class="headerlink" href="#cellexpansion" title="Permalink to this headline"></a></h2>
 <p>To estimate the amount of aggregates per cell, we actually need the cytoplasm in our example. Then we can calculate overlap.</p>
-<p>One could segment the cytoplasm possibly, but we have a Python script that does this algorithmically instead.</p>
+<p>One could segment the cytoplasm, especially in this image (its just channel 1), but we have a Python script that does this algorithmically instead for the fun of it.</p>
 <p>We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.</p>
 <p><img alt="4 images showing cell expansion" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/cellexpansion.png?raw=true" /></p>
 <p>For this, we have to first add it to OMERO:
@@ -710,15 +730,39 @@ Instead, we should package it in a lightweight container with the correct Python
 <span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
 </pre></div>
 </div>
-<ol class="arabic simple" start="3">
-<li><p>Run the workflow on our Nuclei mask:</p></li>
+<ol class="arabic simple" start="4">
+<li><p>Run the workflow on our Nuclei mask.
+Output the new mask back as image in a new dataset.</p></li>
 </ol>
-<p>For this, we need to rename our mask files first.</p>
 </div>
 <div class="section" id="calculate-overlap">
 <h2>Calculate overlap<a class="headerlink" href="#calculate-overlap" title="Permalink to this headline"></a></h2>
-<p>We calculate overlap with another very short Python script, which I added to the <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> of the cellexpansion workflow.
-It outputs a <code class="docutils literal notranslate"><span class="pre">.csv</span></code> file with the counts.</p>
+<p>We calculate overlap with another very short Python script.
+It outputs the overlap counts of 2 masks.</p>
+<p>Example original code:</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">imCellsCellLabels</span><span class="o">=</span><span class="n">imread</span><span class="p">(</span><span class="s1">&#39;images/CellsNucleiLabels.tif&#39;</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_ANYDEPTH</span><span class="p">)</span>
+<span class="n">imCellsGranulesLabels</span><span class="o">=</span><span class="n">imread</span><span class="p">(</span><span class="s1">&#39;images/CellsGranulesLabels.tif&#39;</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_ANYDEPTH</span><span class="p">)</span>
+<span class="n">numCells</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">imCellsCellLabels</span><span class="p">)</span>
+<span class="n">CellNumGranules</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">numCells</span><span class="p">,</span><span class="mi">2</span><span class="p">],</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+<span class="n">granulesStats</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">measure</span><span class="o">.</span><span class="n">regionprops_table</span><span class="p">(</span><span class="n">imCellsGranulesLabels</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;centroid&#39;</span><span class="p">,)))</span>
+<span class="n">granulesStatsnp</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">granulesStats</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()),</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+<span class="n">granulesStatsInCellLabel</span><span class="o">=</span><span class="n">imCellsCellLabels</span><span class="p">[</span><span class="n">granulesStatsnp</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">granulesStatsnp</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">numCells</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">CellNumGranules</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">granulesStatsInCellLabel</span><span class="o">==</span><span class="n">i</span><span class="p">)</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">CellNumGranules</span><span class="p">,</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Estimated&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">style</span>
+</pre></div>
+</div>
+<p>I added this as a separate workflow at <a class="reference external" href="https://github.com/TorecLuik/W_CountMaskOverlap">W_CountMaskOverlap</a>.</p>
+<ol class="arabic simple">
+<li><p>add the workflow to config.</p></li>
+<li><p>make one dataset with pairs of our mask files. We name them the same as the original image, but with an extra suffix. E.g. Cells_CellExpansion.tif and Cells_Aggregates.tif.</p></li>
+<li><p>Call the new workflow on this dataset / image selection, and supply the suffixes chosen (“_CellExpansion” and “_Aggregates”) as parameter. Then make sure to upload the result of the workflow as a zip, as it will be a csv file.</p></li>
+<li><p>Check the resulting csv for a count of aggregates per cell!</p></li>
+</ol>
+</div>
+<div class="section" id="workflow-management">
+<h2>Workflow management?<a class="headerlink" href="#workflow-management" title="Permalink to this headline"></a></h2>
+<p>Of course, this required knowledge and manual manipulation of renaming images and supplying that metadata to the next workflow. Ideally you would be able to string singular workflows together with Input/Output like using NextFlow or Snakemake. We are looking into it for a future version.</p>
 </div>
 <div class="section" id="extra">
 <h2>Extra<a class="headerlink" href="#extra" title="Permalink to this headline"></a></h2>
@@ -1014,8 +1058,8 @@ c2
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
 <li><p>Fire up the OMERO containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>Go to OMERO.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
-<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight (not included).</p></li>
-<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script</p></li>
+<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight (e.g. <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/blob/main/resources/tutorials/images/Cells.tif">Cells.tiff</a>).</p></li>
+<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script (<a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/init/SLURM_Init_environment.py">here</a>)</p></li>
 </ol>
 <details>
   <summary>Details</summary>
@@ -1321,8 +1365,8 @@ Turns out, our Slurm doesn’t have the compute nodes to execute this operation.
 </div>
 <div class="section" id="batching">
 <h3>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h3>
-<p>Try <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code> to see if there is any speedup by splitting your images over multiple jobs/batches.</p>
-<p>We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer.</p>
+<p>Try <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code> (here)[https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py] to see if there is any speedup by splitting your images over multiple jobs/batches.</p>
+<p>We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer in total.</p>
 <details>
 Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
 <p>Let’s check on the Slurm node:</p>

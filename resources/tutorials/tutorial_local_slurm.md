@@ -295,8 +295,8 @@ Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.
 1.  Clone my example `docker-example-omero-grid-amc` locally: `git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git`
 2. Fire up the OMERO containers: `docker-compose up -d --build`
 3. Go to OMERO.web (`localhost:4080`), login `root` pw `omero`
-4. Upload some images (to `localhost`) with OMERO.Insight (not included).
-5. In web, run the `slurm/init_environment` script
+4. Upload some images (to `localhost`) with OMERO.Insight (e.g. [Cells.tiff](https://github.com/NL-BioImaging/omero-slurm-client/blob/main/resources/tutorials/images/Cells.tif)).
+5. In web, run the `slurm/init_environment` script ([here](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/init/SLURM_Init_environment.py))
 
 <details>
   <summary>Details</summary>
@@ -646,9 +646,9 @@ That should take you through connecting OMERO with a local Slurm setup.
 
 ### Batching
 
-Try `slurm/SLURM Run Workflow Batched` to see if there is any speedup by splitting your images over multiple jobs/batches. 
+Try `slurm/SLURM Run Workflow Batched` (here)[https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py] to see if there is any speedup by splitting your images over multiple jobs/batches. 
 
-We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer.
+We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer in total.
 
 <details>
 Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.

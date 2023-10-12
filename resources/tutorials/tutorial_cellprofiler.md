@@ -293,7 +293,7 @@ This should work the same as [before](#2-try-the-pipeline-locally), with a bit o
 Except now, we didn't need to have cellprofiler installed! Anyone with `Docker` (or `Podman` or `Singularity`) can run this workflow now.
 
 
-### e. Publish to github and bitbucket
+### e. Publish to GitHub and DockerHub
 
 So how do other people get to use our workflow? 
 
@@ -301,16 +301,28 @@ So how do other people get to use our workflow?
 
 - Commit to git: `git commit -m 'Update with spotcounting pipeline' -a`
 - Push to github: `git push`
-- (Optional) tag and release this as a new version. 
+- Setup automated release to Dockerhub:
+  - First, create a free account on Dockerhub if you don't have one
+  - On Dockerhub, login and create a new `Access Token` via `Account Settings` / `Security`. Name it `Github` or something. Copy this token (to a file).
+  - Back on your Github repository, add 2 secrets by going to `Settings` / `Secrets and variables` / `Actions` / `New repository secret`
+    - First, add Name: `DOCKERHUB_USERNAME` and Secret: `<your-dockerhub-username>`
+    - Also, add Name: `DOCKERHUB_TOKEN` and Secret: `<token-that-you-copied>` 
+- Now, tag and release this as a new version on Github (and automatically Dockerhub): 
   - Pretty easy to do from Github page: `Releases` > `new release`. 
-  - Add a tag like `v1.0.0`. Match this version later with the tag of your Dockerhub image.
-  - Note: this might take care of step 2 with a `Github action`, but we will do it manually, as the Dockerhub integration for Github is not free anymore.
+  - Add a tag like `v1.0.0`. 
+  - Now, the Github Action `Docker Image CI` will build the container for you and publish it on Dockerhub via the credentials you provided. This will take a few minutes, you can follow along at the `Actions` tab.
+  - Now you can verify that it is available online:
+https://hub.docker.com/u/your-dockerhub-user
+- Great! now everybody (with internet access) can pull your workflow image and run it [locally](#d-run-locally): `docker run --rm -v <my-drive>\PLA\:/data-it <your-dockerhub-user>/w_spotcounting-cellprofiler:v1.0.0 --local --infolder /data-it/PLA_data --outfolder /data-it/out --gtfolder /data-it/gt -nmc`
 
-2. And we publish the image on Dockerhub:
+And this is what we will make OMERO do on the Slurm cluster next.
+
+
+#### Optional: Manually publish the image on Dockerhub:
 
 - First, create an account on Dockerhub if you don't have one
-- Login locally to this account too: `docker login` 
-- (Optional) Build your latest docker image if you didn't do that yet
+- Login locally on the commandline to this account too: `docker login` 
+- (Optional) Build your latest docker image if you didn't do that yet (`docker build -t spotcounting-cp .`). 
 - Tag your local Docker image with a new tag to match this Dockerhub account and release: `docker tag spotcounting-cp:latest <your-dockerhub-user>/w_spotcounting-cellprofiler:v1.0.0`
 - Push your tagged image to Dockerhub: `docker push <your-dockerhub-user>/w_spotcounting-cellprofiler:v1.0.0`
 - Now you can verify that it is available online:

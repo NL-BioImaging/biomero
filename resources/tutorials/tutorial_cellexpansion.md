@@ -29,7 +29,7 @@ Combine both in the same dataset afterward, this will be our input dataset for t
 
 To estimate the amount of aggregates per cell, we actually need the cytoplasm in our example. Then we can calculate overlap. 
 
-One could segment the cytoplasm possibly, but we have a Python script that does this algorithmically instead.
+One could segment the cytoplasm, especially in this image (its just channel 1), but we have a Python script that does this algorithmically instead for the fun of it.
 
 We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.
 
@@ -54,14 +54,40 @@ cellexpansion_repo=https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1
 cellexpansion_job=jobs/cellexpansion.sh
 ```
 
-3. Run the workflow on our Nuclei mask:
+4. Run the workflow on our Nuclei mask.
+Output the new mask back as image in a new dataset.
 
-For this, we need to rename our mask files first. 
 
 ## Calculate overlap
 
-We calculate overlap with another very short Python script, which I added to the `wrapper.py` of the cellexpansion workflow.
-It outputs a `.csv` file with the counts.
+We calculate overlap with another very short Python script.
+It outputs the overlap counts of 2 masks. 
+
+Example original code:
+```Python
+imCellsCellLabels=imread('images/CellsNucleiLabels.tif',cv2.IMREAD_ANYDEPTH)
+imCellsGranulesLabels=imread('images/CellsGranulesLabels.tif',cv2.IMREAD_ANYDEPTH)
+numCells=np.max(imCellsCellLabels)
+CellNumGranules=np.zeros([numCells,2],dtype=np.int16)
+granulesStats=pd.DataFrame(measure.regionprops_table(imCellsGranulesLabels, properties=('centroid',)))
+granulesStatsnp=np.ndarray.astype(np.round(granulesStats.to_numpy()),dtype=np.uint16)
+granulesStatsInCellLabel=imCellsCellLabels[granulesStatsnp[:,0],granulesStatsnp[:,1]]
+for i in range(1,numCells+1):
+    CellNumGranules[i-1,0]=np.count_nonzero(granulesStatsInCellLabel==i)
+pd.DataFrame(CellNumGranules,columns=['Estimated']).style
+```
+
+I added this as a separate workflow at [W_CountMaskOverlap](https://github.com/TorecLuik/W_CountMaskOverlap).
+
+1. add the workflow to config. 
+2. make one dataset with pairs of our mask files. We name them the same as the original image, but with an extra suffix. E.g. Cells_CellExpansion.tif and Cells_Aggregates.tif. 
+3. Call the new workflow on this dataset / image selection, and supply the suffixes chosen ("_CellExpansion" and "_Aggregates") as parameter. Then make sure to upload the result of the workflow as a zip, as it will be a csv file.
+4. Check the resulting csv for a count of aggregates per cell!
+
+## Workflow management?
+
+Of course, this required knowledge and manual manipulation of renaming images and supplying that metadata to the next workflow. Ideally you would be able to string singular workflows together with Input/Output like using NextFlow or Snakemake. We are looking into it for a future version.
+
 
 ## Extra
 

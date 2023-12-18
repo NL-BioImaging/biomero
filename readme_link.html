@@ -45,13 +45,13 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">BIOMERO - the OMERO Slurm Client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#overview">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#quickstart">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started">Prerequisites &amp; Getting Started</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#slurm-requirements">Slurm Requirements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#omero-requirements">OMERO Requirements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#omero-scripts">OMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO scripts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#see-the-tutorials">See the tutorials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurmclient-class">SlurmClient class</a></li>
@@ -128,7 +128,7 @@
 <div class="section" id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h1>
 <p>In the figure below we show our <strong>BIOMERO</strong> framework, for <strong>B</strong>io<strong>I</strong>mage analysis in <strong>OMERO</strong>.</p>
-<p>BIOMERO consists of this Python library (OMERO Slurm Client) and the integrations within OMERO, currently through our <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts">OMERO scripts</a>.</p>
+<p>BIOMERO consists of this Python library (OMERO Slurm Client) and the integrations within OMERO, currently through our <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a>.</p>
 <p><img alt="OMERO-Figure1_Overview_v5" src="https://github.com/NL-BioImaging/omero-slurm-client/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981" /></p>
 </div>
 <div class="section" id="quickstart">
@@ -146,7 +146,7 @@
 </ul>
 </li>
 <li><p>Upload some data with OMERO.insight to <code class="docutils literal notranslate"><span class="pre">localhost</span></code> server</p></li>
-<li><p>Try out some scripts from https://github.com/NL-BioImaging/omero-slurm-scripts (already installed in step 1!):</p>
+<li><p>Try out some scripts from https://github.com/NL-BioImaging/biomero-scripts (already installed in step 1!):</p>
 <ol class="arabic simple">
 <li><p>Run script <code class="docutils literal notranslate"><span class="pre">slurm/init/SLURM</span> <span class="pre">Init</span> <span class="pre">environment...</span></code></p></li>
 <li><p>Get a coffee or something. This will take at least 10 min to download all the workflow images. Maybe write a nice review on <code class="docutils literal notranslate"><span class="pre">image.sc</span></code> of this software, or here on the <code class="docutils literal notranslate"><span class="pre">Discussions</span></code> tab of Github.</p></li>
@@ -166,8 +166,8 @@
 </li>
 </ol>
 </div>
-<div class="section" id="prerequisites-getting-started">
-<h1>Prerequisites &amp; Getting Started<a class="headerlink" href="#prerequisites-getting-started" title="Permalink to this headline"></a></h1>
+<div class="section" id="prerequisites-getting-started-with-biomero">
+<h1>Prerequisites &amp; Getting Started with BIOMERO<a class="headerlink" href="#prerequisites-getting-started-with-biomero" title="Permalink to this headline"></a></h1>
 <div class="section" id="slurm-requirements">
 <h2>Slurm Requirements<a class="headerlink" href="#slurm-requirements" title="Permalink to this headline"></a></h2>
 <p>Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !</p>
@@ -200,12 +200,12 @@
 <ol class="arabic simple">
 <li><p>Some OMERO example scripts installed to interact with this library:</p>
 <ul class="simple">
-<li><p>My examples on github: <code class="docutils literal notranslate"><span class="pre">https://github.com/NL-BioImaging/omero-slurm-scripts</span></code></p></li>
-<li><p>Install those at <code class="docutils literal notranslate"><span class="pre">/opt/omero/server/OMERO.server/lib/scripts/slurm/</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/omero-slurm-scripts.git</span> <span class="pre">&lt;path&gt;/slurm</span></code></p></li>
+<li><p>My examples on github: <code class="docutils literal notranslate"><span class="pre">https://github.com/NL-BioImaging/biomero-scripts</span></code></p></li>
+<li><p>Install those at <code class="docutils literal notranslate"><span class="pre">/opt/omero/server/OMERO.server/lib/scripts/slurm/</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/biomero-scripts.git</span> <span class="pre">&lt;path&gt;/slurm</span></code></p></li>
 </ul>
 </li>
 </ol>
-<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
+<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
 </div>
 <div class="section" id="getting-started">
 <h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h2>
@@ -230,16 +230,16 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
 </ul>
 </li>
-<li><p>Install OMERO scripts from <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts">OMERO Slurm Scripts</a>, e.g.</p>
+<li><p>Install OMERO scripts from <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">OMERO Slurm Scripts</a>, e.g.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">OMERO_DIST/lib/scripts</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/omero-slurm-scripts.git</span> <span class="pre">slurm</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/biomero-scripts.git</span> <span class="pre">slurm</span></code></p></li>
 </ul>
 </li>
 </ol>
-<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
+<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
 <ol class="arabic simple" start="5">
-<li><p>Install OMERO Slurm Scripts requirements, e.g.</p>
+<li><p>Install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/">BIOMERO Scripts</a> requirements, e.g.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code></p></li>
 <li><p>the <a class="reference external" href="https://github.com/ome/omero-cli-zarr">OMERO CLI Zarr plugin</a>, e.g.
@@ -247,7 +247,7 @@
 <li><p>the <a class="reference external" href="https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip">bioformats2raw-0.7.0</a>, e.g. <code class="docutils literal notranslate"><span class="pre">unzip</span> <span class="pre">-d</span> <span class="pre">/opt</span> <span class="pre">bioformats2raw-0.7.0.zip</span> <span class="pre">&amp;&amp;</span> <span class="pre">export</span> <span class="pre">PATH=&quot;$PATH:/opt/bioformats2raw-0.7.0/bin&quot;</span></code></p></li>
 </ul>
 </li>
-<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in a OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/init/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
+<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in a OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/init/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
 <ul class="simple">
 <li><p>Provide the configfile location explicitly if it is not a default one defined earlier, otherwise you can omit that field.</p></li>
 <li><p>Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).</p></li>
@@ -263,21 +263,21 @@
 <p>With the configuration files in place, you can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the OMERO Slurm Client library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an OMERO processor.</p>
 </div>
 </div>
-<div class="section" id="omero-scripts">
-<h1>OMERO.scripts<a class="headerlink" href="#omero-scripts" title="Permalink to this headline"></a></h1>
-<p>The easiest interaction from OMERO with this library currently is through OMERO.scripts.</p>
-<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
-<p>We have provided example OMERO scripts of how to use this in https://github.com/NL-BioImaging/omero-slurm-scripts (hopefully installed in a previous step).</p>
-<p>For example, <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow.py">workflows/Slurm Run Workflow</a> should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like</p>
+<div class="section" id="biomero-scripts">
+<h1>BIOMERO scripts<a class="headerlink" href="#biomero-scripts" title="Permalink to this headline"></a></h1>
+<p>The easiest interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.</p>
+<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
+<p>We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step).</p>
+<p>For example, <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow.py">workflows/Slurm Run Workflow</a> should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/_SLURM_Image_Transfer.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code></a>: to export your selected images / dataset / screen as TIFF files to a Slurm dir.</p></li>
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/SLURM_Get_Results.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code></a>: to import your Slurm job results back into OMERO as a zip, dataset or attachment.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/_SLURM_Image_Transfer.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code></a>: to export your selected images / dataset / screen as TIFF files to a Slurm dir.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Results.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code></a>: to import your Slurm job results back into OMERO as a zip, dataset or attachment.</p></li>
 </ul>
 <p>Other example OMERO scripts are:</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/SLURM_Get_Update.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code></a>: to run while you are waiting on a job to finish on Slurm; it will try to get a <code class="docutils literal notranslate"><span class="pre">%</span></code> progress from your job’s logfile. Depends on your job/workflow logging a <code class="docutils literal notranslate"><span class="pre">%</span></code> of course.</p></li>
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code></a>: This will allow you to run several <code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code> in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.</p></li>
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">CellPose</span> <span class="pre">Segmentation</span></code></a>: This is a more primitive script that only runs the actual workflow <code class="docutils literal notranslate"><span class="pre">CellPose</span></code> (if correctly configured). You will need to manually transfer data first (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code>) and manually retrieve data afterward (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code>).</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Update.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code></a>: to run while you are waiting on a job to finish on Slurm; it will try to get a <code class="docutils literal notranslate"><span class="pre">%</span></code> progress from your job’s logfile. Depends on your job/workflow logging a <code class="docutils literal notranslate"><span class="pre">%</span></code> of course.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code></a>: This will allow you to run several <code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code> in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">CellPose</span> <span class="pre">Segmentation</span></code></a>: This is a more primitive script that only runs the actual workflow <code class="docutils literal notranslate"><span class="pre">CellPose</span></code> (if correctly configured). You will need to manually transfer data first (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code>) and manually retrieve data afterward (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code>).</p></li>
 </ul>
 <p>You are encouraged to create your own custom scripts. Do note the copy-left license enforced by OME.</p>
 </div>

@@ -13,7 +13,7 @@ Overall, the `omero_slurm_client` package simplifies the integration of Slurm fu
 
 In the figure below we show our **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**. 
 
-BIOMERO consists of this Python library (OMERO Slurm Client) and the integrations within OMERO, currently through our [OMERO scripts](https://github.com/NL-BioImaging/omero-slurm-scripts).
+BIOMERO consists of this Python library (OMERO Slurm Client) and the integrations within OMERO, currently through our [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts).
 
 ![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/omero-slurm-client/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
 
@@ -30,7 +30,7 @@ For a quick overview of what this library can do for you, we can install an exam
 2. Setup a local Slurm w/ SSH access: 
     - Follow Quickstart of https://github.com/TorecLuik/slurm-docker-cluster
 3. Upload some data with OMERO.insight to `localhost` server
-4. Try out some scripts from https://github.com/NL-BioImaging/omero-slurm-scripts (already installed in step 1!):
+4. Try out some scripts from https://github.com/NL-BioImaging/biomero-scripts (already installed in step 1!):
     1. Run script `slurm/init/SLURM Init environment...`
     2. Get a coffee or something. This will take at least 10 min to download all the workflow images. Maybe write a nice review on `image.sc` of this software, or here on the `Discussions` tab of Github.
     3. Select your image / dataset and run script `slurm/workflows/SLURM Run Workflow...`
@@ -42,7 +42,7 @@ For a quick overview of what this library can do for you, we can install an exam
 
 
 
-# Prerequisites & Getting Started
+# Prerequisites & Getting Started with BIOMERO
 
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
@@ -68,10 +68,10 @@ Your OMERO _processing_ node needs to have:
 
 Your OMERO _server_ node needs to have:
 1. Some OMERO example scripts installed to interact with this library:
-    - My examples on github: `https://github.com/NL-BioImaging/omero-slurm-scripts`
-    - Install those at `/opt/omero/server/OMERO.server/lib/scripts/slurm/`, e.g. `git clone https://github.com/NL-BioImaging/omero-slurm-scripts.git <path>/slurm`
+    - My examples on github: `https://github.com/NL-BioImaging/biomero-scripts`
+    - Install those at `/opt/omero/server/OMERO.server/lib/scripts/slurm/`, e.g. `git clone https://github.com/NL-BioImaging/biomero-scripts.git <path>/slurm`
 
-!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
+!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
 
 
@@ -96,19 +96,19 @@ To connect an OMERO processor to a Slurm cluster using the `omero_slurm_client` 
     - `/etc/slurm-config.ini`
     - `~/slurm-config.ini`
 
-4. Install OMERO scripts from [OMERO Slurm Scripts](https://github.com/NL-BioImaging/omero-slurm-scripts), e.g. 
+4. Install OMERO scripts from [OMERO Slurm Scripts](https://github.com/NL-BioImaging/biomero-scripts), e.g. 
     - `cd OMERO_DIST/lib/scripts`
-    - `git clone https://github.com/NL-BioImaging/omero-slurm-scripts.git slurm`
+    - `git clone https://github.com/NL-BioImaging/biomero-scripts.git slurm`
 
-!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
+!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
-5. Install OMERO Slurm Scripts requirements, e.g.
+5. Install [BIOMERO Scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements, e.g.
     - `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` 
     - the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr), e.g. 
     `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
     - the [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip), e.g. `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
 
-6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in a OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/init/SLURM_Init_environment.py) , which you just installed in previous step.
+6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in a OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/init/SLURM_Init_environment.py) , which you just installed in previous step.
     - Provide the configfile location explicitly if it is not a default one defined earlier, otherwise you can omit that field. 
     - Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).
     - This operation will make it create the directories you provided in the `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:
@@ -121,25 +121,25 @@ with SlurmClient.from_config(configfile=configfile,
 
 With the configuration files in place, you can utilize the `SlurmClient` class from the OMERO Slurm Client library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an OMERO processor. 
 
-# OMERO.scripts
+# BIOMERO scripts
 
-The easiest interaction from OMERO with this library currently is through OMERO.scripts.
+The easiest interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.
 
-!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
+!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
-We have provided example OMERO scripts of how to use this in https://github.com/NL-BioImaging/omero-slurm-scripts (hopefully installed in a previous step). 
+We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step). 
 
-For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
+For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
 
--  [`data/Slurm Image Transfer`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/_SLURM_Image_Transfer.py): to export your selected images / dataset / screen as TIFF files to a Slurm dir.
-- [`data/Slurm Get Results`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/SLURM_Get_Results.py): to import your Slurm job results back into OMERO as a zip, dataset or attachment.
+-  [`data/Slurm Image Transfer`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/_SLURM_Image_Transfer.py): to export your selected images / dataset / screen as TIFF files to a Slurm dir.
+- [`data/Slurm Get Results`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Results.py): to import your Slurm job results back into OMERO as a zip, dataset or attachment.
 
 Other example OMERO scripts are:
-- [`data/Slurm Get Update`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/data/SLURM_Get_Update.py): to run while you are waiting on a job to finish on Slurm; it will try to get a `%` progress from your job's logfile. Depends on your job/workflow logging a `%` of course.
+- [`data/Slurm Get Update`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Update.py): to run while you are waiting on a job to finish on Slurm; it will try to get a `%` progress from your job's logfile. Depends on your job/workflow logging a `%` of course.
 
-- [`workflows/Slurm Run Workflow Batched`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py): This will allow you to run several `workflows/Slurm Run Workflow` in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.
+- [`workflows/Slurm Run Workflow Batched`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py): This will allow you to run several `workflows/Slurm Run Workflow` in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.
 
-- [`workflows/Slurm CellPose Segmentation`](https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py): This is a more primitive script that only runs the actual workflow `CellPose` (if correctly configured). You will need to manually transfer data first (with `Slurm Image Transfer`) and manually retrieve data afterward (with `Slurm Get Results`).
+- [`workflows/Slurm CellPose Segmentation`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py): This is a more primitive script that only runs the actual workflow `CellPose` (if correctly configured). You will need to manually transfer data first (with `Slurm Image Transfer`) and manually retrieve data afterward (with `Slurm Get Results`).
 
 You are encouraged to create your own custom scripts. Do note the copy-left license enforced by OME.
 

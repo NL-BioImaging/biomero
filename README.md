@@ -1,15 +1,27 @@
-# OMERO Slurm Client library
+# BIOMERO - the OMERO Slurm Client library
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![DOI](https://zenodo.org/badge/638954891.svg)](https://zenodo.org/badge/latestdoi/638954891) ![Python](https://img.shields.io/badge/Python-3.6-blue.svg) ![Slurm](https://img.shields.io/badge/Slurm-21.08.6-blue.svg) ![OMERO](https://img.shields.io/badge/OMERO-5.6.8-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow)](https://fair-software.eu) [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7530/badge)](https://bestpractices.coreinfrastructure.org/projects/7530) [![Sphinx build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment)
 
-The `omero_slurm_client` Python package is a library that facilitates working with a Slurm cluster in the context of the OMERO platform. 
+This library is to be used within BIOMERO (an extension to OMERO), together with the OMERO Slurm Scripts we also provide.
 
-The package includes the `SlurmClient` class, which extends the Fabric library's `Connection` class to provide **SSH-based connectivity** and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. 
+Together, BIOMERO allows you to run BioImage analysis workflows directly from OMERO on a Slurm cluster, through SSH.
 
-Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories. 
+The package includes the `SlurmClient` class, which extends the Fabric library's `Connection` class to provide **SSH-based connectivity** and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories. 
 
 Overall, the `omero_slurm_client` package simplifies the integration of Slurm functionality within the OMERO platform and provides an efficient workflow for working with Slurm clusters.
 
+# Overview
+
+In the figure below we show our **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**. 
+
+BIOMERO consists of this Python library (OMERO Slurm Client) and the integrations within OMERO, currently through our [OMERO scripts](https://github.com/NL-BioImaging/omero-slurm-scripts).
+
+![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/omero-slurm-client/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
+
+
+
 # Quickstart
+
+
 
 For a quick overview of what this library can do for you, we can install an example setup locally with Docker:
 

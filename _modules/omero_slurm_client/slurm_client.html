@@ -38,7 +38,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html">BIOMERO - the OMERO Slurm Client library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#overview">Overview</a></li>
@@ -93,7 +93,20 @@
            <div itemprop="articleBody">
              
   <h1>Source code for omero_slurm_client.slurm_client</h1><div class="highlight"><pre>
-<span></span><span class="c1"># SLURMCLIENT</span>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2023 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">from</span> <span class="nn">fabric</span> <span class="kn">import</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">Result</span>
 <span class="kn">from</span> <span class="nn">fabric.transfer</span> <span class="kn">import</span> <span class="n">Result</span> <span class="k">as</span> <span class="n">TransferResult</span>
@@ -105,7 +118,6 @@
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">time</span> <span class="k">as</span> <span class="nn">timesleep</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">string</span> <span class="kn">import</span> <span class="n">Template</span>
 <span class="kn">from</span> <span class="nn">importlib_resources</span> <span class="kn">import</span> <span class="n">files</span>
 <span class="kn">import</span> <span class="nn">io</span>
@@ -121,7 +133,7 @@
 <span class="sd">    This class extends the Connection class, adding methods and</span>
 <span class="sd">    attributes specific to working with Slurm.</span>
 
-<span class="sd">    SlurmClient accepts the same arguments as Connection. So below only</span>
+<span class="sd">    SlurmClient accepts the same arguments as Connection. Below only</span>
 <span class="sd">    mentions the added ones:</span>
 
 <span class="sd">    The easiest way to set this client up is by using a slurm-config.ini</span>
@@ -146,11 +158,6 @@
 <span class="sd">            the Slurm job submission scripts on Slurm.</span>
 <span class="sd">        slurm_script_repo (str): The git https URL for cloning the repo</span>
 <span class="sd">            containing the Slurm job submission scripts. Optional.</span>
-<span class="sd">        init_slurm (bool): Whether to setup the required structures on Slurm</span>
-<span class="sd">            after initiating this client. This includes creating missing</span>
-<span class="sd">            folders, downloading container images, cloning git, et cetera.</span>
-<span class="sd">            This will take a while at first, but will validate your setup.</span>
-<span class="sd">            Defaults to False.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        # Create a SlurmClient object as contextmanager</span>
@@ -189,7 +196,8 @@
     <span class="n">_OUT_SEP</span> <span class="o">=</span> <span class="s2">&quot;--split--&quot;</span>
     <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="s2"> | grep -oP &#39;(?&lt;=\-|\_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
     <span class="c1"># Note, grep returns exitcode 1 if no match is found!</span>
-    <span class="c1"># This will translate into a UnexpectedExit error, so mute that if you don&#39;t care about empty.</span>
+    <span class="c1"># This will translate into a UnexpectedExit error, so mute that if you</span>
+    <span class="c1"># don&#39;t care about empty.</span>
     <span class="c1"># Like below with the &quot;|| :&quot;.</span>
     <span class="c1"># Data could legit be empty.</span>
     <span class="n">_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="si">{slurm_data_path}</span><span class="s2"> | grep -oP &#39;.+(?=.zip)&#39; || :&quot;</span>
@@ -225,6 +233,76 @@
                  <span class="n">slurm_script_repo</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">init_slurm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes a new instance of the SlurmClient class.</span>
+
+<span class="sd">        It is preferable to use #from_config(...) method to initialize</span>
+<span class="sd">        parameters from a config file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            host (str, optional): The hostname or IP address of the remote</span>
+<span class="sd">                server. Defaults to _DEFAULT_HOST.</span>
+<span class="sd">            user (str, optional): The username to use when connecting to </span>
+<span class="sd">                the remote server. Defaults to None, which defaults </span>
+<span class="sd">                to config.user.</span>
+<span class="sd">            port (int, optional): The SSH port to use when connecting.</span>
+<span class="sd">                Defaults to None, which defaults to config.port.</span>
+<span class="sd">            config (str, optional): Path to the SSH config file.</span>
+<span class="sd">                Defaults to None, which defaults to your SSH config file.</span>
+<span class="sd">            gateway (Connection, optional): An optional gateway for connecting </span>
+<span class="sd">                through a jump host. Defaults to None.</span>
+<span class="sd">            forward_agent (bool, optional): Whether to forward the local SSH </span>
+<span class="sd">                agent to the remote server. Defaults to None, which </span>
+<span class="sd">                defaults to config.forward_agent.</span>
+<span class="sd">            connect_timeout (int, optional): Timeout for establishing the SSH </span>
+<span class="sd">                connection. Defaults to None, which defaults </span>
+<span class="sd">                to config.timeouts.connect.</span>
+<span class="sd">            connect_kwargs (dict, optional): Additional keyword arguments for </span>
+<span class="sd">                the underlying SSH connection. Handed verbatim to </span>
+<span class="sd">                `SSHClient.connect &lt;paramiko.client.SSHClient.connect&gt;`. </span>
+<span class="sd">                Defaults to None. </span>
+<span class="sd">            inline_ssh_env (bool, optional): Whether to use inline SSH</span>
+<span class="sd">                environment. This is necessary if the remote server has </span>
+<span class="sd">                a restricted ``AcceptEnv`` setting (which is the common </span>
+<span class="sd">                default). Defaults to _DEFAULT_INLINE_SSH_ENV.</span>
+<span class="sd">            slurm_data_path (str, optional): The path to the directory</span>
+<span class="sd">                containing the data files for Slurm jobs.</span>
+<span class="sd">                Defaults to _DEFAULT_SLURM_DATA_PATH.</span>
+<span class="sd">            slurm_images_path (str, optional): The path to the directory</span>
+<span class="sd">                containing the Singularity images for Slurm jobs.</span>
+<span class="sd">                Defaults to _DEFAULT_SLURM_IMAGES_PATH.</span>
+<span class="sd">            slurm_converters_path (str, optional): The path to the directory</span>
+<span class="sd">                containing the Singularity images for file converters.</span>
+<span class="sd">                Defaults to _DEFAULT_SLURM_CONVERTERS_PATH.</span>
+<span class="sd">            slurm_model_paths (dict, optional): A dictionary containing the </span>
+<span class="sd">                paths to the Singularity images for specific Slurm job models.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            slurm_model_repos (dict, optional): A dictionary containing the </span>
+<span class="sd">                git repositories of Singularity images for specific Slurm </span>
+<span class="sd">                job models.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            slurm_model_images (dict, optional): A dictionary containing the </span>
+<span class="sd">                dockerhub of the Singularity images for specific Slurm </span>
+<span class="sd">                job models. Will fill automatically from the data in the git </span>
+<span class="sd">                repository if you set init_slurm.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            slurm_model_jobs (dict, optional): A dictionary containing</span>
+<span class="sd">                information about specific Slurm job models.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            slurm_model_jobs_params (dict, optional): A dictionary containing</span>
+<span class="sd">                parameters for specific Slurm job models.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            slurm_script_path (str, optional): The path to the directory</span>
+<span class="sd">                containing the Slurm job submission scripts on Slurm.</span>
+<span class="sd">                Defaults to _DEFAULT_SLURM_GIT_SCRIPT_PATH.</span>
+<span class="sd">            slurm_script_repo (str, optional): The git https URL for cloning</span>
+<span class="sd">                the repo containing the Slurm job submission scripts.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            init_slurm (bool): Whether to set up the required structures </span>
+<span class="sd">                on Slurm after initiating this client. This includes creating </span>
+<span class="sd">                missing folders, downloading container images, cloning git,etc.</span>
+<span class="sd">                This will take a while at first but will validate your setup.</span>
+<span class="sd">                Defaults to False to save time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">SlurmClient</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">host</span><span class="p">,</span>
                                           <span class="n">user</span><span class="p">,</span>
                                           <span class="n">port</span><span class="p">,</span>
@@ -313,7 +391,7 @@
             <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">:</span>
                 <span class="c1"># generate scripts</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_slurm_scripts</span><span class="p">(</span><span class="n">generate_jobs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                
+
             <span class="c1"># 3. Setup converters</span>
             <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">:</span>
@@ -327,7 +405,7 @@
             <span class="c1"># currently known converters</span>
             <span class="c1"># 3a. ZARR to TIFF</span>
             <span class="c1"># TODO extract these values to e.g. config if we have more</span>
-            <span class="n">convert_name</span> <span class="o">=</span> <span class="s2">&quot;convert_zarr_to_tiff&quot;</span>          
+            <span class="n">convert_name</span> <span class="o">=</span> <span class="s2">&quot;convert_zarr_to_tiff&quot;</span>
             <span class="n">convert_py</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.py&quot;</span>
             <span class="n">convert_script_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
                 <span class="n">convert_py</span><span class="p">)</span>
@@ -344,11 +422,11 @@
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
                     <span class="c1"># TODO Change the tmp dir?</span>
                     <span class="c1"># export SINGULARITY_TMPDIR=~/my-scratch/tmp;</span>
-                    
+
                     <span class="c1"># only if file does not exist yet</span>
                     <span class="c1"># convert_cmds.append(f&quot;[ ! -f {convert_name}.sif ]&quot;)</span>
                     <span class="c1"># EDIT -- NO, then we can&#39;t update! Force rebuild!</span>
-                    
+
                     <span class="c1"># download /build new container</span>
                     <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="si">{convert_name}</span><span class="s2">.sif </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">.sif&#39; &amp;&quot;</span><span class="p">)</span>
@@ -503,12 +581,27 @@
                           <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot; Cleanup zip and unzipped files/folders</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cleanup zip and unzipped files/folders associated with a Slurm job.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            slurm_job_id (str): Script job id</span>
-<span class="sd">            filename (str): Zip filename on Slurm</span>
-<span class="sd">            logfile (str): Logfile of slurm. Optional.</span>
+<span class="sd">            slurm_job_id (str): The job ID of the Slurm script.</span>
+<span class="sd">            filename (str): The zip filename on Slurm.</span>
+<span class="sd">            data_location (str, optional): The location of data files on Slurm.</span>
+<span class="sd">                If not provided, it will be extracted from the log file.</span>
+<span class="sd">            logfile (str, optional): The log file of the Slurm job. </span>
+<span class="sd">                If not provided, a default log file will be used.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Result: The result of the cleanup operation.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            The cleanup process involves removing the specified zip file, </span>
+<span class="sd">            the log file, and associated data files and folders.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            # Cleanup temporary files for a Slurm job</span>
+<span class="sd">            client.cleanup_tmp_files(&quot;12345&quot;, &quot;output.zip&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cmds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># zip</span>
@@ -543,7 +636,7 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            bool:</span>
-<span class="sd">                True if the validation is successfully,</span>
+<span class="sd">                True if the validation is successful,</span>
 <span class="sd">                False otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">connected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s1">&#39;echo &quot; &quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">ok</span>
@@ -562,7 +655,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            log_file (str): The path to the log file.</span>
-<span class="sd">            n (int): The number of recent log entries to retrieve.</span>
+<span class="sd">            n (int, optional): The number of recent log entries to retrieve.</span>
 <span class="sd">                Defaults to 10.</span>
 
 <span class="sd">        Returns:</span>
@@ -572,18 +665,18 @@
 
 <div class="viewcode-block" id="SlurmClient.get_active_job_progress"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_active_job_progress">[docs]</a>    <span class="k">def</span> <span class="nf">get_active_job_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                 <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                                <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;\d+%&quot;</span><span class="p">,</span>
+                                <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\d+%&quot;</span><span class="p">,</span>
                                 <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the progress of an active Slurm job, from its logfiles.</span>
+<span class="sd">        Get the progress of an active Slurm job from its logfiles.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            slurm_job_id (str): The ID of the Slurm job.</span>
 <span class="sd">            pattern (str): The pattern to match in the job log to extract</span>
-<span class="sd">                the progress (default: &quot;\d+%&quot;).</span>
+<span class="sd">                the progress (default: r&quot;\d+%&quot;).</span>
 
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
+<span class="sd">                to set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: The progress of the Slurm job.</span>
@@ -598,12 +691,12 @@
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">cmdlist</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issue with run command: </span><span class="si">{e}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="c1"># match some pattern</span>
+        <span class="c1"># Match the specified pattern in the result&#39;s stdout</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">latest_progress</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span>
                 <span class="n">pattern</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issue with print commands: </span><span class="si">{e}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issue with extracting progress: </span><span class="si">{e}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Progress: </span><span class="si">{latest_progress}</span><span class="se">\n</span><span class="s2">&quot;</span></div>
 
@@ -612,8 +705,8 @@
                      <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39; &amp;&amp; &#39;</span><span class="p">,</span>
                      <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Runs a list of shell commands consecutively,</span>
-<span class="sd">        ensuring success of each before calling the next.</span>
+<span class="sd">        Run a list of shell commands consecutively on the Slurm cluster,</span>
+<span class="sd">        ensuring the success of each before proceeding to the next.</span>
 
 <span class="sd">        The environment variables can be set using the `env` argument.</span>
 <span class="sd">        These commands retain the same session (environment variables</span>
@@ -621,11 +714,10 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            cmdlist (List[str]): A list of shell commands to run on Slurm.</span>
-
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
-<span class="sd">            sep (str): The separator used to concatenate the commands.</span>
-<span class="sd">                Defaults to &#39; &amp;&amp; &#39;.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables to</span>
+<span class="sd">                set when running the command. Defaults to None.</span>
+<span class="sd">            sep (str, optional): The separator used to concatenate the </span>
+<span class="sd">                commands. Defaults to &#39; &amp;&amp; &#39;.</span>
 <span class="sd">            **kwargs: Additional keyword arguments.</span>
 
 <span class="sd">        Returns:</span>
@@ -660,7 +752,8 @@
 <span class="sd">            **kwargs: Additional keyword arguments for the class constructor.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            object: An instance of the specified class or None</span>
+<span class="sd">            object: An instance of the specified class, or None if the class or</span>
+<span class="sd">                module does not exist.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">module_</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_name</span><span class="p">)</span>
@@ -687,9 +780,8 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            cmdlist (List[str]): A list of shell commands to run.</span>
-
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
+<span class="sd">                to set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            List[str]:</span>
@@ -712,6 +804,7 @@
             <span class="n">split_responses</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_OUT_SEP</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">split_responses</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># If the result is not ok, log the error and raise an SSHException</span>
             <span class="n">error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Result is not ok: </span><span class="si">{result}</span><span class="s2">&quot;</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">error</span><span class="p">)</span></div>
@@ -722,8 +815,8 @@
 <span class="sd">        Get a list of active jobs from SLURM.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables to </span>
+<span class="sd">                set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            List[str]: A list of job IDs.</span>
@@ -742,15 +835,15 @@
 <span class="sd">        Get a list of completed jobs from SLURM.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables to</span>
+<span class="sd">                set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            List[str]: A list of job IDs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_jobs_info_command</span><span class="p">(</span><span class="n">states</span><span class="o">=</span><span class="s2">&quot;cd&quot;</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Retrieving list of jobs from Slurm&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Retrieving a list of completed jobs from Slurm&quot;</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="n">job_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)]</span>
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
@@ -761,15 +854,15 @@
 <span class="sd">        Get a list of all jobs from SLURM.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
+<span class="sd">                to set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            List[str]: A list of job IDs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_jobs_info_command</span><span class="p">()</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Retrieving list of jobs from Slurm&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Retrieving a list of all jobs from Slurm&quot;</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="n">job_list</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
@@ -832,8 +925,8 @@
 <span class="sd">        Args:</span>
 <span class="sd">            zipfile (str): The name of the zipped file to be unpacked.</span>
 
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
+<span class="sd">                to set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Result: The result of the command.</span>
@@ -847,6 +940,19 @@
                                         <span class="n">substitutes</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
                                         <span class="n">template</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;job_template.sh&quot;</span>
                                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a Slurm job script for a specific workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow (str): The name of the workflow.</span>
+<span class="sd">            substitutes (Dict[str, str]): A dictionary containing key-value</span>
+<span class="sd">                pairs for substituting placeholders in the job template.</span>
+<span class="sd">            template (str, optional): The filename of the job template.</span>
+<span class="sd">                Defaults to &quot;job_template.sh&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The generated Slurm job script as a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># add workflow to substitutes</span>
         <span class="n">substitutes</span><span class="p">[</span><span class="s1">&#39;jobname&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow</span>
         <span class="c1"># grab job template</span>
@@ -857,6 +963,16 @@
         <span class="k">return</span> <span class="n">job_script</span></div>
 
 <div class="viewcode-block" id="SlurmClient.workflow_params_to_subs"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.workflow_params_to_subs">[docs]</a>    <span class="k">def</span> <span class="nf">workflow_params_to_subs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert workflow parameters to substitution dictionary for job script.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params: A dictionary containing workflow parameters.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict[str, str]: A dictionary with parameter names as keys and</span>
+<span class="sd">                corresponding flags with placeholders as values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">subs</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">flags</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -873,19 +989,17 @@
 <span class="sd">        Updates the local copy of the Slurm job submission scripts.</span>
 
 <span class="sd">        This function pulls the latest version of the scripts from the Git</span>
-<span class="sd">        repository,</span>
-<span class="sd">        and copies them to the slurm_script_path directory.</span>
-
-<span class="sd">        Can also generate scripts from a template instead. This is default</span>
-<span class="sd">        behaviour if no Git repo is provided, or can be forced</span>
-<span class="sd">        via `generate_jobs` parameter.</span>
+<span class="sd">        repository and copies them to the slurm_script_path directory.</span>
+<span class="sd">        Alternatively, it can generate scripts from a template. This is the</span>
+<span class="sd">        default behavior if no Git repo is provided or can be forced via the</span>
+<span class="sd">        `generate_jobs` parameter.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            generate_jobs (bool): Whether to generate new slurm job scripts</span>
 <span class="sd">                INSTEAD (of pulling from git). Defaults to False, except</span>
 <span class="sd">                if no slurm_script_repo is configured.</span>
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
+<span class="sd">                to set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Result: The result of the command.</span>
@@ -913,50 +1027,6 @@
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_cellpose"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.run_cellpose">[docs]</a>    <span class="k">def</span> <span class="nf">run_cellpose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cellpose_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                     <span class="n">cp_model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">nuc_channel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-                     <span class="n">prob_threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-                     <span class="n">diameter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">use_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                     <span class="n">email</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                     <span class="n">time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Result</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Runs CellPose on Slurm on the specified input data using the</span>
-<span class="sd">        given parameters.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            cellpose_version (str): The version of CellPose to use.</span>
-<span class="sd">            input_data (str): The name of the input data folder containing</span>
-<span class="sd">                the input image files.</span>
-<span class="sd">            cp_model (str): The name of the CellPose model to use for</span>
-<span class="sd">                segmentation.</span>
-<span class="sd">            nuc_channel (int): The index of the nuclear channel in the</span>
-<span class="sd">                image data.</span>
-<span class="sd">            prob_threshold (float): The threshold probability value for</span>
-<span class="sd">                object segmentation.</span>
-<span class="sd">            cell_diameter (int): The approximate diameter of the cells</span>
-<span class="sd">                in pixels.</span>
-<span class="sd">            email (str): The email address to use for Slurm</span>
-<span class="sd">                job notifications. Defaults to None.</span>
-<span class="sd">            time (str): The time limit for the Slurm job in the format</span>
-<span class="sd">                &#39;HH:MM:SS&#39;. Defaults to None.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Tuple[Result, int]:</span>
-<span class="sd">                An object containing the output from starting the CellPose</span>
-<span class="sd">                job. And the jobid from Slurm, or -1 if it could not be</span>
-<span class="sd">                extracted</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;This method is deprecated, use run_workflow instead&quot;</span><span class="p">,</span>
-            <span class="ne">DeprecationWarning</span><span class="p">)</span>
-        <span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cellpose_command</span><span class="p">(</span>
-            <span class="n">cellpose_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">cp_model</span><span class="p">,</span> <span class="n">nuc_channel</span><span class="p">,</span>
-            <span class="n">prob_threshold</span><span class="p">,</span> <span class="n">diameter</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="n">use_gpu</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running CellPose job on Slurm&quot;</span><span class="p">)</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">sbatch_cmd</span><span class="p">],</span> <span class="n">sbatch_env</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">res</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">res</span><span class="p">)</span></div>
-
 <div class="viewcode-block" id="SlurmClient.run_workflow"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.run_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">run_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                      <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                      <span class="n">workflow_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -966,27 +1036,27 @@
                      <span class="o">**</span><span class="n">kwargs</span>
                      <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Result</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Runs workflow on Slurm on the specified input data using</span>
-<span class="sd">        the given parameters.</span>
+<span class="sd">        Run a specified workflow on Slurm using the given parameters.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            workflow_name (str): Name of the workflow to execute</span>
-<span class="sd">            workflow_version (str): The version of workflow to use</span>
-<span class="sd">                (image version on Slurm).</span>
-<span class="sd">            input_data (str): The name of the input data folder containing</span>
-<span class="sd">                the input image files.</span>
-<span class="sd">            email (str): The email address to use for Slurm</span>
-<span class="sd">                job notifications.</span>
-<span class="sd">            time (str): The time limit for the Slurm job in</span>
-<span class="sd">                the format HH:MM:SS.</span>
-<span class="sd">            **kwargs: Additional keyword arguments for the workflow</span>
+<span class="sd">            workflow_name (str): Name of the workflow to execute.</span>
+<span class="sd">            workflow_version (str): Version of the workflow (image version </span>
+<span class="sd">                on Slurm).</span>
+<span class="sd">            input_data (str): Name of the input data folder containing input</span>
+<span class="sd">                image files.</span>
+<span class="sd">            email (str, optional): Email address for Slurm job notifications.</span>
+<span class="sd">            time (str, optional): Time limit for the Slurm job in the </span>
+<span class="sd">                format HH:MM:SS.</span>
+<span class="sd">            **kwargs: Additional keyword arguments for the workflow.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple[Result, int]:</span>
-<span class="sd">                An object containing the output from starting the</span>
-<span class="sd">                workflow job. And the jobid from Slurm, or -1 if it</span>
-<span class="sd">                could not be extracted</span>
+<span class="sd">                A tuple containing the result of starting the workflow job and</span>
+<span class="sd">                the Slurm job ID, or -1 if the job ID could not be extracted.</span>
 
+<span class="sd">        Note:</span>
+<span class="sd">            The Slurm job ID is extracted from the result of the </span>
+<span class="sd">            `run_commands` method.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_workflow_command</span><span class="p">(</span>
             <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -998,7 +1068,7 @@
 
 <div class="viewcode-block" id="SlurmClient.extract_job_id"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.extract_job_id">[docs]</a>    <span class="k">def</span> <span class="nf">extract_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Extracts the Slurm job ID from the result of a command.</span>
+<span class="sd">        Extract the Slurm job ID from the result of a command.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            result (Result): The result of a command execution.</span>
@@ -1013,7 +1083,7 @@
         <span class="k">return</span> <span class="n">slurm_job_id</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_update_slurm_scripts_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_update_slurm_scripts_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_update_slurm_scripts_command</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Generates the command to update the Git repository containing</span>
+        <span class="sd">&quot;&quot;&quot;Generate the command to update the Git repository containing</span>
 <span class="sd">        the Slurm scripts, if necessary.</span>
 
 <span class="sd">        Returns:</span>
@@ -1029,18 +1099,17 @@
                          <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Result</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Checks the status of a Slurm jobs with the given job IDs.</span>
+<span class="sd">        Check the status of Slurm jobs with the given job IDs.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            slurm_job_ids (List[int]): The job IDs of the Slurm jobs to check.</span>
-
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables to</span>
+<span class="sd">                set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple[Dict[int, str], Result]:</span>
-<span class="sd">                The status per input id and the result of the</span>
-<span class="sd">                command execution.</span>
+<span class="sd">                A tuple containing the status per input ID and the result of </span>
+<span class="sd">                the command execution.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            SSHException: If the command execution fails or no response is</span>
@@ -1076,33 +1145,17 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">error</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.resubmit_job"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.resubmit_job">[docs]</a>    <span class="k">def</span> <span class="nf">resubmit_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        TODO: Resubmits a Slurm job with the given job ID.</span>
-
-<span class="sd">        Note, requires a workflow that can continue</span>
-<span class="sd">        instead of restarting from scratch.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            slurm_job_id (str): The ID of the Slurm job to resubmit.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Result: The result of the resubmission attempt.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># TODO requeue with more time</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">slurm_job_id</span></div>
-
 <div class="viewcode-block" id="SlurmClient.get_job_status_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_job_status_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_status_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the Slurm command to get the status of jobs with the given</span>
-<span class="sd">        job ID.</span>
+<span class="sd">        Return the Slurm command to get the status of jobs with the given</span>
+<span class="sd">        job IDs.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            slurm_job_ids (List[int]): The job IDs of the jobs to check.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            str: The Slurm command to get the status of the jobs.</span>
+<span class="sd">            str: </span>
+<span class="sd">                The Slurm command to get the status of the jobs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># concat multiple jobs if needed</span>
         <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="s2">&quot; -j &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">])</span>
@@ -1110,16 +1163,19 @@
 
 <div class="viewcode-block" id="SlurmClient.extract_data_location_from_log"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.extract_data_location_from_log">[docs]</a>    <span class="k">def</span> <span class="nf">extract_data_location_from_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                                        <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Read SLURM job logfile to find location of the data</span>
+        <span class="sd">&quot;&quot;&quot;Read SLURM job logfile to find location of the data.</span>
 
 <span class="sd">        One of the parameters is required, either id or file.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            slurm_job_id (String): Id of the slurm job</span>
-<span class="sd">            logfile (String): Path to the logfile</span>
+<span class="sd">            slurm_job_id (str): Id of the slurm job</span>
+<span class="sd">            logfile (str): Path to the logfile</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            String: Data location according to the log</span>
+<span class="sd">            str: Data location according to the log</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SSHException: If there is an issue with the command execution.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">logfile</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">slurm_job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">logfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOGFILE</span>
@@ -1134,7 +1190,7 @@
 <div class="viewcode-block" id="SlurmClient.get_workflow_parameters"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_workflow_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                 <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Retrieves the parameters of a workflow.</span>
+<span class="sd">        Retrieve the parameters of a workflow.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            workflow (str): The workflow for which to retrieve the parameters.</span>
@@ -1150,7 +1206,7 @@
         <span class="n">json_descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pull_descriptor_from_github</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
         <span class="c1"># convert to omero types</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">json_descriptor</span><span class="p">)</span>
-        <span class="n">worflow_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">workflow_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="nb">input</span> <span class="ow">in</span> <span class="n">json_descriptor</span><span class="p">[</span><span class="s1">&#39;inputs&#39;</span><span class="p">]:</span>
             <span class="c1"># filter cytomine parameters</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;cytomine&#39;</span><span class="p">):</span>
@@ -1163,14 +1219,14 @@
                 <span class="n">cmd_flag</span> <span class="o">=</span> <span class="n">cmd_flag</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
                 <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;cmd_flag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmd_flag</span>
                 <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span>
-                <span class="n">worflow_dict</span><span class="p">[</span><span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">workflow_params</span>
-        <span class="k">return</span> <span class="n">worflow_dict</span></div>
+                <span class="n">workflow_dict</span><span class="p">[</span><span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">workflow_params</span>
+        <span class="k">return</span> <span class="n">workflow_dict</span></div>
 
 <div class="viewcode-block" id="SlurmClient.convert_cytype_to_omtype"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.convert_cytype_to_omtype">[docs]</a>    <span class="k">def</span> <span class="nf">convert_cytype_to_omtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                  <span class="n">cytype</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">_default</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
                                  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Converts a Cytomine type to an OMERO type and instantiates it</span>
+<span class="sd">        Convert a Cytomine type to an OMERO type and instantiates it</span>
 <span class="sd">        with args/kwargs.</span>
 
 <span class="sd">        Note that Cytomine has a Python Client, and some conversion methods</span>
@@ -1210,7 +1266,7 @@
 
 <div class="viewcode-block" id="SlurmClient.extract_parts_from_url"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.extract_parts_from_url">[docs]</a>    <span class="k">def</span> <span class="nf">extract_parts_from_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Extracts the repository and branch information from the input URL.</span>
+<span class="sd">        Extract the repository and branch information from the input URL.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            input_url (str): The input GitHub URL.</span>
@@ -1239,7 +1295,7 @@
 
 <div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span> <span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Converts the input GitHub URL to an output URL that retrieves</span>
+<span class="sd">        Convert the input GitHub URL to an output URL that retrieves</span>
 <span class="sd">        the &#39;descriptor.json&#39; file in raw format.</span>
 
 <span class="sd">        Args:</span>
@@ -1261,7 +1317,7 @@
 
 <div class="viewcode-block" id="SlurmClient.pull_descriptor_from_github"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.pull_descriptor_from_github">[docs]</a>    <span class="k">def</span> <span class="nf">pull_descriptor_from_github</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Pulls the workflow descriptor from GitHub.</span>
+<span class="sd">        Pull the workflow descriptor from GitHub.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            workflow (str): The workflow for which to pull the descriptor.</span>
@@ -1298,21 +1354,24 @@
                              <span class="n">time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                              <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Generates the Slurm workflow command and environment variables.</span>
+<span class="sd">        Generate the Slurm workflow command and environment variables.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            workflow (str): The workflow name.</span>
-<span class="sd">            workflow_version (str): The workflow version.</span>
-<span class="sd">            input_data (str): The input data.</span>
-<span class="sd">            email (Optional[str]): The email address for notifications.</span>
-<span class="sd">                Defaults to None (= what the Slurm job script provides).</span>
-<span class="sd">            time (Optional[str]): The time limit for the job.</span>
-<span class="sd">                Defaults to None (= what the Slurm job script provides).</span>
-<span class="sd">            **kwargs: Additional workflow parameters.</span>
+<span class="sd">            workflow (str): The name of the workflow.</span>
+<span class="sd">            workflow_version (str): The version of the workflow.</span>
+<span class="sd">            input_data (str): The name of the input data folder containing</span>
+<span class="sd">                the input image files.</span>
+<span class="sd">            email (str, optional): The email address for job notifications.</span>
+<span class="sd">                Defaults to None, which defaults to what is in the job script.</span>
+<span class="sd">            time (str, optional): The time limit for the job in the </span>
+<span class="sd">                format HH:MM:SS. Defaults to None, which defaults to what </span>
+<span class="sd">                is in the job script.</span>
+<span class="sd">            **kwargs: Additional keyword arguments for the workflow.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple[str, Dict]:</span>
-<span class="sd">                The Slurm workflow command and the environment variables.</span>
+<span class="sd">                A tuple containing the Slurm workflow command and</span>
+<span class="sd">                the environment variables.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">model_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">[</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
@@ -1346,31 +1405,31 @@
 
 <div class="viewcode-block" id="SlurmClient.workflow_params_to_envvars"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.workflow_params_to_envvars">[docs]</a>    <span class="k">def</span> <span class="nf">workflow_params_to_envvars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Converts workflow parameters to environment variables.</span>
+<span class="sd">        Convert workflow parameters to environment variables.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            **kwargs: Workflow parameters.</span>
+<span class="sd">            **kwargs: Additional keyword arguments for the workflow.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Dict: The environment variables.</span>
+<span class="sd">            Dict: A dictionary containing the environment variables.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">workflow_env</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{value}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span>
                         <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">workflow_env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">workflow_env</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_cellpose_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_cellpose_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_cellpose_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_version</span><span class="p">,</span>
-                             <span class="n">input_data</span><span class="p">,</span>
-                             <span class="n">cp_model</span><span class="p">,</span>
-                             <span class="n">nuc_channel</span><span class="p">,</span>
-                             <span class="n">prob_threshold</span><span class="p">,</span>
-                             <span class="n">cell_diameter</span><span class="p">,</span>
-                             <span class="n">email</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                             <span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                             <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                             <span class="n">model</span><span class="o">=</span><span class="s2">&quot;cellpose&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<div class="viewcode-block" id="SlurmClient.get_cellpose_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_cellpose_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_cellpose_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                             <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                             <span class="n">cp_model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                             <span class="n">nuc_channel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                             <span class="n">prob_threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                             <span class="n">cell_diameter</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                             <span class="n">email</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                             <span class="n">time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                             <span class="n">use_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                             <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the command and environment dictionary to run a CellPose job</span>
+<span class="sd">        Return the command and environment dictionary to run a CellPose job</span>
 <span class="sd">        on the Slurm workload manager.</span>
 <span class="sd">        A specific example of using the generic &#39;get_workflow_command&#39;.</span>
 
@@ -1383,14 +1442,14 @@
 <span class="sd">            prob_threshold (float): The probability threshold for</span>
 <span class="sd">                nuclei detection.</span>
 <span class="sd">            cell_diameter (float): The expected cell diameter in pixels.</span>
-<span class="sd">            email (str): The email address to send notifications to.</span>
+<span class="sd">            email (Optional[str]): The email address to send notifications to.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            time (str): The maximum time for the job to run.</span>
+<span class="sd">            time (Optional[str]): The maximum time for the job to run.</span>
 <span class="sd">                Defaults to None.</span>
+<span class="sd">            use_gpu (bool): Whether to use GPU for the CellPose job.</span>
+<span class="sd">                Defaults to True.</span>
 <span class="sd">            model (str): The name of the folder of the Docker image to use.</span>
 <span class="sd">                Defaults to &quot;cellpose&quot;.</span>
-<span class="sd">            job_script (str): The name of the Slurm job script to use.</span>
-<span class="sd">                Defaults to &quot;cellpose.sh&quot;.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple[str, dict]:</span>
@@ -1410,7 +1469,7 @@
 
 <div class="viewcode-block" id="SlurmClient.copy_zip_locally"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.copy_zip_locally">[docs]</a>    <span class="k">def</span> <span class="nf">copy_zip_locally</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_tmp_storage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span>
                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot; Copy zip from Slurm to local server</span>
+        <span class="sd">&quot;&quot;&quot; Copy a zip file from Slurm to the local server.</span>
 
 <span class="sd">        Note about (Transfer)Result:</span>
 
@@ -1422,8 +1481,8 @@
 <span class="sd">        either an OSError or an error from within Paramiko.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            local_tmp_storage (String): Path to store zip</span>
-<span class="sd">            filename (String): Zip filename on Slurm</span>
+<span class="sd">            local_tmp_storage (String): Path to store the zip file locally.</span>
+<span class="sd">            filename (String): Zip filename on Slurm.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            TransferResult: The result of the scp attempt.</span>
@@ -1443,9 +1502,8 @@
 <span class="sd">            data_location (String): Folder on SLURM with the &quot;data/out&quot;</span>
 <span class="sd">                subfolder.</span>
 <span class="sd">            filename (String): Name to give to the zipfile.</span>
-
-<span class="sd">            env (Dict[str, str]): Optional environment variables to set when</span>
-<span class="sd">                running the command. Defaults to None.</span>
+<span class="sd">            env (Dict[str, str], optional): Optional environment variables to </span>
+<span class="sd">                set when running the command. Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Result: The result of the zip attempt.</span>
@@ -1475,7 +1533,7 @@
                                <span class="n">local_tmp_storage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;/tmp/&quot;</span><span class="p">,</span>
                                <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
                                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">TransferResult</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Copy the logfile of given SLURM job to local server</span>
+        <span class="sd">&quot;&quot;&quot;Copy the logfile of the given SLURM job to the local server.</span>
 
 <span class="sd">        Note about (Transfer)Result:</span>
 
@@ -1487,7 +1545,11 @@
 <span class="sd">        either an OSError or an error from within Paramiko.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            slurm_job_id (String): ID of the SLURM job</span>
+<span class="sd">            slurm_job_id (str): The ID of the SLURM job.</span>
+<span class="sd">            local_tmp_storage (str, optional): Path to store the logfile </span>
+<span class="sd">                locally. Defaults to &quot;/tmp/&quot;.</span>
+<span class="sd">            logfile (str, optional): Path to the logfile on the SLURM server.</span>
+<span class="sd">                Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple: directory, full path of the logfile, and TransferResult</span>
@@ -1504,7 +1566,8 @@
         <span class="k">return</span> <span class="n">local_tmp_storage</span><span class="p">,</span> <span class="n">export_file</span><span class="p">,</span> <span class="n">result</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_unzip_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_unzip_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_unzip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                          <span class="n">filter_filetypes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.zarr *.tiff *.tif&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+                          <span class="n">filter_filetypes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.zarr *.tiff *.tif&quot;</span>
+                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate a command string for unzipping a data archive and creating</span>
 <span class="sd">        required directories for Slurm jobs.</span>
@@ -1536,7 +1599,7 @@
 <div class="viewcode-block" id="SlurmClient.get_image_versions_and_data_files"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_image_versions_and_data_files">[docs]</a>    <span class="k">def</span> <span class="nf">get_image_versions_and_data_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span>
                                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Gets the available image versions and (input) data files for a</span>
+<span class="sd">        Retrieve the available image versions and input data files for a</span>
 <span class="sd">        given model.</span>
 
 <span class="sd">        Args:</span>
@@ -1544,9 +1607,10 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple[List[str], List[str]]:</span>
-<span class="sd">                A tuple of 2 lists, the first containing the available image</span>
-<span class="sd">                versions</span>
-<span class="sd">                and the second containing the available data files.</span>
+<span class="sd">                A tuple containing two lists:</span>
+<span class="sd">                - The first list includes the available image versions, </span>
+<span class="sd">                    sorted in descending order.</span>
+<span class="sd">                - The second list includes the available data files.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            ValueError: If the provided model is not found in the</span>
@@ -1578,27 +1642,34 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">           Tuple[Dict[str, List[str]], List[str]]:</span>
-<span class="sd">                a dictionary, mapping models to available</span>
-<span class="sd">                versions and List of available input data folders</span>
+<span class="sd">                A tuple containing:</span>
+<span class="sd">                - A dictionary mapping models to available versions.</span>
+<span class="sd">                - A list of available input data folders.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">resultdict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">cmdlist</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="n">pathcmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_VERSION_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="n">slurm_images_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">,</span>
                 <span class="n">image_path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
             <span class="n">cmdlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pathcmd</span><span class="p">)</span>
+
         <span class="c1"># Add data path too</span>
         <span class="n">cmdlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_DATA_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
             <span class="n">slurm_data_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">))</span>
-        <span class="c1"># split responses per command</span>
+
+        <span class="c1"># Split responses per command</span>
         <span class="n">response_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands_split_out</span><span class="p">(</span><span class="n">cmdlist</span><span class="p">)</span>
-        <span class="c1"># split lines further into sublists</span>
+
+        <span class="c1"># Split lines further into sublists</span>
         <span class="n">response_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
                          <span class="k">for</span> <span class="n">response</span> <span class="ow">in</span> <span class="n">response_list</span><span class="p">]</span>
+
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">):</span>
-            <span class="c1"># return highest version first</span>
+            <span class="c1"># Return highest version first</span>
             <span class="n">resultdict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">response_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">resultdict</span><span class="p">,</span> <span class="n">response_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div></div>
 </pre></div>
 

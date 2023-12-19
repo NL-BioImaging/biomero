@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Omero Slurm Client's documentation!
+Welcome to BIOMERO's documentation!
 ==============================================
 
 
@@ -12,7 +12,7 @@ Welcome to Omero Slurm Client's documentation!
 ***********************
 
 .. toctree::
-   :caption: Get Started
+   :caption: BIOMERO - Get Started
    :maxdepth: 4
 
    readme_link

@@ -1,4 +1,17 @@
-# SLURMCLIENT
+# -*- coding: utf-8 -*-
+# Copyright 2023 Torec Luik
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from typing import Dict, List, Optional, Tuple, Any
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
@@ -10,7 +23,6 @@ import requests_cache
 import importlib
 import logging
 import time as timesleep
-import warnings
 from string import Template
 from importlib_resources import files
 import io
@@ -26,7 +38,7 @@ class SlurmClient(Connection):
     This class extends the Connection class, adding methods and
     attributes specific to working with Slurm.
 
-    SlurmClient accepts the same arguments as Connection. So below only
+    SlurmClient accepts the same arguments as Connection. Below only
     mentions the added ones:
 
     The easiest way to set this client up is by using a slurm-config.ini
@@ -51,11 +63,6 @@ class SlurmClient(Connection):
             the Slurm job submission scripts on Slurm.
         slurm_script_repo (str): The git https URL for cloning the repo
             containing the Slurm job submission scripts. Optional.
-        init_slurm (bool): Whether to setup the required structures on Slurm
-            after initiating this client. This includes creating missing
-            folders, downloading container images, cloning git, et cetera.
-            This will take a while at first, but will validate your setup.
-            Defaults to False.
 
     Example:
         # Create a SlurmClient object as contextmanager
@@ -94,7 +101,8 @@ class SlurmClient(Connection):
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h {slurm_images_path}/{image_path} | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
     # Note, grep returns exitcode 1 if no match is found!
-    # This will translate into a UnexpectedExit error, so mute that if you don't care about empty.
+    # This will translate into a UnexpectedExit error, so mute that if you
+    # don't care about empty.
     # Like below with the "|| :".
     # Data could legit be empty.
     _DATA_CMD = "ls -h {slurm_data_path} | grep -oP '.+(?=.zip)' || :"
@@ -130,6 +138,76 @@ class SlurmClient(Connection):
                  slurm_script_repo: str = None,
                  init_slurm: bool = False,
                  ):
+        """Initializes a new instance of the SlurmClient class.
+
+        It is preferable to use #from_config(...) method to initialize
+        parameters from a config file.
+
+        Args:
+            host (str, optional): The hostname or IP address of the remote
+                server. Defaults to _DEFAULT_HOST.
+            user (str, optional): The username to use when connecting to 
+                the remote server. Defaults to None, which defaults 
+                to config.user.
+            port (int, optional): The SSH port to use when connecting.
+                Defaults to None, which defaults to config.port.
+            config (str, optional): Path to the SSH config file.
+                Defaults to None, which defaults to your SSH config file.
+            gateway (Connection, optional): An optional gateway for connecting 
+                through a jump host. Defaults to None.
+            forward_agent (bool, optional): Whether to forward the local SSH 
+                agent to the remote server. Defaults to None, which 
+                defaults to config.forward_agent.
+            connect_timeout (int, optional): Timeout for establishing the SSH 
+                connection. Defaults to None, which defaults 
+                to config.timeouts.connect.
+            connect_kwargs (dict, optional): Additional keyword arguments for 
+                the underlying SSH connection. Handed verbatim to 
+                `SSHClient.connect <paramiko.client.SSHClient.connect>`. 
+                Defaults to None. 
+            inline_ssh_env (bool, optional): Whether to use inline SSH
+                environment. This is necessary if the remote server has 
+                a restricted ``AcceptEnv`` setting (which is the common 
+                default). Defaults to _DEFAULT_INLINE_SSH_ENV.
+            slurm_data_path (str, optional): The path to the directory
+                containing the data files for Slurm jobs.
+                Defaults to _DEFAULT_SLURM_DATA_PATH.
+            slurm_images_path (str, optional): The path to the directory
+                containing the Singularity images for Slurm jobs.
+                Defaults to _DEFAULT_SLURM_IMAGES_PATH.
+            slurm_converters_path (str, optional): The path to the directory
+                containing the Singularity images for file converters.
+                Defaults to _DEFAULT_SLURM_CONVERTERS_PATH.
+            slurm_model_paths (dict, optional): A dictionary containing the 
+                paths to the Singularity images for specific Slurm job models.
+                Defaults to None.
+            slurm_model_repos (dict, optional): A dictionary containing the 
+                git repositories of Singularity images for specific Slurm 
+                job models.
+                Defaults to None.
+            slurm_model_images (dict, optional): A dictionary containing the 
+                dockerhub of the Singularity images for specific Slurm 
+                job models. Will fill automatically from the data in the git 
+                repository if you set init_slurm.
+                Defaults to None.
+            slurm_model_jobs (dict, optional): A dictionary containing
+                information about specific Slurm job models.
+                Defaults to None.
+            slurm_model_jobs_params (dict, optional): A dictionary containing
+                parameters for specific Slurm job models.
+                Defaults to None.
+            slurm_script_path (str, optional): The path to the directory
+                containing the Slurm job submission scripts on Slurm.
+                Defaults to _DEFAULT_SLURM_GIT_SCRIPT_PATH.
+            slurm_script_repo (str, optional): The git https URL for cloning
+                the repo containing the Slurm job submission scripts.
+                Defaults to None.
+            init_slurm (bool): Whether to set up the required structures 
+                on Slurm after initiating this client. This includes creating 
+                missing folders, downloading container images, cloning git,etc.
+                This will take a while at first but will validate your setup.
+                Defaults to False to save time.
+        """
         super(SlurmClient, self).__init__(host,
                                           user,
                                           port,
@@ -218,7 +296,7 @@ class SlurmClient(Connection):
             elif self.slurm_script_path:
                 # generate scripts
                 self.update_slurm_scripts(generate_jobs=True)
-                
+
             # 3. Setup converters
             convert_cmds = []
             if self.slurm_converters_path:
@@ -232,7 +310,7 @@ class SlurmClient(Connection):
             # currently known converters
             # 3a. ZARR to TIFF
             # TODO extract these values to e.g. config if we have more
-            convert_name = "convert_zarr_to_tiff"          
+            convert_name = "convert_zarr_to_tiff"
             convert_py = f"{convert_name}.py"
             convert_script_local = files("resources").joinpath(
                 convert_py)
@@ -249,11 +327,11 @@ class SlurmClient(Connection):
                 if self.slurm_images_path:
                     # TODO Change the tmp dir?
                     # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
-                    
+
                     # only if file does not exist yet
                     # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
                     # EDIT -- NO, then we can't update! Force rebuild!
-                    
+
                     # download /build new container
                     convert_cmds.append(
                         f"singularity build -F {convert_name}.sif {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
@@ -408,12 +486,27 @@ class SlurmClient(Connection):
                           data_location: str = None,
                           logfile: str = None,
                           ) -> Result:
-        """ Cleanup zip and unzipped files/folders
+        """
+        Cleanup zip and unzipped files/folders associated with a Slurm job.
 
         Args:
-            slurm_job_id (str): Script job id
-            filename (str): Zip filename on Slurm
-            logfile (str): Logfile of slurm. Optional.
+            slurm_job_id (str): The job ID of the Slurm script.
+            filename (str): The zip filename on Slurm.
+            data_location (str, optional): The location of data files on Slurm.
+                If not provided, it will be extracted from the log file.
+            logfile (str, optional): The log file of the Slurm job. 
+                If not provided, a default log file will be used.
+
+        Returns:
+            Result: The result of the cleanup operation.
+
+        Note:
+            The cleanup process involves removing the specified zip file, 
+            the log file, and associated data files and folders.
+
+        Example:
+            # Cleanup temporary files for a Slurm job
+            client.cleanup_tmp_files("12345", "output.zip")
         """
         cmds = []
         # zip
@@ -448,7 +541,7 @@ class SlurmClient(Connection):
 
         Returns:
             bool:
-                True if the validation is successfully,
+                True if the validation is successful,
                 False otherwise.
         """
         connected = self.run('echo " "').ok
@@ -467,7 +560,7 @@ class SlurmClient(Connection):
 
         Args:
             log_file (str): The path to the log file.
-            n (int): The number of recent log entries to retrieve.
+            n (int, optional): The number of recent log entries to retrieve.
                 Defaults to 10.
 
         Returns:
@@ -477,18 +570,18 @@ class SlurmClient(Connection):
 
     def get_active_job_progress(self,
                                 slurm_job_id: str,
-                                pattern: str = "\d+%",
+                                pattern: str = r"\d+%",
                                 env: Optional[Dict[str, str]] = None) -> str:
         """
-        Get the progress of an active Slurm job, from its logfiles.
+        Get the progress of an active Slurm job from its logfiles.
 
         Args:
             slurm_job_id (str): The ID of the Slurm job.
             pattern (str): The pattern to match in the job log to extract
-                the progress (default: "\d+%").
+                the progress (default: r"\d+%").
 
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables 
+                to set when running the command. Defaults to None.
 
         Returns:
             str: The progress of the Slurm job.
@@ -503,12 +596,12 @@ class SlurmClient(Connection):
             result = self.run_commands(cmdlist, env=env)
         except Exception as e:
             logger.error(f"Issue with run command: {e}")
-        # match some pattern
+        # Match the specified pattern in the result's stdout
         try:
             latest_progress = re.findall(
                 pattern, result.stdout)[-1]
         except Exception as e:
-            logger.error(f"Issue with print commands: {e}")
+            logger.error(f"Issue with extracting progress: {e}")
 
         return f"Progress: {latest_progress}\n"
 
@@ -517,8 +610,8 @@ class SlurmClient(Connection):
                      sep: str = ' && ',
                      **kwargs) -> Result:
         """
-        Runs a list of shell commands consecutively,
-        ensuring success of each before calling the next.
+        Run a list of shell commands consecutively on the Slurm cluster,
+        ensuring the success of each before proceeding to the next.
 
         The environment variables can be set using the `env` argument.
         These commands retain the same session (environment variables
@@ -526,11 +619,10 @@ class SlurmClient(Connection):
 
         Args:
             cmdlist (List[str]): A list of shell commands to run on Slurm.
-
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
-            sep (str): The separator used to concatenate the commands.
-                Defaults to ' && '.
+            env (Dict[str, str], optional): Optional environment variables to
+                set when running the command. Defaults to None.
+            sep (str, optional): The separator used to concatenate the 
+                commands. Defaults to ' && '.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -565,7 +657,8 @@ class SlurmClient(Connection):
             **kwargs: Additional keyword arguments for the class constructor.
 
         Returns:
-            object: An instance of the specified class or None
+            object: An instance of the specified class, or None if the class or
+                module does not exist.
         """
         try:
             module_ = importlib.import_module(module_name)
@@ -592,9 +685,8 @@ class SlurmClient(Connection):
 
         Args:
             cmdlist (List[str]): A list of shell commands to run.
-
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables 
+                to set when running the command. Defaults to None.
 
         Returns:
             List[str]:
@@ -617,6 +709,7 @@ class SlurmClient(Connection):
             split_responses = response.split(self._OUT_SEP)
             return split_responses
         else:
+            # If the result is not ok, log the error and raise an SSHException
             error = f"Result is not ok: {result}"
             logger.error(error)
             raise SSHException(error)
@@ -627,8 +720,8 @@ class SlurmClient(Connection):
         Get a list of active jobs from SLURM.
 
         Args:
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables to 
+                set when running the command. Defaults to None.
 
         Returns:
             List[str]: A list of job IDs.
@@ -647,15 +740,15 @@ class SlurmClient(Connection):
         Get a list of completed jobs from SLURM.
 
         Args:
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables to
+                set when running the command. Defaults to None.
 
         Returns:
             List[str]: A list of job IDs.
         """
 
         cmd = self.get_jobs_info_command(states="cd")
-        logger.info("Retrieving list of jobs from Slurm")
+        logger.info("Retrieving a list of completed jobs from Slurm")
         result = self.run_commands([cmd], env=env)
         job_list = [job.strip() for job in result.stdout.strip().split('\n')]
         job_list.reverse()
@@ -666,15 +759,15 @@ class SlurmClient(Connection):
         Get a list of all jobs from SLURM.
 
         Args:
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables 
+                to set when running the command. Defaults to None.
 
         Returns:
             List[str]: A list of job IDs.
         """
 
         cmd = self.get_jobs_info_command()
-        logger.info("Retrieving list of jobs from Slurm")
+        logger.info("Retrieving a list of all jobs from Slurm")
         result = self.run_commands([cmd], env=env)
         job_list = result.stdout.strip().split('\n')
         job_list.reverse()
@@ -737,8 +830,8 @@ class SlurmClient(Connection):
         Args:
             zipfile (str): The name of the zipped file to be unpacked.
 
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables 
+                to set when running the command. Defaults to None.
 
         Returns:
             Result: The result of the command.
@@ -752,6 +845,19 @@ class SlurmClient(Connection):
                                         substitutes: Dict[str, str],
                                         template: str = "job_template.sh"
                                         ) -> str:
+        """
+        Generate a Slurm job script for a specific workflow.
+
+        Args:
+            workflow (str): The name of the workflow.
+            substitutes (Dict[str, str]): A dictionary containing key-value
+                pairs for substituting placeholders in the job template.
+            template (str, optional): The filename of the job template.
+                Defaults to "job_template.sh".
+
+        Returns:
+            str: The generated Slurm job script as a string.
+        """
         # add workflow to substitutes
         substitutes['jobname'] = workflow
         # grab job template
@@ -762,6 +868,16 @@ class SlurmClient(Connection):
         return job_script
 
     def workflow_params_to_subs(self, params) -> Dict[str, str]:
+        """
+        Convert workflow parameters to substitution dictionary for job script.
+
+        Args:
+            params: A dictionary containing workflow parameters.
+
+        Returns:
+            Dict[str, str]: A dictionary with parameter names as keys and
+                corresponding flags with placeholders as values.
+        """
         subs = {}
         flags = []
         for _, param in params.items():
@@ -778,19 +894,17 @@ class SlurmClient(Connection):
         Updates the local copy of the Slurm job submission scripts.
 
         This function pulls the latest version of the scripts from the Git
-        repository,
-        and copies them to the slurm_script_path directory.
-
-        Can also generate scripts from a template instead. This is default
-        behaviour if no Git repo is provided, or can be forced
-        via `generate_jobs` parameter.
+        repository and copies them to the slurm_script_path directory.
+        Alternatively, it can generate scripts from a template. This is the
+        default behavior if no Git repo is provided or can be forced via the
+        `generate_jobs` parameter.
 
         Args:
             generate_jobs (bool): Whether to generate new slurm job scripts
                 INSTEAD (of pulling from git). Defaults to False, except
                 if no slurm_script_repo is configured.
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables 
+                to set when running the command. Defaults to None.
 
         Returns:
             Result: The result of the command.
@@ -818,50 +932,6 @@ class SlurmClient(Connection):
             result = self.run_commands([cmd], env=env)
         return result
 
-    def run_cellpose(self, cellpose_version: str, input_data: str,
-                     cp_model: str, nuc_channel: int,
-                     prob_threshold: float,
-                     diameter: int, use_gpu: bool = True,
-                     email: Optional[str] = None,
-                     time: Optional[str] = None) -> Tuple[Result, int]:
-        """
-        Runs CellPose on Slurm on the specified input data using the
-        given parameters.
-
-        Args:
-            cellpose_version (str): The version of CellPose to use.
-            input_data (str): The name of the input data folder containing
-                the input image files.
-            cp_model (str): The name of the CellPose model to use for
-                segmentation.
-            nuc_channel (int): The index of the nuclear channel in the
-                image data.
-            prob_threshold (float): The threshold probability value for
-                object segmentation.
-            cell_diameter (int): The approximate diameter of the cells
-                in pixels.
-            email (str): The email address to use for Slurm
-                job notifications. Defaults to None.
-            time (str): The time limit for the Slurm job in the format
-                'HH:MM:SS'. Defaults to None.
-
-        Returns:
-            Tuple[Result, int]:
-                An object containing the output from starting the CellPose
-                job. And the jobid from Slurm, or -1 if it could not be
-                extracted
-
-        """
-        warnings.warn(
-            "This method is deprecated, use run_workflow instead",
-            DeprecationWarning)
-        sbatch_cmd, sbatch_env = self.get_cellpose_command(
-            cellpose_version, input_data, cp_model, nuc_channel,
-            prob_threshold, diameter, email, time, use_gpu=use_gpu)
-        logger.info("Running CellPose job on Slurm")
-        res = self.run_commands([sbatch_cmd], sbatch_env)
-        return res, self.extract_job_id(res)
-
     def run_workflow(self,
                      workflow_name: str,
                      workflow_version: str,
@@ -871,27 +941,27 @@ class SlurmClient(Connection):
                      **kwargs
                      ) -> Tuple[Result, int]:
         """
-        Runs workflow on Slurm on the specified input data using
-        the given parameters.
+        Run a specified workflow on Slurm using the given parameters.
 
         Args:
-            workflow_name (str): Name of the workflow to execute
-            workflow_version (str): The version of workflow to use
-                (image version on Slurm).
-            input_data (str): The name of the input data folder containing
-                the input image files.
-            email (str): The email address to use for Slurm
-                job notifications.
-            time (str): The time limit for the Slurm job in
-                the format HH:MM:SS.
-            **kwargs: Additional keyword arguments for the workflow
+            workflow_name (str): Name of the workflow to execute.
+            workflow_version (str): Version of the workflow (image version 
+                on Slurm).
+            input_data (str): Name of the input data folder containing input
+                image files.
+            email (str, optional): Email address for Slurm job notifications.
+            time (str, optional): Time limit for the Slurm job in the 
+                format HH:MM:SS.
+            **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
             Tuple[Result, int]:
-                An object containing the output from starting the
-                workflow job. And the jobid from Slurm, or -1 if it
-                could not be extracted
+                A tuple containing the result of starting the workflow job and
+                the Slurm job ID, or -1 if the job ID could not be extracted.
 
+        Note:
+            The Slurm job ID is extracted from the result of the 
+            `run_commands` method.
         """
         sbatch_cmd, sbatch_env = self.get_workflow_command(
             workflow_name, workflow_version, input_data, email, time, **kwargs)
@@ -903,7 +973,7 @@ class SlurmClient(Connection):
 
     def extract_job_id(self, result: Result) -> int:
         """
-        Extracts the Slurm job ID from the result of a command.
+        Extract the Slurm job ID from the result of a command.
 
         Args:
             result (Result): The result of a command execution.
@@ -918,7 +988,7 @@ class SlurmClient(Connection):
         return slurm_job_id
 
     def get_update_slurm_scripts_command(self) -> str:
-        """Generates the command to update the Git repository containing
+        """Generate the command to update the Git repository containing
         the Slurm scripts, if necessary.
 
         Returns:
@@ -934,18 +1004,17 @@ class SlurmClient(Connection):
                          env: Optional[Dict[str, str]] = None
                          ) -> Tuple[Dict[int, str], Result]:
         """
-        Checks the status of a Slurm jobs with the given job IDs.
+        Check the status of Slurm jobs with the given job IDs.
 
         Args:
             slurm_job_ids (List[int]): The job IDs of the Slurm jobs to check.
-
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables to
+                set when running the command. Defaults to None.
 
         Returns:
             Tuple[Dict[int, str], Result]:
-                The status per input id and the result of the
-                command execution.
+                A tuple containing the status per input ID and the result of 
+                the command execution.
 
         Raises:
             SSHException: If the command execution fails or no response is
@@ -981,33 +1050,17 @@ class SlurmClient(Connection):
             logger.error(error)
             raise SSHException(error)
 
-    def resubmit_job(self, slurm_job_id: str) -> Result:
-        """
-        TODO: Resubmits a Slurm job with the given job ID.
-
-        Note, requires a workflow that can continue
-        instead of restarting from scratch.
-
-        Args:
-            slurm_job_id (str): The ID of the Slurm job to resubmit.
-
-        Returns:
-            Result: The result of the resubmission attempt.
-        """
-        # TODO requeue with more time
-        raise NotImplementedError()
-        return slurm_job_id
-
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """
-        Returns the Slurm command to get the status of jobs with the given
-        job ID.
+        Return the Slurm command to get the status of jobs with the given
+        job IDs.
 
         Args:
             slurm_job_ids (List[int]): The job IDs of the jobs to check.
 
         Returns:
-            str: The Slurm command to get the status of the jobs.
+            str: 
+                The Slurm command to get the status of the jobs.
         """
         # concat multiple jobs if needed
         slurm_job_id = " -j ".join([str(id) for id in slurm_job_ids])
@@ -1015,16 +1068,19 @@ class SlurmClient(Connection):
 
     def extract_data_location_from_log(self, slurm_job_id: str = None,
                                        logfile: str = None) -> str:
-        """Read SLURM job logfile to find location of the data
+        """Read SLURM job logfile to find location of the data.
 
         One of the parameters is required, either id or file.
 
         Args:
-            slurm_job_id (String): Id of the slurm job
-            logfile (String): Path to the logfile
+            slurm_job_id (str): Id of the slurm job
+            logfile (str): Path to the logfile
 
         Returns:
-            String: Data location according to the log
+            str: Data location according to the log
+
+        Raises:
+            SSHException: If there is an issue with the command execution.
         """
         if logfile is None and slurm_job_id is not None:
             logfile = self._LOGFILE
@@ -1039,7 +1095,7 @@ class SlurmClient(Connection):
     def get_workflow_parameters(self,
                                 workflow: str) -> Dict[str, Dict[str, Any]]:
         """
-        Retrieves the parameters of a workflow.
+        Retrieve the parameters of a workflow.
 
         Args:
             workflow (str): The workflow for which to retrieve the parameters.
@@ -1055,7 +1111,7 @@ class SlurmClient(Connection):
         json_descriptor = self.pull_descriptor_from_github(workflow)
         # convert to omero types
         logger.debug(json_descriptor)
-        worflow_dict = {}
+        workflow_dict = {}
         for input in json_descriptor['inputs']:
             # filter cytomine parameters
             if not input['id'].startswith('cytomine'):
@@ -1068,14 +1124,14 @@ class SlurmClient(Connection):
                 cmd_flag = cmd_flag.replace("@id", input['id'])
                 workflow_params['cmd_flag'] = cmd_flag
                 workflow_params['description'] = input['description']
-                worflow_dict[input['id']] = workflow_params
-        return worflow_dict
+                workflow_dict[input['id']] = workflow_params
+        return workflow_dict
 
     def convert_cytype_to_omtype(self,
                                  cytype: str, _default, *args, **kwargs
                                  ) -> Any:
         """
-        Converts a Cytomine type to an OMERO type and instantiates it
+        Convert a Cytomine type to an OMERO type and instantiates it
         with args/kwargs.
 
         Note that Cytomine has a Python Client, and some conversion methods
@@ -1115,7 +1171,7 @@ class SlurmClient(Connection):
 
     def extract_parts_from_url(self, input_url: str) -> Tuple[List[str], str]:
         """
-        Extracts the repository and branch information from the input URL.
+        Extract the repository and branch information from the input URL.
 
         Args:
             input_url (str): The input GitHub URL.
@@ -1144,7 +1200,7 @@ class SlurmClient(Connection):
 
     def convert_url(self, input_url: str) -> str:
         """
-        Converts the input GitHub URL to an output URL that retrieves
+        Convert the input GitHub URL to an output URL that retrieves
         the 'descriptor.json' file in raw format.
 
         Args:
@@ -1166,7 +1222,7 @@ class SlurmClient(Connection):
 
     def pull_descriptor_from_github(self, workflow: str) -> Dict:
         """
-        Pulls the workflow descriptor from GitHub.
+        Pull the workflow descriptor from GitHub.
 
         Args:
             workflow (str): The workflow for which to pull the descriptor.
@@ -1203,21 +1259,24 @@ class SlurmClient(Connection):
                              time: Optional[str] = None,
                              **kwargs) -> Tuple[str, Dict]:
         """
-        Generates the Slurm workflow command and environment variables.
+        Generate the Slurm workflow command and environment variables.
 
         Args:
-            workflow (str): The workflow name.
-            workflow_version (str): The workflow version.
-            input_data (str): The input data.
-            email (Optional[str]): The email address for notifications.
-                Defaults to None (= what the Slurm job script provides).
-            time (Optional[str]): The time limit for the job.
-                Defaults to None (= what the Slurm job script provides).
-            **kwargs: Additional workflow parameters.
+            workflow (str): The name of the workflow.
+            workflow_version (str): The version of the workflow.
+            input_data (str): The name of the input data folder containing
+                the input image files.
+            email (str, optional): The email address for job notifications.
+                Defaults to None, which defaults to what is in the job script.
+            time (str, optional): The time limit for the job in the 
+                format HH:MM:SS. Defaults to None, which defaults to what 
+                is in the job script.
+            **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
             Tuple[str, Dict]:
-                The Slurm workflow command and the environment variables.
+                A tuple containing the Slurm workflow command and
+                the environment variables.
 
         """
         model_path = self.slurm_model_paths[workflow.lower()]
@@ -1251,31 +1310,31 @@ class SlurmClient(Connection):
 
     def workflow_params_to_envvars(self, **kwargs) -> Dict:
         """
-        Converts workflow parameters to environment variables.
+        Convert workflow parameters to environment variables.
 
         Args:
-            **kwargs: Workflow parameters.
+            **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
-            Dict: The environment variables.
+            Dict: A dictionary containing the environment variables.
         """
         workflow_env = {key.upper(): f"{value}" for key,
                         value in kwargs.items()}
         logger.debug(workflow_env)
         return workflow_env
 
-    def get_cellpose_command(self, image_version,
-                             input_data,
-                             cp_model,
-                             nuc_channel,
-                             prob_threshold,
-                             cell_diameter,
-                             email=None,
-                             time=None,
-                             use_gpu=True,
-                             model="cellpose") -> Tuple[str, dict]:
+    def get_cellpose_command(self, image_version: str,
+                             input_data: str,
+                             cp_model: str,
+                             nuc_channel: int,
+                             prob_threshold: float,
+                             cell_diameter: float,
+                             email: Optional[str] = None,
+                             time: Optional[str] = None,
+                             use_gpu: bool = True,
+                             model: str = "cellpose") -> Tuple[str, Dict]:
         """
-        Returns the command and environment dictionary to run a CellPose job
+        Return the command and environment dictionary to run a CellPose job
         on the Slurm workload manager.
         A specific example of using the generic 'get_workflow_command'.
 
@@ -1288,14 +1347,14 @@ class SlurmClient(Connection):
             prob_threshold (float): The probability threshold for
                 nuclei detection.
             cell_diameter (float): The expected cell diameter in pixels.
-            email (str): The email address to send notifications to.
+            email (Optional[str]): The email address to send notifications to.
                 Defaults to None.
-            time (str): The maximum time for the job to run.
+            time (Optional[str]): The maximum time for the job to run.
                 Defaults to None.
+            use_gpu (bool): Whether to use GPU for the CellPose job.
+                Defaults to True.
             model (str): The name of the folder of the Docker image to use.
                 Defaults to "cellpose".
-            job_script (str): The name of the Slurm job script to use.
-                Defaults to "cellpose.sh".
 
         Returns:
             Tuple[str, dict]:
@@ -1315,7 +1374,7 @@ class SlurmClient(Connection):
 
     def copy_zip_locally(self, local_tmp_storage: str, filename: str
                          ) -> TransferResult:
-        """ Copy zip from Slurm to local server
+        """ Copy a zip file from Slurm to the local server.
 
         Note about (Transfer)Result:
 
@@ -1327,8 +1386,8 @@ class SlurmClient(Connection):
         either an OSError or an error from within Paramiko.
 
         Args:
-            local_tmp_storage (String): Path to store zip
-            filename (String): Zip filename on Slurm
+            local_tmp_storage (String): Path to store the zip file locally.
+            filename (String): Zip filename on Slurm.
 
         Returns:
             TransferResult: The result of the scp attempt.
@@ -1348,9 +1407,8 @@ class SlurmClient(Connection):
             data_location (String): Folder on SLURM with the "data/out"
                 subfolder.
             filename (String): Name to give to the zipfile.
-
-            env (Dict[str, str]): Optional environment variables to set when
-                running the command. Defaults to None.
+            env (Dict[str, str], optional): Optional environment variables to 
+                set when running the command. Defaults to None.
 
         Returns:
             Result: The result of the zip attempt.
@@ -1380,7 +1438,7 @@ class SlurmClient(Connection):
                                local_tmp_storage: str = "/tmp/",
                                logfile: str = None
                                ) -> Tuple[str, str, TransferResult]:
-        """Copy the logfile of given SLURM job to local server
+        """Copy the logfile of the given SLURM job to the local server.
 
         Note about (Transfer)Result:
 
@@ -1392,7 +1450,11 @@ class SlurmClient(Connection):
         either an OSError or an error from within Paramiko.
 
         Args:
-            slurm_job_id (String): ID of the SLURM job
+            slurm_job_id (str): The ID of the SLURM job.
+            local_tmp_storage (str, optional): Path to store the logfile 
+                locally. Defaults to "/tmp/".
+            logfile (str, optional): Path to the logfile on the SLURM server.
+                Defaults to None.
 
         Returns:
             Tuple: directory, full path of the logfile, and TransferResult
@@ -1409,7 +1471,8 @@ class SlurmClient(Connection):
         return local_tmp_storage, export_file, result
 
     def get_unzip_command(self, zipfile: str,
-                          filter_filetypes: str = "*.zarr *.tiff *.tif") -> str:
+                          filter_filetypes: str = "*.zarr *.tiff *.tif"
+                          ) -> str:
         """
         Generate a command string for unzipping a data archive and creating
         required directories for Slurm jobs.
@@ -1441,7 +1504,7 @@ class SlurmClient(Connection):
     def get_image_versions_and_data_files(self, model: str
                                           ) -> Tuple[List[str], List[str]]:
         """
-        Gets the available image versions and (input) data files for a
+        Retrieve the available image versions and input data files for a
         given model.
 
         Args:
@@ -1449,9 +1512,10 @@ class SlurmClient(Connection):
 
         Returns:
             Tuple[List[str], List[str]]:
-                A tuple of 2 lists, the first containing the available image
-                versions
-                and the second containing the available data files.
+                A tuple containing two lists:
+                - The first list includes the available image versions, 
+                    sorted in descending order.
+                - The second list includes the available data files.
 
         Raises:
             ValueError: If the provided model is not found in the
@@ -1483,25 +1547,32 @@ class SlurmClient(Connection):
 
         Returns:
            Tuple[Dict[str, List[str]], List[str]]:
-                a dictionary, mapping models to available
-                versions and List of available input data folders
+                A tuple containing:
+                - A dictionary mapping models to available versions.
+                - A list of available input data folders.
         """
         resultdict = {}
         cmdlist = []
+
         for path in self.slurm_model_paths.values():
             pathcmd = self._VERSION_CMD.format(
                 slurm_images_path=self.slurm_images_path,
                 image_path=path)
             cmdlist.append(pathcmd)
+
         # Add data path too
         cmdlist.append(self._DATA_CMD.format(
             slurm_data_path=self.slurm_data_path))
-        # split responses per command
+
+        # Split responses per command
         response_list = self.run_commands_split_out(cmdlist)
-        # split lines further into sublists
+
+        # Split lines further into sublists
         response_list = [response.strip().split('\n')
                          for response in response_list]
+
         for i, k in enumerate(self.slurm_model_paths):
-            # return highest version first
+            # Return highest version first
             resultdict[k] = sorted(response_list[i], reverse=True)
+
         return resultdict, response_list[-1]

@@ -4,13 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "omero_slurm_client"
-#version = "0.0.1"
 dynamic = ["version"]
 authors = [{ name = "Torec Luik", email = "t.t.luik@amsterdamumc.nl" }]
 description = "A python library for easy connecting between Omero (jobs) and a Slurm cluster"
 readme = "README.md"
 requires-python = ">=3.6"
-keywords = ["omero", "slurm"]
+keywords = ["omero", "slurm", "high-performance-computing", "fair", "image-analysis", "bioimaging", "high-throughput-screening", "high-content-screening", "cytomine", "biomero", "biaflows"]
 license = { file = "LICENSE" }
 classifiers = [
     "Programming Language :: Python :: 3",

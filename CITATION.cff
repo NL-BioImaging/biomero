@@ -2,13 +2,13 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: Omero Slurm Client
+title: OMERO Slurm Client
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
 type: software
 authors:
-  - given-names: Torec
+  - given-names: Torec Tom
     family-names: Luik
     email: t.t.luik@amsterdamumc.nl
     affiliation: Amsterdam UMC
@@ -19,33 +19,43 @@ identifiers:
     description: ZENODO DOI for all versions
 repository-code: 'https://github.com/NL-BioImaging/omero-slurm-client'
 url: 'https://nl-bioimaging.github.io/omero-slurm-client/'
+repository: 'https://github.com/NL-BioImaging/biomero-scripts'
 abstract: >-
-  The omero_slurm_client Python package is a library that
-  facilitates working with a Slurm cluster in the context of
-  the Omero platform.
+  This library is to be used within BIOMERO (an extension to
+  OMERO), together with the BIOMERO Scripts we also provide.
+
+
+  Together, BIOMERO allows you to run BioImage analysis
+  workflows directly from OMERO on a Slurm cluster, through
+  SSH.
 
 
   The package includes the SlurmClient class, which extends
-  the Fabric library’s Connection class to provide SSH-based
+  the Fabric library's Connection class to provide SSH-based
   connectivity and interaction with a Slurm cluster. The
   package enables users to submit jobs, monitor job status,
   retrieve job output, and perform other Slurm-related
-  tasks.
-
-
-  Additionally, the package offers functionality for
+  tasks. Additionally, the package offers functionality for
   configuring and managing paths to Slurm data and
   Singularity images, as well as specific image models and
   their associated repositories.
 
 
   Overall, the omero_slurm_client package simplifies the
-  integration of Slurm functionality within the Omero
+  integration of Slurm functionality within the OMERO
   platform and provides an efficient workflow for working
   with Slurm clusters.
 keywords:
   - python
   - omero
   - slurm
-  - jobs
+  - high-performance-computing
+  - fair
+  - image-analysis
+  - bioimaging
+  - cytomine
+  - biomero
+  - biaflows
+  - high-throughput-screening
+  - high-content-screening
 license: Apache-2.0

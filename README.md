@@ -1,7 +1,7 @@
 # BIOMERO - the OMERO Slurm Client library
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![DOI](https://zenodo.org/badge/638954891.svg)](https://zenodo.org/badge/latestdoi/638954891) ![Python](https://img.shields.io/badge/Python-3.6-blue.svg) ![Slurm](https://img.shields.io/badge/Slurm-21.08.6-blue.svg) ![OMERO](https://img.shields.io/badge/OMERO-5.6.8-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow)](https://fair-software.eu) [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7530/badge)](https://bestpractices.coreinfrastructure.org/projects/7530) [![Sphinx build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment)
 
-This library is to be used within BIOMERO (an extension to OMERO), together with the OMERO Slurm Scripts we also provide.
+This library is to be used within BIOMERO (an extension to OMERO), together with the BIOMERO Scripts we also provide.
 
 Together, BIOMERO allows you to run BioImage analysis workflows directly from OMERO on a Slurm cluster, through SSH.
 

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(name="omero_slurm_client",
       use_scm_version=True,
       setup_requires=['setuptools_scm'],
-      tests_require=['pytest'],
+      extras_require={'test': ['pytest', 'mock']},
       install_requires=[
             # "requests==2.31.0", # needs Python3.7+, which will use the toml instead
             "requests==2.27.1",

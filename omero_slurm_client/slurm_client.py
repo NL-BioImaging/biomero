@@ -249,7 +249,7 @@ class SlurmClient(Connection):
         if not self.slurm_model_images:
             self.slurm_model_images = {}
         if not self.slurm_model_repos:
-            logger.warn("No workflows configured!")
+            logger.warning("No workflows configured!")
             self.slurm_model_repos = {}
             # skips the setup
         for workflow in self.slurm_model_repos.keys():
@@ -273,7 +273,7 @@ class SlurmClient(Connection):
             if self.slurm_data_path:
                 dir_cmds.append(f"mkdir -p {self.slurm_data_path}")
             # b. scripts
-            if self.slurm_images_path:
+            if self.slurm_script_path:
                 dir_cmds.append(f"mkdir -p {self.slurm_script_path}")
             # c. workflows
             if self.slurm_images_path:
@@ -527,7 +527,7 @@ class SlurmClient(Connection):
         try:
             result = self.run_commands(cmds)
         except UnexpectedExit as e:
-            logger.warn(e)
+            logger.warning(e)
             result = e.result
         return result or None
 
@@ -702,7 +702,7 @@ class SlurmClient(Connection):
                                        env=env,
                                        sep=f" ; echo {self._OUT_SEP} ; ")
         except UnexpectedExit as e:
-            logger.warn(e)
+            logger.warning(e)
             result = e.result
         if result.ok:
             response = result.stdout
@@ -1521,9 +1521,8 @@ class SlurmClient(Connection):
             ValueError: If the provided model is not found in the
                 SlurmClient's known model paths.
         """
-        try:
-            image_path = self.slurm_model_paths.get(model)
-        except KeyError:
+        image_path = self.slurm_model_paths.get(model)
+        if not image_path:
             raise ValueError(
                 f"No path known for provided model {model}, \
                     in {self.slurm_model_paths}")

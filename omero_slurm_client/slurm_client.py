@@ -20,6 +20,8 @@ from paramiko import SSHException
 import configparser
 import re
 import requests_cache
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import importlib
 import logging
 import time as timesleep
@@ -230,8 +232,7 @@ class SlurmClient(Connection):
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.DbCache(use_temp=True)
-        requests_cache.CachedSession('github_cache', backend=self.cache,
-                                     expire_after=360)
+        self.get_or_create_github_session()
 
         self.init_workflows()
         self.validate(validate_slurm_setup=init_slurm)
@@ -1238,9 +1239,7 @@ class SlurmClient(Connection):
         raw_url = self.convert_url(git_repo)
         logger.debug(f"Pull workflow: {workflow}: {git_repo} >> {raw_url}")
         # pull workflow params
-        github_session = requests_cache.CachedSession('github_cache',
-                                                      backend=self.cache,
-                                                      expire_after=360)
+        github_session = self.get_or_create_github_session()
         ghfile = github_session.get(raw_url)
         if ghfile.ok:
             logger.debug(f"Cached? {ghfile.from_cache}")
@@ -1250,6 +1249,24 @@ class SlurmClient(Connection):
                 f'Error while pulling descriptor file for workflow {workflow},\
                     from {raw_url}: {ghfile.__dict__}')
         return json_descriptor
+
+    def get_or_create_github_session(self):
+        s = requests_cache.CachedSession('github_cache',
+                                         backend=self.cache,
+                                         expire_after=360)
+        ## Might have bigger issues, this is related to rate limits on GitHub
+        ## https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+        retry_strategy = Retry(
+            total=5,               # Maximum number of retries
+            # Exponential backoff factor (delay between retries)
+            backoff_factor=5,
+            # Retry on these HTTP status codes
+            status_forcelist=[500, 502, 503, 504, 403, 429],
+            allowed_methods=frozenset(['GET'])  # Only retry for GET requests
+        )
+        s.mount('https://github.com/', HTTPAdapter(max_retries=retry_strategy))
+        s.mount('http://github.com/', HTTPAdapter(max_retries=retry_strategy))
+        return s
 
     def get_workflow_command(self,
                              workflow: str,

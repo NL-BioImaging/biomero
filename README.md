@@ -489,3 +489,15 @@ We have added methods to this library to help with transferring data to the `Slu
     - Transfer logfile from the Slurm cluster
 
 And more; see the docstring of `SlurmClient` and example OMERO scripts.
+
+# Testing the Python code
+You can test the library by installing the extra test dependencies:
+
+1. Create a venv to isolate the python install:
+`python -m venv venvTest`
+
+2. Install OSC with test dependencies:
+`venvTest/Scripts/python -m pip install .[test]`
+
+3. Run pytest from this venv:
+`venvTest/Scripts/pytest`

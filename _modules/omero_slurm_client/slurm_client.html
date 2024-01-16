@@ -55,6 +55,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -115,6 +116,8 @@
 <span class="kn">import</span> <span class="nn">configparser</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">requests_cache</span>
+<span class="kn">from</span> <span class="nn">requests.adapters</span> <span class="kn">import</span> <span class="n">HTTPAdapter</span>
+<span class="kn">from</span> <span class="nn">urllib3.util</span> <span class="kn">import</span> <span class="n">Retry</span>
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">time</span> <span class="k">as</span> <span class="nn">timesleep</span>
@@ -325,8 +328,7 @@
 
         <span class="c1"># Init cache. Keep responses for 360 seconds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">sqlite</span><span class="o">.</span><span class="n">DbCache</span><span class="p">(</span><span class="n">use_temp</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="s1">&#39;github_cache&#39;</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
-                                     <span class="n">expire_after</span><span class="o">=</span><span class="mi">360</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">init_workflows</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
@@ -1333,9 +1335,7 @@
         <span class="n">raw_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_url</span><span class="p">(</span><span class="n">git_repo</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pull workflow: </span><span class="si">{workflow}</span><span class="s2">: </span><span class="si">{git_repo}</span><span class="s2"> &gt;&gt; </span><span class="si">{raw_url}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="c1"># pull workflow params</span>
-        <span class="n">github_session</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="s1">&#39;github_cache&#39;</span><span class="p">,</span>
-                                                      <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
-                                                      <span class="n">expire_after</span><span class="o">=</span><span class="mi">360</span><span class="p">)</span>
+        <span class="n">github_session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
         <span class="n">ghfile</span> <span class="o">=</span> <span class="n">github_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">raw_url</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ghfile</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cached? </span><span class="si">{ghfile.from_cache}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -1345,6 +1345,24 @@
                 <span class="sa">f</span><span class="s1">&#39;Error while pulling descriptor file for workflow </span><span class="si">{workflow}</span><span class="s1">,</span><span class="se">\</span>
 <span class="s1">                    from </span><span class="si">{raw_url}</span><span class="s1">: </span><span class="si">{ghfile.__dict__}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">json_descriptor</span></div>
+
+<div class="viewcode-block" id="SlurmClient.get_or_create_github_session"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_or_create_github_session">[docs]</a>    <span class="k">def</span> <span class="nf">get_or_create_github_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="s1">&#39;github_cache&#39;</span><span class="p">,</span>
+                                         <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
+                                         <span class="n">expire_after</span><span class="o">=</span><span class="mi">360</span><span class="p">)</span>
+        <span class="c1">## Might have bigger issues, this is related to rate limits on GitHub</span>
+        <span class="c1">## https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api</span>
+        <span class="n">retry_strategy</span> <span class="o">=</span> <span class="n">Retry</span><span class="p">(</span>
+            <span class="n">total</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>               <span class="c1"># Maximum number of retries</span>
+            <span class="c1"># Exponential backoff factor (delay between retries)</span>
+            <span class="n">backoff_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+            <span class="c1"># Retry on these HTTP status codes</span>
+            <span class="n">status_forcelist</span><span class="o">=</span><span class="p">[</span><span class="mi">500</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">,</span> <span class="mi">403</span><span class="p">,</span> <span class="mi">429</span><span class="p">],</span>
+            <span class="n">allowed_methods</span><span class="o">=</span><span class="nb">frozenset</span><span class="p">([</span><span class="s1">&#39;GET&#39;</span><span class="p">])</span>  <span class="c1"># Only retry for GET requests</span>
+        <span class="p">)</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s1">&#39;https://github.com/&#39;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retry_strategy</span><span class="p">))</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s1">&#39;http://github.com/&#39;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retry_strategy</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">s</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_workflow_command"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_workflow_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                              <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>

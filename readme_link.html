@@ -80,6 +80,7 @@
 <li class="toctree-l1"><a class="reference internal" href="#batching">Batching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#testing-the-python-code">Testing the Python code</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -662,6 +663,18 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 </li>
 </ul>
 <p>And more; see the docstring of <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and example OMERO scripts.</p>
+</div>
+<div class="section" id="testing-the-python-code">
+<h1>Testing the Python code<a class="headerlink" href="#testing-the-python-code" title="Permalink to this headline"></a></h1>
+<p>You can test the library by installing the extra test dependencies:</p>
+<ol class="arabic simple">
+<li><p>Create a venv to isolate the python install:
+<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">venv</span> <span class="pre">venvTest</span></code></p></li>
+<li><p>Install OSC with test dependencies:
+<code class="docutils literal notranslate"><span class="pre">venvTest/Scripts/python</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">.[test]</span></code></p></li>
+<li><p>Run pytest from this venv:
+<code class="docutils literal notranslate"><span class="pre">venvTest/Scripts/pytest</span></code></p></li>
+</ol>
 </div>
 
 

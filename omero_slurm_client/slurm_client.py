@@ -231,7 +231,8 @@ class SlurmClient(Connection):
         self.slurm_model_jobs_params = slurm_model_jobs_params
 
         # Init cache. Keep responses for 360 seconds
-        self.cache = requests_cache.backends.sqlite.DbCache(use_temp=True)
+        self.cache = requests_cache.backends.sqlite.SQLiteCache(
+            db_path="github_cache", use_temp=True)
         self.get_or_create_github_session()
 
         self.init_workflows()
@@ -1251,11 +1252,24 @@ class SlurmClient(Connection):
         return json_descriptor
 
     def get_or_create_github_session(self):
+        # Note, using requests_cache 1.1.1, conditional queries are default:
+        # The cached response will still be used until the remote content actually changes
+        # Even if the 'expire_after' is triggered. This is built into GitHub, which returns
+        # a Etag in the header that only changes when the content (e.g. the descriptor) changes.
+        # If you provide this Etag when querying, you will get a 304 ('no change') and it will 
+        # NOT count towards your Github limits. And requests_cache does that for us now.
+        # Not available in Python3.6 though. 
         s = requests_cache.CachedSession('github_cache',
                                          backend=self.cache,
-                                         expire_after=360)
+                                         expire_after=1,
+                                         cache_control=True
+                                         )
         ## Might have bigger issues, this is related to rate limits on GitHub
         ## https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+        ## If it stays a problem, we have to add an option to add a GH key to the config
+        ## E.g. see https://github.com/requests-cache/requests-cache/blob/53134ef0e99d713fed62515dfb7bcfaac5f63f9d/examples/pygithub.py
+        ## Here you could have an ACCESS_TOKEN. 
+        ## An ACCESS_TOKEN could improve api limits to 5000/h (from 60/h).
         retry_strategy = Retry(
             total=5,               # Maximum number of retries
             # Exponential backoff factor (delay between retries)

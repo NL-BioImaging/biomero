@@ -1,5 +1,5 @@
 # BIOMERO - the OMERO Slurm Client library
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![DOI](https://zenodo.org/badge/638954891.svg)](https://zenodo.org/badge/latestdoi/638954891) [![PyPI - Version](https://img.shields.io/pypi/v/omero-slurm-client)](https://pypi.org/project/omero-slurm-client/) ![Python](https://img.shields.io/badge/Python-3.6-blue.svg) ![Slurm](https://img.shields.io/badge/Slurm-21.08.6-blue.svg) ![OMERO](https://img.shields.io/badge/OMERO-5.6.8-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow)](https://fair-software.eu) [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7530/badge)](https://bestpractices.coreinfrastructure.org/projects/7530) [![Sphinx build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment) [![python-package build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml) [![python-publish build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![DOI](https://zenodo.org/badge/638954891.svg)](https://zenodo.org/badge/latestdoi/638954891) [![PyPI - Version](https://img.shields.io/pypi/v/omero-slurm-client)](https://pypi.org/project/omero-slurm-client/) [![PyPI - Python Versions](https://img.shields.io/pypi/pyversions/omero-slurm-client)](https://pypi.org/project/omero-slurm-client/) ![Slurm](https://img.shields.io/badge/Slurm-21.08.6-blue.svg) ![OMERO](https://img.shields.io/badge/OMERO-5.6.8-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow)](https://fair-software.eu) [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7530/badge)](https://bestpractices.coreinfrastructure.org/projects/7530) [![Sphinx build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment) [![python-package build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml/badge.svg)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml) [![python-publish build](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml)
 
 This library is to be used within BIOMERO (an extension to OMERO), together with the BIOMERO Scripts we also provide.
 
@@ -59,7 +59,7 @@ Your Slurm cluster/login node needs to have:
 Your OMERO _processing_ node needs to have:
 1. SSH client and access to the Slurm cluster (w/ private key / headless)
 2. SCP access to the Slurm cluster
-3. Python3.6+
+3. Python3.7+
 4. This library installed 
     - Latest release on PyPI `python3 -m pip install omero-slurm-client`
     - or latest Github version `python3 -m pip install 'git+https://github.com/NL-BioImaging/omero-slurm-client'`
@@ -501,3 +501,22 @@ You can test the library by installing the extra test dependencies:
 
 3. Run pytest from this venv:
 `venvTest/Scripts/pytest`
+
+# Logging
+Debug logging can be enabled with the standard python logging module, for example with logging.basicConfig():
+
+```
+import logging
+
+logging.basicConfig(level='DEBUG')
+```
+
+For example in (the `__init__` of) a script:
+
+```Python
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        stream=sys.stdout)
+    runScript()
+```

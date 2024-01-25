@@ -5,20 +5,28 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "omero_slurm_client"
 dynamic = ["version"]
-authors = [{ name = "Torec Luik", email = "t.t.luik@amsterdamumc.nl" }]
-description = "A python library for easy connecting between Omero (jobs) and a Slurm cluster"
+authors = [
+    { name = "Torec Luik", email = "t.t.luik@amsterdamumc.nl" },
+    { name = "Core Facility - Cellular Imaging" },
+    { email = "cellularimaging@amsterdamumc.nl"}
+]
+description = "A python library for easy connecting between OMERO (jobs) and a Slurm cluster"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 keywords = ["omero", "slurm", "high-performance-computing", "fair", "image-analysis", "bioimaging", "high-throughput-screening", "high-content-screening", "cytomine", "biomero", "biaflows"]
 license = { file = "LICENSE" }
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
     "requests==2.31.0",
-    "requests-cache==0.7.5",
+    "requests-cache==1.1.1",
     "fabric==3.1.0",
     "paramiko==3.2.0",
     "importlib_resources>=5.4.0"

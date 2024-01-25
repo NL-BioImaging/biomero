@@ -56,6 +56,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -327,7 +328,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs_params</span> <span class="o">=</span> <span class="n">slurm_model_jobs_params</span>
 
         <span class="c1"># Init cache. Keep responses for 360 seconds</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">sqlite</span><span class="o">.</span><span class="n">DbCache</span><span class="p">(</span><span class="n">use_temp</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">sqlite</span><span class="o">.</span><span class="n">SQLiteCache</span><span class="p">(</span>
+            <span class="n">db_path</span><span class="o">=</span><span class="s2">&quot;github_cache&quot;</span><span class="p">,</span> <span class="n">use_temp</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">init_workflows</span><span class="p">()</span>
@@ -1347,11 +1349,24 @@
         <span class="k">return</span> <span class="n">json_descriptor</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_or_create_github_session"><a class="viewcode-back" href="../../omero_slurm_client.html#omero_slurm_client.slurm_client.SlurmClient.get_or_create_github_session">[docs]</a>    <span class="k">def</span> <span class="nf">get_or_create_github_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Note, using requests_cache 1.1.1, conditional queries are default:</span>
+        <span class="c1"># The cached response will still be used until the remote content actually changes</span>
+        <span class="c1"># Even if the &#39;expire_after&#39; is triggered. This is built into GitHub, which returns</span>
+        <span class="c1"># a Etag in the header that only changes when the content (e.g. the descriptor) changes.</span>
+        <span class="c1"># If you provide this Etag when querying, you will get a 304 (&#39;no change&#39;) and it will </span>
+        <span class="c1"># NOT count towards your Github limits. And requests_cache does that for us now.</span>
+        <span class="c1"># Not available in Python3.6 though. </span>
         <span class="n">s</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="s1">&#39;github_cache&#39;</span><span class="p">,</span>
                                          <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
-                                         <span class="n">expire_after</span><span class="o">=</span><span class="mi">360</span><span class="p">)</span>
+                                         <span class="n">expire_after</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                         <span class="n">cache_control</span><span class="o">=</span><span class="kc">True</span>
+                                         <span class="p">)</span>
         <span class="c1">## Might have bigger issues, this is related to rate limits on GitHub</span>
         <span class="c1">## https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api</span>
+        <span class="c1">## If it stays a problem, we have to add an option to add a GH key to the config</span>
+        <span class="c1">## E.g. see https://github.com/requests-cache/requests-cache/blob/53134ef0e99d713fed62515dfb7bcfaac5f63f9d/examples/pygithub.py</span>
+        <span class="c1">## Here you could have an ACCESS_TOKEN. </span>
+        <span class="c1">## An ACCESS_TOKEN could improve api limits to 5000/h (from 60/h).</span>
         <span class="n">retry_strategy</span> <span class="o">=</span> <span class="n">Retry</span><span class="p">(</span>
             <span class="n">total</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>               <span class="c1"># Maximum number of retries</span>
             <span class="c1"># Exponential backoff factor (delay between retries)</span>

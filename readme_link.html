@@ -81,6 +81,7 @@
 <li class="toctree-l1"><a class="reference internal" href="#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#logging">Logging</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -120,7 +121,7 @@
              
   <div class="section" id="biomero-the-omero-slurm-client-library">
 <h1>BIOMERO - the OMERO Slurm Client library<a class="headerlink" href="#biomero-the-omero-slurm-client-library" title="Permalink to this headline"></a></h1>
-<p><a class="reference external" href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" /></a> <a class="reference external" href="https://zenodo.org/badge/latestdoi/638954891"><img alt="DOI" src="https://zenodo.org/badge/638954891.svg" /></a> <a class="reference external" href="https://pypi.org/project/omero-slurm-client/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/omero-slurm-client" /></a> <img alt="Python" src="https://img.shields.io/badge/Python-3.6-blue.svg" /> <img alt="Slurm" src="https://img.shields.io/badge/Slurm-21.08.6-blue.svg" /> <img alt="OMERO" src="https://img.shields.io/badge/OMERO-5.6.8-blue.svg" /> <a class="reference external" href="https://fair-software.eu"><img alt="fair-software.eu" src="https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow" /></a> <a class="reference external" href="https://bestpractices.coreinfrastructure.org/projects/7530"><img alt="OpenSSF Best Practices" src="https://bestpractices.coreinfrastructure.org/projects/7530/badge" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml"><img alt="Sphinx build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment"><img alt="pages-build-deployment" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml"><img alt="python-package build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml"><img alt="python-publish build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml/badge.svg?branch=main" /></a></p>
+<p><a class="reference external" href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" /></a> <a class="reference external" href="https://zenodo.org/badge/latestdoi/638954891"><img alt="DOI" src="https://zenodo.org/badge/638954891.svg" /></a> <a class="reference external" href="https://pypi.org/project/omero-slurm-client/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/omero-slurm-client" /></a> <a class="reference external" href="https://pypi.org/project/omero-slurm-client/"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/omero-slurm-client" /></a> <img alt="Slurm" src="https://img.shields.io/badge/Slurm-21.08.6-blue.svg" /> <img alt="OMERO" src="https://img.shields.io/badge/OMERO-5.6.8-blue.svg" /> <a class="reference external" href="https://fair-software.eu"><img alt="fair-software.eu" src="https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow" /></a> <a class="reference external" href="https://bestpractices.coreinfrastructure.org/projects/7530"><img alt="OpenSSF Best Practices" src="https://bestpractices.coreinfrastructure.org/projects/7530/badge" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml"><img alt="Sphinx build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/sphinx.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment"><img alt="pages-build-deployment" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/pages/pages-build-deployment/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml"><img alt="python-package build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-package.yml/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml"><img alt="python-publish build" src="https://github.com/NL-BioImaging/omero-slurm-client/actions/workflows/python-publish.yml/badge.svg?branch=main" /></a></p>
 <p>This library is to be used within BIOMERO (an extension to OMERO), together with the BIOMERO Scripts we also provide.</p>
 <p>Together, BIOMERO allows you to run BioImage analysis workflows directly from OMERO on a Slurm cluster, through SSH.</p>
 <p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which extends the Fabric library’s <code class="docutils literal notranslate"><span class="pre">Connection</span></code> class to provide <strong>SSH-based connectivity</strong> and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories.</p>
@@ -187,7 +188,7 @@
 <ol class="arabic simple">
 <li><p>SSH client and access to the Slurm cluster (w/ private key / headless)</p></li>
 <li><p>SCP access to the Slurm cluster</p></li>
-<li><p>Python3.6+</p></li>
+<li><p>Python3.7+</p></li>
 <li><p>This library installed</p>
 <ul class="simple">
 <li><p>Latest release on PyPI <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">omero-slurm-client</span></code></p></li>
@@ -675,6 +676,23 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 <li><p>Run pytest from this venv:
 <code class="docutils literal notranslate"><span class="pre">venvTest/Scripts/pytest</span></code></p></li>
 </ol>
+</div>
+<div class="section" id="logging">
+<h1>Logging<a class="headerlink" href="#logging" title="Permalink to this headline"></a></h1>
+<p>Debug logging can be enabled with the standard python logging module, for example with logging.basicConfig():</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;DEBUG&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For example in (the <code class="docutils literal notranslate"><span class="pre">__init__</span></code> of) a script:</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                        <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+                        <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+    <span class="n">runScript</span><span class="p">()</span>
+</pre></div>
+</div>
 </div>
 
 

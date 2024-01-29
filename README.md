@@ -143,6 +143,33 @@ Other example OMERO scripts are:
 
 You are encouraged to create your own custom scripts. Do note the copy-left license enforced by OME.
 
+# (Docker) containers
+We host BIOMERO container dockerfiles at [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO), which publishes container images to our public dockerhub [cellularimagingcf](https://hub.docker.com/repositories/cellularimagingcf). Specifically the [cellularimagingcf/biomero](https://hub.docker.com/repository/docker/cellularimagingcf/biomero/general) image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging).
+
+You can mount your specific configurations over those in the container, for example:
+
+```
+# Run the biomero container
+echo "Starting BIOMERO..."
+podman run -d --rm --name biomero \
+  -e CONFIG_omero_master_host=omeroserver \
+  -e OMERO_WORKER_NAME=biomero \
+  -e CONFIG_omero_logging_level=10 \
+  --network omero \
+  --volume /mnt/datadisk/omero:/OMERO \
+  --volume /mnt/data:/data \
+  --volume /my/slurm-config.ini:/etc/slurm-config.ini \
+  --secret ssh-config,target=/tmp/.ssh/config --secret ssh-key,target=/tmp/.ssh/id_rsa --secret ssh-pubkey,target=/tmp/.ssh/id_rsa.pub  --secret ssh-known_hosts,target=/tmp/.ssh/known_hosts \
+  --userns=keep-id:uid=1000,gid=997 \
+  cellularimagingcf/biomero:0.2.3
+```
+
+This will spin up the docker container (in Podman) with omero config (`-e CONFIG_omero_..`), mounting the required data drives (`--volume /mnt/...`) and adding a new slurm config (`--volume /my/slurm-config.ini:/etc/slurm-config.ini`) and the required SSH settings (`--secret ...,target=/tmp/.ssh/...`) to access the remote HPC.
+
+Note: the [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts) are installed on the [main server](https://hub.docker.com/repository/docker/cellularimagingcf/omeroserver/general), not on the BIOMERO processor. 
+
+Note2: We will also update these containers with our own desired changes, so they will likely not be 1:1 copy with basic omero containers. Especially when we start making a nicer UI for BIOMERO. We will keep up-to-date with the OMERO releases when possible.
+
 # See the tutorials
 I have also provided tutorials on connecting to a Local or Cloud Slurm, and tutorials on how to add your FAIR workflows to this setup. Those can give some more insights as well.
 

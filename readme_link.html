@@ -140,7 +140,7 @@
 <ol class="arabic simple">
 <li><p>Setup a local OMERO w/ this library:</p>
 <ul class="simple">
-<li><p>Follow Quickstart of https://github.com/TorecLuik/docker-example-omero-grid-amc</p></li>
+<li><p>Follow Quickstart of https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO</p></li>
 </ul>
 </li>
 <li><p>Setup a local Slurm w/ SSH access:</p>
@@ -148,7 +148,7 @@
 <li><p>Follow Quickstart of https://github.com/TorecLuik/slurm-docker-cluster</p></li>
 </ul>
 </li>
-<li><p>Upload some data with OMERO.insight to <code class="docutils literal notranslate"><span class="pre">localhost</span></code> server</p></li>
+<li><p>Upload some data with OMERO.insight to <code class="docutils literal notranslate"><span class="pre">localhost</span></code> server (… we are working on a web importer … TBC)</p></li>
 <li><p>Try out some scripts from https://github.com/NL-BioImaging/biomero-scripts (already installed in step 1!):</p>
 <ol class="arabic simple">
 <li><p>Run script <code class="docutils literal notranslate"><span class="pre">slurm/init/SLURM</span> <span class="pre">Init</span> <span class="pre">environment...</span></code></p></li>
@@ -159,10 +159,10 @@
 <li><p>Select a fun workflow, e.g. <code class="docutils literal notranslate"><span class="pre">cellpose</span></code>.</p>
 <ul>
 <li><p>Change the <code class="docutils literal notranslate"><span class="pre">nuc</span> <span class="pre">channel</span></code> to the channel to segment (note that 0 is for grey, so 1,2,3 for RGB)</p></li>
-<li><p>Uncheck the <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">gpu</span></code> (step 2 doesn’t come with GPU support)</p></li>
+<li><p>Uncheck the <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">gpu</span></code> (step 2, our HPC cluster, doesn’t come with GPU support built into the containers)</p></li>
 </ul>
 </li>
-<li><p>Refresh your OMERO <code class="docutils literal notranslate"><span class="pre">Explore</span></code> tab to see your <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code> dataset with a mask image when the workflow is done.</p></li>
+<li><p>Refresh your OMERO <code class="docutils literal notranslate"><span class="pre">Explore</span></code> tab to see your <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code> dataset with a mask image when the workflow is done!</p></li>
 </ul>
 </li>
 </ol>

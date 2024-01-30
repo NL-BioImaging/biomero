@@ -26,10 +26,10 @@ BIOMERO consists of this Python library (`biomero`) and the integrations within 
 For a quick overview of what this library can do for you, we can install an example setup locally with Docker:
 
 1. Setup a local OMERO w/ this library: 
-    - Follow Quickstart of https://github.com/TorecLuik/docker-example-omero-grid-amc
+    - Follow Quickstart of https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO
 2. Setup a local Slurm w/ SSH access: 
     - Follow Quickstart of https://github.com/TorecLuik/slurm-docker-cluster
-3. Upload some data with OMERO.insight to `localhost` server
+3. Upload some data with OMERO.insight to `localhost` server (... we are working on a web importer ... TBC)
 4. Try out some scripts from https://github.com/NL-BioImaging/biomero-scripts (already installed in step 1!):
     1. Run script `slurm/init/SLURM Init environment...`
     2. Get a coffee or something. This will take at least 10 min to download all the workflow images. Maybe write a nice review on `image.sc` of this software, or here on the `Discussions` tab of Github.
@@ -37,8 +37,8 @@ For a quick overview of what this library can do for you, we can install an exam
         - Select at least one of the `Select how to import your results`, e.g. change `Import into NEW Dataset` text to `hello world`
         - Select a fun workflow, e.g. `cellpose`.
             - Change the `nuc channel` to the channel to segment (note that 0 is for grey, so 1,2,3 for RGB)
-            - Uncheck the `use gpu` (step 2 doesn't come with GPU support)
-        - Refresh your OMERO `Explore` tab to see your `hello world` dataset with a mask image when the workflow is done.
+            - Uncheck the `use gpu` (step 2, our HPC cluster, doesn't come with GPU support built into the containers)
+        - Refresh your OMERO `Explore` tab to see your `hello world` dataset with a mask image when the workflow is done!
 
 
 

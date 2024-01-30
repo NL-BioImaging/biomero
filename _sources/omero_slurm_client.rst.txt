@@ -7,7 +7,7 @@ omero\_slurm\_client package
 omero\_slurm\_client.slurm\_client module
 -----------------------------------------
 
-.. automodule:: omero_slurm_client.slurm_client
+.. automodule:: biomero.slurm_client
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ omero\_slurm\_client.slurm\_client module
 .. Module contents
 .. ---------------
 
-.. .. automodule:: omero_slurm_client
+.. .. automodule:: biomero
 ..    :members:
 ..    :undoc-members:
 ..    :show-inheritance:

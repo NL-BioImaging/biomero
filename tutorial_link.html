@@ -17,7 +17,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="omero_slurm_client" href="modules.html" />
+    <link rel="next" title="biomero" href="modules.html" />
     <link rel="prev" title="BIOMERO - the OMERO Slurm Client library" href="readme_link.html" /> 
 </head>
 
@@ -64,7 +64,7 @@
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Cellprofiler tutorial</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#prerequisite-omero-slurm-and-omero-slurm-client">0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisite-omero-slurm-and-biomero">0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">biomero</span></code>.</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#grab-the-data-and-pipeline">1. Grab the data and pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#try-the-pipeline-locally">2. Try the pipeline locally</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#ui">UI</a></li>
@@ -162,7 +162,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="modules.html">omero_slurm_client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">biomero</a></li>
 </ul>
 
         </div>
@@ -196,8 +196,8 @@
 <p>Cellprofiler also has options to run in batch mode and headless, for analyzing big data on compute clusters, like we want as well.</p>
 <p>However, for our purposes, this is insufficient, as we want to run it from OMERO, and on a compute cluster that only has SSH access.</p>
 <p>In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to OMERO and Slurm, with this client library.</p>
-<div class="section" id="prerequisite-omero-slurm-and-omero-slurm-client">
-<h2>0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">omero_slurm_client</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-omero-slurm-client" title="Permalink to this headline"></a></h2>
+<div class="section" id="prerequisite-omero-slurm-and-biomero">
+<h2>0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">biomero</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-biomero" title="Permalink to this headline"></a></h2>
 <p>We assume you have these 3 components setup and connected. If not, follow the main <a class="reference internal" href="#README.md"><span class="xref myst">README</span></a> first.</p>
 </div>
 <div class="section" id="grab-the-data-and-pipeline">
@@ -577,7 +577,7 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <span class="kn">import</span> <span class="nn">omero.gateway</span>
 <span class="kn">from</span> <span class="nn">omero</span> <span class="kn">import</span> <span class="n">scripts</span>
 <span class="kn">from</span> <span class="nn">omero.rtypes</span> <span class="kn">import</span> <span class="n">rstring</span><span class="p">,</span> <span class="n">unwrap</span>
-<span class="kn">from</span> <span class="nn">omero_slurm_client</span> <span class="kn">import</span> <span class="n">SlurmClient</span>
+<span class="kn">from</span> <span class="nn">biomero</span> <span class="kn">import</span> <span class="n">SlurmClient</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -1667,7 +1667,7 @@ hpcsmall-debug-ghpc-3
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="readme_link.html" class="btn btn-neutral float-left" title="BIOMERO - the OMERO Slurm Client library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="modules.html" class="btn btn-neutral float-right" title="omero_slurm_client" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="biomero" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

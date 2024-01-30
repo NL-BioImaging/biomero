@@ -1,7 +1,7 @@
-omero_slurm_client
+biomero
 ==================
 
 .. toctree::
    :maxdepth: 4
 
-   omero_slurm_client
+   biomero

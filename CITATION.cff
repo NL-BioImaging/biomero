@@ -2,7 +2,7 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: OMERO Slurm Client
+title: 'BIOMERO: BioImage analysis in OMERO'
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -17,11 +17,11 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.8108214
     description: ZENODO DOI for all versions
-repository-code: 'https://github.com/NL-BioImaging/omero-slurm-client'
-url: 'https://nl-bioimaging.github.io/omero-slurm-client/'
+repository-code: 'https://github.com/NL-BioImaging/biomero'
+url: 'https://nl-bioimaging.github.io/biomero/'
 repository: 'https://github.com/NL-BioImaging/biomero-scripts'
 abstract: >-
-  This library is to be used within BIOMERO (an extension to
+  This library is to be used within BIOMERO environment (an extension to
   OMERO), together with the BIOMERO Scripts we also provide.
 
 
@@ -41,7 +41,7 @@ abstract: >-
   their associated repositories.
 
 
-  Overall, the omero_slurm_client package simplifies the
+  Overall, the biomero package simplifies the
   integration of Slurm functionality within the OMERO
   platform and provides an efficient workflow for working
   with Slurm clusters.

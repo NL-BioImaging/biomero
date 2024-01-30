@@ -12,9 +12,9 @@
 import os
 import sys
 from importlib.metadata import version as dynamicversion
-# import omero_slurm_client
+# import biomero
 sys.path.append(os.path.abspath('../..'))
-sys.path.append(os.path.abspath('../omero_slurm_client'))
+sys.path.append(os.path.abspath('../biomero'))
 sys.path.append(os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
@@ -23,7 +23,7 @@ sys.path.append(os.path.abspath('..'))
 project = 'Omero Slurm Client'
 copyright = '2023, T.T.Luik'
 author = 'T.T.Luik'
-release = dynamicversion('omero_slurm_client')
+release = dynamicversion('biomero')
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

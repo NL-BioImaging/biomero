@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omero_slurm_client"
+name = "biomero"
 dynamic = ["version"]
 authors = [
     { name = "Torec Luik", email = "t.t.luik@amsterdamumc.nl" },

@@ -7,7 +7,7 @@ Together, BIOMERO allows you to run BioImage analysis workflows directly from OM
 
 The package includes the `SlurmClient` class, which extends the Fabric library's `Connection` class to provide **SSH-based connectivity** and interaction with a Slurm cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images, as well as specific image models and their associated repositories. 
 
-Overall, the `omero_slurm_client` package simplifies the integration of Slurm functionality within the OMERO platform and provides an efficient workflow for working with Slurm clusters.
+Overall, the `biomero` package simplifies the integration of Slurm functionality within the OMERO platform and provides an efficient workflow for working with Slurm clusters.
 
 # Overview
 
@@ -78,7 +78,7 @@ Your OMERO _server_ node needs to have:
 
 ## Getting Started
 
-To connect an OMERO processor to a Slurm cluster using the `omero_slurm_client` library, users can follow these steps:
+To connect an OMERO processor to a Slurm cluster using the `biomero` library, users can follow these steps:
 
 1. Setup passwordless public key authentication between your OMERO `processor` server and your HPC server. E.g. follow  a [SSH tutorial](https://www.ssh.com/academy/ssh/public-key-authentication) or [this one](https://linuxize.com/post/how-to-setup-passwordless-ssh-login/).
     - You could use 1 Slurm account for all `processor` servers, and share the same private key to all of them.
@@ -193,7 +193,7 @@ It also offers a `from_config` class method to create a `SlurmClient` object by 
 
 
 # slurm-config.ini
-The `slurm-config.ini` file is a configuration file used by the `omero_slurm_client` Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:
+The `slurm-config.ini` file is a configuration file used by the `biomero` Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:
 
 [**SSH**]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user's SSH config file or in `/etc/fabric.yml`.
 
@@ -201,7 +201,7 @@ The `slurm-config.ini` file is a configuration file used by the `omero_slurm_cli
 
 [**MODELS**]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for `<key>_repo` (repository containing the descriptor.json file, which will describe parameters and where to find the image), and `<key>_job` (jobscript name and location in the `slurm_script_repo`). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.
 
-The `slurm-config.ini` file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the `omero_slurm_client` package, providing flexibility and customization options.
+The `slurm-config.ini` file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the `biomero` package, providing flexibility and customization options.
 
 # How to add an existing workflow
 
@@ -387,7 +387,7 @@ These are the steps required:
 # Slurm jobs
 
 ## Generating jobs
-By default, `omero_slurm_client` will generate basic slurm jobs for each workflow, based on the metadata provided in `descriptor.json` and a [job template](./resources/job_template.sh).
+By default, `biomero` will generate basic slurm jobs for each workflow, based on the metadata provided in `descriptor.json` and a [job template](./resources/job_template.sh).
 It will replace `$PARAMS` with the (non-`cytomine_`) parameters given in `descriptor.json`. See also the [Parameters](#parameters) section below.
 
 ## How to add your own Slurm job

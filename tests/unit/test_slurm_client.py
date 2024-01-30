@@ -1,4 +1,4 @@
-from omero_slurm_client import SlurmClient
+from biomero import SlurmClient
 import pytest
 import mock
 from mock import patch, MagicMock
@@ -6,10 +6,10 @@ from paramiko import SSHException
 
 
 @pytest.fixture
-@patch('omero_slurm_client.slurm_client.Connection.create_session')
-@patch('omero_slurm_client.slurm_client.Connection.open')
-@patch('omero_slurm_client.slurm_client.Connection.put')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
 def slurm_client(_mock_run,
                  _mock_put, _mock_open,
                  _mock_session):
@@ -137,7 +137,7 @@ def test_get_logfile_from_slurm(mock_get, slurm_client):
         remote=custom_logfile, local=f"{local_tmp_storage}")
 
 
-@patch('omero_slurm_client.slurm_client.logger')
+@patch('biomero.slurm_client.logger')
 @patch.object(SlurmClient, 'run_commands', return_value=MagicMock(ok=True, stdout=""))
 def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # GIVEN
@@ -156,7 +156,7 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
         f"Zipping {data_location} as {filename} on Slurm")
 
 
-@patch('omero_slurm_client.slurm_client.logger')
+@patch('biomero.slurm_client.logger')
 @patch.object(SlurmClient, 'get', return_value=MagicMock(ok=True, stdout=""))
 def test_copy_zip_locally(mock_get, mock_logger, slurm_client):
     # GIVEN
@@ -227,7 +227,7 @@ def test_pull_descriptor_from_github(slurm_client):
     repos = {
         workflow: git_repo
     }
-    with patch('omero_slurm_client.slurm_client.requests_cache.CachedSession.get') as mock_get:
+    with patch('biomero.slurm_client.requests_cache.CachedSession.get') as mock_get:
         slurm_client.slurm_model_repos = repos
         with patch.object(slurm_client, 'convert_url', return_value=expected_raw_url):
             mock_get.return_value.ok = True
@@ -294,7 +294,7 @@ def test_extract_parts_from_url(slurm_client):
     assert valid_branch2 == 'master'
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.str_to_class')
+@patch('biomero.slurm_client.SlurmClient.str_to_class')
 def test_convert_cytype_to_omtype_Number(mock_str_to_class,
                                          slurm_client):
     # GIVEN
@@ -311,7 +311,7 @@ def test_convert_cytype_to_omtype_Number(mock_str_to_class,
         "omero.scripts", "Float", *args, **kwargs)
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.str_to_class')
+@patch('biomero.slurm_client.SlurmClient.str_to_class')
 def test_convert_cytype_to_omtype_Boolean(mock_str_to_class,
                                           slurm_client):
     # GIVEN
@@ -328,7 +328,7 @@ def test_convert_cytype_to_omtype_Boolean(mock_str_to_class,
         "omero.scripts", "Bool", *args, **kwargs)
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.str_to_class')
+@patch('biomero.slurm_client.SlurmClient.str_to_class')
 def test_convert_cytype_to_omtype_String(mock_str_to_class,
                                          slurm_client):
     # GIVEN
@@ -345,7 +345,7 @@ def test_convert_cytype_to_omtype_String(mock_str_to_class,
         "omero.scripts", "String", *args, **kwargs)
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.pull_descriptor_from_github', return_value={
+@patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github', return_value={
     'inputs': [
         {
             'id': 'input1',
@@ -403,7 +403,7 @@ def test_get_workflow_parameters(mock_pull_descriptor,
     assert workflow_params == expected_workflow_params
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_extract_data_location_from_log_exc(mock_run_commands,
                                             slurm_client):
     # GIVEN
@@ -423,7 +423,7 @@ def test_extract_data_location_from_log_exc(mock_run_commands,
         [f"cat {logfile} | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_extract_data_location_from_log_2(mock_run_commands,
                                           slurm_client):
     # GIVEN
@@ -442,7 +442,7 @@ def test_extract_data_location_from_log_2(mock_run_commands,
         [f"cat omero-{slurm_job_id}.log | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_extract_data_location_from_log(mock_run_commands,
                                         slurm_client):
     # GIVEN
@@ -474,7 +474,7 @@ def test_get_job_status_command(slurm_client):
     assert command == expected_command
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_check_job_status(mock_run_commands,
                           slurm_client):
     # GIVEN
@@ -490,8 +490,8 @@ def test_check_job_status(mock_run_commands,
     assert job_status_dict == {12345: 'RUNNING', 67890: 'COMPLETED'}
 
 
-@patch('omero_slurm_client.slurm_client.logger')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.logger')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_check_job_status_exc(mock_run_commands,
                               mock_logger, slurm_client):
     # GIVEN
@@ -510,9 +510,9 @@ def test_check_job_status_exc(mock_run_commands,
     mock_logger.error.assert_called_with(f'Result is not ok: {return_mock}')
 
 
-@patch('omero_slurm_client.slurm_client.logger')
-@patch('omero_slurm_client.slurm_client.timesleep')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.logger')
+@patch('biomero.slurm_client.timesleep')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
                                mock_logger, slurm_client):
     # GIVEN
@@ -530,7 +530,7 @@ def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
         'Error: Retried 3 times to get                 status of [12345, 67890], but no response.')
 
 
-@patch('omero_slurm_client.slurm_client.Result')
+@patch('biomero.slurm_client.Result')
 def test_extract_job_id(mock_result, slurm_client):
     # GIVEN
     mock_result.stdout = "Submitted batch job 12345"
@@ -542,14 +542,14 @@ def test_extract_job_id(mock_result, slurm_client):
     assert extracted_job_id == 12345
 
 
-@patch('omero_slurm_client.slurm_client.io.StringIO')
-@patch('omero_slurm_client.slurm_client.Connection.create_session')
-@patch('omero_slurm_client.slurm_client.Connection.open')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
-@patch('omero_slurm_client.slurm_client.SlurmClient.put')
-@patch('omero_slurm_client.slurm_client.SlurmClient.get_workflow_parameters')
-@patch('omero_slurm_client.slurm_client.SlurmClient.workflow_params_to_subs')
-@patch('omero_slurm_client.slurm_client.SlurmClient.generate_slurm_job_for_workflow')
+@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.get_workflow_parameters')
+@patch('biomero.slurm_client.SlurmClient.workflow_params_to_subs')
+@patch('biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow')
 def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
                               mock_get_workflow_params, mock_put,
                               mock_run, _mock_open,
@@ -609,7 +609,7 @@ def test_workflow_params_to_subs(slurm_client):
     assert result == expected_result
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_list_completed_jobs(mock_run_commands,
                              slurm_client):
     """
@@ -635,7 +635,7 @@ def test_list_completed_jobs(mock_run_commands,
     assert result == ["43210", "98765"]
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_list_active_jobs(mock_run_commands,
                           slurm_client):
     """
@@ -661,7 +661,7 @@ def test_list_active_jobs(mock_run_commands,
     assert result == ["67890", "12345"]
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.run')
 def test_run_commands(mock_run, slurm_client):
     """
     Test running a list of shell commands consecutively on the Slurm cluster.
@@ -688,8 +688,8 @@ def test_run_commands(mock_run, slurm_client):
     assert result.stdout == "Command executed successfully"
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
-@patch('omero_slurm_client.slurm_client.SlurmClient.get_recent_log_command')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.get_recent_log_command')
 def test_get_active_job_progress(mock_get_recent_log_command,
                                  mock_run_commands,
                                  slurm_client):
@@ -720,8 +720,8 @@ def test_get_active_job_progress(mock_get_recent_log_command,
     assert result == "Progress: 75%\n"
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
-@patch('omero_slurm_client.slurm_client.SlurmClient.extract_data_location_from_log')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.extract_data_location_from_log')
 def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
                                slurm_client):
     """
@@ -751,8 +751,8 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
     assert result.ok is True
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
-@patch('omero_slurm_client.slurm_client.SlurmClient.extract_data_location_from_log')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.extract_data_location_from_log')
 def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
                            slurm_client):
     """
@@ -782,12 +782,12 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     assert result.ok is True
 
 
-@patch('omero_slurm_client.slurm_client.Connection.create_session')
-@patch('omero_slurm_client.slurm_client.Connection.open')
-@patch('omero_slurm_client.slurm_client.Connection.put')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
-@patch('omero_slurm_client.slurm_client.SlurmClient.__init__')
-@patch('omero_slurm_client.slurm_client.configparser.ConfigParser')
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
 def test_from_config(mock_ConfigParser,
                      mock_SlurmClient,
                      _mock_run, _mock_put, _mock_open, _mock_session):
@@ -863,8 +863,8 @@ def test_from_config(mock_ConfigParser,
     )
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.validate')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.validate')
+@patch('biomero.slurm_client.SlurmClient.run')
 def test_setup_slurm_notok(mock_run, mock_validate):
     """
     Test the validation of the connection to the Slurm cluster using the SlurmClient.
@@ -891,12 +891,12 @@ def test_setup_slurm_notok(mock_run, mock_validate):
         f'mkdir -p {dpath} && mkdir -p {spath} && mkdir -p {ipath}', env={})
 
 
-@patch('omero_slurm_client.slurm_client.io.StringIO')
-@patch('omero_slurm_client.slurm_client.SlurmClient.validate')
-@patch('omero_slurm_client.slurm_client.SlurmClient.run_commands')
-@patch('omero_slurm_client.slurm_client.Connection.open')
-@patch('omero_slurm_client.slurm_client.Connection.put')
-@patch('omero_slurm_client.slurm_client.requests_cache.CachedSession')
+@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.SlurmClient.validate')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.requests_cache.CachedSession')
 def test_setup_slurm(_mock_CachedSession,
                      _mock_Connection_put,
                      _mock_Connection_open,
@@ -957,8 +957,8 @@ def test_setup_slurm(_mock_CachedSession,
     mock_run.assert_any_call([f"time sh {script_name}"])
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
-@patch('omero_slurm_client.slurm_client.SlurmClient.setup_slurm')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.setup_slurm')
 def test_validate(mock_setup_slurm, mock_run, slurm_client):
     """
     Test the validation of the connection to the Slurm cluster using the SlurmClient.
@@ -975,8 +975,8 @@ def test_validate(mock_setup_slurm, mock_run, slurm_client):
     assert result is True
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
-@patch('omero_slurm_client.slurm_client.SlurmClient.setup_slurm')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.setup_slurm')
 def test_validate_no_setup(mock_setup_slurm, mock_run, slurm_client):
     """
     Test the validation of the connection to the Slurm cluster without setup using the SlurmClient.
@@ -993,8 +993,8 @@ def test_validate_no_setup(mock_setup_slurm, mock_run, slurm_client):
     assert result is True
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
-@patch('omero_slurm_client.slurm_client.SlurmClient.setup_slurm')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.setup_slurm')
 def test_validate_connection_failure(mock_setup_slurm, mock_run, slurm_client):
     """
     Test the validation failure when the connection to the Slurm cluster fails using the SlurmClient.
@@ -1011,8 +1011,8 @@ def test_validate_connection_failure(mock_setup_slurm, mock_run, slurm_client):
     assert result is False
 
 
-@patch('omero_slurm_client.slurm_client.SlurmClient.run')
-@patch('omero_slurm_client.slurm_client.SlurmClient.setup_slurm')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.setup_slurm')
 def test_validate_setup_failure(mock_setup_slurm, mock_run, slurm_client):
     """
     Test the validation failure when setting up Slurm fails using the SlurmClient.
@@ -1030,8 +1030,8 @@ def test_validate_setup_failure(mock_setup_slurm, mock_run, slurm_client):
     assert result is False
 
 
-@patch('omero_slurm_client.slurm_client.Connection.run')
-@patch('omero_slurm_client.slurm_client.Connection.put')
+@patch('biomero.slurm_client.Connection.run')
+@patch('biomero.slurm_client.Connection.put')
 def test_slurm_client_connection(mconn_put, mconn_run, slurm_client):
     """
     Test the SlurmClient connection methods.
@@ -1052,10 +1052,10 @@ def test_slurm_client_connection(mconn_put, mconn_run, slurm_client):
     ({"workflow1": "https://github.com/example/workflow1"},
      {"workflow1": "dockerhub.com/image1"}),
 ])
-@patch('omero_slurm_client.slurm_client.Connection.open')
-@patch('omero_slurm_client.slurm_client.Connection.run')
-@patch('omero_slurm_client.slurm_client.Connection.put')
-@patch('omero_slurm_client.slurm_client.requests_cache.CachedSession')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.run')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.requests_cache.CachedSession')
 def test_init_workflows(mock_CachedSession,
                         _mock_Connection_put,
                         _mock_Connection_run,
@@ -1083,9 +1083,9 @@ def test_init_workflows(mock_CachedSession,
     assert slurm_client.slurm_model_images == expected_slurm_model_images
 
 
-@patch('omero_slurm_client.slurm_client.requests_cache.CachedSession')
-@patch('omero_slurm_client.slurm_client.Connection.run')
-@patch('omero_slurm_client.slurm_client.Connection.put')
+@patch('biomero.slurm_client.requests_cache.CachedSession')
+@patch('biomero.slurm_client.Connection.run')
+@patch('biomero.slurm_client.Connection.put')
 def test_init_workflows_force_update(_mock_Connection_put,
                                      _mock_Connection_run,
                                      mock_CachedSession):

@@ -8,7 +8,7 @@ However, for our purposes, this is insufficient, as we want to run it from OMERO
 
 In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to OMERO and Slurm, with this client library.
 
-## 0. Prerequisite: OMERO, Slurm and `omero_slurm_client`.
+## 0. Prerequisite: OMERO, Slurm and `biomero`.
 
 We assume you have these 3 components setup and connected. If not, follow the main [README](README.md) first.
 
@@ -381,7 +381,7 @@ import omero
 import omero.gateway
 from omero import scripts
 from omero.rtypes import rstring, unwrap
-from omero_slurm_client import SlurmClient
+from biomero import SlurmClient
 import logging
 
 logger = logging.getLogger(__name__)

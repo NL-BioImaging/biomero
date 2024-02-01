@@ -12,10 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module defines constants for use with BIOMERO"""
+"""This module defines constants for use with BIOMERO (scripts)"""
 
-# Inputs for the Get_Results script
-# AFAIK these need to actually be unique strings, as it is used as a key.
+# ------------------------------------------------------------
+# SLURM_Get_Results script
+# ------------------------------------------------------------
+# AFAIK these need to actually be unique strings (per script)
+# as it is used as a key to lookup the values
 RESULTS_OUTPUT_SLURM_JOB_ID = "SLURM Job Id"
 RESULTS_OUTPUT_COMPLETED_JOB = "Completed Job"
 RESULTS_OUTPUT_ATTACH_PROJECT = "Output - Attach as zip to project?"
@@ -30,6 +33,6 @@ RESULTS_OUTPUT_ATTACH_NEW_DATASET_RENAME = "Rename imported files?"
 RESULTS_OUTPUT_ATTACH_NEW_DATASET_RENAME_NAME = "Rename"
 RESULTS_OUTPUT_ATTACH_TABLE = "Output - Add csv files as OMERO.table"
 RESULTS_OUTPUT_ATTACH_TABLE_DATASET = "Attach table to dataset"
-RESULTS_OUTPUT_ATTACH_TABLE_PLATE = "Attach table to plate"
 RESULTS_OUTPUT_ATTACH_TABLE_DATASET_ID = "Dataset for table"
+RESULTS_OUTPUT_ATTACH_TABLE_PLATE = "Attach table to plate"
 RESULTS_OUTPUT_ATTACH_TABLE_PLATE_ID = "Plate for table"

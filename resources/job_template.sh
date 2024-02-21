@@ -14,7 +14,8 @@
 # Define, how long the job will run in real time. This is a hard cap meaning
 # that if the job runs longer than what is written here, it will be
 # force-stopped by the server. If you make the expected time too long, it will
-# take longer for the job to start. Here, we say the job will take 15 minutes.
+# take longer for the job to start. 
+# Here, we say the job will get a timeout after 45 minutes.
 #              d-hh:mm:ss
 #SBATCH --time=00:45:00
 

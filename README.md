@@ -9,6 +9,8 @@ The package includes the `SlurmClient` class, which provides **SSH-based connect
 
 Overall, the `biomero` package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.
 
+WARNING: Default settings will timeout your workflow jobs after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) section below for more info. Change configurations if you need longer running jobs.
+
 # Overview
 
 In the figure below we show our **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**. 
@@ -63,7 +65,7 @@ Your OMERO _processing_ node needs to have:
 4. This library installed 
     - Latest release on PyPI `python3 -m pip install biomero`
     - or latest Github version `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'`
-5. Configuration setup at `/etc/slurm-config.ini`
+5. uration setup at `/etc/slurm-.ini`
 6. Requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` and the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr).
 
 Your OMERO _server_ node needs to have:
@@ -201,7 +203,33 @@ The `slurm-config.ini` file is a configuration file used by the `biomero` Python
 
 [**MODELS**]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for `<key>_repo` (repository containing the descriptor.json file, which will describe parameters and where to find the image), and `<key>_job` (jobscript name and location in the `slurm_script_repo`). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.
 
+Note also that you can override the default Slurm job values using this model configuration, like memory, GPU, time limit, etc.
+All values for sbatch can be applied (see e.g. [here](https://slurm.schedmd.com/sbatch.html)) and will be forwarded to the job command.
+
+For example
+```
+# Run CellPose Slurm with 10 GB GPU
+cellpose_job_gres=gpu:1g.10gb:1
+# Run CellPose Slurm with 15 GB CPU memory
+cellpose_job_mem=15GB
+```
+
 The `slurm-config.ini` file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the `biomero` package, providing flexibility and customization options.
+
+## Time Limit on Slurm
+An important Slurm job config is the time limit: `SBATCH --time=00:45:00` is the default in BIOMERO (max 45 minutes per job).
+The format is `d-hh:mm:ss`
+
+WARNING: After this time, the job will timeout and this scenario is not handled by BIOMERO (yet)! You will lose your processing progress.
+
+You can change this timeout value:
+
+- For ALL workflows, in the [job_template.sh](./resources/job_template.sh) (e.g. `#SBATCH --time=08:00:00` for 8 hours)
+- For ONE workflow, in the [slurm-config.ini](./resources/slurm-config.ini) (e.g. `cellpose_job_time=08:00:00` for 8 hours)
+- Per specific run, provide it in the OMERO script UI like [SLURM_CellPose_Segmentation.py](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py) 
+
+Note that it might take longer for Slurm to schedule your job if you put the time very high, or possibly even make it wait indefinitely (see --time explanation in https://slurm.schedmd.com/sbatch.html). We will work on smart timing, but for now it is hardcoded and configurable.
+
 
 # How to add an existing workflow
 

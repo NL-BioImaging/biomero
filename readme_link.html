@@ -56,7 +56,10 @@
 <li class="toctree-l1"><a class="reference internal" href="#see-the-tutorials">See the tutorials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurmclient-class">SlurmClient class</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#time-limit-on-slurm">Time Limit on Slurm</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="#how-to-add-an-existing-workflow">How to add an existing workflow</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#workflow-metadata-via-descriptor-json">Workflow metadata via descriptor.json</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#schema">Schema</a></li>
@@ -127,6 +130,7 @@
 <p>The BIOMERO framework consists of this Python library <code class="docutils literal notranslate"><span class="pre">biomero</span></code>, together with the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> that can be run directly from the OMERO web interface.</p>
 <p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which provides <strong>SSH-based connectivity</strong> and interaction with a <a class="reference external" href="https://slurm.schedmd.com/quickstart.html">Slurm</a> (high-performance compute) cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images (think Docker containers…), as well as specific FAIR image analysis workflows and their associated repositories.</p>
 <p>Overall, the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.</p>
+<p>WARNING: Default settings will timeout your workflow jobs after <strong>45 minutes</strong>! See <a class="reference internal" href="#time-limit-on-slurm"><span class="xref myst">Time Limit on Slurm</span></a> section below for more info. Change configurations if you need longer running jobs.</p>
 </div>
 <div class="section" id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h1>
@@ -196,7 +200,7 @@
 <li><p>or latest Github version <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'git+https://github.com/NL-BioImaging/biomero'</span></code></p></li>
 </ul>
 </li>
-<li><p>Configuration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
+<li><p>uration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-.ini</span></code></p></li>
 <li><p>Requirements for some scripts: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code> and the <a class="reference external" href="https://github.com/ome/omero-cli-zarr">OMERO CLI Zarr plugin</a>.</p></li>
 </ol>
 <p>Your OMERO <em>server</em> node needs to have:</p>
@@ -332,7 +336,29 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <p>[<strong>SSH</strong>]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user’s SSH config file or in <code class="docutils literal notranslate"><span class="pre">/etc/fabric.yml</span></code>.</p>
 <p>[<strong>SLURM</strong>]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.</p>
 <p>[<strong>MODELS</strong>]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_repo</span></code> (repository containing the descriptor.json file, which will describe parameters and where to find the image), and <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_job</span></code> (jobscript name and location in the <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.</p>
+<p>Note also that you can override the default Slurm job values using this model configuration, like memory, GPU, time limit, etc.
+All values for sbatch can be applied (see e.g. <a class="reference external" href="https://slurm.schedmd.com/sbatch.html">here</a>) and will be forwarded to the job command.</p>
+<p>For example</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
+<span class="n">cellpose_job_gres</span><span class="o">=</span><span class="n">gpu</span><span class="p">:</span><span class="mi">1</span><span class="n">g</span><span class="o">.</span><span class="mi">10</span><span class="n">gb</span><span class="p">:</span><span class="mi">1</span>
+<span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
+<span class="n">cellpose_job_mem</span><span class="o">=</span><span class="mi">15</span><span class="n">GB</span>
+</pre></div>
+</div>
 <p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> package, providing flexibility and customization options.</p>
+<div class="section" id="time-limit-on-slurm">
+<h2>Time Limit on Slurm<a class="headerlink" href="#time-limit-on-slurm" title="Permalink to this headline"></a></h2>
+<p>An important Slurm job config is the time limit: <code class="docutils literal notranslate"><span class="pre">SBATCH</span> <span class="pre">--time=00:45:00</span></code> is the default in BIOMERO (max 45 minutes per job).
+The format is <code class="docutils literal notranslate"><span class="pre">d-hh:mm:ss</span></code></p>
+<p>WARNING: After this time, the job will timeout and this scenario is not handled by BIOMERO (yet)! You will lose your processing progress.</p>
+<p>You can change this timeout value:</p>
+<ul class="simple">
+<li><p>For ALL workflows, in the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job_template.sh</span></a> (e.g. <code class="docutils literal notranslate"><span class="pre">#SBATCH</span> <span class="pre">--time=08:00:00</span></code> for 8 hours)</p></li>
+<li><p>For ONE workflow, in the <a class="reference internal" href="#./resources/slurm-config.ini"><span class="xref myst">slurm-config.ini</span></a> (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_time=08:00:00</span></code> for 8 hours)</p></li>
+<li><p>Per specific run, provide it in the OMERO script UI like <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py">SLURM_CellPose_Segmentation.py</a></p></li>
+</ul>
+<p>Note that it might take longer for Slurm to schedule your job if you put the time very high, or possibly even make it wait indefinitely (see –time explanation in https://slurm.schedmd.com/sbatch.html). We will work on smart timing, but for now it is hardcoded and configurable.</p>
+</div>
 </div>
 <div class="section" id="how-to-add-an-existing-workflow">
 <h1>How to add an existing workflow<a class="headerlink" href="#how-to-add-an-existing-workflow" title="Permalink to this headline"></a></h1>

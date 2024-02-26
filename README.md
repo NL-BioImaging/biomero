@@ -11,7 +11,7 @@ Overall, the `biomero` package simplifies the integration of HPC functionality w
 
 _WARNING_: Please note that default settings are for short/medium jobs. If you run long workflows (>45min), you will run into 2 lethal issues:
 - Your Slurm job will timeout after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) on what configs to change.
-- Your OMERO script (incl biomero-scripts) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
+- Your OMERO script (incl [biomero-scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
 
 # Overview
 

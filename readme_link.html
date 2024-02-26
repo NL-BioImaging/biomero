@@ -130,7 +130,11 @@
 <p>The BIOMERO framework consists of this Python library <code class="docutils literal notranslate"><span class="pre">biomero</span></code>, together with the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> that can be run directly from the OMERO web interface.</p>
 <p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which provides <strong>SSH-based connectivity</strong> and interaction with a <a class="reference external" href="https://slurm.schedmd.com/quickstart.html">Slurm</a> (high-performance compute) cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images (think Docker containers…), as well as specific FAIR image analysis workflows and their associated repositories.</p>
 <p>Overall, the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.</p>
-<p>WARNING: Default settings will timeout your workflow jobs after <strong>45 minutes</strong>! See <a class="reference internal" href="#time-limit-on-slurm"><span class="xref myst">Time Limit on Slurm</span></a> section below for more info. Change configurations if you need longer running jobs.</p>
+<p><em>WARNING</em>: Please note that default settings are for short/medium jobs. If you run long workflows (&gt;45min), you will run into 2 lethal issues:</p>
+<ul class="simple">
+<li><p>Your Slurm job will timeout after <strong>45 minutes</strong>! See <a class="reference internal" href="#time-limit-on-slurm"><span class="xref myst">Time Limit on Slurm</span></a> on what configs to change.</p></li>
+<li><p>Your OMERO script (incl biomero-scripts) will timeout after <strong>60 minutes</strong>! Change <a class="reference external" href="https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout">omero script timeout</a> settings if you expect longer workflows.</p></li>
+</ul>
 </div>
 <div class="section" id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h1>

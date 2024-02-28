@@ -1,6 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=conversion
 #SBATCH --array=1-1
+#SBATCH -n 1
+#SBATCH -N 1
+#SBATCH --time=00:20:00
 
 # Log important values
 echo "Job Parameters:"
@@ -13,13 +16,13 @@ echo "CONVERTER_IMAGE: $CONVERTER_IMAGE"
 echo "Loading Singularity/Apptainer..."
 module load singularity || true
 
-# Extract the .zarr file for the current SLURM_ARRAY_TASK_ID
+# Extract the input file for the current SLURM_ARRAY_TASK_ID
 file_to_convert=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID { $1=""; print substr($0,2) }' $CONFIG_PATH)
 
-# Log the current task and the corresponding zarr file
+# Log the current task and the corresponding input file
 echo "Processing task $SLURM_ARRAY_TASK_ID: $file_to_convert"
 
-# Check if the zarr file exists
+# Check if the input file exists
 if [ -e "$file_to_convert" ]; then
     # Log the conversion process
     echo "Starting conversion for task $SLURM_ARRAY_TASK_ID..."
@@ -33,6 +36,6 @@ if [ -e "$file_to_convert" ]; then
     # Log the completion of the task
     echo "Task $SLURM_ARRAY_TASK_ID completed successfully."
 else
-    # Log if no corresponding zarr file is found
-    echo "No corresponding .zarr file for task $SLURM_ARRAY_TASK_ID."
+    # Log if no corresponding input file is found
+    echo "No corresponding input file for task $SLURM_ARRAY_TASK_ID."
 fi

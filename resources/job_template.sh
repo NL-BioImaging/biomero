@@ -48,37 +48,27 @@ echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | $S
 echo "Loading Singularity/Apptainer..."
 module load singularity || true
 
-# Convert datatype if needed
-echo "Preprocessing data..."
-if $DO_CONVERT; then
-    # Generate a unique config file name using job ID
-    CONFIG_FILE="config_${SLURM_JOB_ID}.txt"
-
-    # Find all .zarr files and generate a config file
-    find "$DATA_PATH/data/in" -name "*.zarr" | awk '{print NR, $0}' > "$CONFIG_FILE"
-
-    # Get the total number of .zarr files
-    N=$(wc -l < "$CONFIG_FILE")
-    echo "Number of .zarr files: $N"
-
-    # Submit the conversion job array and wait for it to complete
-    sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh
-
-    # Remove the config file after the conversion is done
-    rm "$CONFIG_FILE"
-fi
+# WE MOVED THIS CONVERSION LOGIC TO A SEPARATE BIOMERO FUNCTION
+# APPLYING IT HERE HAS A POSSIBILITY TO CLOG THE QUEUE AND TIMEOUT WHILE WAITING
+# SEE https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO/issues/6
+# # Convert datatype if needed
+# echo "Preprocessing data..."
 # if $DO_CONVERT; then
-# 	# TODO: parallel? submit to the slurm again? srun? sbatch --wait
-# 	N = $(find "$DATA_PATH/data/in" -name "*.zarr" | wc -l)
-# 	echo "$N"
-# 	# sbatch --job-name=conversion --array=1-$N --wait convert_job_array.sh
-# 	sbatch --job-name=conversion --wait convert_job_array.sh
+#     # Generate a unique config file name using job ID
+#     CONFIG_FILE="config_${SLURM_JOB_ID}.txt"
 
-# 	# sequential
-# 	# find $DATA_PATH/data/in -name "*.zarr" -exec singularity run $CONVERSION_PATH/$CONVERTER_IMAGE {} \;
+#     # Find all .zarr files and generate a config file
+#     find "$DATA_PATH/data/in" -name "*.zarr" | awk '{print NR, $0}' > "$CONFIG_FILE"
 
-# 	# Remove the zarrs as input
-# 	# rm -rf $DATA_PATH/data/in/*.zarr
+#     # Get the total number of .zarr files
+#     N=$(wc -l < "$CONFIG_FILE")
+#     echo "Number of .zarr files: $N"
+
+#     # Submit the conversion job array and wait for it to complete
+#     sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh
+
+#     # Remove the config file after the conversion is done
+#     rm "$CONFIG_FILE"
 # fi
 
 # We run a (singularity) container with the provided ENV variables.

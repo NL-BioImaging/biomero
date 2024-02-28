@@ -33,6 +33,70 @@ import os
 logger = logging.getLogger(__name__)
 
 
+class SlurmJob:
+    def __init__(self,
+                 submit_result: Result,
+                 job_id: int):
+        """
+        Initialize a SlurmJob instance.
+
+        Args:
+            submit_result (Result): The result of submitting the job.
+            job_id (int): The Slurm job ID.
+        """
+        self.job_id = job_id
+        self.submit_result = submit_result
+        self.ok = self.submit_result.ok
+        self.job_state = None
+
+    def wait_for_completion(self, slurmClient, omeroConn) -> str:
+        """
+        Wait for the Slurm job to reach completion, cancellation, failure, or timeout.
+
+        Args:
+            slurmClient: The Slurm client.
+            omeroConn: The OMERO connection.
+
+        Returns:
+            str: The final state of the Slurm job.
+        """
+        while self.job_state not in ("FAILED", "COMPLETED", "CANCELLED", "TIMEOUT"):
+            job_status_dict, poll_result = slurmClient.check_job_status(
+                [self.job_id])
+            if not poll_result.ok:
+                logger.warning(
+                    f"Error checking job status:{ poll_result.stderr }")
+                self.job_state = "FAILED"
+            self.job_state = job_status_dict[self.job_id]
+            # wait for 10 seconds before checking again
+            omeroConn.keepAlive()  # keep the OMERO connection alive
+            timesleep.sleep(10)
+        logger.info(f"Job {self.job_id} finished: {self.job_state}")
+        logger.info(
+            f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
+        return self.job_state
+
+    def completed(self):
+        """
+        Check if the Slurm job has completed successfully.
+
+        Returns:
+            bool: True if the job has completed; False otherwise.
+        """
+        return self.job_state == "COMPLETED"
+
+    def __str__(self):
+        """
+        Return a string representation of the SlurmJob instance.
+
+        Returns:
+            str: String representation.
+        """
+        properties = ', '.join(
+            f"{key}={value}" for key, value in self.__dict__.items())
+        return f"SlurmJob({properties})"
+
+
 class SlurmClient(Connection):
     """A client for connecting to and interacting with a Slurm cluster over
     SSH.
@@ -842,6 +906,24 @@ class SlurmClient(Connection):
         logger.info(f"Unpacking {zipfile} on Slurm")
         return self.run_commands([cmd], env=env)
 
+    def convert_data(self, zipfile: str,
+                     env: Optional[Dict[str, str]] = None) -> Result:
+        """
+        Unpacks a zipped file on the remote Slurm cluster.
+
+        Args:
+            zipfile (str): The name of the zipped file to be unpacked.
+
+            env (Dict[str, str], optional): Optional environment variables 
+                to set when running the command. Defaults to None.
+
+        Returns:
+            Result: The result of the command.
+        """
+        cmd = self.get_convert_command(zipfile)
+        logger.info(f"Converting {zipfile} on Slurm")
+        return self.run_commands([cmd], env=env)
+
     def generate_slurm_job_for_workflow(self,
                                         workflow: str,
                                         substitutes: Dict[str, str],
@@ -972,6 +1054,73 @@ class SlurmClient(Connection):
         logger.info(f"Running {workflow_name} job on {input_data} on Slurm")
         res = self.run_commands([sbatch_cmd], sbatch_env)
         return res, self.extract_job_id(res)
+
+    def run_workflow_job(self,
+                         workflow_name: str,
+                         workflow_version: str,
+                         input_data: str,
+                         email: Optional[str] = None,
+                         time: Optional[str] = None,
+                         **kwargs
+                         ) -> SlurmJob:
+        """
+        Run a specified workflow on Slurm using the given parameters and return a SlurmJob instance.
+
+        Args:
+            workflow_name (str): Name of the workflow to execute.
+            workflow_version (str): Version of the workflow (image version on Slurm).
+            input_data (str): Name of the input data folder containing input image files.
+            email (str, optional): Email address for Slurm job notifications.
+            time (str, optional): Time limit for the Slurm job in the format HH:MM:SS.
+            **kwargs: Additional keyword arguments for the workflow.
+
+        Returns:
+            SlurmJob: A SlurmJob instance representing the started workflow job.
+        """
+        result, job_id = self.run_workflow(
+            workflow_name, workflow_version, input_data, email, time, **kwargs)
+        return SlurmJob(result, job_id)
+
+    def run_conversion_workflow_job(self, folder_name: str,
+                                    source_format: str = 'zarr',
+                                    target_format: str = 'tiff'
+                                    ) -> Tuple[Result, int]:
+        """
+        Run the data conversion workflow on Slurm using the given data folder.
+
+        Args:
+            folder_name (str): The name of the data folder containing source format files.
+            source_format (str): Source data format for conversion (default is 'zarr').
+            target_format (str): Target data format after conversion (default is 'tiff').
+
+        Returns:
+            Tuple[Result, int]:
+                A tuple containing the result of starting the conversion job and
+                the Slurm job ID, or -1 if the job ID could not be extracted.
+
+        Warning:
+            The default implementation only supports conversion from 'zarr' to 'tiff'.
+            If using other source or target formats, users must implement and configure
+            additional converters themselves.
+        """
+        # Generate a unique config file name
+        config_file = f"config_{folder_name}.txt"
+
+        # Construct all commands to run consecutively
+        data_path = f"{self.slurm_data_path}/{folder_name}"
+        conversion_cmd, sbatch_env = self.get_conversion_command(
+            data_path, config_file, source_format, target_format)
+        commands = [
+            f"find {data_path}/data/in -name '*.{source_format}' | awk '{{print NR, $0}}' > {config_file}",
+            f"N=$(wc -l < \"{config_file}\")",
+            f"echo \"Number of .{source_format} files: $N\"",
+            conversion_cmd
+        ]
+
+        # Run all commands consecutively
+        res = self.run_commands(commands, sbatch_env)
+
+        return SlurmJob(res, self.extract_job_id(res))
 
     def extract_job_id(self, result: Result) -> int:
         """
@@ -1256,20 +1405,20 @@ class SlurmClient(Connection):
         # The cached response will still be used until the remote content actually changes
         # Even if the 'expire_after' is triggered. This is built into GitHub, which returns
         # a Etag in the header that only changes when the content (e.g. the descriptor) changes.
-        # If you provide this Etag when querying, you will get a 304 ('no change') and it will 
+        # If you provide this Etag when querying, you will get a 304 ('no change') and it will
         # NOT count towards your Github limits. And requests_cache does that for us now.
-        # Not available in Python3.6 though. 
+        # Not available in Python3.6 though.
         s = requests_cache.CachedSession('github_cache',
                                          backend=self.cache,
                                          expire_after=1,
                                          cache_control=True
                                          )
-        ## Might have bigger issues, this is related to rate limits on GitHub
-        ## https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
-        ## If it stays a problem, we have to add an option to add a GH key to the config
-        ## E.g. see https://github.com/requests-cache/requests-cache/blob/53134ef0e99d713fed62515dfb7bcfaac5f63f9d/examples/pygithub.py
-        ## Here you could have an ACCESS_TOKEN. 
-        ## An ACCESS_TOKEN could improve api limits to 5000/h (from 60/h).
+        # Might have bigger issues, this is related to rate limits on GitHub
+        # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+        # If it stays a problem, we have to add an option to add a GH key to the config
+        # E.g. see https://github.com/requests-cache/requests-cache/blob/53134ef0e99d713fed62515dfb7bcfaac5f63f9d/examples/pygithub.py
+        # Here you could have an ACCESS_TOKEN.
+        # An ACCESS_TOKEN could improve api limits to 5000/h (from 60/h).
         retry_strategy = Retry(
             total=5,               # Maximum number of retries
             # Exponential backoff factor (delay between retries)
@@ -1321,9 +1470,6 @@ class SlurmClient(Connection):
             "IMAGE_PATH": f"{self.slurm_images_path}/{model_path}",
             "IMAGE_VERSION": f"{workflow_version}",
             "SINGULARITY_IMAGE": f"{image}_{workflow_version}.sif",
-            "CONVERSION_PATH": f"{self.slurm_converters_path}",
-            "CONVERTER_IMAGE": "convert_zarr_to_tiff.sif",
-            "DO_CONVERT": "true",
             "SCRIPT_PATH": f"{self.slurm_script_path}"
         }
         workflow_env = self.workflow_params_to_envvars(**kwargs)
@@ -1338,6 +1484,51 @@ class SlurmClient(Connection):
             {self.slurm_script_path}/{job_script}"
 
         return sbatch_cmd, env
+
+    def get_conversion_command(self, data_path: str,
+                               config_file: str,
+                               source_format: str = 'zarr',
+                               target_format: str = 'tiff') -> Tuple[str, Dict]:
+        """
+        Generate Slurm conversion command and environment variables for data conversion.
+
+        Args:
+            data_path (str): Path to the data folder.
+            config_file (str): Path to the configuration file.
+            source_format (str): Source data format (default is 'zarr').
+            target_format (str): Target data format (default is 'tiff').
+
+        Returns:
+            Tuple[str, Dict]:
+                A tuple containing the Slurm conversion command and
+                the environment variables.
+
+        Warning:
+            The default implementation only supports conversion from 'zarr' to 'tiff'.
+            If using other source or target formats, users must implement and configure
+            additional converters themselves.
+        """
+        if source_format != "zarr" or target_format != "tiff":
+            # Warn about unsupported conversion; additional converters can be
+            # added outside our knowledge.
+            # Checking Slurm's `slurm_converters_path` is skipped for
+            # performance reasons.
+            logger.warning(
+                f"Conversion from {source_format} to {target_format} is not supported by default!")
+
+        chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
+        sbatch_env = {
+            "DATA_PATH": f"{data_path}",
+            "CONVERSION_PATH": f"{self.slurm_converters_path}",
+            "CONVERTER_IMAGE": chosen_converter,
+            "SCRIPT_PATH": f"{self.slurm_script_path}",
+            "CONFIG_FILE": f"{config_file}"
+        }
+
+        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N $SCRIPT_PATH/convert_job_array.sh"
+        # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
+
+        return conversion_cmd, sbatch_env
 
     def workflow_params_to_envvars(self, **kwargs) -> Dict:
         """

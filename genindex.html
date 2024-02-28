@@ -136,9 +136,13 @@
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">cleanup_tmp_files() (biomero.slurm_client.SlurmClient method)</a>
 </li>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmJob.completed">completed() (biomero.slurm_client.SlurmJob method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.convert_cytype_to_omtype">convert_cytype_to_omtype() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.convert_data">convert_data() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.convert_url">convert_url() (biomero.slurm_client.SlurmClient method)</a>
 </li>
@@ -179,6 +183,8 @@
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_all_image_versions_and_data_files">get_all_image_versions_and_data_files() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_cellpose_command">get_cellpose_command() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_conversion_command">get_conversion_command() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_image_versions_and_data_files">get_image_versions_and_data_files() (biomero.slurm_client.SlurmClient method)</a>
 </li>
@@ -255,11 +261,15 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_commands">run_commands() (biomero.slurm_client.SlurmClient method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_commands_split_out">run_commands_split_out() (biomero.slurm_client.SlurmClient method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_conversion_workflow_job">run_conversion_workflow_job() (biomero.slurm_client.SlurmClient method)</a>
+</li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_workflow">run_workflow() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_workflow_job">run_workflow_job() (biomero.slurm_client.SlurmClient method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -277,10 +287,10 @@
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.slurm_model_images">slurm_model_images (biomero.slurm_client.SlurmClient attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.slurm_model_paths">slurm_model_paths (biomero.slurm_client.SlurmClient attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.slurm_model_repos">slurm_model_repos (biomero.slurm_client.SlurmClient attribute)</a>
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.slurm_script_path">slurm_script_path (biomero.slurm_client.SlurmClient attribute)</a>
@@ -288,6 +298,8 @@
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.slurm_script_repo">slurm_script_repo (biomero.slurm_client.SlurmClient attribute)</a>
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient">SlurmClient (class in biomero.slurm_client)</a>
+</li>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmJob">SlurmJob (class in biomero.slurm_client)</a>
 </li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.str_to_class">str_to_class() (biomero.slurm_client.SlurmClient method)</a>
 </li>
@@ -325,10 +337,12 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.workflow_params_to_envvars">workflow_params_to_envvars() (biomero.slurm_client.SlurmClient method)</a>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmJob.wait_for_completion">wait_for_completion() (biomero.slurm_client.SlurmJob method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.workflow_params_to_envvars">workflow_params_to_envvars() (biomero.slurm_client.SlurmClient method)</a>
+</li>
       <li><a href="omero_slurm_client.html#biomero.slurm_client.SlurmClient.workflow_params_to_subs">workflow_params_to_subs() (biomero.slurm_client.SlurmClient method)</a>
 </li>
   </ul></td>

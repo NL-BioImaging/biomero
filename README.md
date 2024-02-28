@@ -9,7 +9,9 @@ The package includes the `SlurmClient` class, which provides **SSH-based connect
 
 Overall, the `biomero` package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.
 
-WARNING: Default settings will timeout your workflow jobs after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) section below for more info. Change configurations if you need longer running jobs.
+_WARNING_: Please note that default settings are for short/medium jobs. If you run long workflows (>45min), you will run into 2 lethal issues:
+- Your Slurm job will timeout after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) on what configs to change.
+- Your OMERO script (incl [biomero-scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
 
 # Overview
 

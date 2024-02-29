@@ -534,6 +534,71 @@ def test_check_job_status(mock_run_commands,
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
     assert job_status_dict == {12345: 'RUNNING', 67890: 'COMPLETED'}
+    
+    
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+def test_check_job_array_status(mock_run_commands, slurm_client):
+    # GIVEN
+    mock_stdout = """2304_1        COMPLETED 2024-02-29T10:22:38 
+    2304_2        COMPLETED 2024-02-29T10:22:38 
+    2304_3        COMPLETED 2024-02-29T10:22:40 
+    2304_4        COMPLETED 2024-02-29T10:22:40 
+    2304_5        COMPLETED 2024-02-29T10:22:43 
+    2304_6        COMPLETED 2024-02-29T10:22:43 
+    2304_7        COMPLETED 2024-02-29T10:22:45 
+    2304_8        COMPLETED 2024-02-29T10:22:45 
+    2304_9        COMPLETED 2024-02-29T10:22:47 
+    2304_10       COMPLETED 2024-02-29T10:22:47 
+    2304_11       COMPLETED 2024-02-29T10:22:50 
+    2304_12       COMPLETED 2024-02-29T10:22:50 
+    2304_13       COMPLETED 2024-02-29T10:22:52 
+    2304_14       COMPLETED 2024-02-29T10:22:52 
+    2304_15       COMPLETED 2024-02-29T10:22:54 
+    2304_16       COMPLETED 2024-02-29T10:22:54 
+    2304_17       COMPLETED 2024-02-29T10:22:57 
+    2304_18       COMPLETED 2024-02-29T10:22:57 
+    2304_19       COMPLETED 2024-02-29T10:22:59 
+    2304_20       COMPLETED 2024-02-29T10:22:59 
+    2304_21       COMPLETED 2024-02-29T10:23:01 
+    2304_22       COMPLETED 2024-02-29T10:23:01 
+    2304_23       COMPLETED 2024-02-29T10:23:04 
+    2304_24       COMPLETED 2024-02-29T10:23:04 
+    2304_25       COMPLETED 2024-02-29T10:23:06 
+    2304_26       COMPLETED 2024-02-29T10:23:06 
+    2304_27       COMPLETED 2024-02-29T10:23:08 
+    2304_28       COMPLETED 2024-02-29T10:23:08 
+    2304_29       COMPLETED 2024-02-29T10:23:11 
+    2304_30       COMPLETED 2024-02-29T10:23:11 
+    2304_31       COMPLETED 2024-02-29T10:23:13 
+    2304_32       COMPLETED 2024-02-29T10:23:12 
+    2304_33       COMPLETED 2024-02-29T10:23:14 
+    2304_34       COMPLETED 2024-02-29T10:23:15 
+    2304_35       COMPLETED 2024-02-29T10:23:17 
+    2339_1        COMPLETED 2024-02-29T10:34:42 
+    2339_2        COMPLETED 2024-02-29T10:34:42 
+    2339_3        COMPLETED 2024-02-29T10:34:44 
+    2339_4        COMPLETED 2024-02-29T10:34:44 
+    2339_5        COMPLETED 2024-02-29T10:34:46 
+    2339_6        COMPLETED 2024-02-29T10:34:46 
+    2339_7        COMPLETED 2024-02-29T10:34:48 
+    2339_8        COMPLETED 2024-02-29T10:34:48 
+    2339_9        COMPLETED 2024-02-29T10:34:51 
+    2339_10       COMPLETED 2024-02-29T10:34:51 
+    2339_11       COMPLETED 2024-02-29T10:34:53 
+    2339_12       COMPLETED 2024-02-29T10:34:53 
+    2339_[13-94+   PENDING  Unknown"""
+
+    mock_run_commands.return_value = MagicMock(ok=True, stdout=mock_stdout)
+
+    # WHEN
+    job_status_dict, _ = slurm_client.check_job_status([2304, 2339])
+
+    # THEN
+    mock_run_commands.assert_called_with(
+        ['sacct -n -o JobId,State,End -X -j 2304 -j 2339'], env=None)
+
+    expected_status_dict = {2304: 'COMPLETED', 2339: 'PENDING'}
+    assert job_status_dict == expected_status_dict
 
 
 @patch('biomero.slurm_client.logger')

@@ -1156,6 +1156,10 @@ class SlurmClient(Connection):
                          ) -> Tuple[Dict[int, str], Result]:
         """
         Check the status of Slurm jobs with the given job IDs.
+        
+        Note: This doesn't return job arrays individually.
+        It takes the last value returned for those sub ids 
+        (generally the one still PENDING).
 
         Args:
             slurm_job_ids (List[int]): The job IDs of the Slurm jobs to check.
@@ -1187,7 +1191,8 @@ class SlurmClient(Connection):
                         f"Retry {retry_status} getting status \
                             of {slurm_job_ids}!")
                 else:
-                    job_status_dict = {int(line.split()[0]): line.split(
+                    # 
+                    job_status_dict = {int(line.split()[0].split('_')[0]): line.split(
                     )[1] for line in result.stdout.split("\n") if line}
                     logger.debug(f"Job statuses: {job_status_dict}")
                     return job_status_dict, result

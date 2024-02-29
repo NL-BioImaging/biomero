@@ -1254,6 +1254,10 @@
                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Result</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Check the status of Slurm jobs with the given job IDs.</span>
+<span class="sd">        </span>
+<span class="sd">        Note: This doesn&#39;t return job arrays individually.</span>
+<span class="sd">        It takes the last value returned for those sub ids </span>
+<span class="sd">        (generally the one still PENDING).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            slurm_job_ids (List[int]): The job IDs of the Slurm jobs to check.</span>
@@ -1285,7 +1289,8 @@
                         <span class="sa">f</span><span class="s2">&quot;Retry </span><span class="si">{retry_status}</span><span class="s2"> getting status </span><span class="se">\</span>
 <span class="s2">                            of </span><span class="si">{slurm_job_ids}</span><span class="s2">!&quot;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                    <span class="c1"># </span>
+                    <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
                     <span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">line</span><span class="p">}</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job statuses: </span><span class="si">{job_status_dict}</span><span class="s2">&quot;</span><span class="p">)</span>
                     <span class="k">return</span> <span class="n">job_status_dict</span><span class="p">,</span> <span class="n">result</span>

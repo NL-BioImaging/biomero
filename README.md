@@ -57,6 +57,7 @@ Your Slurm cluster/login node needs to have:
 3. 7zip installed
 4. Singularity/Apptainer installed
 5. (Optional) Git installed, if you want your own job scripts
+6. Slurm accounting enabled
 
 ## OMERO Requirements
 
@@ -67,7 +68,7 @@ Your OMERO _processing_ node needs to have:
 4. This library installed 
     - Latest release on PyPI `python3 -m pip install biomero`
     - or latest Github version `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'`
-5. uration setup at `/etc/slurm-.ini`
+5. Configuration setup at `/etc/slurm-.ini`
 6. Requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` and the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr).
 
 Your OMERO _server_ node needs to have:

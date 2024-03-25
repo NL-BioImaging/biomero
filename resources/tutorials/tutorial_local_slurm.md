@@ -11,12 +11,17 @@ This is what we will cover in this tutorial.
 
 To follow this tutorial, you need:
 - Git
-- Docker
+- Docker (Desktop for Windows)
 - OMERO Insight
 - \> 18GB memory
 - \> 8 CPU cores
 
-I use Windows here, but it should work on Linux/Mac too. If not, let me know.
+**Warning**: I tested with Windows here, and I've heard a few issues with (command-line) Linux:
+
+  1. `host.docker.internal` address does not work to communicate via the host machine on (command-line) Linux. 
+  2. If you don't run Docker as root, it won't have access to the mounted SSH keys because of file rights. 
+      - As an example, we run a setup on (rootless) Podman where we add SSH keys as (podman) secrets instead.
+
 
 System requirements could be less, but then you have to change some configurations for Slurm.
 

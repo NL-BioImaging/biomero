@@ -159,6 +159,27 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id18">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id19">0. Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-microsoft-azure-for-slurm">1. Setup Microsoft Azure for Slurm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id20">TL;DR:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#suggested-alternative-use-a-basic-slurm-cluster">Suggested alternative: use a basic Slurm cluster</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#addendum-setting-up-slurm-accounting-db">1 - Addendum - Setting up Slurm Accounting DB</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#a-create-extra-subnet-on-your-virtual-network">A. Create extra subnet on your virtual network</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#b-azure-database">B. Azure database</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#c-slurm-accounting-settings">C. Slurm Accounting settings</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#id21">2. Test Slurm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#test-singularity-on-slurm">3. Test Singularity on Slurm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-bi-omero-in-azure-too-optional">5. Setting up (BI)OMERO in Azure too (Optional)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#showtime">6. Showtime!</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#extra-thoughts">Extra thoughts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -811,12 +832,20 @@ This is what we will cover in this tutorial.</p>
 <p>To follow this tutorial, you need:</p>
 <ul class="simple">
 <li><p>Git</p></li>
-<li><p>Docker</p></li>
+<li><p>Docker (Desktop for Windows)</p></li>
 <li><p>OMERO Insight</p></li>
 <li><p>&gt; 18GB memory</p></li>
 <li><p>&gt; 8 CPU cores</p></li>
 </ul>
-<p>I use Windows here, but it should work on Linux/Mac too. If not, let me know.</p>
+<p><strong>Warning</strong>: I tested with Windows here, and I’ve heard a few issues with (command-line) Linux:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> address does not work to communicate via the host machine on (command-line) Linux.</p></li>
+<li><p>If you don’t run Docker as root, it won’t have access to the mounted SSH keys because of file rights.</p>
+<ul class="simple">
+<li><p>As an example, we run a setup on (rootless) Podman where we add SSH keys as (podman) secrets instead.</p></li>
+</ul>
+</li>
+</ol>
 <p>System requirements could be less, but then you have to change some configurations for Slurm.</p>
 <p>I provide ready-to-go TL;DR, but in the details of each chapter I walk through the steps I took to make these containers ready.</p>
 </div>
@@ -1660,6 +1689,544 @@ hpcsmall-debug-ghpc-3
 <p>That should take you through connecting OMERO with a Google Cloud Slurm setup!</p>
 </div>
 </div>
+</div>
+<hr class="docutils" />
+<div class="section" id="microsoft-azure-slurm-tutorial">
+<h1>Microsoft Azure Slurm tutorial<a class="headerlink" href="#microsoft-azure-slurm-tutorial" title="Permalink to this headline"></a></h1>
+<div class="section" id="id18">
+<h2>Introduction<a class="headerlink" href="#id18" title="Permalink to this headline"></a></h2>
+<p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.</p>
+<p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) OMERO to it.
+This is what we will cover in this tutorial, specifically <strong>Microsoft Azure</strong>.</p>
+</div>
+<div class="section" id="id19">
+<h2>0. Requirements<a class="headerlink" href="#id19" title="Permalink to this headline"></a></h2>
+<p>To follow this tutorial, you need:</p>
+<ul class="simple">
+<li><p>OMERO Insight</p></li>
+<li><p>An Azure account (and credits)</p></li>
+</ul>
+<p>I try to provide a tl;dr when I can, otherwise I go step by step.</p>
+</div>
+<div class="section" id="setup-microsoft-azure-for-slurm">
+<h2>1. Setup Microsoft Azure for Slurm<a class="headerlink" href="#setup-microsoft-azure-for-slurm" title="Permalink to this headline"></a></h2>
+<div class="section" id="id20">
+<h3>TL;DR:<a class="headerlink" href="#id20" title="Permalink to this headline"></a></h3>
+<ol class="arabic simple">
+<li><p>Make a new Azure account if you don’t have one. Hopefully you get/have some free credits.</p></li>
+<li><p>Create an new App “BIOMERO” via “App registrations”</p>
+<ul class="simple">
+<li><p>Copy Application ID</p></li>
+<li><p>Copy Application Secret</p></li>
+</ul>
+</li>
+<li><p>Assign roles to App “BIOMERO”:</p>
+<ul class="simple">
+<li><p>“Azure Container Storage Operator” role on the Subscription (or probably on the Resource Group works too)</p></li>
+<li><p>“Virtual Machine Contributor” role on the Resource Group (“biomero-public”)</p></li>
+<li><p>“Network Contributor” role on the Resource Group (“biomero-public”)</p></li>
+</ul>
+</li>
+<li><p>Create storageaccount “biomerostorage” in the “biomero-public” Resource Group</p></li>
+<li><p>Mainly: Follow this video <a class="reference external" href="https://www.youtube.com/watch?v=qIm6PAFVsmU">tutorial</a> from Microsoft Azure</p>
+<ul class="simple">
+<li><p>However, note that I actually have trouble with their specific version of Slurm in CycleCloud and the default version works fine. Checkout the <code class="docutils literal notranslate"><span class="pre">details</span></code> below for more details on this part.</p></li>
+</ul>
+</li>
+<li><p>Probably use something cheaper than 4x the expensive <code class="docutils literal notranslate"><span class="pre">Standard_ND96amsr_A100_v4</span></code> instances, unless you are really rich!</p>
+<ul class="simple">
+<li><p>Note: Use <code class="docutils literal notranslate"><span class="pre">Ds</span></code> not <code class="docutils literal notranslate"><span class="pre">Das</span></code> or <code class="docutils literal notranslate"><span class="pre">Des</span></code> VM types, if you run into <code class="docutils literal notranslate"><span class="pre">security</span> <span class="pre">type</span> <span class="pre">&lt;null&gt;</span></code> errors in deployment.</p></li>
+</ul>
+</li>
+<li><p>We need a Slurm accounting database for BIOMERO! See <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">-</span> <span class="pre">Addendum</span></code> chapter below for setting one up, if you don’t have a database.</p></li>
+<li><p>Add a public key to your Azure CycleCloud profile. Probably use the <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster_key</span></code> that you can find in your Resource Group.</p></li>
+<li><p>Now you should be able to login to the Slurm scheduler with something like <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">-i</span> <span class="pre">C:\&lt;path-to-my&gt;\hpc-slurm-cluster_key.pem</span> <span class="pre">azureadmin&#64;&lt;scheduler-vm-public-ip&gt;</span></code></p></li>
+<li><p>Change the cloud-init to install Singularity and 7zip on your nodes.</p></li>
+</ol>
+<details>
+  <summary>Details</summary>
+<p>So, we follow this <a class="reference external" href="https://www.youtube.com/watch?v=qIm6PAFVsmU">tutorial</a> and end up with a <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster</span></code> (that’s what I named the VM) VM on Microsoft Azure. It also downloaded the SSH private key for us (<code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster_key.pem</span></code>).</p>
+</div>
+<hr class="docutils" />
+<div class="section" id="suggested-alternative-use-a-basic-slurm-cluster">
+<h3>Suggested alternative: use a basic Slurm cluster<a class="headerlink" href="#suggested-alternative-use-a-basic-slurm-cluster" title="Permalink to this headline"></a></h3>
+<p>CycleCloud already comes with a basic Slurm setup, that is more up-to-date than this specific GPU powered version.
+Especially if you will not use GPU anyway (because $$).</p>
+<p>So, given you followed the movie to get a CycleCloud VM up and running, let’s setup a basic Slurm cluster instead.</p>
+<p>Let’s start that up:</p>
+<ul class="simple">
+<li><p>Click <code class="docutils literal notranslate"><span class="pre">+</span></code> / <code class="docutils literal notranslate"><span class="pre">Add</span></code> for a new cluster and select <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> (instead of <code class="docutils literal notranslate"><span class="pre">cc-slurm-ngc</span></code>)</p></li>
+<li><p>We provide a new name <code class="docutils literal notranslate"><span class="pre">biomero-cluster-basic</span></code></p></li>
+<li><p>We change all the VM types:</p>
+<ul>
+<li><p>Scheduler: <code class="docutils literal notranslate"><span class="pre">Standard_DC4s_v3</span></code></p></li>
+<li><p>HPC, HTC and Dyn: <code class="docutils literal notranslate"><span class="pre">Standard_DC2s_v3</span></code></p></li>
+<li><p>Login node we will not use so doesn’t matter (<code class="docutils literal notranslate"><span class="pre">Num</span> <span class="pre">Login</span> <span class="pre">Nodes</span></code> stays <code class="docutils literal notranslate"><span class="pre">0</span></code>)</p></li>
+</ul>
+</li>
+<li><p>We change the scaling amount to only 4 cores each (instead of 100), and MaxVMs to 2.</p></li>
+<li><p>Change the network to the default biomero network</p></li>
+<li><p>Next, keep all the <code class="docutils literal notranslate"><span class="pre">Network</span> <span class="pre">Attached</span> <span class="pre">Storage</span></code> settings</p></li>
+<li><p>Next, <code class="docutils literal notranslate"><span class="pre">Advanced</span> <span class="pre">Settings</span></code></p>
+<ul>
+<li><p>Here, we need to do 2 major things:</p></li>
+<li><p>First, add the Slurm accounting database. See <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">-</span> <span class="pre">Addendum</span></code> chapter below for setting that up.</p></li>
+<li><p>Second, select appropriate VM images that will work for our software (mainly <code class="docutils literal notranslate"><span class="pre">singularity</span></code> for containers): <code class="docutils literal notranslate"><span class="pre">Ubuntu</span> <span class="pre">22.04</span> <span class="pre">LTS</span></code> worked for us.</p></li>
+</ul>
+</li>
+<li><p>Next, keep all the security settings</p></li>
+<li><p>Finally, let’s <a class="reference external" href="https://learn.microsoft.com/en-us/answers/questions/404297/installing-singularity-on-a-slurm-cyclecloud-clust">change Cloud init</a> for <em>all</em> nodes, to install singularity and 7zip:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#cloud-config  </span>
+<span class="n">package_upgrade</span><span class="p">:</span> <span class="n">true</span>
+<span class="n">packages</span><span class="p">:</span>  
+  <span class="o">-</span> <span class="n">htop</span>
+  <span class="o">-</span> <span class="n">wget</span>
+  <span class="o">-</span> <span class="n">p7zip</span><span class="o">-</span><span class="n">full</span>
+  <span class="o">-</span> <span class="n">software</span><span class="o">-</span><span class="n">properties</span><span class="o">-</span><span class="n">common</span>
+
+<span class="n">runcmd</span><span class="p">:</span>  
+  <span class="o">-</span> <span class="s1">&#39;sudo add-apt-repository -y ppa:apptainer/ppa&#39;</span>
+  <span class="o">-</span> <span class="s1">&#39;sudo apt update&#39;</span>
+  <span class="o">-</span> <span class="s1">&#39;sudo apt install -y apptainer&#39;</span>
+</pre></div>
+</div>
+<p>Apptainer is singularity and will provide the singularity (alias) command.</p>
+</details>
+</div>
+</div>
+<div class="section" id="addendum-setting-up-slurm-accounting-db">
+<h2>1 - Addendum - Setting up Slurm Accounting DB<a class="headerlink" href="#addendum-setting-up-slurm-accounting-db" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple" start="0">
+<li><p>Expected price: 16.16 euro / month</p></li>
+<li><p>We follow <a class="reference external" href="https://techcommunity.microsoft.com/t5/azure-high-performance-computing/setting-up-slurm-job-accounting-with-azure-cyclecloud-and-azure/ba-p/4083685">this recent blog</a></p>
+<ul class="simple">
+<li><p>Note that <code class="docutils literal notranslate"><span class="pre">Western</span> <span class="pre">Europe</span></code> has deployment issues on Azure for these DB. See <code class="docutils literal notranslate"><span class="pre">Details</span></code> for more details.</p></li>
+</ul>
+</li>
+</ol>
+<details>
+  <summary>Details</summary>
+<div class="section" id="a-create-extra-subnet-on-your-virtual-network">
+<h3>A. Create extra subnet on your virtual network<a class="headerlink" href="#a-create-extra-subnet-on-your-virtual-network" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p>Go to your <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster-vnet</span></code></p></li>
+<li><p>Go to <code class="docutils literal notranslate"><span class="pre">Subnets</span></code> Settings</p></li>
+<li><p>Create a new subnet with <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">Subnet</span></code>, named <code class="docutils literal notranslate"><span class="pre">mysql</span></code> (and default settings)</p></li>
+</ul>
+</div>
+<div class="section" id="b-azure-database">
+<h3>B. Azure database<a class="headerlink" href="#b-azure-database" title="Permalink to this headline"></a></h3>
+<p>We create a <a class="reference external" href="https://portal.azure.com/#create/Microsoft.MySQLFlexibleServer">MySQL Flexible Server</a></p>
+<ul class="simple">
+<li><p>Server name <code class="docutils literal notranslate"><span class="pre">slurm-accounting-database</span></code> (or whatever is available)</p></li>
+<li><p>Region <code class="docutils literal notranslate"><span class="pre">Western</span> <span class="pre">Europe</span></code> (same as your server/VNET).</p>
+<ul>
+<li><p>See Notes below about issues (and solutions) in <code class="docutils literal notranslate"><span class="pre">Western</span> <span class="pre">Europe</span></code> at the time of writing.</p></li>
+</ul>
+</li>
+<li><p>MySQL version <code class="docutils literal notranslate"><span class="pre">8.0</span></code></p></li>
+<li><p>Workload type <code class="docutils literal notranslate"><span class="pre">For</span> <span class="pre">development</span></code> (unless you are being serious)</p></li>
+<li><p>Authentication method <code class="docutils literal notranslate"><span class="pre">MySQL</span> <span class="pre">authentication</span> <span class="pre">only</span></code></p></li>
+<li><p>User credentials that you like, I used <code class="docutils literal notranslate"><span class="pre">omero</span></code> user.</p></li>
+<li><p>Next: Networking</p>
+<ul>
+<li><p>Connectivity method: <code class="docutils literal notranslate"><span class="pre">Private</span> <span class="pre">access</span> <span class="pre">(VNet</span> <span class="pre">Integration)</span></code></p></li>
+<li><p>Virtual network: select your existing <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster-vnet</span></code> net</p></li>
+<li><p>Subnet: select your new subnet <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster-vnet/mysql</span></code></p></li>
+<li><p>Private DNS, let it create or use existing one.</p></li>
+</ul>
+</li>
+<li><p>Next: deploy it!</p></li>
+</ul>
+<p>Next, let’s change some Server parameters according to the blog.
+I think this is optional though.</p>
+<ol class="arabic simple">
+<li><p>Go to your <code class="docutils literal notranslate"><span class="pre">slurm-accounting-database</span></code> in the Azure portal</p></li>
+<li><p>Open on left-hand side <code class="docutils literal notranslate"><span class="pre">Server</span> <span class="pre">parameters</span></code></p></li>
+<li><p>Click on <code class="docutils literal notranslate"><span class="pre">All</span></code></p></li>
+<li><p>Filter on <code class="docutils literal notranslate"><span class="pre">innodb_lock_wait_timeout</span></code></p></li>
+<li><p>Change value to <code class="docutils literal notranslate"><span class="pre">900</span></code></p></li>
+<li><p>Save changes</p></li>
+</ol>
+<p>Note! Availability issue in <code class="docutils literal notranslate"><span class="pre">Western</span> <span class="pre">Europe</span></code> in march 2024:</p>
+<p>We had an issue deploying the database in <code class="docutils literal notranslate"><span class="pre">Western</span> <span class="pre">Europe</span></code>, apparently it is full there. So we deployed the database in <code class="docutils literal notranslate"><span class="pre">UK</span> <span class="pre">South</span></code> instead. If you have different regions, you need to connect the VNETs of both regions though, through something called <code class="docutils literal notranslate"><span class="pre">peering</span></code>!</p>
+<p>For this to work, make sure the IPs of the subnets do not overlap, see <code class="docutils literal notranslate"><span class="pre">A</span></code> where we made an extra subnet with different IP.</p>
+<ul class="simple">
+<li><p>We made some extra <code class="docutils literal notranslate"><span class="pre">biomero-public-vnet</span></code> with a <code class="docutils literal notranslate"><span class="pre">mysql</span></code> subnet on the <code class="docutils literal notranslate"><span class="pre">10.1.0.0/24</span></code> range. Make sure it is also <code class="docutils literal notranslate"><span class="pre">Delegated</span> <span class="pre">to</span></code> <code class="docutils literal notranslate"><span class="pre">Microsoft.DBforMySQL/flexibleServers</span></code>.</p></li>
+<li><p>Remove the <code class="docutils literal notranslate"><span class="pre">default</span></code> subnet</p></li>
+<li><p>Remove the <code class="docutils literal notranslate"><span class="pre">10.0.0.0/24</span></code> address space (as we will connect the other vnet here)</p></li>
+<li><p>Then go to the <code class="docutils literal notranslate"><span class="pre">biomero-public-vnet</span></code>, <code class="docutils literal notranslate"><span class="pre">Peerings</span></code> and <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">Add</span></code> a new peering.</p></li>
+<li><p>First named <code class="docutils literal notranslate"><span class="pre">hpc</span></code>, default settings</p></li>
+<li><p>Remote named <code class="docutils literal notranslate"><span class="pre">acct</span></code>, connecting to the <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster-vnet</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="c-slurm-accounting-settings">
+<h3>C. Slurm Accounting settings<a class="headerlink" href="#c-slurm-accounting-settings" title="Permalink to this headline"></a></h3>
+<p>Ok, now back in CycleCloud, we will set Slurm Accounting:</p>
+<ol class="arabic simple">
+<li><p>Edit cluster</p></li>
+<li><p>Advanced Settings</p></li>
+<li><p>Check the <code class="docutils literal notranslate"><span class="pre">Configure</span> <span class="pre">Slurm</span> <span class="pre">job</span> <span class="pre">accounting</span></code> box</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">DBD</span> <span class="pre">URL</span></code> will be
+your chosen Server name (check the Azure portal). For me it was <code class="docutils literal notranslate"><span class="pre">slurm-accounting-database.mysql.database.azure.com</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">DBD</span> <span class="pre">User</span></code> and <code class="docutils literal notranslate"><span class="pre">...</span> <span class="pre">Password</span></code> are what entered in deployment for the DB.</p></li>
+<li><p>SSL Certificate URL is <code class="docutils literal notranslate"><span class="pre">https://dl.cacerts.digicert.com/DigiCertGlobalRootCA.crt.pem</span></code></p></li>
+</ul>
+<ol class="arabic simple" start="4">
+<li><p>(Re)start your Slurm cluster.</p></li>
+<li><p>Test out if the <code class="docutils literal notranslate"><span class="pre">sacct</span></code> command works!</p></li>
+</ol>
+</details>
+</div>
+</div>
+<div class="section" id="id21">
+<h2>2. Test Slurm<a class="headerlink" href="#id21" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple">
+<li><p>SSH into the login node: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">gcslurm</span></code></p></li>
+<li><p>Start some filler jobs: <code class="docutils literal notranslate"><span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span></code></p></li>
+<li><p>Check the progress: <code class="docutils literal notranslate"><span class="pre">squeue</span></code> (perhaps also check Azure CycleCloud to see your HPC VMs spinning up, takes a few min)</p></li>
+<li><p>Check some output when its done, e.g. job 1: <code class="docutils literal notranslate"><span class="pre">cat</span> <span class="pre">slurm-1.out</span></code></p></li>
+</ol>
+</div>
+<div class="section" id="test-singularity-on-slurm">
+<h2>3. Test Singularity on Slurm<a class="headerlink" href="#test-singularity-on-slurm" title="Permalink to this headline"></a></h2>
+<p>For example, run:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sbatch -n 1 --wrap &quot;hostname &gt; lolcow.log &amp;&amp; singularity run docker://godlovedc/lolcow &gt;&gt; lolcow.log&quot;
+</pre></div>
+</div>
+<p>This should say “Submitted batch job 1”
+Then let’s tail the logfile:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>tail -f lolcow.log
+</pre></div>
+</div>
+<p>First we see the slurm node that is computing, and later we will see the funny cow.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ tail -f lolcow.log
+c1
+ _______________________________________
+/ Must I hold a candle to my shames?    <span class="se">\</span>
+<span class="p">|</span>                                       <span class="p">|</span>
+<span class="p">|</span> -- William Shakespeare, <span class="s2">&quot;The Merchant |</span>
+<span class="s2">\ of Venice&quot;</span>                            /
+ ---------------------------------------
+        <span class="se">\ </span>  ^__^
+         <span class="se">\ </span> <span class="o">(</span>oo<span class="o">)</span><span class="se">\_</span>______
+            <span class="o">(</span>__<span class="o">)</span><span class="se">\ </span>      <span class="o">)</span><span class="se">\/\</span>
+                <span class="o">||</span>----w <span class="p">|</span>
+                <span class="o">||</span>     <span class="o">||</span>
+</pre></div>
+</div>
+<p>Exit logs with <code class="docutils literal notranslate"><span class="pre">CTRL+C</span></code>, and the server with <code class="docutils literal notranslate"><span class="pre">exit</span></code>, and enjoy your Azure Slurm cluster.</p>
+</div>
+<div class="section" id="setting-up-bi-omero-in-azure-too-optional">
+<h2>5. Setting up (BI)OMERO in Azure too (Optional)<a class="headerlink" href="#setting-up-bi-omero-in-azure-too-optional" title="Permalink to this headline"></a></h2>
+<p>We will install (BI)OMERO on the CycleCloud VM that we have running anyway.
+Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
+<ol class="arabic simple">
+<li><p>SSH into your CycleCloud VM, <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster</span></code> as <code class="docutils literal notranslate"><span class="pre">azureuser</span></code></p></li>
+</ol>
+<p><code class="docutils literal notranslate"> <span class="pre">ssh</span> <span class="pre">-i</span> <span class="pre">C:\&lt;path-to&gt;\hpc-slurm-cluster_key.pem</span> <span class="pre">azureuser&#64;&lt;public-ip&gt;</span></code></p>
+<ol class="arabic simple" start="2">
+<li><p><a class="reference external" href="https://www.liquidweb.com/kb/install-docker-on-linux-almalinux/">Install a container runner like Docker</a></p></li>
+<li><p>Ensure it works so you can look at the lolcow again <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">godlovedc/lolcow</span></code></p></li>
+</ol>
+<p>Ok, good enough.</p>
+<p>Now let’s pull an easy BIOMERO setup from <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git">NL-BIOMERO</a> onto our VM:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git</span></code></p></li>
+<li><p>Let’s test it: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
+<li><p>Now we need to open the OMERO web port to view it <code class="docutils literal notranslate"><span class="pre">4080</span></code>.</p></li>
+</ol>
+<ul class="simple">
+<li><p>First, go to Azure portal and click on your VM <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster</span></code></p></li>
+<li><p>Second, go to Networking &gt; Network settings</p></li>
+<li><p>Third, <code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">port</span> <span class="pre">rules</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Inbound</span> <span class="pre">port</span> <span class="pre">rule</span></code></p>
+<ul>
+<li><p>Destination port ranges <code class="docutils literal notranslate"><span class="pre">4080</span></code>, Protocol <code class="docutils literal notranslate"><span class="pre">TCP</span></code>, Name <code class="docutils literal notranslate"><span class="pre">OMEROWEB</span></code>. Add it. And wait a bit for it to take effect.</p></li>
+</ul>
+</li>
+</ul>
+<ol class="arabic simple" start="4">
+<li><p>Test it! Open your web browser at <code class="docutils literal notranslate"><span class="pre">&lt;public-ip&gt;:4080</span></code> and login with <code class="docutils literal notranslate"><span class="pre">root</span></code>/<code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
+</ol>
+<p>Good start!</p>
+<p>Now let’s connect BIOMERO to our HPC Slurm cluster:</p>
+<ol class="arabic simple">
+<li><p>Copy the SSH private key <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster_key.pem</span></code> (from chapter 1) to the (CycleCloud/OMERO) server:</p></li>
+</ol>
+<p><code class="docutils literal notranslate"><span class="pre">scp</span> <span class="pre">-c</span> <span class="pre">C:\&lt;path&gt;\hpc-slurm-cluster_key.pem</span> <span class="pre">C:\&lt;path&gt;\hpc-slurm-cluster_key.pem</span> <span class="pre">azureuser&#64;&lt;public-ip&gt;:~</span></code></p>
+<ol class="arabic simple" start="2">
+<li><p>Copy your key on the server into <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> and change permissions, log in:</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cp</span> <span class="pre">hpc-slurm-cluster_key.pem</span> <span class="pre">.ssh</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">chmod</span> <span class="pre">700</span> <span class="pre">.ssh/hpc-slurm-cluster_key.pem</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">-i</span> <span class="pre">.ssh/hpc-slurm-cluster_key.pem</span> <span class="pre">azureadmin&#64;&lt;scheduler-ip&gt;</span></code></p></li>
+<li><p>Great, exit back to the CycleCloud server.</p></li>
+</ul>
+<p>The IP of the scheduler (this changes whenever you create a new cluster!) is shown in the Azure CycleCloud screen, when you click on the active scheduler node.</p>
+<ol class="arabic simple" start="3">
+<li><p>Create a config to setup an alias for the SSH</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">~/.ssh/config</span></code></p></li>
+<li><p>press <code class="docutils literal notranslate"><span class="pre">i</span></code> to <em>insert</em> text</p></li>
+<li><p>copy paste / fill in the config:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Host</span> <span class="n">localslurm</span>
+        <span class="n">HostName</span> <span class="o">&lt;</span><span class="n">scheduler</span><span class="o">-</span><span class="n">ip</span><span class="o">&gt;</span>
+        <span class="n">User</span> <span class="n">azureadmin</span>
+        <span class="n">Port</span> <span class="mi">22</span>
+        <span class="n">IdentityFile</span> <span class="o">~/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">hpc</span><span class="o">-</span><span class="n">slurm</span><span class="o">-</span><span class="n">cluster_key</span><span class="o">.</span><span class="n">pem</span>
+        <span class="n">StrictHostKeyChecking</span> <span class="n">no</span>
+</pre></div>
+</div>
+<p>Fill in the actual ip, this is just a placeholder!</p>
+<ul class="simple">
+<li><p>Save with escape followed by <code class="docutils literal notranslate"><span class="pre">:wq</span></code></p></li>
+<li><p>chmod the config to 700 too: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">chmod</span> <span class="pre">700</span> <span class="pre">.ssh/config</span></code></p></li>
+<li><p>Ready! <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">localslurm</span></code> (or whatever you called the alias)</p></li>
+</ul>
+<ol class="arabic simple" start="4">
+<li><p>Let’s edit the BIOMERO configuration <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, located in the worker-processor node</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">~/NL-BIOMERO/worker-processor/slurm-config.ini</span></code></p></li>
+<li><p>Change the <code class="docutils literal notranslate"><span class="pre">host</span></code> if you did not use the <code class="docutils literal notranslate"><span class="pre">localslurm</span></code> alias in the config above.</p></li>
+<li><p>Change ALL the <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> paths to match our new slurm setup:</p></li>
+</ul>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># Slurm settings</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># General settings for where to find things on the Slurm cluster.</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># PATHS</span>
+<span class="c1"># -------------------------------------</span>
+<span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">data</span>
+<span class="c1"># The path on SLURM entrypoint for storing container image files</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">singularity_images/workflows</span>
+<span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
+<span class="c1">#</span>
+<span class="c1"># Note: </span>
+<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">slurm-scripts</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Save the file again with escape + <code class="docutils literal notranslate"><span class="pre">:wq</span></code></p></li>
+</ul>
+<ol class="arabic simple" start="5">
+<li><p>Now we need to do some Linux shenanigans to mount ssh properly into the container</p></li>
+</ol>
+<ul class="simple">
+<li><p>First, create a empty .pub file that we are missing: <code class="docutils literal notranslate"><span class="pre">touch</span> <span class="pre">~/.ssh/empty.pub</span></code></p></li>
+<li><p>Second, chmod the .ssh folder and its contents fully open so Docker can access it: <code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">-R</span> <span class="pre">777</span> <span class="pre">~/.ssh</span></code></p></li>
+<li><p>Note, if you later want to SSH from commandline again (instead of letting BIOMERO do it), just change the rights back to 700 (<code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">-R</span> <span class="pre">700</span> <span class="pre">~/.ssh</span></code>). This is just a Linux container building temporary permission thing.</p></li>
+</ul>
+<ol class="arabic simple" start="6">
+<li><p>Now we will (re)start / (re)build the BIOMERO servers again</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">NL-BIOMERO</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">down</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
+<li><p>Now <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-omeroworker-processor-1</span></code> should show some good logs leading to: <code class="docutils literal notranslate"><span class="pre">Starting</span> <span class="pre">node</span> <span class="pre">omeroworker-processor</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="showtime">
+<h2>6. Showtime!<a class="headerlink" href="#showtime" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple">
+<li><p>Go to your OMERO web at <code class="docutils literal notranslate"><span class="pre">http://&lt;your-VM-ip&gt;:4080/</span></code> (<code class="docutils literal notranslate"><span class="pre">root</span></code>/<code class="docutils literal notranslate"><span class="pre">omero</span></code>)</p></li>
+<li><p>Let’s initialize BIOMERO: <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">biomero</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">init</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">SLURM</span> <span class="pre">Init</span> <span class="pre">environment...</span></code>; run that script</p></li>
+<li><p>While we’re waiting for that to complete, let’s checkout the basic connection: <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">biomero</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Example</span> <span class="pre">Minimal</span> <span class="pre">Slurm</span> <span class="pre">Script...</span></code>;</p></li>
+</ol>
+<ul class="simple">
+<li><p>Uncheck the <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Python</span></code> box, as we didn’t install that</p></li>
+<li><p>Check the <code class="docutils literal notranslate"><span class="pre">Check</span> <span class="pre">SLURM</span> <span class="pre">status</span></code> box</p></li>
+<li><p>Check the <code class="docutils literal notranslate"><span class="pre">Check</span> <span class="pre">Queue</span></code> box</p></li>
+<li><p>Run the script, you should get something like this, an empty queue:</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>JOBID PARTITION NAME USER ST TIME NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>You can try some other ones, e.g. check the <code class="docutils literal notranslate"><span class="pre">Check</span> <span class="pre">Cluster</span></code> box instead:</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>PARTITION AVAIL TIMELIMIT NODES STATE NODELIST 
+dynamic up infinite <span class="m">0</span> n/a 
+hpc* up infinite <span class="m">2</span> idle~ biomero-cluster-basic-hpc-<span class="o">[</span><span class="m">1</span>-2<span class="o">]</span> 
+htc up infinite <span class="m">2</span> idle~ biomero-cluster-basic-htc-<span class="o">[</span><span class="m">1</span>-2<span class="o">]</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Note if you click the <code class="docutils literal notranslate"><span class="pre">i</span></code> button next to the output, you can see the output printed in a lot more detail and better formatting. Especially if you ran multiple commands at the same time.</p></li>
+</ul>
+<ol class="arabic simple" start="4">
+<li><p>At some point, the init script will be done, or you get a <code class="docutils literal notranslate"><span class="pre">Ice.ConnectionLostException</span></code> (which means it took too long).</p></li>
+</ol>
+<ul class="simple">
+<li><p>Let’s see what BIOMERO created! Run  <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">biomero</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Example</span> <span class="pre">Minimal</span> <span class="pre">Slurm</span> <span class="pre">Script...</span></code>;</p></li>
+<li><p>Uncheck the <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Python</span></code> box</p></li>
+<li><p>Check the <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Other</span> <span class="pre">Commmand</span></code> box</p></li>
+<li><p>Change the Linux Command to <code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">**/*</span></code> (we want to check all subfolders too).</p></li>
+<li><p>Run it. Press the <code class="docutils literal notranslate"><span class="pre">i</span></code> button for proper formatting and scroll down to see what we made</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="o">===</span> <span class="nv">stdout</span> <span class="o">===</span>
+-rw-r--r-- <span class="m">1</span> azureadmin azureadmin <span class="m">1336</span> Mar <span class="m">21</span> <span class="m">17</span>:44 slurm-scripts/convert_job_array.sh
+
+my-scratch/singularity_images:
+total <span class="m">0</span>
+drwxrwxr-x <span class="m">3</span> azureadmin azureadmin  <span class="m">24</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
+drwxrwxr-x <span class="m">3</span> azureadmin azureadmin  <span class="m">32</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin <span class="m">117</span> Mar <span class="m">21</span> <span class="m">17</span>:45 converters
+
+singularity_images/workflows:
+total <span class="m">16</span>
+drwxrwxr-x <span class="m">6</span> azureadmin azureadmin   <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
+drwxrwxr-x <span class="m">3</span> azureadmin azureadmin    <span class="m">23</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">40</span> Mar <span class="m">21</span> <span class="m">17</span>:42 cellexpansion
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">54</span> Mar <span class="m">21</span> <span class="m">17</span>:36 cellpose
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">52</span> Mar <span class="m">21</span> <span class="m">17</span>:40 cellprofiler_spot
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin   <span class="m">695</span> Mar <span class="m">21</span> <span class="m">17</span>:45 pull_images.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">10802</span> Mar <span class="m">21</span> <span class="m">17</span>:45 sing.log
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">43</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting
+
+slurm-scripts/jobs:
+total <span class="m">16</span>
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin  <span class="m">100</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
+drwxrwxr-x <span class="m">3</span> azureadmin azureadmin   <span class="m">46</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3358</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellexpansion.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3406</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellpose.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3184</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellprofiler_spot.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3500</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting.sh
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Or better yet, run this linux command for full info on <em>all</em> (non-hidden) subdirectories: <code class="docutils literal notranslate"><span class="pre">find</span> <span class="pre">.</span> <span class="pre">-type</span> <span class="pre">d</span> <span class="pre">-not</span> <span class="pre">-path</span> <span class="pre">'*/.*'</span> <span class="pre">-exec</span> <span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">{}</span> <span class="pre">+</span></code>. This should show that we downloaded some of the workflows to our Slurm cluster already:</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./singularity_images/workflows:
+total <span class="m">16</span>
+drwxrwxr-x <span class="m">6</span> azureadmin azureadmin   <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
+drwxrwxr-x <span class="m">3</span> azureadmin azureadmin    <span class="m">23</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">40</span> Mar <span class="m">21</span> <span class="m">17</span>:42 cellexpansion
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">54</span> Mar <span class="m">21</span> <span class="m">17</span>:36 cellpose
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">52</span> Mar <span class="m">21</span> <span class="m">17</span>:40 cellprofiler_spot
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin   <span class="m">695</span> Mar <span class="m">21</span> <span class="m">17</span>:45 pull_images.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">10802</span> Mar <span class="m">21</span> <span class="m">17</span>:45 sing.log
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">43</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting
+
+./singularity_images/workflows/cellexpansion:
+total <span class="m">982536</span>
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">40</span> Mar <span class="m">21</span> <span class="m">17</span>:42 .
+drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">1006116864</span> Mar <span class="m">21</span> <span class="m">17</span>:42 w_cellexpansion_v2.0.1.sif
+
+./singularity_images/workflows/cellpose:
+total <span class="m">4672820</span>
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">54</span> Mar <span class="m">21</span> <span class="m">17</span>:36 .
+drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">4784967680</span> Mar <span class="m">21</span> <span class="m">17</span>:36 t_nucleisegmentation-cellpose_v1.2.9.sif
+
+./singularity_images/workflows/cellprofiler_spot:
+total <span class="m">2215916</span>
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">52</span> Mar <span class="m">21</span> <span class="m">17</span>:40 .
+drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">2269097984</span> Mar <span class="m">21</span> <span class="m">17</span>:40 w_spotcounting-cellprofiler_v1.0.1.sif
+
+./singularity_images/workflows/spotcounting:
+total <span class="m">982720</span>
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">43</span> Mar <span class="m">21</span> <span class="m">17</span>:44 .
+drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">1006305280</span> Mar <span class="m">21</span> <span class="m">17</span>:44 w_countmaskoverlap_v1.0.1.sif
+
+./slurm-scripts:
+total <span class="m">8</span>
+drwxrwxr-x  <span class="m">3</span> azureadmin azureadmin   <span class="m">46</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
+drwxr-xr-x <span class="m">12</span> azureadmin azureadmin <span class="m">4096</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rw-r--r--  <span class="m">1</span> azureadmin azureadmin <span class="m">1336</span> Mar <span class="m">21</span> <span class="m">17</span>:44 convert_job_array.sh
+drwxrwxr-x  <span class="m">2</span> azureadmin azureadmin  <span class="m">100</span> Mar <span class="m">21</span> <span class="m">17</span>:31 <span class="nb">jobs</span>
+
+./slurm-scripts/jobs:
+total <span class="m">16</span>
+drwxrwxr-x <span class="m">2</span> azureadmin azureadmin  <span class="m">100</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
+drwxrwxr-x <span class="m">3</span> azureadmin azureadmin   <span class="m">46</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3358</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellexpansion.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3406</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellpose.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3184</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellprofiler_spot.sh
+-rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3500</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting.sh
+</pre></div>
+</div>
+<ol class="arabic simple" start="5">
+<li><p>Ok, let’s get to some data! Upload a file with (a local installation of) omero insight.</p></li>
+</ol>
+<ul class="simple">
+<li><p>First, open up the OMERO port <code class="docutils literal notranslate"><span class="pre">4064</span></code> in Azure on your <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster</span></code>, just like we did with port <code class="docutils literal notranslate"><span class="pre">4080</span></code>: Add inbound security rule, destination <code class="docutils literal notranslate"><span class="pre">4064</span></code>, Protocol <code class="docutils literal notranslate"><span class="pre">TCP</span></code>, Name <code class="docutils literal notranslate"><span class="pre">OMEROINSIGHT</span></code>.</p></li>
+<li><p>Change the server to <code class="docutils literal notranslate"><span class="pre">&lt;cyclecloud-vm-ip&gt;:4064</span></code></p></li>
+<li><p>Login <code class="docutils literal notranslate"><span class="pre">root</span></code>/<code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
+<li><p>Upload some Nuclei fluorescense images. For example, I uploaded the raw images from <a class="reference external" href="https://www.ebi.ac.uk/biostudies/bioimages/studies/S-BSST265">S-BSST265</a> into a Project <code class="docutils literal notranslate"><span class="pre">TestProject</span></code> and Dataset <code class="docutils literal notranslate"><span class="pre">S-BSST265</span></code>. Add to Queue, and import!</p></li>
+</ul>
+<ol class="arabic simple" start="6">
+<li><p>IMPORTANT! Our default <a class="reference external" href="https://github.com/NL-BioImaging/biomero/blob/main/resources/job_template.sh#L12">job script</a> assumes 4 CPUs, but we have nodes with only 2 cores. So we have to lower this amount for the job script. Otherwise we get this error:</p></li>
+</ol>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sbatch</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">CPU</span> <span class="n">count</span> <span class="n">per</span> <span class="n">node</span> <span class="n">can</span> <span class="ow">not</span> <span class="n">be</span> <span class="n">satisfied</span>
+<span class="n">sbatch</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">Batch</span> <span class="n">job</span> <span class="n">submission</span> <span class="n">failed</span><span class="p">:</span> <span class="n">Requested</span> <span class="n">node</span> <span class="n">configuration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">available</span>
+</pre></div>
+</div>
+<p>We will do this ad-hoc, by changing the configuration for CellPose in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> in our installation:</p>
+<ul class="simple">
+<li><p>First, edit the config on the main VM with <code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">worker-processor/slurm-config.ini</span></code></p></li>
+<li><p>Add this line to your workflows <code class="docutils literal notranslate"><span class="pre">&lt;wf&gt;_job_cpus-per-task=2</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_cpus-per-task=2</span></code></p></li>
+<li><p>save file (<code class="docutils literal notranslate"><span class="pre">:wq</span></code>)</p></li>
+<li><p>Don’t forget to open your .ssh to the container <code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">-R</span> <span class="pre">777</span> <span class="pre">~/.ssh</span></code> (and close it later)</p></li>
+<li><p>Restart the biomero container(s) (<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code>, perhaps specifically for <code class="docutils literal notranslate"><span class="pre">omeroworker-processor</span></code>).</p></li>
+<li><p>Check logs to see if biomero started up properly <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-omeroworker-processor-1</span></code></p></li>
+</ul>
+<ol class="arabic simple" start="6">
+<li><p>Next, time to segment! Time to spin up those SLURM compute nodes:</p></li>
+</ol>
+<ul class="simple">
+<li><p>First, select your newly imported dataset, then <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">biomero</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">workflows</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow...</span></code></p></li>
+<li><p>At <code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">how</span> <span class="pre">to</span> <span class="pre">import</span> <span class="pre">your</span> <span class="pre">results</span> <span class="pre">(one</span> <span class="pre">or</span> <span class="pre">more)</span></code>, we will upload the masks back into a new dataset, so:</p>
+<ul>
+<li><p>Change <code class="docutils literal notranslate"><span class="pre">3a)</span> <span class="pre">Import</span> <span class="pre">into</span> <span class="pre">NEW</span> <span class="pre">Dataset:</span></code> into <code class="docutils literal notranslate"><span class="pre">CellPoseMasks</span></code></p></li>
+<li><p>Change <code class="docutils literal notranslate"><span class="pre">3c)</span> <span class="pre">Rename</span> <span class="pre">the</span> <span class="pre">imported</span> <span class="pre">images:</span></code> into <code class="docutils literal notranslate"><span class="pre">{original_file}_Mask_C1.{ext}</span></code> (these are placeholder values)</p></li>
+</ul>
+</li>
+<li><p>Next, check the <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> box and</p>
+<ul>
+<li><p>Change <code class="docutils literal notranslate"><span class="pre">nuc</span> <span class="pre">channel</span></code> to <code class="docutils literal notranslate"><span class="pre">1</span></code></p></li>
+<li><p>Uncheck the <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">gpu</span></code> box (unless you paid for sweet GPU nodes from Azure)</p></li>
+</ul>
+</li>
+<li><p>Run Script!</p>
+<ul>
+<li><p>We are running the <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> workflow on channel <code class="docutils literal notranslate"><span class="pre">1</span></code> (with otherwise default parameters) of all the images of the dataset <code class="docutils literal notranslate"><span class="pre">S-BSST265</span></code> and import the output mask images back into OMERO as dataset <code class="docutils literal notranslate"><span class="pre">CellPoseMasks</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Now, this will take a while again because we are cheap and do not have a GPU node at the ready.</p>
+<ul>
+<li><p>Instead, Azure will <code class="docutils literal notranslate"><span class="pre">on-demand</span></code> create our compute node (to save us money when we are not using it), which only has a few CPUs as well!</p></li>
+<li><p>So this is not a test of speed (unless you setup a nice Slurm cluster with always-available GPU nodes), but of the BIOMERO automation process.</p></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="extra-thoughts">
+<h1>Extra thoughts<a class="headerlink" href="#extra-thoughts" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Perhaps also make the Cluster have a static IP, instead of changing whenever you terminate it: https://learn.microsoft.com/en-us/azure/cyclecloud/how-to/network-security?view=cyclecloud-8</p></li>
+</ul>
 </div>
 
 

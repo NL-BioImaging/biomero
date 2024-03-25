@@ -18,3 +18,8 @@
 
 ```{include} ../resources/tutorials/tutorial_GoogleCloud_slurm.md
 ```
+
+---
+
+```{include} ../resources/tutorials/tutorial_Azure_slurm.md
+```

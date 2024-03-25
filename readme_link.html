@@ -93,6 +93,8 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -189,6 +191,7 @@
 <li><p>7zip installed</p></li>
 <li><p>Singularity/Apptainer installed</p></li>
 <li><p>(Optional) Git installed, if you want your own job scripts</p></li>
+<li><p>Slurm accounting enabled</p></li>
 </ol>
 </div>
 <div class="section" id="omero-requirements">
@@ -204,7 +207,7 @@
 <li><p>or latest Github version <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'git+https://github.com/NL-BioImaging/biomero'</span></code></p></li>
 </ul>
 </li>
-<li><p>uration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-.ini</span></code></p></li>
+<li><p>Configuration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-.ini</span></code></p></li>
 <li><p>Requirements for some scripts: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code> and the <a class="reference external" href="https://github.com/ome/omero-cli-zarr">OMERO CLI Zarr plugin</a>.</p></li>
 </ol>
 <p>Your OMERO <em>server</em> node needs to have:</p>

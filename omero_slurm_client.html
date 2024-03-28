@@ -1105,6 +1105,61 @@ the Slurm job ID, or -1 if the job ID could not be extracted.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.setup_container_images">
+<span class="sig-name descname"><span class="pre">setup_container_images</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.setup_container_images"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.setup_container_images" title="Permalink to this definition"></a></dt>
+<dd><p>Sets up container images for Slurm operations.</p>
+<p>This function creates specific directories for container images and pulls
+necessary images from Docker repositories. It generates and executes
+a script to pull images and copies it to the remote location.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>SSHException</strong> – If there is an issue executing commands or copying files.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.setup_converters">
+<span class="sig-name descname"><span class="pre">setup_converters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.setup_converters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.setup_converters" title="Permalink to this definition"></a></dt>
+<dd><p>Sets up converters for Slurm operations.</p>
+<p>This function creates necessary directories for converters and copies
+converter scripts and definitions to the appropriate locations. It also
+builds Singularity containers from the provided definitions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>SSHException</strong> – If there is an issue executing commands or copying files.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.setup_directories">
+<span class="sig-name descname"><span class="pre">setup_directories</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.setup_directories"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.setup_directories" title="Permalink to this definition"></a></dt>
+<dd><p>Creates necessary directories for Slurm operations.</p>
+<p>This function creates directories for data storage, scripts, and workflows
+as specified in the SlurmClient object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>SSHException</strong> – If there is an issue executing directory creation commands.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.setup_job_scripts">
+<span class="sig-name descname"><span class="pre">setup_job_scripts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.setup_job_scripts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.setup_job_scripts" title="Permalink to this definition"></a></dt>
+<dd><p>Sets up job scripts for Slurm operations.</p>
+<p>This function either clones a Git repository containing job scripts
+into the specified script path or generates scripts locally if no repository
+is provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>SSHException</strong> – If there is an issue executing Git commands or generating scripts.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.setup_slurm">
 <span class="sig-name descname"><span class="pre">setup_slurm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.setup_slurm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.setup_slurm" title="Permalink to this definition"></a></dt>
 <dd><p>Validates or creates the required setup on the Slurm cluster.</p>

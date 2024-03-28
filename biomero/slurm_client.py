@@ -376,7 +376,7 @@ class SlurmClient(Connection):
                     _, version = self.extract_parts_from_url(repo)
                     if version == "master":
                         version = "latest"
-                    pull_template = "time singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1 ; echo 'finished $path' &"
+                    pull_template = "time singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1 ; echo 'finished $path' >> sing.log &"
                     t = Template(pull_template)
                     substitutes = {}
                     substitutes['path'] = path
@@ -401,6 +401,10 @@ class SlurmClient(Connection):
                 if not r.ok:
                     raise SSHException(r)
                 logger.info(r.stdout)
+                logger.info("Initiated downloading and building" +
+                            " container images on Slurm." +
+                            " This will take a while in the background." + 
+                            " Check 'sing.log' on Slurm for progress.")
                 # # cleanup giant singularity cache!
                 # using --disable-cache because we run in the background
                 # cmd = "singularity cache clean -f"

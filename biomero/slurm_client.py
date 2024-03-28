@@ -65,7 +65,7 @@ class SlurmJob:
                 [self.job_id])
             if not poll_result.ok:
                 logger.warning(
-                    f"Error checking job status:{ poll_result.stderr }")
+                    f"Error checking job status:{poll_result.stderr}")
                 self.job_state = "FAILED"
             self.job_state = job_status_dict[self.job_id]
             # wait for 10 seconds before checking again
@@ -334,125 +334,174 @@ class SlurmClient(Connection):
         """
         if self.validate():
             # 1. Create directories
-            dir_cmds = []
-            # a. data
-            if self.slurm_data_path:
-                dir_cmds.append(f"mkdir -p {self.slurm_data_path}")
-            # b. scripts
-            if self.slurm_script_path:
-                dir_cmds.append(f"mkdir -p {self.slurm_script_path}")
-            # c. workflows
-            if self.slurm_images_path:
-                dir_cmds.append(f"mkdir -p {self.slurm_images_path}")
-            r = self.run_commands(dir_cmds)
-            if not r.ok:
-                raise SSHException(r)
+            self.setup_directories()
 
             # 2. Clone git
-            if self.slurm_script_repo and self.slurm_script_path:
-                # git clone into script path
-                env = {
-                    "REPOSRC": self.slurm_script_repo,
-                    "LOCALREPO": self.slurm_script_path
-                }
-                cmd = 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null || git -C "$LOCALREPO" pull'
-                r = self.run_commands([cmd], env)
-                if not r.ok:
-                    raise SSHException(r)
-            elif self.slurm_script_path:
-                # generate scripts
-                self.update_slurm_scripts(generate_jobs=True)
+            self.setup_job_scripts()
 
             # 3. Setup converters
-            convert_cmds = []
-            if self.slurm_converters_path:
-                convert_cmds.append(f"mkdir -p {self.slurm_converters_path}")
-            r = self.run_commands(convert_cmds)
-            # copy generic job array script over to slurm
-            convert_job_local = files("resources").joinpath(
-                "convert_job_array.sh")
-            _ = self.put(local=convert_job_local,
-                         remote=self.slurm_script_path)
-            # currently known converters
-            # 3a. ZARR to TIFF
-            # TODO extract these values to e.g. config if we have more
-            convert_name = "convert_zarr_to_tiff"
-            convert_py = f"{convert_name}.py"
-            convert_script_local = files("resources").joinpath(
-                convert_py)
-            convert_def = f"{convert_name}.def"
-            convert_def_local = files("resources").joinpath(
-                convert_def)
-            _ = self.put(local=convert_script_local,
-                         remote=self.slurm_converters_path)
-            _ = self.put(local=convert_def_local,
-                         remote=self.slurm_converters_path)
-            # Build singularity container from definition
-            with self.cd(self.slurm_converters_path):
-                convert_cmds = []
-                if self.slurm_images_path:
-                    # TODO Change the tmp dir?
-                    # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
-
-                    # only if file does not exist yet
-                    # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
-                    # EDIT -- NO, then we can't update! Force rebuild!
-
-                    # download /build new container
-                    convert_cmds.append(
-                        f"singularity build -F {convert_name}.sif {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
-                r = self.run_commands(convert_cmds)
+            self.setup_converters()
 
             # 4. Download workflow images
-            # Create specific workflow dirs
-            with self.cd(self.slurm_images_path):
-                if self.slurm_model_paths:
-                    modelpaths = " ".join(self.slurm_model_paths.values())
-                    # mkdir cellprofiler imagej ...
-                    r = self.run_commands([f"mkdir -p {modelpaths}"])
-                    if not r.ok:
-                        raise SSHException(r)
-
-                if self.slurm_model_images:
-                    pull_commands = []
-                    for wf, image in self.slurm_model_images.items():
-                        repo = self.slurm_model_repos[wf]
-                        path = self.slurm_model_paths[wf]
-                        _, version = self.extract_parts_from_url(repo)
-                        if version == "master":
-                            version = "latest"
-                        pull_template = "time singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1 ; echo 'finished $path' &"
-                        t = Template(pull_template)
-                        substitutes = {}
-                        substitutes['path'] = path
-                        substitutes['image'] = image
-                        substitutes['version'] = version
-                        cmd = t.safe_substitute(substitutes)
-                        logger.debug(f"substituted: {cmd}")
-                        pull_commands.append(cmd)
-                    script_name = "pull_images.sh"
-                    template_script = files("resources").joinpath(script_name)
-                    with template_script.open('r') as f:
-                        src = Template(f.read())
-                        substitute = {'pullcommands': "\n".join(pull_commands)}
-                        job_script = src.safe_substitute(substitute)
-                    logger.debug(f"substituted:\n {job_script}")
-                    # copy to remote file
-                    full_path = self.slurm_images_path+"/"+script_name
-                    _ = self.put(local=io.StringIO(job_script),
-                                 remote=full_path)
-                    cmd = f"time sh {script_name}"
-                    r = self.run_commands([cmd])
-                    if not r.ok:
-                        raise SSHException(r)
-                    logger.info(r.stdout)
-                    # # cleanup giant singularity cache!
-                    # using --disable-cache because we run in the background
-                    # cmd = "singularity cache clean -f"
-                    # r = self.run_commands([cmd])
+            self.setup_container_images()
 
         else:
             raise SSHException("Failure in connecting to Slurm cluster")
+
+    def setup_container_images(self):
+        """
+        Sets up container images for Slurm operations.
+
+        This function creates specific directories for container images and pulls
+        necessary images from Docker repositories. It generates and executes
+        a script to pull images and copies it to the remote location.
+
+        Raises:
+            SSHException: If there is an issue executing commands or copying files.
+        """
+        # Create specific workflow dirs
+        with self.cd(self.slurm_images_path):
+            if self.slurm_model_paths:
+                modelpaths = " ".join(self.slurm_model_paths.values())
+                # mkdir cellprofiler imagej ...
+                r = self.run_commands([f"mkdir -p {modelpaths}"])
+                if not r.ok:
+                    raise SSHException(r)
+
+            if self.slurm_model_images:
+                pull_commands = []
+                for wf, image in self.slurm_model_images.items():
+                    repo = self.slurm_model_repos[wf]
+                    path = self.slurm_model_paths[wf]
+                    _, version = self.extract_parts_from_url(repo)
+                    if version == "master":
+                        version = "latest"
+                    pull_template = "time singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1 ; echo 'finished $path' &"
+                    t = Template(pull_template)
+                    substitutes = {}
+                    substitutes['path'] = path
+                    substitutes['image'] = image
+                    substitutes['version'] = version
+                    cmd = t.safe_substitute(substitutes)
+                    logger.debug(f"substituted: {cmd}")
+                    pull_commands.append(cmd)
+                script_name = "pull_images.sh"
+                template_script = files("resources").joinpath(script_name)
+                with template_script.open('r') as f:
+                    src = Template(f.read())
+                    substitute = {'pullcommands': "\n".join(pull_commands)}
+                    job_script = src.safe_substitute(substitute)
+                logger.debug(f"substituted:\n {job_script}")
+                # copy to remote file
+                full_path = self.slurm_images_path+"/"+script_name
+                _ = self.put(local=io.StringIO(job_script),
+                             remote=full_path)
+                cmd = f"time sh {script_name}"
+                r = self.run_commands([cmd])
+                if not r.ok:
+                    raise SSHException(r)
+                logger.info(r.stdout)
+                # # cleanup giant singularity cache!
+                # using --disable-cache because we run in the background
+                # cmd = "singularity cache clean -f"
+                # r = self.run_commands([cmd])
+
+    def setup_converters(self):
+        """
+        Sets up converters for Slurm operations.
+
+        This function creates necessary directories for converters and copies
+        converter scripts and definitions to the appropriate locations. It also
+        builds Singularity containers from the provided definitions.
+
+        Raises:
+            SSHException: If there is an issue executing commands or copying files.
+        """
+        convert_cmds = []
+        if self.slurm_converters_path:
+            convert_cmds.append(f"mkdir -p {self.slurm_converters_path}")
+        r = self.run_commands(convert_cmds)
+        # copy generic job array script over to slurm
+        convert_job_local = files("resources").joinpath(
+            "convert_job_array.sh")
+        _ = self.put(local=convert_job_local,
+                     remote=self.slurm_script_path)
+        # currently known converters
+        # 3a. ZARR to TIFF
+        # TODO extract these values to e.g. config if we have more
+        convert_name = "convert_zarr_to_tiff"
+        convert_py = f"{convert_name}.py"
+        convert_script_local = files("resources").joinpath(
+            convert_py)
+        convert_def = f"{convert_name}.def"
+        convert_def_local = files("resources").joinpath(
+            convert_def)
+        _ = self.put(local=convert_script_local,
+                     remote=self.slurm_converters_path)
+        _ = self.put(local=convert_def_local,
+                     remote=self.slurm_converters_path)
+        # Build singularity container from definition
+        with self.cd(self.slurm_converters_path):
+            convert_cmds = []
+            if self.slurm_images_path:
+                # TODO Change the tmp dir?
+                # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
+                # only if file does not exist yet
+                # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
+                # EDIT -- NO, then we can't update! Force rebuild!
+                # download /build new container
+                convert_cmds.append(
+                    f"singularity build -F {convert_name}.sif {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
+            r = self.run_commands(convert_cmds)
+
+    def setup_job_scripts(self):
+        """
+        Sets up job scripts for Slurm operations.
+
+        This function either clones a Git repository containing job scripts
+        into the specified script path or generates scripts locally if no repository
+        is provided.
+
+        Raises:
+            SSHException: If there is an issue executing Git commands or generating scripts.
+        """
+        if self.slurm_script_repo and self.slurm_script_path:
+            # git clone into script path
+            env = {
+                "REPOSRC": self.slurm_script_repo,
+                "LOCALREPO": self.slurm_script_path
+            }
+            cmd = 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null || git -C "$LOCALREPO" pull'
+            r = self.run_commands([cmd], env)
+            if not r.ok:
+                raise SSHException(r)
+        elif self.slurm_script_path:
+            # generate scripts
+            self.update_slurm_scripts(generate_jobs=True)
+
+    def setup_directories(self):
+        """
+        Creates necessary directories for Slurm operations.
+
+        This function creates directories for data storage, scripts, and workflows
+        as specified in the SlurmClient object.
+
+        Raises:
+            SSHException: If there is an issue executing directory creation commands.
+        """
+        dir_cmds = []
+        # a. data
+        if self.slurm_data_path:
+            dir_cmds.append(f"mkdir -p {self.slurm_data_path}")
+            # b. scripts
+        if self.slurm_script_path:
+            dir_cmds.append(f"mkdir -p {self.slurm_script_path}")
+            # c. workflows
+        if self.slurm_images_path:
+            dir_cmds.append(f"mkdir -p {self.slurm_images_path}")
+        r = self.run_commands(dir_cmds)
+        if not r.ok:
+            raise SSHException(r)
 
     @classmethod
     def from_config(cls, configfile: str = '',
@@ -1156,7 +1205,7 @@ class SlurmClient(Connection):
                          ) -> Tuple[Dict[int, str], Result]:
         """
         Check the status of Slurm jobs with the given job IDs.
-        
+
         Note: This doesn't return job arrays individually.
         It takes the last value returned for those sub ids 
         (generally the one still PENDING).
@@ -1191,7 +1240,7 @@ class SlurmClient(Connection):
                         f"Retry {retry_status} getting status \
                             of {slurm_job_ids}!")
                 else:
-                    # 
+                    #
                     job_status_dict = {int(line.split()[0].split('_')[0]): line.split(
                     )[1] for line in result.stdout.split("\n") if line}
                     logger.debug(f"Job statuses: {job_status_dict}")

@@ -376,7 +376,7 @@ class SlurmClient(Connection):
                     _, version = self.extract_parts_from_url(repo)
                     if version == "master":
                         version = "latest"
-                    pull_template = " echo 'starting $path $version' >> sing.log; time singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1 ; echo 'finished $path $version' >> sing.log &"
+                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c 'singularity pull --disable-cache --dir $path docker://$image:$version  >> sing.log 2>&1' &\necho 'finished $path $version' >> sing.log &"
                     t = Template(pull_template)
                     substitutes = {}
                     substitutes['path'] = path

@@ -45,8 +45,8 @@ echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | $S
 	$PARAMS" 
 
 # Load singularity module if needed
-echo "Loading Singularity/Apptainer..."
-module load singularity || true
+echo "Loading Singularity/Apptainer if needed..."
+module load singularity > /dev/null 2>&1 || true
 
 # WE MOVED THIS CONVERSION LOGIC TO A SEPARATE BIOMERO FUNCTION
 # APPLYING IT HERE HAS A POSSIBILITY TO CLOG THE QUEUE AND TIMEOUT WHILE WAITING

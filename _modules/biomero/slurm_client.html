@@ -279,6 +279,7 @@
     <span class="c1"># TODO move all commands to a similar format.</span>
     <span class="c1"># Then maybe allow overwrite from slurm-config.ini</span>
     <span class="n">_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;omero-</span><span class="si">{slurm_job_id}</span><span class="s2">.log&quot;</span>
+    <span class="n">_CONVERTER_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;slurm-</span><span class="si">{slurm_job_id}</span><span class="s2">_*.out&quot;</span>
     <span class="n">_TAIL_LOG_CMD</span> <span class="o">=</span> <span class="s2">&quot;tail -n </span><span class="si">{n}</span><span class="s2"> </span><span class="si">{log_file}</span><span class="s2"> | strings&quot;</span>
     <span class="n">_LOGFILE_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;cat </span><span class="si">{log_file}</span><span class="s2"> | perl -wne &#39;/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1&#39;&quot;</span>
 
@@ -737,6 +738,11 @@
             <span class="n">logfile</span> <span class="o">=</span> <span class="n">logfile</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
         <span class="n">rmlog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{logfile}</span><span class="s2">&quot;</span>
         <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmlog</span><span class="p">)</span>
+        <span class="c1"># converter logs</span>
+        <span class="n">clog</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_CONVERTER_LOGFILE</span>
+        <span class="n">clog</span> <span class="o">=</span> <span class="n">clog</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
+        <span class="n">rmclog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{clog}</span><span class="s2">&quot;</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmclog</span><span class="p">)</span>
         <span class="c1"># data</span>
         <span class="k">if</span> <span class="n">data_location</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">data_location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_data_location_from_log</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>

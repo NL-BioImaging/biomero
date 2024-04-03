@@ -179,6 +179,7 @@ class SlurmClient(Connection):
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
+    _CONVERTER_LOGFILE = "slurm-{slurm_job_id}_*.out"
     _TAIL_LOG_CMD = "tail -n {n} {log_file} | strings"
     _LOGFILE_DATA_CMD = "cat {log_file} | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
 
@@ -637,6 +638,11 @@ class SlurmClient(Connection):
             logfile = logfile.format(slurm_job_id=slurm_job_id)
         rmlog = f"rm {logfile}"
         cmds.append(rmlog)
+        # converter logs
+        clog = self._CONVERTER_LOGFILE
+        clog = clog.format(slurm_job_id=slurm_job_id)
+        rmclog = f"rm {clog}"
+        cmds.append(rmclog)
         # data
         if data_location is None:
             data_location = self.extract_data_location_from_log(logfile)

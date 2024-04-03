@@ -60,7 +60,14 @@ class SlurmJob:
         Returns:
             str: The final state of the Slurm job.
         """
-        while self.job_state not in ("FAILED", "COMPLETED", "CANCELLED", "TIMEOUT"):
+        while self.job_state not in ("FAILED", 
+                                     "COMPLETED", 
+                                     "CANCELLED",
+                                     "TIMEOUT",
+                                     "FAILED+", 
+                                     "COMPLETED+", 
+                                     "CANCELLED+",
+                                     "TIMEOUT+"):
             job_status_dict, poll_result = slurmClient.check_job_status(
                 [self.job_id])
             if not poll_result.ok:

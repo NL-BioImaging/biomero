@@ -856,6 +856,7 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
     mock_run_commands.assert_called_once_with([
         f"rm {filename}.*",
         f"rm {logfile}",
+        f"rm slurm-{slurm_job_id}_*.out",
         f"rm -rf {data_location} {data_location}.*"
     ])
 
@@ -887,6 +888,7 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     mock_run_commands.assert_called_once_with([
         f"rm {filename}.*",
         f"rm {logfile}",
+        f"rm slurm-{slurm_job_id}_*.out",
         f"rm -rf {data_location} {data_location}.*"
     ])
 

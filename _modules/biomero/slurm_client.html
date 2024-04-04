@@ -182,6 +182,18 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;You can get the logfile using `Slurm Get Update` on job </span><span class="si">{self.job_id}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span></div>
+    
+<div class="viewcode-block" id="SlurmJob.cleanup"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cleanup remaining log files.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            slurmClient: The Slurm client.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Result: The result of the cleanup operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmJob.completed"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.completed">[docs]</a>    <span class="k">def</span> <span class="nf">completed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -709,7 +721,7 @@
 
 <div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                           <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                          <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                          <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
@@ -737,8 +749,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cmds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># zip</span>
-        <span class="n">rmzip</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{filename}</span><span class="s2">.*&quot;</span>
-        <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmzip</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">rmzip</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{filename}</span><span class="s2">.*&quot;</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmzip</span><span class="p">)</span>
         <span class="c1"># log</span>
         <span class="k">if</span> <span class="n">logfile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">logfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOGFILE</span>

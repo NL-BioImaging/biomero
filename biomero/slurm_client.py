@@ -82,6 +82,18 @@ class SlurmJob:
         logger.info(
             f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
         return self.job_state
+    
+    def cleanup(self, slurmClient) -> Result:
+        """
+        Cleanup remaining log files.
+
+        Args:
+            slurmClient: The Slurm client.
+
+        Returns:
+            Result: The result of the cleanup operation.
+        """
+        return slurmClient.cleanup_tmp_files(self.job_id)
 
     def completed(self):
         """
@@ -609,7 +621,7 @@ class SlurmClient(Connection):
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
-                          filename: str,
+                          filename: str = None,
                           data_location: str = None,
                           logfile: str = None,
                           ) -> Result:
@@ -637,8 +649,9 @@ class SlurmClient(Connection):
         """
         cmds = []
         # zip
-        rmzip = f"rm {filename}.*"
-        cmds.append(rmzip)
+        if filename:
+            rmzip = f"rm {filename}.*"
+            cmds.append(rmzip)
         # log
         if logfile is None:
             logfile = self._LOGFILE

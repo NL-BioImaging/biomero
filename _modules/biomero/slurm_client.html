@@ -750,14 +750,21 @@
         <span class="n">clog</span> <span class="o">=</span> <span class="n">clog</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
         <span class="n">rmclog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{clog}</span><span class="s2">&quot;</span>
         <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmclog</span><span class="p">)</span>
+        
         <span class="c1"># data</span>
         <span class="k">if</span> <span class="n">data_location</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">data_location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_data_location_from_log</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>
         <span class="n">rmdata</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm -rf </span><span class="si">{data_location}</span><span class="s2"> </span><span class="si">{data_location}</span><span class="s2">.*&quot;</span>
         <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmdata</span><span class="p">)</span>
+        
+        <span class="c1"># convert config file</span>
+        <span class="n">config_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;config_{os.path.basename(data_location)}.txt&quot;</span>
+        <span class="n">rmconfig</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{config_file}</span><span class="s2">&quot;</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmconfig</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">cmds</span><span class="p">)</span>
+            <span class="c1"># do as much as possible, not conditional removal</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">cmds</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; ; &#39;</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">UnexpectedExit</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">result</span>

@@ -844,7 +844,6 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
     data_location = "/path"
     logfile = "/path/to/logfile"
 
-    mock_extract_data_location.return_value = data_location
     mock_run_commands.return_value = mock.MagicMock(ok=True)
 
     # WHEN
@@ -857,8 +856,9 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
         f"rm {filename}.*",
         f"rm {logfile}",
         f"rm slurm-{slurm_job_id}_*.out",
-        f"rm -rf {data_location} {data_location}.*"
-    ])
+        f"rm -rf {data_location} {data_location}.*",
+        f"rm config_path.txt"
+    ], sep=' ; ')
 
     assert result.ok is True
 
@@ -875,8 +875,9 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     filename = "output.zip"
     data_location = None
     logfile = "/path/to/logfile"
+    found_location = '/path'
 
-    mock_extract_data_location.return_value = data_location
+    mock_extract_data_location.return_value = found_location
     mock_run_commands.return_value = mock.MagicMock(ok=True)
 
     # WHEN
@@ -889,8 +890,9 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
         f"rm {filename}.*",
         f"rm {logfile}",
         f"rm slurm-{slurm_job_id}_*.out",
-        f"rm -rf {data_location} {data_location}.*"
-    ])
+        f"rm -rf {found_location} {found_location}.*",
+        f"rm config_path.txt"
+    ], sep=' ; ')
 
     assert result.ok is True
 

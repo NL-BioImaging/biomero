@@ -650,14 +650,21 @@ class SlurmClient(Connection):
         clog = clog.format(slurm_job_id=slurm_job_id)
         rmclog = f"rm {clog}"
         cmds.append(rmclog)
+        
         # data
         if data_location is None:
             data_location = self.extract_data_location_from_log(logfile)
         rmdata = f"rm -rf {data_location} {data_location}.*"
         cmds.append(rmdata)
+        
+        # convert config file
+        config_file = f"config_{os.path.basename(data_location)}.txt"
+        rmconfig = f"rm {config_file}"
+        cmds.append(rmconfig)
 
         try:
-            result = self.run_commands(cmds)
+            # do as much as possible, not conditional removal
+            result = self.run_commands(cmds, sep=' ; ')
         except UnexpectedExit as e:
             logger.warning(e)
             result = e.result

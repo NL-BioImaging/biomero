@@ -34,6 +34,46 @@ logger = logging.getLogger(__name__)
 
 
 class SlurmJob:
+    """Represents a job submitted to a Slurm cluster.
+
+    This class encapsulates information and methods related to managing a job
+    submitted to a Slurm cluster. It provides functionality to monitor the
+    job's state, wait for completion, and perform cleanup operations.
+
+    Attributes:
+        job_id (int): The ID of the Slurm job.
+        submit_result (Result): The result of submitting the job.
+        ok (bool): Indicates whether the job submission was successful.
+        job_state (str): The current state of the Slurm job.
+        error_message (str): The error message, if any.
+
+    Args:
+        submit_result (Result): The result of submitting the job.
+        job_id (int): The Slurm job ID.
+
+    Example:
+        # Submit some job with the SlurmClient
+        submit_result, job_id = slurmClient.run_workflow(
+            workflow_name, workflow_version, input_data, email, time, **kwargs)
+            
+        # Create a SlurmJob instance
+        slurmJob = SlurmJob(submit_result, job_id)
+
+        if not slurmJob.ok:
+            logger.warning(f"Error with job: {slurmJob.get_error()}")
+        else:
+            try:
+                slurmJob.wait_for_completion(slurmClient, conn)
+                if not slurmJob.completed():
+                    raise Exception(f"Job is not completed: {slurmJob}")
+                else:
+                    slurmJob.cleanup(slurmClient)
+            except Exception as e:
+                logger.error(f" ERROR WITH JOB: {e}")
+                raise e
+
+    """
+    
     def __init__(self,
                  submit_result: Result,
                  job_id: int):
@@ -48,6 +88,7 @@ class SlurmJob:
         self.submit_result = submit_result
         self.ok = self.submit_result.ok
         self.job_state = None
+        self.error_message = self.submit_result.stderr if hasattr(self.submit_result, 'stderr') else ''
 
     def wait_for_completion(self, slurmClient, omeroConn) -> str:
         """
@@ -74,6 +115,7 @@ class SlurmJob:
                 logger.warning(
                     f"Error checking job status:{poll_result.stderr}")
                 self.job_state = "FAILED"
+                self.error_message = poll_result.stderr
             self.job_state = job_status_dict[self.job_id]
             # wait for 10 seconds before checking again
             omeroConn.keepAlive()  # keep the OMERO connection alive
@@ -102,8 +144,17 @@ class SlurmJob:
         Returns:
             bool: True if the job has completed; False otherwise.
         """
-        return self.job_state == "COMPLETED"
+        return self.job_state == "COMPLETED" or self.job_state == "COMPLETED+"
+    
+    def get_error(self) -> str:
+        """
+        Get the error message associated with the Slurm job submission.
 
+        Returns:
+            str: The error message, or an empty string if no error occurred.
+        """        
+        return self.error_message
+        
     def __str__(self):
         """
         Return a string representation of the SlurmJob instance.
@@ -127,7 +178,7 @@ class SlurmClient(Connection):
     mentions the added ones:
 
     The easiest way to set this client up is by using a slurm-config.ini
-    and the from-config() method.
+    and the from_config() method.
 
     Attributes:
         slurm_data_path (str): The path to the directory containing the

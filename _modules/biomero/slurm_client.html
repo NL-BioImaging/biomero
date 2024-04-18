@@ -134,6 +134,46 @@
 
 
 <div class="viewcode-block" id="SlurmJob"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob">[docs]</a><span class="k">class</span> <span class="nc">SlurmJob</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Represents a job submitted to a Slurm cluster.</span>
+
+<span class="sd">    This class encapsulates information and methods related to managing a job</span>
+<span class="sd">    submitted to a Slurm cluster. It provides functionality to monitor the</span>
+<span class="sd">    job&#39;s state, wait for completion, and perform cleanup operations.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        job_id (int): The ID of the Slurm job.</span>
+<span class="sd">        submit_result (Result): The result of submitting the job.</span>
+<span class="sd">        ok (bool): Indicates whether the job submission was successful.</span>
+<span class="sd">        job_state (str): The current state of the Slurm job.</span>
+<span class="sd">        error_message (str): The error message, if any.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        submit_result (Result): The result of submitting the job.</span>
+<span class="sd">        job_id (int): The Slurm job ID.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        # Submit some job with the SlurmClient</span>
+<span class="sd">        submit_result, job_id = slurmClient.run_workflow(</span>
+<span class="sd">            workflow_name, workflow_version, input_data, email, time, **kwargs)</span>
+<span class="sd">            </span>
+<span class="sd">        # Create a SlurmJob instance</span>
+<span class="sd">        slurmJob = SlurmJob(submit_result, job_id)</span>
+
+<span class="sd">        if not slurmJob.ok:</span>
+<span class="sd">            logger.warning(f&quot;Error with job: {slurmJob.get_error()}&quot;)</span>
+<span class="sd">        else:</span>
+<span class="sd">            try:</span>
+<span class="sd">                slurmJob.wait_for_completion(slurmClient, conn)</span>
+<span class="sd">                if not slurmJob.completed():</span>
+<span class="sd">                    raise Exception(f&quot;Job is not completed: {slurmJob}&quot;)</span>
+<span class="sd">                else:</span>
+<span class="sd">                    slurmJob.cleanup(slurmClient)</span>
+<span class="sd">            except Exception as e:</span>
+<span class="sd">                logger.error(f&quot; ERROR WITH JOB: {e}&quot;)</span>
+<span class="sd">                raise e</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">submit_result</span><span class="p">:</span> <span class="n">Result</span><span class="p">,</span>
                  <span class="n">job_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
@@ -148,6 +188,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span> <span class="o">=</span> <span class="n">submit_result</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ok</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="o">.</span><span class="n">ok</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="o">.</span><span class="n">stderr</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
 
 <div class="viewcode-block" id="SlurmJob.wait_for_completion"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.wait_for_completion">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">,</span> <span class="n">omeroConn</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -174,6 +215,7 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Error checking job status:</span><span class="si">{poll_result.stderr}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="n">poll_result</span><span class="o">.</span><span class="n">stderr</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">]</span>
             <span class="c1"># wait for 10 seconds before checking again</span>
             <span class="n">omeroConn</span><span class="o">.</span><span class="n">keepAlive</span><span class="p">()</span>  <span class="c1"># keep the OMERO connection alive</span>
@@ -202,8 +244,17 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            bool: True if the job has completed; False otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED&quot;</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED+&quot;</span></div>
+    
+<div class="viewcode-block" id="SlurmJob.get_error"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.get_error">[docs]</a>    <span class="k">def</span> <span class="nf">get_error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the error message associated with the Slurm job submission.</span>
 
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The error message, or an empty string if no error occurred.</span>
+<span class="sd">        &quot;&quot;&quot;</span>        
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span></div>
+        
     <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return a string representation of the SlurmJob instance.</span>
@@ -227,7 +278,7 @@
 <span class="sd">    mentions the added ones:</span>
 
 <span class="sd">    The easiest way to set this client up is by using a slurm-config.ini</span>
-<span class="sd">    and the from-config() method.</span>
+<span class="sd">    and the from_config() method.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        slurm_data_path (str): The path to the directory containing the</span>

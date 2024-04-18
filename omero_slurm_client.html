@@ -112,7 +112,7 @@ attributes specific to working with Slurm.</p>
 <p>SlurmClient accepts the same arguments as Connection. Below only
 mentions the added ones:</p>
 <p>The easiest way to set this client up is by using a slurm-config.ini
-and the from-config() method.</p>
+and the from_config() method.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.slurm_data_path">
 <span class="sig-name descname"><span class="pre">slurm_data_path</span></span><a class="headerlink" href="#biomero.slurm_client.SlurmClient.slurm_data_path" title="Permalink to this definition"></a></dt>
@@ -1351,6 +1351,101 @@ set when running the command. Defaults to None.</p></li>
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.slurm_client.</span></span><span class="sig-name descname"><span class="pre">SlurmJob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">submit_result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.fabfile.org/en/stable/api/runners.html#fabric.runners.Result" title="(in Fabric)"><span class="pre">fabric.runners.Result</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmJob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmJob" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Represents a job submitted to a Slurm cluster.</p>
+<p>This class encapsulates information and methods related to managing a job
+submitted to a Slurm cluster. It provides functionality to monitor the
+job’s state, wait for completion, and perform cleanup operations.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.job_id">
+<span class="sig-name descname"><span class="pre">job_id</span></span><a class="headerlink" href="#biomero.slurm_client.SlurmJob.job_id" title="Permalink to this definition"></a></dt>
+<dd><p>The ID of the Slurm job.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.submit_result">
+<span class="sig-name descname"><span class="pre">submit_result</span></span><a class="headerlink" href="#biomero.slurm_client.SlurmJob.submit_result" title="Permalink to this definition"></a></dt>
+<dd><p>The result of submitting the job.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>Result</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.ok">
+<span class="sig-name descname"><span class="pre">ok</span></span><a class="headerlink" href="#biomero.slurm_client.SlurmJob.ok" title="Permalink to this definition"></a></dt>
+<dd><p>Indicates whether the job submission was successful.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.job_state">
+<span class="sig-name descname"><span class="pre">job_state</span></span><a class="headerlink" href="#biomero.slurm_client.SlurmJob.job_state" title="Permalink to this definition"></a></dt>
+<dd><p>The current state of the Slurm job.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.error_message">
+<span class="sig-name descname"><span class="pre">error_message</span></span><a class="headerlink" href="#biomero.slurm_client.SlurmJob.error_message" title="Permalink to this definition"></a></dt>
+<dd><p>The error message, if any.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>submit_result</strong> (<em>Result</em>) – The result of submitting the job.</p></li>
+<li><p><strong>job_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – The Slurm job ID.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<p># Submit some job with the SlurmClient
+submit_result, job_id = slurmClient.run_workflow(</p>
+<blockquote>
+<div><p>workflow_name, workflow_version, input_data, email, time, <a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs)</p>
+</div></blockquote>
+<p># Create a SlurmJob instance
+slurmJob = SlurmJob(submit_result, job_id)</p>
+<dl>
+<dt>if not slurmJob.ok:</dt><dd><p>logger.warning(f”Error with job: {slurmJob.get_error()}”)</p>
+</dd>
+<dt>else:</dt><dd><dl>
+<dt>try:</dt><dd><p>slurmJob.wait_for_completion(slurmClient, conn)
+if not slurmJob.completed():</p>
+<blockquote>
+<div><p>raise Exception(f”Job is not completed: {slurmJob}”)</p>
+</div></blockquote>
+<dl class="simple">
+<dt>else:</dt><dd><p>slurmJob.cleanup(slurmClient)</p>
+</dd>
+</dl>
+</dd>
+<dt>except Exception as e:</dt><dd><p>logger.error(f” ERROR WITH JOB: {e}”)
+raise e</p>
+</dd>
+</dl>
+</dd>
+</dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.cleanup">
 <span class="sig-name descname"><span class="pre">cleanup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurmClient</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.fabfile.org/en/stable/api/runners.html#fabric.runners.Result" title="(in Fabric)"><span class="pre">fabric.runners.Result</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmJob.cleanup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmJob.cleanup" title="Permalink to this definition"></a></dt>
@@ -1378,6 +1473,20 @@ set when running the command. Defaults to None.</p></li>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmJob.get_error">
+<span class="sig-name descname"><span class="pre">get_error</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmJob.get_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmJob.get_error" title="Permalink to this definition"></a></dt>
+<dd><p>Get the error message associated with the Slurm job submission.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The error message, or an empty string if no error occurred.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a></p>
 </dd>
 </dl>
 </dd></dl>

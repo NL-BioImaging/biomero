@@ -102,7 +102,7 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
     - `~/slurm-config.ini`
 
 4. Install OMERO scripts from [OMERO Slurm Scripts](https://github.com/NL-BioImaging/biomero-scripts), e.g. 
-    - `cd OMERO_DIST/lib/scripts`
+    - `cd /opt/omero/server/OMERO.server/lib/scripts`
     - `git clone https://github.com/NL-BioImaging/biomero-scripts.git slurm`
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 

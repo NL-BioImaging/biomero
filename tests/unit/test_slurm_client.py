@@ -1056,7 +1056,7 @@ def test_setup_slurm(_mock_CachedSession,
         [f'mkdir -p {dpath}', f'mkdir -p {spath}', f'mkdir -p {ipath}'])
     # 2 git
     mock_run.assert_any_call(
-        ['rm -rf "$LOCALREPO" && git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null'],
+        ['rm -rf "$LOCALREPO"', 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null'],
         {"REPOSRC": srepo, "LOCALREPO": spath})
 
     # 3 converters

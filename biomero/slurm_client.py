@@ -546,8 +546,10 @@ class SlurmClient(Connection):
                 "REPOSRC": self.slurm_script_repo,
                 "LOCALREPO": self.slurm_script_path
             }
-            cmd = 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null || git -C "$LOCALREPO" pull'
-            r = self.run_commands([cmd], env)
+            # Cleanup the existing folder first
+            cleanup_first = 'rm -rf "$LOCALREPO"'
+            cmd = 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null'
+            r = self.run_commands([cleanup_first, cmd], env)
             if not r.ok:
                 raise SSHException(r)
         elif self.slurm_script_path:

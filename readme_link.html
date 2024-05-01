@@ -224,7 +224,7 @@
 <div class="section" id="getting-started">
 <h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h2>
 <p>To connect an OMERO processor to a Slurm cluster using the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> library, users can follow these steps:</p>
-<ol class="arabic simple">
+<ol class="arabic">
 <li><p>Setup passwordless public key authentication between your OMERO <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and your HPC server. E.g. follow  a <a class="reference external" href="https://www.ssh.com/academy/ssh/public-key-authentication">SSH tutorial</a> or <a class="reference external" href="https://linuxize.com/post/how-to-setup-passwordless-ssh-login/">this one</a>.</p>
 <ul class="simple">
 <li><p>You could use 1 Slurm account for all <code class="docutils literal notranslate"><span class="pre">processor</span></code> servers, and share the same private key to all of them.</p></li>
@@ -243,10 +243,11 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
 </ul>
+<p><em>Note</em>: Make sure to place the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> in the target folder at build time of your docker container instead of mounting it at runtime. This is because the library reads the config file at import time, and if it is not found, it will not work.</p>
 </li>
 <li><p>Install OMERO scripts from <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">OMERO Slurm Scripts</a>, e.g.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">OMERO_DIST/lib/scripts</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">/opt/omero/server/OMERO.server/lib/scripts</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/biomero-scripts.git</span> <span class="pre">slurm</span></code></p></li>
 </ul>
 </li>

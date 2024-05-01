@@ -646,8 +646,10 @@
                 <span class="s2">&quot;REPOSRC&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_repo</span><span class="p">,</span>
                 <span class="s2">&quot;LOCALREPO&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span>
             <span class="p">}</span>
-            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;git clone &quot;$REPOSRC&quot; &quot;$LOCALREPO&quot; 2&gt; /dev/null || git -C &quot;$LOCALREPO&quot; pull&#39;</span>
-            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="p">)</span>
+            <span class="c1"># Cleanup the existing folder first</span>
+            <span class="n">cleanup_first</span> <span class="o">=</span> <span class="s1">&#39;rm -rf &quot;$LOCALREPO&quot;&#39;</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;git clone &quot;$REPOSRC&quot; &quot;$LOCALREPO&quot; 2&gt; /dev/null&#39;</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cleanup_first</span><span class="p">,</span> <span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">:</span>

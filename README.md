@@ -101,8 +101,10 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
     - `/etc/slurm-config.ini`
     - `~/slurm-config.ini`
 
+    *Note*: Make sure to place the `slurm-config.ini` in the target folder at build time of your docker container instead of mounting it at runtime. This is because the library reads the config file at import time, and if it is not found, it will not work.
+
 4. Install OMERO scripts from [OMERO Slurm Scripts](https://github.com/NL-BioImaging/biomero-scripts), e.g. 
-    - `cd OMERO_DIST/lib/scripts`
+    - `cd /opt/omero/server/OMERO.server/lib/scripts`
     - `git clone https://github.com/NL-BioImaging/biomero-scripts.git slurm`
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 

@@ -943,7 +943,6 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Running commands, with env </span><span class="si">{env}</span><span class="s2"> and sep </span><span class="si">{sep}</span><span class="s2"> </span><span class="se">\</span>
 <span class="s2">                and </span><span class="si">{kwargs}</span><span class="s2">: </span><span class="si">{cmd}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;env&quot;</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>  <span class="c1"># out_stream=out_stream,</span>
 
         <span class="k">try</span><span class="p">:</span>
@@ -1421,6 +1420,31 @@
                     <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
                     <span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">line</span><span class="p">}</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job statuses: </span><span class="si">{job_status_dict}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    
+                    <span class="c1"># OK, we have to fix a stupid SACCT functionality:</span>
+                    <span class="c1"># Problem:</span>
+                    <span class="c1"># When you query for a job-id, turns out that it queries</span>
+                    <span class="c1"># for this &#39;JobIdRaw&#39;. And JobIdRaw for arrays is a </span>
+                    <span class="c1"># ridiculous sum, e.g. &#39;JobId&#39; 11_2 gets assigned </span>
+                    <span class="c1"># &#39;JobIdRaw&#39; 13 (= 11+2)!</span>
+                    <span class="c1"># Until you submit 2 more jobs and actual &#39;JobId&#39; 13 comes</span>
+                    <span class="c1"># along, from then on you get that status returned...</span>
+                    <span class="c1"># For us, this creates a race condition, where we get th</span>
+                    <span class="c1"># e wrong data back. We expect &#39;JobId&#39; 13, but its not </span>
+                    <span class="c1"># there yet for some reason, so we get some result </span>
+                    <span class="c1"># from &#39;11_2&#39; back instead. </span>
+                    <span class="c1"># And this causes a key_error later on, cause we expect</span>
+                    <span class="c1"># &#39;13&#39; since we queried for that one.</span>
+                    
+                    <span class="c1"># Current workaround: artificially add &#39;13&#39; to our results.</span>
+                    <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">:</span>
+                        <span class="c1"># Check if the job ID is not already in the job_status_dict</span>
+                        <span class="k">if</span> <span class="n">job_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job_status_dict</span><span class="p">:</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing job </span><span class="si">{job_id}</span><span class="s2"> in our </span><span class="se">\</span>
+<span class="s2">                                results! Adding it artificially.&quot;</span><span class="p">)</span>
+                            <span class="c1"># Add the job ID with a default status of &#39;PENDING&#39;</span>
+                            <span class="n">job_status_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;PENDING&#39;</span>
+                    
                     <span class="k">return</span> <span class="n">job_status_dict</span><span class="p">,</span> <span class="n">result</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Result is not ok: </span><span class="si">{result}</span><span class="s2">&quot;</span>

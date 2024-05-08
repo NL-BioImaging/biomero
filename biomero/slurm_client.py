@@ -843,7 +843,6 @@ class SlurmClient(Connection):
         logger.info(
             f"Running commands, with env {env} and sep {sep} \
                 and {kwargs}: {cmd}")
-        result = self.run("env")
         result = self.run(cmd, env=env, **kwargs)  # out_stream=out_stream,
 
         try:
@@ -1321,6 +1320,31 @@ class SlurmClient(Connection):
                     job_status_dict = {int(line.split()[0].split('_')[0]): line.split(
                     )[1] for line in result.stdout.split("\n") if line}
                     logger.debug(f"Job statuses: {job_status_dict}")
+                    
+                    # OK, we have to fix a stupid SACCT functionality:
+                    # Problem:
+                    # When you query for a job-id, turns out that it queries
+                    # for this 'JobIdRaw'. And JobIdRaw for arrays is a 
+                    # ridiculous sum, e.g. 'JobId' 11_2 gets assigned 
+                    # 'JobIdRaw' 13 (= 11+2)!
+                    # Until you submit 2 more jobs and actual 'JobId' 13 comes
+                    # along, from then on you get that status returned...
+                    # For us, this creates a race condition, where we get th
+                    # e wrong data back. We expect 'JobId' 13, but its not 
+                    # there yet for some reason, so we get some result 
+                    # from '11_2' back instead. 
+                    # And this causes a key_error later on, cause we expect
+                    # '13' since we queried for that one.
+                    
+                    # Current workaround: artificially add '13' to our results.
+                    for job_id in slurm_job_ids:
+                        # Check if the job ID is not already in the job_status_dict
+                        if job_id not in job_status_dict:
+                            logger.debug(f"Missing job {job_id} in our \
+                                results! Adding it artificially.")
+                            # Add the job ID with a default status of 'PENDING'
+                            job_status_dict[job_id] = 'PENDING'
+                    
                     return job_status_dict, result
             else:
                 error = f"Result is not ok: {result}"

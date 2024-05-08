@@ -1236,7 +1236,7 @@ class SlurmClient(Connection):
         conversion_cmd, sbatch_env = self.get_conversion_command(
             data_path, config_file, source_format, target_format)
         commands = [
-            f"find '{data_path}/data/in' -name '*.{source_format}' | awk '{{print NR, $0}}' > {config_file}",
+            f"find '{data_path}/data/in' -name '*.{source_format}' | awk '{{print NR, $0}}' > '{config_file}'",
             f"N=$(wc -l < \"{config_file}\")",
             f"echo \"Number of .{source_format} files: $N\"",
             conversion_cmd

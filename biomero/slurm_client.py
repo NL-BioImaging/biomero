@@ -235,23 +235,23 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
-    _VERSION_CMD = "ls -h '{slurm_images_path}/{image_path}' | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
+    _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
     # Note, grep returns exitcode 1 if no match is found!
     # This will translate into a UnexpectedExit error, so mute that if you
     # don't care about empty.
     # Like below with the "|| :".
     # Data could legit be empty.
-    _DATA_CMD = "ls -h '{slurm_data_path}' | grep -oP '.+(?=.zip)' || :"
+    _DATA_CMD = "ls -h \"{slurm_data_path}\" | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
-    _ZIP_CMD = "7z a -y '{filename}' -tzip '{data_location}/data/out'"
+    _ZIP_CMD = "7z a -y \"{filename}\" -tzip \"{data_location}/data/out\""
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
-    _CONVERTER_LOGFILE = "'slurm-{slurm_job_id}'_*.out"
-    _TAIL_LOG_CMD = "tail -n {n} '{log_file}' | strings"
-    _LOGFILE_DATA_CMD = "cat '{log_file}' | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
+    _CONVERTER_LOGFILE = "\"slurm-{slurm_job_id}\"_*.out"
+    _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
+    _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -435,7 +435,7 @@ class SlurmClient(Connection):
             if self.slurm_model_paths:
                 modelpaths = " ".join(self.slurm_model_paths.values())
                 # mkdir cellprofiler imagej ...
-                r = self.run_commands([f"mkdir -p '{modelpaths}'"])
+                r = self.run_commands([f"mkdir -p \"{modelpaths}\""])
                 if not r.ok:
                     raise SSHException(r)
 
@@ -474,7 +474,7 @@ class SlurmClient(Connection):
                 logger.info(r.stdout)
                 logger.info("Initiated downloading and building" +
                             " container images on Slurm." +
-                            " This will take a while in the background." + 
+                            " This will probably take a while in the background." + 
                             " Check 'sing.log' on Slurm for progress.")
                 # # cleanup giant singularity cache!
                 # using --disable-cache because we run in the background
@@ -494,7 +494,7 @@ class SlurmClient(Connection):
         """
         convert_cmds = []
         if self.slurm_converters_path:
-            convert_cmds.append(f"mkdir -p '{self.slurm_converters_path}'")
+            convert_cmds.append(f"mkdir -p \"{self.slurm_converters_path}\"")
         r = self.run_commands(convert_cmds)
         # copy generic job array script over to slurm
         convert_job_local = files("resources").joinpath(
@@ -526,7 +526,7 @@ class SlurmClient(Connection):
                 # EDIT -- NO, then we can't update! Force rebuild!
                 # download /build new container
                 convert_cmds.append(
-                    f"singularity build -F '{convert_name}.sif' {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
+                    f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
             _ = self.run_commands(convert_cmds)
 
     def setup_job_scripts(self):
@@ -569,13 +569,13 @@ class SlurmClient(Connection):
         dir_cmds = []
         # a. data
         if self.slurm_data_path:
-            dir_cmds.append(f"mkdir -p '{self.slurm_data_path}'")
+            dir_cmds.append(f"mkdir -p \"{self.slurm_data_path}\"")
             # b. scripts
         if self.slurm_script_path:
-            dir_cmds.append(f"mkdir -p '{self.slurm_script_path}'")
+            dir_cmds.append(f"mkdir -p \"{self.slurm_script_path}\"")
             # c. workflows
         if self.slurm_images_path:
-            dir_cmds.append(f"mkdir -p '{self.slurm_images_path}'")
+            dir_cmds.append(f"mkdir -p \"{self.slurm_images_path}\"")
         r = self.run_commands(dir_cmds)
         if not r.ok:
             raise SSHException(r)
@@ -703,13 +703,13 @@ class SlurmClient(Connection):
         cmds = []
         # zip
         if filename:
-            rmzip = f"rm '{filename}'.*"
+            rmzip = f"rm \"{filename}\".*"
             cmds.append(rmzip)
         # log
         if logfile is None:
             logfile = self._LOGFILE
             logfile = logfile.format(slurm_job_id=slurm_job_id)
-        rmlog = f"rm '{logfile}'"
+        rmlog = f"rm \"{logfile}\""
         cmds.append(rmlog)
         # converter logs
         clog = self._CONVERTER_LOGFILE
@@ -722,12 +722,12 @@ class SlurmClient(Connection):
             data_location = self.extract_data_location_from_log(logfile)
             
         if data_location:
-            rmdata = f"rm -rf '{data_location}' '{data_location}'.*"
+            rmdata = f"rm -rf \"{data_location}\" \"{data_location}\".*"
             cmds.append(rmdata)
             
             # convert config file
             config_file = f"config_{os.path.basename(data_location)}.txt"
-            rmconfig = f"rm '{config_file}'"
+            rmconfig = f"rm \"{config_file}\""
             cmds.append(rmconfig)
         else:
             logger.warning(f"Could not extract data location from log {logfile}. Skipping cleanup.")
@@ -1131,7 +1131,7 @@ class SlurmClient(Connection):
                 # ensure all dirs exist remotely
                 full_path = self.slurm_script_path+"/"+job_path
                 job_dir, _ = os.path.split(full_path)
-                self.run(f"mkdir -p '{job_dir}'")
+                self.run(f"mkdir -p \"{job_dir}\"")
                 # copy to remote file
                 result = self.put(local=io.StringIO(job_script),
                                   remote=full_path)
@@ -1272,7 +1272,7 @@ class SlurmClient(Connection):
                 A string containing the Git command
                 to update the Slurm scripts.
         """
-        update_cmd = f"git -C '{self.slurm_script_path}' pull"
+        update_cmd = f"git -C \"{self.slurm_script_path}\" pull"
         return update_cmd
 
     def check_job_status(self,
@@ -1611,7 +1611,7 @@ class SlurmClient(Connection):
         job_params.append(email_param)
         job_param = "".join(job_params)
         sbatch_cmd = f"sbatch{job_param} --output=omero-%j.log \
-            '{self.slurm_script_path}/{job_script}'"
+            \"{self.slurm_script_path}/{job_script}\""
 
         return sbatch_cmd, env
 
@@ -1655,7 +1655,7 @@ class SlurmClient(Connection):
             "CONFIG_FILE": f"\"{config_file}\""
         }
 
-        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N '$SCRIPT_PATH/convert_job_array.sh'"
+        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
         # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
 
         return conversion_cmd, sbatch_env
@@ -1843,13 +1843,13 @@ class SlurmClient(Connection):
                 The command to extract the specified
                 filetypes from the zip file.
         """
-        unzip_cmd = f"mkdir '{self.slurm_data_path}/{zipfile}' \
-                    '{self.slurm_data_path}/{zipfile}/data' \
-                    '{self.slurm_data_path}/{zipfile}/data/in' \
-                    '{self.slurm_data_path}/{zipfile}/data/out' \
-                    '{self.slurm_data_path}/{zipfile}/data/gt'; \
-                    7z x -y -o'{self.slurm_data_path}/{zipfile}/data/in' \
-                    '{self.slurm_data_path}/{zipfile}.zip' {filter_filetypes}"
+        unzip_cmd = f"mkdir \"{self.slurm_data_path}/{zipfile}\" \
+                    \"{self.slurm_data_path}/{zipfile}/data\" \
+                    \"{self.slurm_data_path}/{zipfile}/data/in\" \
+                    \"{self.slurm_data_path}/{zipfile}/data/out\" \
+                    \"{self.slurm_data_path}/{zipfile}/data/gt\"; \
+                    7z x -y -o\"{self.slurm_data_path}/{zipfile}/data/in\" \
+                    \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
 
         return unzip_cmd
 

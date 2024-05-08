@@ -843,6 +843,7 @@ class SlurmClient(Connection):
         logger.info(
             f"Running commands, with env {env} and sep {sep} \
                 and {kwargs}: {cmd}")
+        result = self.run(["env"])
         result = self.run(cmd, env=env, **kwargs)  # out_stream=out_stream,
 
         try:

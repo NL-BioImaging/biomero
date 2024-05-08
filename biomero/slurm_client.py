@@ -1321,7 +1321,7 @@ class SlurmClient(Connection):
                     )[1] for line in result.stdout.split("\n") if line}
                     logger.debug(f"Job statuses: {job_status_dict}")
                     
-                    # OK, we have to fix a stupid SACCT functionality:
+                    # OK, we have to fix a stupid sacct functionality:
                     # Problem:
                     # When you query for a job-id, turns out that it queries
                     # for this 'JobIdRaw'. And JobIdRaw for arrays is a 
@@ -1337,15 +1337,20 @@ class SlurmClient(Connection):
                     # '13' since we queried for that one.
                     
                     # Current workaround: artificially add '13' to our results.
+                    # And remove the fake one(s).
+                    result_dict = {}
                     for job_id in slurm_job_ids:
                         # Check if the job ID is not already in the job_status_dict
                         if job_id not in job_status_dict:
                             logger.debug(f"Missing job {job_id} in our \
                                 results! Adding it artificially.")
                             # Add the job ID with a default status of 'PENDING'
-                            job_status_dict[job_id] = 'PENDING'
+                            result_dict[job_id] = 'PENDING'
+                        else:
+                            # Copy those values that we want the keys from
+                            result_dict[job_id] = job_status_dict[job_id]
                     
-                    return job_status_dict, result
+                    return result_dict, result
             else:
                 error = f"Result is not ok: {result}"
                 logger.error(error)

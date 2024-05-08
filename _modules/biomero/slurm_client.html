@@ -1421,7 +1421,7 @@
                     <span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">line</span><span class="p">}</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job statuses: </span><span class="si">{job_status_dict}</span><span class="s2">&quot;</span><span class="p">)</span>
                     
-                    <span class="c1"># OK, we have to fix a stupid SACCT functionality:</span>
+                    <span class="c1"># OK, we have to fix a stupid sacct functionality:</span>
                     <span class="c1"># Problem:</span>
                     <span class="c1"># When you query for a job-id, turns out that it queries</span>
                     <span class="c1"># for this &#39;JobIdRaw&#39;. And JobIdRaw for arrays is a </span>
@@ -1437,15 +1437,20 @@
                     <span class="c1"># &#39;13&#39; since we queried for that one.</span>
                     
                     <span class="c1"># Current workaround: artificially add &#39;13&#39; to our results.</span>
+                    <span class="c1"># And remove the fake one(s).</span>
+                    <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
                     <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">:</span>
                         <span class="c1"># Check if the job ID is not already in the job_status_dict</span>
                         <span class="k">if</span> <span class="n">job_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job_status_dict</span><span class="p">:</span>
                             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing job </span><span class="si">{job_id}</span><span class="s2"> in our </span><span class="se">\</span>
 <span class="s2">                                results! Adding it artificially.&quot;</span><span class="p">)</span>
                             <span class="c1"># Add the job ID with a default status of &#39;PENDING&#39;</span>
-                            <span class="n">job_status_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;PENDING&#39;</span>
+                            <span class="n">result_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;PENDING&#39;</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="c1"># Copy those values that we want the keys from</span>
+                            <span class="n">result_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span>
                     
-                    <span class="k">return</span> <span class="n">job_status_dict</span><span class="p">,</span> <span class="n">result</span>
+                    <span class="k">return</span> <span class="n">result_dict</span><span class="p">,</span> <span class="n">result</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Result is not ok: </span><span class="si">{result}</span><span class="s2">&quot;</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>

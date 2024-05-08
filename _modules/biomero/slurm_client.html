@@ -335,23 +335,23 @@
     <span class="n">_DEFAULT_SLURM_CONVERTERS_PATH</span> <span class="o">=</span> <span class="s2">&quot;my-scratch/singularity_images/converters&quot;</span>
     <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span> <span class="o">=</span> <span class="s2">&quot;slurm-scripts&quot;</span>
     <span class="n">_OUT_SEP</span> <span class="o">=</span> <span class="s2">&quot;--split--&quot;</span>
-    <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="s2"> | grep -oP &#39;(?&lt;=\-|\_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
+    <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h &#39;</span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="s2">&#39; | grep -oP &#39;(?&lt;=\-|\_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
     <span class="c1"># Note, grep returns exitcode 1 if no match is found!</span>
     <span class="c1"># This will translate into a UnexpectedExit error, so mute that if you</span>
     <span class="c1"># don&#39;t care about empty.</span>
     <span class="c1"># Like below with the &quot;|| :&quot;.</span>
     <span class="c1"># Data could legit be empty.</span>
-    <span class="n">_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="si">{slurm_data_path}</span><span class="s2"> | grep -oP &#39;.+(?=.zip)&#39; || :&quot;</span>
+    <span class="n">_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h &#39;</span><span class="si">{slurm_data_path}</span><span class="s2">&#39; | grep -oP &#39;.+(?=.zip)&#39; || :&quot;</span>
     <span class="n">_ALL_JOBS_CMD</span> <span class="o">=</span> <span class="s2">&quot;sacct --starttime </span><span class="si">{start_time}</span><span class="s2"> --endtime </span><span class="si">{end_time}</span><span class="s2"> --state </span><span class="si">{states}</span><span class="s2"> -o </span><span class="si">{columns}</span><span class="s2"> -n -X &quot;</span>
-    <span class="n">_ZIP_CMD</span> <span class="o">=</span> <span class="s2">&quot;7z a -y </span><span class="si">{filename}</span><span class="s2"> -tzip </span><span class="si">{data_location}</span><span class="s2">/data/out&quot;</span>
+    <span class="n">_ZIP_CMD</span> <span class="o">=</span> <span class="s2">&quot;7z a -y &#39;</span><span class="si">{filename}</span><span class="s2">&#39; -tzip &#39;</span><span class="si">{data_location}</span><span class="s2">/data/out&#39;&quot;</span>
     <span class="n">_ACTIVE_JOBS_CMD</span> <span class="o">=</span> <span class="s2">&quot;squeue -u $USER --nohead --format </span><span class="si">%F</span><span class="s2">&quot;</span>
     <span class="n">_JOB_STATUS_CMD</span> <span class="o">=</span> <span class="s2">&quot;sacct -n -o JobId,State,End -X -j </span><span class="si">{slurm_job_id}</span><span class="s2">&quot;</span>
     <span class="c1"># TODO move all commands to a similar format.</span>
     <span class="c1"># Then maybe allow overwrite from slurm-config.ini</span>
     <span class="n">_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;omero-</span><span class="si">{slurm_job_id}</span><span class="s2">.log&quot;</span>
-    <span class="n">_CONVERTER_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;slurm-</span><span class="si">{slurm_job_id}</span><span class="s2">_*.out&quot;</span>
-    <span class="n">_TAIL_LOG_CMD</span> <span class="o">=</span> <span class="s2">&quot;tail -n </span><span class="si">{n}</span><span class="s2"> </span><span class="si">{log_file}</span><span class="s2"> | strings&quot;</span>
-    <span class="n">_LOGFILE_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;cat </span><span class="si">{log_file}</span><span class="s2"> | perl -wne &#39;/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1&#39;&quot;</span>
+    <span class="n">_CONVERTER_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;&#39;slurm-</span><span class="si">{slurm_job_id}</span><span class="s2">&#39;_*.out&quot;</span>
+    <span class="n">_TAIL_LOG_CMD</span> <span class="o">=</span> <span class="s2">&quot;tail -n </span><span class="si">{n}</span><span class="s2"> &#39;</span><span class="si">{log_file}</span><span class="s2">&#39; | strings&quot;</span>
+    <span class="n">_LOGFILE_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;cat &#39;</span><span class="si">{log_file}</span><span class="s2">&#39; | perl -wne &#39;/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1&#39;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">host</span><span class="o">=</span><span class="n">_DEFAULT_HOST</span><span class="p">,</span>
@@ -535,7 +535,7 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">:</span>
                 <span class="n">modelpaths</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
                 <span class="c1"># mkdir cellprofiler imagej ...</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{modelpaths}</span><span class="s2">&quot;</span><span class="p">])</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;mkdir -p &#39;</span><span class="si">{modelpaths}</span><span class="s2">&#39;&quot;</span><span class="p">])</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 
@@ -594,7 +594,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">:</span>
-            <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_converters_path}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p &#39;</span><span class="si">{self.slurm_converters_path}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>
         <span class="c1"># copy generic job array script over to slurm</span>
         <span class="n">convert_job_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
@@ -626,8 +626,8 @@
                 <span class="c1"># EDIT -- NO, then we can&#39;t update! Force rebuild!</span>
                 <span class="c1"># download /build new container</span>
                 <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="si">{convert_name}</span><span class="s2">.sif </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">.sif&#39; &amp;&quot;</span><span class="p">)</span>
-            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
+                    <span class="sa">f</span><span class="s2">&quot;singularity build -F &#39;</span><span class="si">{convert_name}</span><span class="s2">.sif&#39; </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">.sif&#39; &amp;&quot;</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -669,13 +669,13 @@
         <span class="n">dir_cmds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># a. data</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">:</span>
-            <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_data_path}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
             <span class="c1"># b. scripts</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">:</span>
-            <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_script_path}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p &#39;</span><span class="si">{self.slurm_script_path}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
             <span class="c1"># c. workflows</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
-            <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{self.slurm_images_path}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">dir_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p &#39;</span><span class="si">{self.slurm_images_path}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">dir_cmds</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span></div>
@@ -803,13 +803,13 @@
         <span class="n">cmds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># zip</span>
         <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
-            <span class="n">rmzip</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{filename}</span><span class="s2">.*&quot;</span>
+            <span class="n">rmzip</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm &#39;</span><span class="si">{filename}</span><span class="s2">&#39;.*&quot;</span>
             <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmzip</span><span class="p">)</span>
         <span class="c1"># log</span>
         <span class="k">if</span> <span class="n">logfile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">logfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOGFILE</span>
             <span class="n">logfile</span> <span class="o">=</span> <span class="n">logfile</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
-        <span class="n">rmlog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{logfile}</span><span class="s2">&quot;</span>
+        <span class="n">rmlog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm &#39;</span><span class="si">{logfile}</span><span class="s2">&#39;&quot;</span>
         <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmlog</span><span class="p">)</span>
         <span class="c1"># converter logs</span>
         <span class="n">clog</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_CONVERTER_LOGFILE</span>
@@ -822,12 +822,12 @@
             <span class="n">data_location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_data_location_from_log</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>
             
         <span class="k">if</span> <span class="n">data_location</span><span class="p">:</span>
-            <span class="n">rmdata</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm -rf </span><span class="si">{data_location}</span><span class="s2"> </span><span class="si">{data_location}</span><span class="s2">.*&quot;</span>
+            <span class="n">rmdata</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm -rf &#39;</span><span class="si">{data_location}</span><span class="s2">&#39; &#39;</span><span class="si">{data_location}</span><span class="s2">&#39;.*&quot;</span>
             <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmdata</span><span class="p">)</span>
             
             <span class="c1"># convert config file</span>
             <span class="n">config_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;config_{os.path.basename(data_location)}.txt&quot;</span>
-            <span class="n">rmconfig</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{config_file}</span><span class="s2">&quot;</span>
+            <span class="n">rmconfig</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm &#39;</span><span class="si">{config_file}</span><span class="s2">&#39;&quot;</span>
             <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmconfig</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not extract data location from log </span><span class="si">{logfile}</span><span class="s2">. Skipping cleanup.&quot;</span><span class="p">)</span>
@@ -1149,24 +1149,6 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unpacking </span><span class="si">{zipfile}</span><span class="s2"> on Slurm&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.convert_data"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.convert_data">[docs]</a>    <span class="k">def</span> <span class="nf">convert_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                     <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Unpacks a zipped file on the remote Slurm cluster.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            zipfile (str): The name of the zipped file to be unpacked.</span>
-
-<span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
-<span class="sd">                to set when running the command. Defaults to None.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Result: The result of the command.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_convert_command</span><span class="p">(</span><span class="n">zipfile</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Converting </span><span class="si">{zipfile}</span><span class="s2"> on Slurm&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span></div>
-
 <div class="viewcode-block" id="SlurmClient.generate_slurm_job_for_workflow"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">generate_slurm_job_for_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                         <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                         <span class="n">substitutes</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
@@ -1249,7 +1231,7 @@
                 <span class="c1"># ensure all dirs exist remotely</span>
                 <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="o">+</span><span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="n">job_path</span>
                 <span class="n">job_dir</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{job_dir}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p &#39;</span><span class="si">{job_dir}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
                 <span class="c1"># copy to remote file</span>
                 <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span>
                                   <span class="n">remote</span><span class="o">=</span><span class="n">full_path</span><span class="p">)</span>
@@ -1354,7 +1336,7 @@
         <span class="n">conversion_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_conversion_command</span><span class="p">(</span>
             <span class="n">data_path</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">source_format</span><span class="p">,</span> <span class="n">target_format</span><span class="p">)</span>
         <span class="n">commands</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="sa">f</span><span class="s2">&quot;find </span><span class="si">{data_path}</span><span class="s2">/data/in -name &#39;*.</span><span class="si">{source_format}</span><span class="s2">&#39; | awk &#39;{{print NR, $0}}&#39; &gt; </span><span class="si">{config_file}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;find &#39;</span><span class="si">{data_path}</span><span class="s2">/data/in&#39; -name &#39;*.</span><span class="si">{source_format}</span><span class="s2">&#39; | awk &#39;{{print NR, $0}}&#39; &gt; </span><span class="si">{config_file}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="sa">f</span><span class="s2">&quot;N=$(wc -l &lt; </span><span class="se">\&quot;</span><span class="si">{config_file}</span><span class="se">\&quot;</span><span class="s2">)&quot;</span><span class="p">,</span>
             <span class="sa">f</span><span class="s2">&quot;echo </span><span class="se">\&quot;</span><span class="s2">Number of .</span><span class="si">{source_format}</span><span class="s2"> files: $N</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="n">conversion_cmd</span>
@@ -1390,7 +1372,7 @@
 <span class="sd">                A string containing the Git command</span>
 <span class="sd">                to update the Slurm scripts.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">update_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;git -C </span><span class="si">{self.slurm_script_path}</span><span class="s2"> pull&quot;</span>
+        <span class="n">update_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;git -C &#39;</span><span class="si">{self.slurm_script_path}</span><span class="s2">&#39; pull&quot;</span>
         <span class="k">return</span> <span class="n">update_cmd</span></div>
 
 <div class="viewcode-block" id="SlurmClient.check_job_status"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.check_job_status">[docs]</a>    <span class="k">def</span> <span class="nf">check_job_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
@@ -1729,7 +1711,7 @@
         <span class="n">job_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">email_param</span><span class="p">)</span>
         <span class="n">job_param</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_params</span><span class="p">)</span>
         <span class="n">sbatch_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;sbatch</span><span class="si">{job_param}</span><span class="s2"> --output=omero-%j.log </span><span class="se">\</span>
-<span class="s2">            </span><span class="si">{self.slurm_script_path}</span><span class="s2">/</span><span class="si">{job_script}</span><span class="s2">&quot;</span>
+<span class="s2">            &#39;</span><span class="si">{self.slurm_script_path}</span><span class="s2">/</span><span class="si">{job_script}</span><span class="s2">&#39;&quot;</span>
 
         <span class="k">return</span> <span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">env</span></div>
 
@@ -1773,7 +1755,7 @@
             <span class="s2">&quot;CONFIG_FILE&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{config_file}</span><span class="s2">&quot;</span>
         <span class="p">}</span>
 
-        <span class="n">conversion_cmd</span> <span class="o">=</span> <span class="s2">&quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=</span><span class="se">\&quot;</span><span class="s2">$PWD/$CONFIG_FILE</span><span class="se">\&quot;</span><span class="s2"> --array=1-$N $SCRIPT_PATH/convert_job_array.sh&quot;</span>
+        <span class="n">conversion_cmd</span> <span class="o">=</span> <span class="s2">&quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=</span><span class="se">\&quot;</span><span class="s2">$PWD/$CONFIG_FILE</span><span class="se">\&quot;</span><span class="s2"> --array=1-$N &#39;$SCRIPT_PATH/convert_job_array.sh&#39;&quot;</span>
         <span class="c1"># conversion_cmd_waiting = &quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\&quot;$PWD/$CONFIG_FILE\&quot; --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh&quot;</span>
 
         <span class="k">return</span> <span class="n">conversion_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span></div>
@@ -1961,13 +1943,13 @@
 <span class="sd">                The command to extract the specified</span>
 <span class="sd">                filetypes from the zip file.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">unzip_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;mkdir </span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2"> </span><span class="se">\</span>
-<span class="s2">                    </span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data </span><span class="se">\</span>
-<span class="s2">                    </span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/in </span><span class="se">\</span>
-<span class="s2">                    </span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/out </span><span class="se">\</span>
-<span class="s2">                    </span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/gt; </span><span class="se">\</span>
-<span class="s2">                    7z x -y -o</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/in </span><span class="se">\</span>
-<span class="s2">                    </span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">.zip </span><span class="si">{filter_filetypes}</span><span class="s2">&quot;</span>
+        <span class="n">unzip_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;mkdir &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">&#39; </span><span class="se">\</span>
+<span class="s2">                    &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data&#39; </span><span class="se">\</span>
+<span class="s2">                    &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/in&#39; </span><span class="se">\</span>
+<span class="s2">                    &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/out&#39; </span><span class="se">\</span>
+<span class="s2">                    &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/gt&#39;; </span><span class="se">\</span>
+<span class="s2">                    7z x -y -o&#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">/data/in&#39; </span><span class="se">\</span>
+<span class="s2">                    &#39;</span><span class="si">{self.slurm_data_path}</span><span class="s2">/</span><span class="si">{zipfile}</span><span class="s2">.zip&#39; </span><span class="si">{filter_filetypes}</span><span class="s2">&quot;</span>
 
         <span class="k">return</span> <span class="n">unzip_cmd</span></div>
 

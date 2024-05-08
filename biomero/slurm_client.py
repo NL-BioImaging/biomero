@@ -543,8 +543,8 @@ class SlurmClient(Connection):
         if self.slurm_script_repo and self.slurm_script_path:
             # git clone into script path
             env = {
-                "REPOSRC": self.slurm_script_repo,
-                "LOCALREPO": self.slurm_script_path
+                "REPOSRC": f"\"{self.slurm_script_repo}\"",
+                "LOCALREPO": f"\"{self.slurm_script_path}\""
             }
             # Cleanup the existing folder first
             cleanup_first = 'rm -rf "$LOCALREPO"'
@@ -1596,11 +1596,11 @@ class SlurmClient(Connection):
         image = self.slurm_model_images[workflow.lower()].split("/")[1]
 
         sbatch_env = {
-            "DATA_PATH": f"{self.slurm_data_path}/{input_data}",
-            "IMAGE_PATH": f"{self.slurm_images_path}/{model_path}",
+            "DATA_PATH": f"\"{self.slurm_data_path}/{input_data}\"",
+            "IMAGE_PATH": f"\"{self.slurm_images_path}/{model_path}\"",
             "IMAGE_VERSION": f"{workflow_version}",
-            "SINGULARITY_IMAGE": f"{image}_{workflow_version}.sif",
-            "SCRIPT_PATH": f"{self.slurm_script_path}"
+            "SINGULARITY_IMAGE": f"\"{image}_{workflow_version}.sif\"",
+            "SCRIPT_PATH": f"\"{self.slurm_script_path}\""
         }
         workflow_env = self.workflow_params_to_envvars(**kwargs)
         env = {**sbatch_env, **workflow_env}
@@ -1648,11 +1648,11 @@ class SlurmClient(Connection):
 
         chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
         sbatch_env = {
-            "DATA_PATH": f"{data_path}",
-            "CONVERSION_PATH": f"{self.slurm_converters_path}",
+            "DATA_PATH": f"\"{data_path}\"",
+            "CONVERSION_PATH": f"\"{self.slurm_converters_path}\"",
             "CONVERTER_IMAGE": chosen_converter,
-            "SCRIPT_PATH": f"{self.slurm_script_path}",
-            "CONFIG_FILE": f"{config_file}"
+            "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
+            "CONFIG_FILE": f"\"{config_file}\""
         }
 
         conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N '$SCRIPT_PATH/convert_job_array.sh'"

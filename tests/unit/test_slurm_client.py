@@ -91,13 +91,13 @@ def test_get_unzip_command(slurm_client):
     zipfile = "example"
     filter_filetypes = "*.zarr *.tiff *.tif"
     expected_command = (
-        f"mkdir '{slurm_data_path}/{zipfile}' \
-                    '{slurm_data_path}/{zipfile}/data' \
-                    '{slurm_data_path}/{zipfile}/data/in' \
-                    '{slurm_data_path}/{zipfile}/data/out' \
-                    '{slurm_data_path}/{zipfile}/data/gt'; \
-                    7z x -y -o'{slurm_data_path}/{zipfile}/data/in' \
-                    '{slurm_data_path}/{zipfile}.zip' {filter_filetypes}"
+        f"mkdir \"{slurm_data_path}/{zipfile}\" \
+                    \"{slurm_data_path}/{zipfile}/data\" \
+                    \"{slurm_data_path}/{zipfile}/data/in\" \
+                    \"{slurm_data_path}/{zipfile}/data/out\" \
+                    \"{slurm_data_path}/{zipfile}/data/gt\"; \
+                    7z x -y -o\"{slurm_data_path}/{zipfile}/data/in\" \
+                    \"{slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
     )
 
     # WHEN
@@ -149,7 +149,7 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
 
     # THEN
     mock_run_commands.assert_called_once_with(
-        [f"7z a -y '{filename}' -tzip '{data_location}/data/out'"], env=None)
+        [f"7z a -y \"{filename}\" -tzip \"{data_location}/data/out\""], env=None)
     assert result.ok is True
     assert result.stdout == ""
     mock_logger.info.assert_called_with(
@@ -195,13 +195,13 @@ def test_get_workflow_command(slurm_client,
     slurm_client.slurm_script_path = "/path/to/slurm_script"
 
     expected_sbatch_cmd = f"sbatch --param3=value3 --param4=value4 --time={time_limit} --mail-user={email} --output=omero-%j.log \
-            '{slurm_client.slurm_script_path}/job_script.sh'"
+            \"{slurm_client.slurm_script_path}/job_script.sh\""
     expected_env = {
-        "DATA_PATH": "/path/to/slurm_data/input_data_folder",
-        "IMAGE_PATH": "/path/to/slurm_images/workflow_path",
+        "DATA_PATH": '"/path/to/slurm_data/input_data_folder"',
+        "IMAGE_PATH": '"/path/to/slurm_images/workflow_path"',
         "IMAGE_VERSION": "1.0",
-        "SINGULARITY_IMAGE": "image_1.0.sif",
-        "SCRIPT_PATH": "/path/to/slurm_script",
+        "SINGULARITY_IMAGE": '"image_1.0.sif"',
+        "SCRIPT_PATH": '"/path/to/slurm_script"',
         "PARAM1": "value1",
         "PARAM2": "value2"
     }
@@ -229,17 +229,17 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
     expected_config_file = f"config_{folder_name}.txt"
     expected_data_path = f"{slurm_client.slurm_data_path}/{folder_name}"
     expected_conversion_cmd, expected_sbatch_env = (
-        "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N '$SCRIPT_PATH/convert_job_array.sh'",
+        "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\"",
         {
-            "DATA_PATH": f"{expected_data_path}",
-            "CONVERSION_PATH": f"{slurm_client.slurm_converters_path}",
+            "DATA_PATH": f"\"{expected_data_path}\"",
+            "CONVERSION_PATH": f"\"{slurm_client.slurm_converters_path}\"",
             "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}.sif",
-            "SCRIPT_PATH": f"{slurm_client.slurm_script_path}",
-            "CONFIG_FILE": f"{expected_config_file}"
+            "SCRIPT_PATH": f"\"{slurm_client.slurm_script_path}\"",
+            "CONFIG_FILE": f"\"{expected_config_file}\""
         }
     )
     expected_commands = [
-        f"find '{expected_data_path}/data/in' -name '*.{source_format}' | awk '{{print NR, $0}}' > {expected_config_file}",
+        f"find \"{expected_data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{expected_config_file}\"",
         f"N=$(wc -l < \"{expected_config_file}\")",
         f"echo \"Number of .{source_format} files: $N\"",
         expected_conversion_cmd
@@ -466,7 +466,7 @@ def test_extract_data_location_from_log_exc(mock_run_commands,
 
     # THEN
     mock_run_commands.assert_called_with(
-        [f"cat '{logfile}' | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
+        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -485,7 +485,7 @@ def test_extract_data_location_from_log_2(mock_run_commands,
     # THEN
     assert data_location == expected_data_location
     mock_run_commands.assert_called_with(
-        [f"cat 'omero-{slurm_job_id}.log' | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
+        [f"cat \"omero-{slurm_job_id}.log\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -505,7 +505,7 @@ def test_extract_data_location_from_log(mock_run_commands,
     # THEN
     assert data_location == expected_data_location
     mock_run_commands.assert_called_with(
-        [f"cat '{logfile}' | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
+        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
 
 
 def test_get_job_status_command(slurm_client):
@@ -694,7 +694,7 @@ def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
         "workflow_name", {'PARAMS': '--param1 $PARAM1_NAME'})
 
     # Assert that the remote directories are created
-    mock_run.assert_called_with("mkdir -p 'scriptpath'")
+    mock_run.assert_called_with("mkdir -p \"scriptpath\"")
 
     # Assert that the job script is copied to the remote location
     mock_put.assert_called_once_with(
@@ -853,11 +853,11 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
     # THEN
     mock_extract_data_location.assert_not_called()
     mock_run_commands.assert_called_once_with([
-        f"rm '{filename}'.*",
-        f"rm '{logfile}'",
-        f"rm 'slurm-{slurm_job_id}'_*.out",
-        f"rm -rf '{data_location}' '{data_location}'.*",
-        f"rm 'config_path.txt'"
+        f"rm \"{filename}\".*",
+        f"rm \"{logfile}\"",
+        f"rm \"slurm-{slurm_job_id}\"_*.out",
+        f"rm -rf \"{data_location}\" \"{data_location}\".*",
+        f"rm \"config_path.txt\""
     ], sep=' ; ')
 
     assert result.ok is True
@@ -887,11 +887,11 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     # THEN
     mock_extract_data_location.assert_called_once_with(logfile)
     mock_run_commands.assert_called_once_with([
-        f"rm '{filename}'.*",
-        f"rm '{logfile}'",
-        f"rm 'slurm-{slurm_job_id}'_*.out",
-        f"rm -rf '{found_location}' '{found_location}'.*",
-        f"rm 'config_path.txt'"
+        f"rm \"{filename}\".*",
+        f"rm \"{logfile}\"",
+        f"rm \"slurm-{slurm_job_id}\"_*.out",
+        f"rm -rf \"{found_location}\" \"{found_location}\".*",
+        f"rm \"config_path.txt\""
     ], sep=' ; ')
 
     assert result.ok is True
@@ -1003,7 +1003,7 @@ def test_setup_slurm_notok(mock_run, mock_validate):
     # 1 create dirs
     mock_run.assert_called()
     mock_run.assert_any_call(
-        f"mkdir -p '{dpath}' && mkdir -p '{spath}' && mkdir -p '{ipath}'", env={})
+        f"mkdir -p \"{dpath}\" && mkdir -p \"{spath}\" && mkdir -p \"{ipath}\"", env={})
 
 
 @patch('biomero.slurm_client.io.StringIO')
@@ -1053,20 +1053,20 @@ def test_setup_slurm(_mock_CachedSession,
     mock_run.assert_called()
     # 1 create dirs
     mock_run.assert_any_call(
-        [f"mkdir -p '{dpath}'", f"mkdir -p '{spath}'", f"mkdir -p '{ipath}'"])
-    # 2 git
+        [f"mkdir -p \"{dpath}\"", f"mkdir -p \"{spath}\"", f"mkdir -p \"{ipath}\""])
+    # 2 git 
     mock_run.assert_any_call(
         ['rm -rf "$LOCALREPO"', 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null'],
-        {"REPOSRC": srepo, "LOCALREPO": spath})
+        {"REPOSRC": f"\"{srepo}\"", "LOCALREPO": f"\"{spath}\""})
 
     # 3 converters
     _mock_Connection_put.assert_called()
     # mock_run.assert_any_call(f"mkdir -p {cpath}")
     mock_run.assert_any_call(
-        [f"singularity build -F '{convert_name}.sif' {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &"])
+        [f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &"])
 
     # 4 images
-    mock_run.assert_any_call([f"mkdir -p '{modelpaths}'"])
+    mock_run.assert_any_call([f"mkdir -p \"{modelpaths}\""])
     _mock_Connection_put.assert_called_with(
         local=mock_stringio(), remote=f'{ipath}/{script_name}')
     mock_run.assert_any_call([f"time sh {script_name}"])

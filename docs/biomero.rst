@@ -1,10 +1,10 @@
-omero\_slurm\_client package
+biomero package
 ============================
 
 .. Submodules
 .. ----------
 
-omero\_slurm\_client.slurm\_client module
+biomero.slurm\_client module
 -----------------------------------------
 
 .. automodule:: biomero.slurm_client

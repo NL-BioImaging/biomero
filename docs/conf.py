@@ -20,7 +20,7 @@ sys.path.append(os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Omero Slurm Client'
+project = 'BIOMERO'
 copyright = '2023, T.T.Luik'
 author = 'T.T.Luik'
 release = dynamicversion('biomero')

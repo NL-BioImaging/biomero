@@ -133,7 +133,7 @@
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="SlurmJob"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob">[docs]</a><span class="k">class</span> <span class="nc">SlurmJob</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmJob"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob">[docs]</a><span class="k">class</span> <span class="nc">SlurmJob</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Represents a job submitted to a Slurm cluster.</span>
 
 <span class="sd">    This class encapsulates information and methods related to managing a job</span>
@@ -190,7 +190,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="o">.</span><span class="n">stderr</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
 
-<div class="viewcode-block" id="SlurmJob.wait_for_completion"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.wait_for_completion">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">,</span> <span class="n">omeroConn</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmJob.wait_for_completion"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.wait_for_completion">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">,</span> <span class="n">omeroConn</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Wait for the Slurm job to reach completion, cancellation, failure, or timeout.</span>
 
@@ -225,7 +225,7 @@
             <span class="sa">f</span><span class="s2">&quot;You can get the logfile using `Slurm Get Update` on job </span><span class="si">{self.job_id}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span></div>
     
-<div class="viewcode-block" id="SlurmJob.cleanup"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmJob.cleanup"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Cleanup remaining log files.</span>
 
@@ -237,7 +237,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmJob.completed"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.completed">[docs]</a>    <span class="k">def</span> <span class="nf">completed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmJob.completed"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.completed">[docs]</a>    <span class="k">def</span> <span class="nf">completed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Check if the Slurm job has completed successfully.</span>
 
@@ -246,7 +246,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED+&quot;</span></div>
     
-<div class="viewcode-block" id="SlurmJob.get_error"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmJob.get_error">[docs]</a>    <span class="k">def</span> <span class="nf">get_error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmJob.get_error"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.get_error">[docs]</a>    <span class="k">def</span> <span class="nf">get_error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the error message associated with the Slurm job submission.</span>
 
@@ -267,7 +267,7 @@
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SlurmJob(</span><span class="si">{properties}</span><span class="s2">)&quot;</span></div>
 
 
-<div class="viewcode-block" id="SlurmClient"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient">[docs]</a><span class="k">class</span> <span class="nc">SlurmClient</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient">[docs]</a><span class="k">class</span> <span class="nc">SlurmClient</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A client for connecting to and interacting with a Slurm cluster over</span>
 <span class="sd">    SSH.</span>
 
@@ -473,7 +473,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">init_workflows</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SlurmClient.init_workflows"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.init_workflows">[docs]</a>    <span class="k">def</span> <span class="nf">init_workflows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.init_workflows"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.init_workflows">[docs]</a>    <span class="k">def</span> <span class="nf">init_workflows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Retrieves the required info for the configured workflows from github.</span>
 <span class="sd">        It will fill `slurm_model_images` with dockerhub links.</span>
@@ -496,7 +496,7 @@
                 <span class="n">image</span> <span class="o">=</span> <span class="n">json_descriptor</span><span class="p">[</span><span class="s1">&#39;container-image&#39;</span><span class="p">][</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="p">[</span><span class="n">workflow</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span></div>
 
-<div class="viewcode-block" id="SlurmClient.setup_slurm"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.setup_slurm">[docs]</a>    <span class="k">def</span> <span class="nf">setup_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.setup_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_slurm">[docs]</a>    <span class="k">def</span> <span class="nf">setup_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Validates or creates the required setup on the Slurm cluster.</span>
 
@@ -519,7 +519,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="s2">&quot;Failure in connecting to Slurm cluster&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.setup_container_images"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.setup_container_images">[docs]</a>    <span class="k">def</span> <span class="nf">setup_container_images</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.setup_container_images"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_container_images">[docs]</a>    <span class="k">def</span> <span class="nf">setup_container_images</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets up container images for Slurm operations.</span>
 
@@ -581,7 +581,7 @@
                 <span class="c1"># cmd = &quot;singularity cache clean -f&quot;</span>
                 <span class="c1"># r = self.run_commands([cmd])</span>
 
-<div class="viewcode-block" id="SlurmClient.setup_converters"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.setup_converters">[docs]</a>    <span class="k">def</span> <span class="nf">setup_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.setup_converters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_converters">[docs]</a>    <span class="k">def</span> <span class="nf">setup_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets up converters for Slurm operations.</span>
 
@@ -629,7 +629,7 @@
                     <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="se">\&quot;</span><span class="si">{convert_name}</span><span class="s2">.sif</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">.sif&#39; &amp;&quot;</span><span class="p">)</span>
             <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets up job scripts for Slurm operations.</span>
 
@@ -656,7 +656,7 @@
             <span class="c1"># generate scripts</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_slurm_scripts</span><span class="p">(</span><span class="n">generate_jobs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.setup_directories"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.setup_directories">[docs]</a>    <span class="k">def</span> <span class="nf">setup_directories</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.setup_directories"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_directories">[docs]</a>    <span class="k">def</span> <span class="nf">setup_directories</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Creates necessary directories for Slurm operations.</span>
 
@@ -680,7 +680,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.from_config"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.from_config">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SlurmClient.from_config"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.from_config">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_config</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
                     <span class="n">init_slurm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;SlurmClient&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates a new SlurmClient object using the parameters read from a</span>
@@ -772,7 +772,7 @@
                    <span class="n">slurm_script_repo</span><span class="o">=</span><span class="n">slurm_script_repo</span><span class="p">,</span>
                    <span class="n">init_slurm</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                           <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                           <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -840,7 +840,7 @@
             <span class="n">result</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">result</span>
         <span class="k">return</span> <span class="n">result</span> <span class="ow">or</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="SlurmClient.validate"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validate_slurm_setup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.validate"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validate_slurm_setup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Validate the connection to the Slurm cluster by running</span>
 <span class="sd">        a simple command.</span>
 
@@ -862,7 +862,7 @@
                 <span class="k">return</span> <span class="kc">False</span>
         <span class="k">return</span> <span class="n">connected</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_recent_log_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_recent_log_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_recent_log_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.get_recent_log_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_recent_log_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_recent_log_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the command to retrieve the recent log entries from a</span>
 <span class="sd">        specified log file.</span>
@@ -877,7 +877,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_TAIL_LOG_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_active_job_progress"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_active_job_progress">[docs]</a>    <span class="k">def</span> <span class="nf">get_active_job_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_active_job_progress"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_active_job_progress">[docs]</a>    <span class="k">def</span> <span class="nf">get_active_job_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                 <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                 <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\d+%&quot;</span><span class="p">,</span>
                                 <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -914,7 +914,7 @@
 
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Progress: </span><span class="si">{latest_progress}</span><span class="se">\n</span><span class="s2">&quot;</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_commands"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_commands">[docs]</a>    <span class="k">def</span> <span class="nf">run_commands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmdlist</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+<div class="viewcode-block" id="SlurmClient.run_commands"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_commands">[docs]</a>    <span class="k">def</span> <span class="nf">run_commands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmdlist</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
                      <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                      <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39; &amp;&amp; &#39;</span><span class="p">,</span>
                      <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
@@ -955,7 +955,7 @@
                 <span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="s1">&#39;ignore&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="SlurmClient.str_to_class"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.str_to_class">[docs]</a>    <span class="k">def</span> <span class="nf">str_to_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.str_to_class"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.str_to_class">[docs]</a>    <span class="k">def</span> <span class="nf">str_to_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return a class instance from a string reference.</span>
 
@@ -979,7 +979,7 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Module does not exist&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">class_</span> <span class="ow">or</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_commands_split_out"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_commands_split_out">[docs]</a>    <span class="k">def</span> <span class="nf">run_commands_split_out</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.run_commands_split_out"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_commands_split_out">[docs]</a>    <span class="k">def</span> <span class="nf">run_commands_split_out</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                <span class="n">cmdlist</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
                                <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -1023,7 +1023,7 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">error</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.list_active_jobs"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.list_active_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_active_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.list_active_jobs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.list_active_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_active_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                          <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get a list of active jobs from SLURM.</span>
@@ -1043,7 +1043,7 @@
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">job_list</span></div>
 
-<div class="viewcode-block" id="SlurmClient.list_completed_jobs"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.list_completed_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_completed_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.list_completed_jobs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.list_completed_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_completed_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                             <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get a list of completed jobs from SLURM.</span>
@@ -1063,7 +1063,7 @@
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">job_list</span></div>
 
-<div class="viewcode-block" id="SlurmClient.list_all_jobs"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.list_all_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_all_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<div class="viewcode-block" id="SlurmClient.list_all_jobs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.list_all_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_all_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get a list of all jobs from SLURM.</span>
 
@@ -1082,7 +1082,7 @@
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">job_list</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_jobs_info_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_jobs_info_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_jobs_info_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2023-01-01&quot;</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_jobs_info_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_jobs_info_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_jobs_info_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2023-01-01&quot;</span><span class="p">,</span>
                               <span class="n">end_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;now&quot;</span><span class="p">,</span>
                               <span class="n">columns</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;JobId&quot;</span><span class="p">,</span>
                               <span class="n">states</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r,cd,f,to,rs,dl,nf&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1115,7 +1115,7 @@
                                          <span class="n">states</span><span class="o">=</span><span class="n">states</span><span class="p">,</span>
                                          <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.transfer_data"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.transfer_data">[docs]</a>    <span class="k">def</span> <span class="nf">transfer_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.transfer_data"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.transfer_data">[docs]</a>    <span class="k">def</span> <span class="nf">transfer_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Transfers a file or directory from the local machine to the remote</span>
 <span class="sd">        Slurm cluster.</span>
@@ -1131,7 +1131,7 @@
             <span class="sa">f</span><span class="s2">&quot;Transfering file </span><span class="si">{local_path}</span><span class="s2"> to </span><span class="si">{self.slurm_data_path}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">local_path</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.unpack_data"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.unpack_data">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.unpack_data"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.unpack_data">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                     <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Unpacks a zipped file on the remote Slurm cluster.</span>
@@ -1149,7 +1149,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unpacking </span><span class="si">{zipfile}</span><span class="s2"> on Slurm&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.generate_slurm_job_for_workflow"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">generate_slurm_job_for_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.generate_slurm_job_for_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">generate_slurm_job_for_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                         <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                         <span class="n">substitutes</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
                                         <span class="n">template</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;job_template.sh&quot;</span>
@@ -1176,7 +1176,7 @@
             <span class="n">job_script</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitutes</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job_script</span></div>
 
-<div class="viewcode-block" id="SlurmClient.workflow_params_to_subs"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.workflow_params_to_subs">[docs]</a>    <span class="k">def</span> <span class="nf">workflow_params_to_subs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<div class="viewcode-block" id="SlurmClient.workflow_params_to_subs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.workflow_params_to_subs">[docs]</a>    <span class="k">def</span> <span class="nf">workflow_params_to_subs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert workflow parameters to substitution dictionary for job script.</span>
 
@@ -1196,7 +1196,7 @@
         <span class="n">subs</span><span class="p">[</span><span class="s1">&#39;PARAMS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">subs</span></div>
 
-<div class="viewcode-block" id="SlurmClient.update_slurm_scripts"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.update_slurm_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">update_slurm_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.update_slurm_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.update_slurm_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">update_slurm_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                              <span class="n">generate_jobs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                              <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1241,7 +1241,7 @@
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_workflow"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">run_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.run_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">run_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                      <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                      <span class="n">workflow_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                      <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1280,7 +1280,7 @@
         <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">sbatch_cmd</span><span class="p">],</span> <span class="n">sbatch_env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">res</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">res</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_workflow_job"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_workflow_job">[docs]</a>    <span class="k">def</span> <span class="nf">run_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.run_workflow_job"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_workflow_job">[docs]</a>    <span class="k">def</span> <span class="nf">run_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                          <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                          <span class="n">workflow_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                          <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1306,7 +1306,7 @@
             <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">SlurmJob</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_conversion_workflow_job"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.run_conversion_workflow_job">[docs]</a>    <span class="k">def</span> <span class="nf">run_conversion_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.run_conversion_workflow_job"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_conversion_workflow_job">[docs]</a>    <span class="k">def</span> <span class="nf">run_conversion_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                     <span class="n">source_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;zarr&#39;</span><span class="p">,</span>
                                     <span class="n">target_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tiff&#39;</span>
                                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Result</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
@@ -1347,7 +1347,7 @@
 
         <span class="k">return</span> <span class="n">SlurmJob</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">res</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="SlurmClient.extract_job_id"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.extract_job_id">[docs]</a>    <span class="k">def</span> <span class="nf">extract_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.extract_job_id"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.extract_job_id">[docs]</a>    <span class="k">def</span> <span class="nf">extract_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract the Slurm job ID from the result of a command.</span>
 
@@ -1363,7 +1363,7 @@
                             <span class="s2">&quot;Submitted batch job&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">slurm_job_id</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_update_slurm_scripts_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_update_slurm_scripts_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_update_slurm_scripts_command</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.get_update_slurm_scripts_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_update_slurm_scripts_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_update_slurm_scripts_command</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Generate the command to update the Git repository containing</span>
 <span class="sd">        the Slurm scripts, if necessary.</span>
 
@@ -1375,7 +1375,7 @@
         <span class="n">update_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;git -C </span><span class="se">\&quot;</span><span class="si">{self.slurm_script_path}</span><span class="se">\&quot;</span><span class="s2"> pull&quot;</span>
         <span class="k">return</span> <span class="n">update_cmd</span></div>
 
-<div class="viewcode-block" id="SlurmClient.check_job_status"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.check_job_status">[docs]</a>    <span class="k">def</span> <span class="nf">check_job_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.check_job_status"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.check_job_status">[docs]</a>    <span class="k">def</span> <span class="nf">check_job_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                          <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
                          <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Result</span><span class="p">]:</span>
@@ -1461,7 +1461,7 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">error</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_job_status_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_job_status_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_status_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.get_job_status_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_job_status_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_status_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the Slurm command to get the status of jobs with the given</span>
 <span class="sd">        job IDs.</span>
@@ -1477,7 +1477,7 @@
         <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="s2">&quot; -j &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">])</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_JOB_STATUS_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.extract_data_location_from_log"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.extract_data_location_from_log">[docs]</a>    <span class="k">def</span> <span class="nf">extract_data_location_from_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.extract_data_location_from_log"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.extract_data_location_from_log">[docs]</a>    <span class="k">def</span> <span class="nf">extract_data_location_from_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                                        <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Read SLURM job logfile to find location of the data.</span>
 
@@ -1503,7 +1503,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_workflow_parameters"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_workflow_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_workflow_parameters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_workflow_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                 <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Retrieve the parameters of a workflow.</span>
@@ -1538,7 +1538,7 @@
                 <span class="n">workflow_dict</span><span class="p">[</span><span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">workflow_params</span>
         <span class="k">return</span> <span class="n">workflow_dict</span></div>
 
-<div class="viewcode-block" id="SlurmClient.convert_cytype_to_omtype"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.convert_cytype_to_omtype">[docs]</a>    <span class="k">def</span> <span class="nf">convert_cytype_to_omtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.convert_cytype_to_omtype"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_cytype_to_omtype">[docs]</a>    <span class="k">def</span> <span class="nf">convert_cytype_to_omtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                  <span class="n">cytype</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">_default</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
                                  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1580,7 +1580,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">str_to_class</span><span class="p">(</span><span class="s2">&quot;omero.scripts&quot;</span><span class="p">,</span> <span class="s2">&quot;String&quot;</span><span class="p">,</span>
                                      <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.extract_parts_from_url"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.extract_parts_from_url">[docs]</a>    <span class="k">def</span> <span class="nf">extract_parts_from_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]:</span>
+<div class="viewcode-block" id="SlurmClient.extract_parts_from_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.extract_parts_from_url">[docs]</a>    <span class="k">def</span> <span class="nf">extract_parts_from_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract the repository and branch information from the input URL.</span>
 
@@ -1609,7 +1609,7 @@
 
         <span class="k">return</span> <span class="n">url_parts</span><span class="p">,</span> <span class="n">branch</span></div>
 
-<div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span> <span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span> <span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert the input GitHub URL to an output URL that retrieves</span>
 <span class="sd">        the &#39;descriptor.json&#39; file in raw format.</span>
@@ -1631,7 +1631,7 @@
 
         <span class="k">return</span> <span class="n">output_url</span></div>
 
-<div class="viewcode-block" id="SlurmClient.pull_descriptor_from_github"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.pull_descriptor_from_github">[docs]</a>    <span class="k">def</span> <span class="nf">pull_descriptor_from_github</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.pull_descriptor_from_github"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.pull_descriptor_from_github">[docs]</a>    <span class="k">def</span> <span class="nf">pull_descriptor_from_github</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Pull the workflow descriptor from GitHub.</span>
 
@@ -1660,7 +1660,7 @@
 <span class="s1">                    from </span><span class="si">{raw_url}</span><span class="s1">: </span><span class="si">{ghfile.__dict__}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">json_descriptor</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_or_create_github_session"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_or_create_github_session">[docs]</a>    <span class="k">def</span> <span class="nf">get_or_create_github_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.get_or_create_github_session"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_or_create_github_session">[docs]</a>    <span class="k">def</span> <span class="nf">get_or_create_github_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># Note, using requests_cache 1.1.1, conditional queries are default:</span>
         <span class="c1"># The cached response will still be used until the remote content actually changes</span>
         <span class="c1"># Even if the &#39;expire_after&#39; is triggered. This is built into GitHub, which returns</span>
@@ -1691,7 +1691,7 @@
         <span class="n">s</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s1">&#39;http://github.com/&#39;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retry_strategy</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">s</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_workflow_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_workflow_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_workflow_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_workflow_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflow_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                              <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">workflow_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1745,7 +1745,7 @@
 
         <span class="k">return</span> <span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">env</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_conversion_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_conversion_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_conversion_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_conversion_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_conversion_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_conversion_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                <span class="n">config_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                <span class="n">source_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;zarr&#39;</span><span class="p">,</span>
                                <span class="n">target_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tiff&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
@@ -1790,7 +1790,7 @@
 
         <span class="k">return</span> <span class="n">conversion_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span></div>
 
-<div class="viewcode-block" id="SlurmClient.workflow_params_to_envvars"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.workflow_params_to_envvars">[docs]</a>    <span class="k">def</span> <span class="nf">workflow_params_to_envvars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.workflow_params_to_envvars"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.workflow_params_to_envvars">[docs]</a>    <span class="k">def</span> <span class="nf">workflow_params_to_envvars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert workflow parameters to environment variables.</span>
 
@@ -1805,7 +1805,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">workflow_env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">workflow_env</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_cellpose_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_cellpose_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_cellpose_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_cellpose_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_cellpose_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_cellpose_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">cp_model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">nuc_channel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -1854,7 +1854,7 @@
                                          <span class="n">cell_diameter</span><span class="o">=</span><span class="n">cell_diameter</span><span class="p">,</span>
                                          <span class="n">use_gpu</span><span class="o">=</span><span class="n">use_gpu</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.copy_zip_locally"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.copy_zip_locally">[docs]</a>    <span class="k">def</span> <span class="nf">copy_zip_locally</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_tmp_storage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span>
+<div class="viewcode-block" id="SlurmClient.copy_zip_locally"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.copy_zip_locally">[docs]</a>    <span class="k">def</span> <span class="nf">copy_zip_locally</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_tmp_storage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span>
                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot; Copy a zip file from Slurm to the local server.</span>
 
@@ -1880,7 +1880,7 @@
             <span class="n">remote</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{filename}</span><span class="s2">.zip&quot;</span><span class="p">,</span>
             <span class="n">local</span><span class="o">=</span><span class="n">local_tmp_storage</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.zip_data_on_slurm_server"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.zip_data_on_slurm_server">[docs]</a>    <span class="k">def</span> <span class="nf">zip_data_on_slurm_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.zip_data_on_slurm_server"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.zip_data_on_slurm_server">[docs]</a>    <span class="k">def</span> <span class="nf">zip_data_on_slurm_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                  <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                                  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Zip the output folder of a job on Slurm</span>
@@ -1900,7 +1900,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Zipping </span><span class="si">{data_location}</span><span class="s2"> as </span><span class="si">{filename}</span><span class="s2"> on Slurm&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">zip_cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_zip_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_zip_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_zip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="SlurmClient.get_zip_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_zip_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_zip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate a command string for zipping the data on Slurm.</span>
 
@@ -1915,7 +1915,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ZIP_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
                                     <span class="n">data_location</span><span class="o">=</span><span class="n">data_location</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_logfile_from_slurm"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_logfile_from_slurm">[docs]</a>    <span class="k">def</span> <span class="nf">get_logfile_from_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_logfile_from_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_logfile_from_slurm">[docs]</a>    <span class="k">def</span> <span class="nf">get_logfile_from_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                <span class="n">local_tmp_storage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;/tmp/&quot;</span><span class="p">,</span>
                                <span class="n">logfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1952,7 +1952,7 @@
         <span class="n">export_file</span> <span class="o">=</span> <span class="n">local_tmp_storage</span><span class="o">+</span><span class="n">logfile</span>
         <span class="k">return</span> <span class="n">local_tmp_storage</span><span class="p">,</span> <span class="n">export_file</span><span class="p">,</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_unzip_command"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_unzip_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_unzip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_unzip_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_unzip_command">[docs]</a>    <span class="k">def</span> <span class="nf">get_unzip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">filter_filetypes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.zarr *.tiff *.tif&quot;</span>
                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1983,7 +1983,7 @@
 
         <span class="k">return</span> <span class="n">unzip_cmd</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_image_versions_and_data_files"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_image_versions_and_data_files">[docs]</a>    <span class="k">def</span> <span class="nf">get_image_versions_and_data_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span>
+<div class="viewcode-block" id="SlurmClient.get_image_versions_and_data_files"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_image_versions_and_data_files">[docs]</a>    <span class="k">def</span> <span class="nf">get_image_versions_and_data_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span>
                                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Retrieve the available image versions and input data files for a</span>
@@ -2020,7 +2020,7 @@
         <span class="n">response_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">response_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">response_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">response_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_all_image_versions_and_data_files"><a class="viewcode-back" href="../../omero_slurm_client.html#biomero.slurm_client.SlurmClient.get_all_image_versions_and_data_files">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_image_versions_and_data_files</span><span class="p">(</span><span class="bp">self</span>
+<div class="viewcode-block" id="SlurmClient.get_all_image_versions_and_data_files"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_all_image_versions_and_data_files">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_image_versions_and_data_files</span><span class="p">(</span><span class="bp">self</span>
                                               <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
                                                          <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;Retrieve all available image versions and data files from</span>

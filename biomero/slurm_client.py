@@ -433,7 +433,7 @@ class SlurmClient(Connection):
         # Create specific workflow dirs
         with self.cd(self.slurm_images_path):
             if self.slurm_model_paths:
-                modelpaths = " ".join(self.slurm_model_paths.values())
+                modelpaths = "\" \"".join(self.slurm_model_paths.values())
                 # mkdir cellprofiler imagej ...
                 r = self.run_commands([f"mkdir -p \"{modelpaths}\""])
                 if not r.ok:

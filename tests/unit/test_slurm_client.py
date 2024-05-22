@@ -1006,6 +1006,7 @@ def test_setup_slurm_notok(mock_run, mock_validate):
         f"mkdir -p \"{dpath}\" && mkdir -p \"{spath}\" && mkdir -p \"{ipath}\"", env={})
 
 
+@pytest.mark.parametrize("mpaths, expected_modelpaths", [({'wf': 'path'}, 'path'), ({'wf': 'path', 'wf2': 'path2'}, 'path" "path2')])
 @patch('biomero.slurm_client.io.StringIO')
 @patch('biomero.slurm_client.SlurmClient.validate')
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -1017,7 +1018,9 @@ def test_setup_slurm(_mock_CachedSession,
                      _mock_Connection_open,
                      mock_run,
                      mock_validate,
-                     mock_stringio):
+                     mock_stringio,
+                     expected_modelpaths,
+                     mpaths):
     """
     Test the validation of the connection to the Slurm cluster using the SlurmClient.
     """
@@ -1031,8 +1034,6 @@ def test_setup_slurm(_mock_CachedSession,
     srepo = "repo-url"
     convert_name = "convert_zarr_to_tiff"
     convert_def = f"{convert_name}.def"
-    modelpaths = 'path'
-    mpaths = {'wf': modelpaths}
     mimages = {'wf': 'image'}
     mrepos = {'wf': "https://github.com/example/workflow1"}
     script_name = "pull_images.sh"
@@ -1066,7 +1067,7 @@ def test_setup_slurm(_mock_CachedSession,
         [f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &"])
 
     # 4 images
-    mock_run.assert_any_call([f"mkdir -p \"{modelpaths}\""])
+    mock_run.assert_any_call([f"mkdir -p \"{expected_modelpaths}\""])
     _mock_Connection_put.assert_called_with(
         local=mock_stringio(), remote=f'{ipath}/{script_name}')
     mock_run.assert_any_call([f"time sh {script_name}"])

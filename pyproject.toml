@@ -44,5 +44,5 @@ test = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/NL-BioImaging/omero-slurm-client"
-"Documentation" = "https://nl-bioimaging.github.io/omero-slurm-client/"
+"Homepage" = "https://github.com/NL-BioImaging/biomero"
+"Documentation" = "https://nl-bioimaging.github.io/biomero/"

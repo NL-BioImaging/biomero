@@ -60,7 +60,9 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
 
         # Write the Dask array to the TIFF file
         dask_image_data.persist()
-        tf.imwrite(output_file, dask_image_data, planarconfig='contig')
+        # to imagej tiff to be handled by cellprofiler wf wrt multiple channels
+        tf.imwrite(output_file, dask_image_data, 
+                   planarconfig='contig', imagej=True) 
         
         logger.info(f"Conversion completed successfully with key: '{key}'.")
         logger.info(f"Output TIFF file: '{output_file}'")

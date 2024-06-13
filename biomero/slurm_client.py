@@ -29,7 +29,6 @@ from string import Template
 from importlib_resources import files
 import io
 import os
-from biomero import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -511,6 +510,9 @@ class SlurmClient(Connection):
             for path, image in self.converter_images.items():
                 version = self.parse_docker_image_version(image)
                 if not version:
+                    # Deferred import to avoid circular dependency
+                    from . import __version__
+                    # use default container version of our package   
                     version = __version__
                 with self.cd(self.slurm_converters_path):
                     pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"

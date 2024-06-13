@@ -369,6 +369,7 @@
                  <span class="n">slurm_model_paths</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_model_repos</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_model_images</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">converter_images</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_model_jobs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_model_jobs_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_script_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span><span class="p">,</span>
@@ -427,6 +428,11 @@
 <span class="sd">                job models. Will fill automatically from the data in the git </span>
 <span class="sd">                repository if you set init_slurm.</span>
 <span class="sd">                Defaults to None.</span>
+<span class="sd">            converter_images (dict, optional): A dictionairy containing the</span>
+<span class="sd">                dockerhub of the Singularity images for converters. </span>
+<span class="sd">                Will default to building converter available in this package</span>
+<span class="sd">                on Slurm instead if not configured.</span>
+<span class="sd">                Defaults to None.</span>
 <span class="sd">            slurm_model_jobs (dict, optional): A dictionary containing</span>
 <span class="sd">                information about specific Slurm job models.</span>
 <span class="sd">                Defaults to None.</span>
@@ -462,6 +468,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_repo</span> <span class="o">=</span> <span class="n">slurm_script_repo</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span> <span class="o">=</span> <span class="n">slurm_model_repos</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span> <span class="o">=</span> <span class="n">slurm_model_images</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span> <span class="o">=</span> <span class="n">converter_images</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs</span> <span class="o">=</span> <span class="n">slurm_model_jobs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs_params</span> <span class="o">=</span> <span class="n">slurm_model_jobs_params</span>
 
@@ -596,38 +603,77 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">:</span>
             <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="se">\&quot;</span><span class="si">{self.slurm_converters_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>
-        <span class="c1"># copy generic job array script over to slurm</span>
-        <span class="n">convert_job_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-            <span class="s2">&quot;convert_job_array.sh&quot;</span><span class="p">)</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_job_local</span><span class="p">,</span>
-                     <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">)</span>
-        <span class="c1"># currently known converters</span>
-        <span class="c1"># 3a. ZARR to TIFF</span>
-        <span class="c1"># TODO extract these values to e.g. config if we have more</span>
-        <span class="n">convert_name</span> <span class="o">=</span> <span class="s2">&quot;convert_zarr_to_tiff&quot;</span>
-        <span class="n">convert_py</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.py&quot;</span>
-        <span class="n">convert_script_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-            <span class="n">convert_py</span><span class="p">)</span>
-        <span class="n">convert_def</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.def&quot;</span>
-        <span class="n">convert_def_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-            <span class="n">convert_def</span><span class="p">)</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_script_local</span><span class="p">,</span>
-                     <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_def_local</span><span class="p">,</span>
-                     <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
-        <span class="c1"># Build singularity container from definition</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
-            <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
-                <span class="c1"># TODO Change the tmp dir?</span>
-                <span class="c1"># export SINGULARITY_TMPDIR=~/my-scratch/tmp;</span>
-                <span class="c1"># only if file does not exist yet</span>
-                <span class="c1"># convert_cmds.append(f&quot;[ ! -f {convert_name}.sif ]&quot;)</span>
-                <span class="c1"># EDIT -- NO, then we can&#39;t update! Force rebuild!</span>
-                <span class="c1"># download /build new container</span>
-                <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="se">\&quot;</span><span class="si">{convert_name}</span><span class="s2">.sif</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">.sif&#39; &amp;&quot;</span><span class="p">)</span>
-            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
+        
+        <span class="c1">## PULL converter if provided in config</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">:</span>
+            <span class="n">pull_commands</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
+                    <span class="n">version</span> <span class="o">=</span> <span class="n">__version__</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
+                    <span class="n">pull_template</span> <span class="o">=</span> <span class="s2">&quot;echo &#39;starting $path $version&#39; &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">nohup sh -c </span><span class="se">\&quot;</span><span class="s2">singularity pull --force --disable-cache docker://$image:$version; echo &#39;finished $path $version&#39;</span><span class="se">\&quot;</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 &amp; disown&quot;</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">pull_template</span><span class="p">)</span>
+                    <span class="n">substitutes</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">&#39;path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">path</span>
+                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
+                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">&#39;version&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">version</span>
+                    <span class="n">cmd</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitutes</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;substituted: </span><span class="si">{cmd}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">pull_commands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">script_name</span> <span class="o">=</span> <span class="s2">&quot;pull_images.sh&quot;</span>
+            <span class="n">template_script</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">script_name</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">template_script</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">src</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+                <span class="n">substitute</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pullcommands&#39;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pull_commands</span><span class="p">)}</span>
+                <span class="n">job_script</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitute</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;substituted:</span><span class="se">\n</span><span class="s2"> </span><span class="si">{job_script}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># copy to remote file</span>
+            <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="o">+</span><span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="n">script_name</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span> <span class="n">remote</span><span class="o">=</span><span class="n">full_path</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;time sh </span><span class="si">{script_name}</span><span class="s2">&quot;</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initiated downloading and building&quot;</span> <span class="o">+</span>
+                        <span class="s2">&quot; container images on Slurm.&quot;</span> <span class="o">+</span>
+                        <span class="s2">&quot; This will probably take a while in the background.&quot;</span> <span class="o">+</span> 
+                        <span class="s2">&quot; Check &#39;sing.log&#39; on Slurm for progress.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">## BUILD converter from singularity def file</span>
+            <span class="c1"># copy generic job array script over to slurm</span>
+            <span class="n">convert_job_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="s2">&quot;convert_job_array.sh&quot;</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_job_local</span><span class="p">,</span>
+                        <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">)</span>
+            <span class="c1"># currently known converters</span>
+            <span class="c1"># 3a. ZARR to TIFF</span>
+            <span class="c1"># TODO extract these values to e.g. config if we have more</span>
+            <span class="n">convert_name</span> <span class="o">=</span> <span class="s2">&quot;convert_zarr_to_tiff&quot;</span>
+            <span class="n">convert_py</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.py&quot;</span>
+            <span class="n">convert_script_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="n">convert_py</span><span class="p">)</span>
+            <span class="n">convert_def</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{convert_name}</span><span class="s2">.def&quot;</span>
+            <span class="n">convert_def_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="n">convert_def</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_script_local</span><span class="p">,</span>
+                        <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_def_local</span><span class="p">,</span>
+                        <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
+            <span class="c1"># Build singularity container from definition</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
+                <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
+                    <span class="c1"># TODO Change the tmp dir?</span>
+                    <span class="c1"># export SINGULARITY_TMPDIR=~/my-scratch/tmp;</span>
+                    <span class="c1"># only if file does not exist yet</span>
+                    <span class="c1"># convert_cmds.append(f&quot;[ ! -f {convert_name}.sif ]&quot;)</span>
+                    <span class="c1"># EDIT -- NO, then we can&#39;t update! Force rebuild!</span>
+                    <span class="c1"># download /build new container</span>
+                    <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="se">\&quot;</span><span class="si">{convert_name}</span><span class="s2">.sif</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">.sif&#39; &amp;&quot;</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -756,6 +802,18 @@
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_script_repo&quot;</span><span class="p">,</span>
             <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span>
         <span class="p">)</span>
+        
+        <span class="c1"># Parse converters, if available</span>
+        <span class="c1"># Should be key=value where key is a name and value a docker image</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">converter_items</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="s2">&quot;CONVERTERS&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">converter_items</span><span class="p">:</span>
+                <span class="n">converter_images</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">converter_items</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">converter_images</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Section exists but is empty</span>
+        <span class="k">except</span> <span class="n">configparser</span><span class="o">.</span><span class="n">NoSectionError</span><span class="p">:</span>
+            <span class="n">converter_images</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Section does not exist       </span>
+        
         <span class="c1"># Create the SlurmClient object with the parameters read from</span>
         <span class="c1"># the config file</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
@@ -766,6 +824,7 @@
                    <span class="n">slurm_model_paths</span><span class="o">=</span><span class="n">slurm_model_paths</span><span class="p">,</span>
                    <span class="n">slurm_model_repos</span><span class="o">=</span><span class="n">slurm_model_repos</span><span class="p">,</span>
                    <span class="n">slurm_model_images</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">converter_images</span><span class="o">=</span><span class="n">converter_images</span><span class="p">,</span>
                    <span class="n">slurm_model_jobs</span><span class="o">=</span><span class="n">slurm_model_jobs</span><span class="p">,</span>
                    <span class="n">slurm_model_jobs_params</span><span class="o">=</span><span class="n">slurm_model_jobs_params</span><span class="p">,</span>
                    <span class="n">slurm_script_path</span><span class="o">=</span><span class="n">slurm_script_path</span><span class="p">,</span>
@@ -1608,7 +1667,17 @@
             <span class="n">branch</span> <span class="o">=</span> <span class="s2">&quot;master&quot;</span>
 
         <span class="k">return</span> <span class="n">url_parts</span><span class="p">,</span> <span class="n">branch</span></div>
-
+       
+<div class="viewcode-block" id="SlurmClient.parse_docker_image_version"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">[docs]</a>    <span class="k">def</span> <span class="nf">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
+        <span class="c1"># Regular expression to match image:tag format</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;^([^:]+)(?::([^:]+))?$&#39;</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">image</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+            <span class="n">image_name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">version</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+    
 <div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span> <span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert the input GitHub URL to an output URL that retrieves</span>

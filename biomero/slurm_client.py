@@ -29,6 +29,7 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+from biomero import __version__
 
 logger = logging.getLogger(__name__)
 

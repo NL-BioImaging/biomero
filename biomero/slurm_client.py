@@ -269,6 +269,7 @@ class SlurmClient(Connection):
                  slurm_model_paths: dict = None,
                  slurm_model_repos: dict = None,
                  slurm_model_images: dict = None,
+                 converter_images: dict = None,
                  slurm_model_jobs: dict = None,
                  slurm_model_jobs_params: dict = None,
                  slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
@@ -327,6 +328,11 @@ class SlurmClient(Connection):
                 job models. Will fill automatically from the data in the git 
                 repository if you set init_slurm.
                 Defaults to None.
+            converter_images (dict, optional): A dictionairy containing the
+                dockerhub of the Singularity images for converters. 
+                Will default to building converter available in this package
+                on Slurm instead if not configured.
+                Defaults to None.
             slurm_model_jobs (dict, optional): A dictionary containing
                 information about specific Slurm job models.
                 Defaults to None.
@@ -362,6 +368,7 @@ class SlurmClient(Connection):
         self.slurm_script_repo = slurm_script_repo
         self.slurm_model_repos = slurm_model_repos
         self.slurm_model_images = slurm_model_images
+        self.converter_images = converter_images
         self.slurm_model_jobs = slurm_model_jobs
         self.slurm_model_jobs_params = slurm_model_jobs_params
 
@@ -496,38 +503,77 @@ class SlurmClient(Connection):
         if self.slurm_converters_path:
             convert_cmds.append(f"mkdir -p \"{self.slurm_converters_path}\"")
         r = self.run_commands(convert_cmds)
-        # copy generic job array script over to slurm
-        convert_job_local = files("resources").joinpath(
-            "convert_job_array.sh")
-        _ = self.put(local=convert_job_local,
-                     remote=self.slurm_script_path)
-        # currently known converters
-        # 3a. ZARR to TIFF
-        # TODO extract these values to e.g. config if we have more
-        convert_name = "convert_zarr_to_tiff"
-        convert_py = f"{convert_name}.py"
-        convert_script_local = files("resources").joinpath(
-            convert_py)
-        convert_def = f"{convert_name}.def"
-        convert_def_local = files("resources").joinpath(
-            convert_def)
-        _ = self.put(local=convert_script_local,
-                     remote=self.slurm_converters_path)
-        _ = self.put(local=convert_def_local,
-                     remote=self.slurm_converters_path)
-        # Build singularity container from definition
-        with self.cd(self.slurm_converters_path):
-            convert_cmds = []
-            if self.slurm_images_path:
-                # TODO Change the tmp dir?
-                # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
-                # only if file does not exist yet
-                # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
-                # EDIT -- NO, then we can't update! Force rebuild!
-                # download /build new container
-                convert_cmds.append(
-                    f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
-            _ = self.run_commands(convert_cmds)
+        
+        ## PULL converter if provided in config
+        if self.converter_images:
+            pull_commands = []
+            for path, image in self.converter_images.items():
+                version = self.parse_docker_image_version(image)
+                if not version:
+                    version = __version__
+                with self.cd(self.slurm_converters_path):
+                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                    t = Template(pull_template)
+                    substitutes = {}
+                    substitutes['path'] = path
+                    substitutes['image'] = image
+                    substitutes['version'] = version
+                    cmd = t.safe_substitute(substitutes)
+                    logger.debug(f"substituted: {cmd}")
+                    pull_commands.append(cmd)
+            script_name = "pull_images.sh"
+            template_script = files("resources").joinpath(script_name)
+            with template_script.open('r') as f:
+                src = Template(f.read())
+                substitute = {'pullcommands': "\n".join(pull_commands)}
+                job_script = src.safe_substitute(substitute)
+            logger.debug(f"substituted:\n {job_script}")
+            # copy to remote file
+            full_path = self.slurm_converters_path+"/"+script_name
+            _ = self.put(local=io.StringIO(job_script), remote=full_path)
+            cmd = f"time sh {script_name}"
+            r = self.run_commands([cmd])
+            if not r.ok:
+                raise SSHException(r)
+            logger.info(r.stdout)
+            logger.info("Initiated downloading and building" +
+                        " container images on Slurm." +
+                        " This will probably take a while in the background." + 
+                        " Check 'sing.log' on Slurm for progress.")
+        else:
+            ## BUILD converter from singularity def file
+            # copy generic job array script over to slurm
+            convert_job_local = files("resources").joinpath(
+                "convert_job_array.sh")
+            _ = self.put(local=convert_job_local,
+                        remote=self.slurm_script_path)
+            # currently known converters
+            # 3a. ZARR to TIFF
+            # TODO extract these values to e.g. config if we have more
+            convert_name = "convert_zarr_to_tiff"
+            convert_py = f"{convert_name}.py"
+            convert_script_local = files("resources").joinpath(
+                convert_py)
+            convert_def = f"{convert_name}.def"
+            convert_def_local = files("resources").joinpath(
+                convert_def)
+            _ = self.put(local=convert_script_local,
+                        remote=self.slurm_converters_path)
+            _ = self.put(local=convert_def_local,
+                        remote=self.slurm_converters_path)
+            # Build singularity container from definition
+            with self.cd(self.slurm_converters_path):
+                convert_cmds = []
+                if self.slurm_images_path:
+                    # TODO Change the tmp dir?
+                    # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
+                    # only if file does not exist yet
+                    # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
+                    # EDIT -- NO, then we can't update! Force rebuild!
+                    # download /build new container
+                    convert_cmds.append(
+                        f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
+                _ = self.run_commands(convert_cmds)
 
     def setup_job_scripts(self):
         """
@@ -656,6 +702,18 @@ class SlurmClient(Connection):
             "SLURM", "slurm_script_repo",
             fallback=None
         )
+        
+        # Parse converters, if available
+        # Should be key=value where key is a name and value a docker image
+        try:
+            converter_items = configs.items("CONVERTERS")
+            if converter_items:
+                converter_images = dict(converter_items)
+            else:
+                converter_images = None  # Section exists but is empty
+        except configparser.NoSectionError:
+            converter_images = None  # Section does not exist       
+        
         # Create the SlurmClient object with the parameters read from
         # the config file
         return cls(host=host,
@@ -666,6 +724,7 @@ class SlurmClient(Connection):
                    slurm_model_paths=slurm_model_paths,
                    slurm_model_repos=slurm_model_repos,
                    slurm_model_images=None,
+                   converter_images=converter_images,
                    slurm_model_jobs=slurm_model_jobs,
                    slurm_model_jobs_params=slurm_model_jobs_params,
                    slurm_script_path=slurm_script_path,
@@ -1508,7 +1567,17 @@ class SlurmClient(Connection):
             branch = "master"
 
         return url_parts, branch
-
+       
+    def parse_docker_image_version(image):
+        # Regular expression to match image:tag format
+        pattern = r'^([^:]+)(?::([^:]+))?$'
+        match = re.match(pattern, image)
+        if match:
+            image_name, version = match.groups()
+            return version if version else None
+        else:
+            return None
+    
     def convert_url(self, input_url: str) -> str:
         """
         Convert the input GitHub URL to an output URL that retrieves

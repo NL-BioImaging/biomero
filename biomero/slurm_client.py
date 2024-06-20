@@ -535,14 +535,15 @@ class SlurmClient(Connection):
             full_path = self.slurm_converters_path+"/"+script_name
             _ = self.put(local=io.StringIO(job_script), remote=full_path)
             cmd = f"time sh {script_name}"
-            r = self.run_commands([cmd])
-            if not r.ok:
-                raise SSHException(r)
-            logger.info(r.stdout)
-            logger.info("Initiated downloading and building" +
-                        " container images on Slurm." +
-                        " This will probably take a while in the background." + 
-                        " Check 'sing.log' on Slurm for progress.")
+            with self.cd(self.slurm_converters_path):
+                r = self.run_commands([cmd])
+                if not r.ok:
+                    raise SSHException(r)
+                logger.info(r.stdout)
+                logger.info("Initiated downloading and building" +
+                            " container images on Slurm." +
+                            " This will probably take a while in the background." + 
+                            " Check 'sing.log' on Slurm for progress.")
         else:
             ## BUILD converter from singularity def file
             # copy generic job array script over to slurm

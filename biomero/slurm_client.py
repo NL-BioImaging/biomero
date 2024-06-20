@@ -1571,7 +1571,7 @@ class SlurmClient(Connection):
 
         return url_parts, branch
        
-    def parse_docker_image_version(image):
+    def parse_docker_image_version(self, image):
         # Regular expression to match image:tag format
         pattern = r'^([^:]+)(?::([^:]+))?$'
         match = re.match(pattern, image)

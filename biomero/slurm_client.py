@@ -508,7 +508,7 @@ class SlurmClient(Connection):
         if self.converter_images:
             pull_commands = []
             for path, image in self.converter_images.items():
-                version = self.parse_docker_image_version(image)
+                version, image = self.parse_docker_image_version(image)
                 if not version:
                     # Deferred import to avoid circular dependency
                     from . import __version__
@@ -1572,15 +1572,27 @@ class SlurmClient(Connection):
 
         return url_parts, branch
        
-    def parse_docker_image_version(self, image):
+    def parse_docker_image_version(self, image: str) -> Tuple[str, str]:
+        """
+        Parses the Docker image string to extract the image name and version tag.
+
+        Args:
+            image (str): The Docker image string in the format 'image_name:version'.
+
+        Returns:
+            tuple: A tuple containing:
+                - version (str or None): The version tag if present, otherwise None.
+                - image_name (str): The image name if matched, otherwise the original image string.
+        """
         # Regular expression to match image:tag format
         pattern = r'^([^:]+)(?::([^:]+))?$'
         match = re.match(pattern, image)
+        
         if match:
             image_name, version = match.groups()
-            return version if version else None
+            return version if version else None, image_name
         else:
-            return None
+            return None, image
     
     def convert_url(self, input_url: str) -> str:
         """

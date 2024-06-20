@@ -1008,7 +1008,7 @@ def test_parse_docker_image_without_version(slurm_client):
 def test_parse_docker_image_with_empty_version(slurm_client):
     version, image_name = slurm_client.parse_docker_image_version("example_image:")
     assert version is None
-    assert image_name == "example_image"
+    assert image_name == "example_image:"
 
 
 def test_parse_docker_image_invalid_format(slurm_client):

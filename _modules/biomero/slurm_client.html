@@ -1671,7 +1671,7 @@
 
         <span class="k">return</span> <span class="n">url_parts</span><span class="p">,</span> <span class="n">branch</span></div>
        
-<div class="viewcode-block" id="SlurmClient.parse_docker_image_version"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">[docs]</a>    <span class="k">def</span> <span class="nf">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.parse_docker_image_version"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">[docs]</a>    <span class="k">def</span> <span class="nf">parse_docker_image_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
         <span class="c1"># Regular expression to match image:tag format</span>
         <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;^([^:]+)(?::([^:]+))?$&#39;</span>
         <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">image</span><span class="p">)</span>

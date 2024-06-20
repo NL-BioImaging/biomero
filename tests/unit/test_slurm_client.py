@@ -225,6 +225,7 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
     slurm_client.slurm_data_path = "/path/to/slurm_data"
     slurm_client.slurm_converters_path = "/path/to/slurm_converters"
     slurm_client.slurm_script_path = "/path/to/slurm_script"
+    slurm_client.converter_images = None
 
     expected_config_file = f"config_{folder_name}.txt"
     expected_data_path = f"{slurm_client.slurm_data_path}/{folder_name}"
@@ -234,6 +235,57 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
             "DATA_PATH": f"\"{expected_data_path}\"",
             "CONVERSION_PATH": f"\"{slurm_client.slurm_converters_path}\"",
             "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}.sif",
+            "SCRIPT_PATH": f"\"{slurm_client.slurm_script_path}\"",
+            "CONFIG_FILE": f"\"{expected_config_file}\""
+        }
+    )
+    expected_commands = [
+        f"find \"{expected_data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{expected_config_file}\"",
+        f"N=$(wc -l < \"{expected_config_file}\")",
+        f"echo \"Number of .{source_format} files: $N\"",
+        expected_conversion_cmd
+    ]
+
+    # Mocking the run_commands method to avoid actual execution
+    mock_run_commands.return_value = mock_result
+
+    # WHEN
+    slurm_job = slurm_client.run_conversion_workflow_job(
+        folder_name, source_format, target_format)
+
+    # THEN
+    assert slurm_job is not None
+
+    assert mock_run_commands.call_args[0][0] == expected_commands
+    assert mock_run_commands.call_args[0][1] == expected_sbatch_env
+
+    # Check properties of slurm_job
+    assert slurm_job.job_id == -1
+    assert slurm_job.submit_result.ok
+    assert slurm_job.job_state is None
+    
+    
+@pytest.mark.parametrize("source_format, target_format, version", [("zarr", "tiff", "1.0"), ("xyz", "abc", "v38.20-alpha.4")])
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('fabric.Result')
+def test_run_conversion_workflow_job_versioned(mock_result, mock_run_commands, slurm_client, source_format, target_format, version):
+    # GIVEN
+    folder_name = "example_folder"
+
+    slurm_client.slurm_data_path = "/path/to/slurm_data"
+    slurm_client.slurm_converters_path = "/path/to/slurm_converters"
+    slurm_client.slurm_script_path = "/path/to/slurm_script"
+    slurm_client.converter_images = {'zarr_to_tiff': '1.0', 
+                                     'xyz_to_abc': 'v38.20-alpha.4'}
+
+    expected_config_file = f"config_{folder_name}.txt"
+    expected_data_path = f"{slurm_client.slurm_data_path}/{folder_name}"
+    expected_conversion_cmd, expected_sbatch_env = (
+        "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\"",
+        {
+            "DATA_PATH": f"\"{expected_data_path}\"",
+            "CONVERSION_PATH": f"\"{slurm_client.slurm_converters_path}\"",
+            "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}_{version}.sif",
             "SCRIPT_PATH": f"\"{slurm_client.slurm_script_path}\"",
             "CONFIG_FILE": f"\"{expected_config_file}\""
         }

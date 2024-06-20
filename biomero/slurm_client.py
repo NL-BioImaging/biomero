@@ -1780,12 +1780,12 @@ class SlurmClient(Connection):
             logger.warning(
                 f"Conversion from {source_format} to {target_format} is not supported by default!")
 
-        image = self.converter_images[f"{source_format}_to_{target_format}"]
-        version, image = self.parse_docker_image_version(image)
-        if version:
-            chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"
-        else:
-            chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
+        chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
+        if self.converter_images:
+            image = self.converter_images[f"{source_format}_to_{target_format}"]  
+            version, image = self.parse_docker_image_version(image)
+            if version:
+                chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"    
         
         logger.info(f"Converting with {chosen_converter}")
         sbatch_env = {

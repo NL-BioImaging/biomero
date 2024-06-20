@@ -943,9 +943,23 @@ def test_from_config(mock_ConfigParser,
     jp_dict_out = {
         "m1": [" --param=v4"]
     }
+    conv_dict = {
+        "zarr_to_tiff": "myconverter"
+    }
 
-    mock_configparser_instance.items.return_value = {**model_dict, **repo_dict,
-                                                     **job_dict, **jp_dict}
+    # Define a side effect function
+    def items_side_effect(section):
+        if section == "MODELS":
+            return {**model_dict, **repo_dict,
+                    **job_dict, **jp_dict}
+        if section == "CONVERTERS":
+            return conv_dict
+        else:
+            return {}.items()
+    
+    mock_configparser_instance.items.side_effect = items_side_effect
+    # mock_configparser_instance.items.return_value = {**model_dict, **repo_dict,
+    #                                                  **job_dict, **jp_dict}
 
     # Configure the MagicMock to return the mock_configparser_instance when called
     mock_ConfigParser.return_value = mock_configparser_instance
@@ -970,6 +984,7 @@ def test_from_config(mock_ConfigParser,
         slurm_model_paths=model_dict,  # expected slurm_model_paths value,
         slurm_model_repos=repo_dict_out,  # expected slurm_model_repos value,
         slurm_model_images=None,  # expected slurm_model_images value,
+        converter_images=conv_dict,  # expected converter_images
         slurm_model_jobs=job_dict_out,  # expected slurm_model_jobs value,
         slurm_model_jobs_params=jp_dict_out,  # expected slurm_model_jobs_params value,
         slurm_script_path=mv,  # expected slurm_script_path value,

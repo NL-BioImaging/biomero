@@ -236,7 +236,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
-    _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}'"
+    _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
     # Note, grep returns exitcode 1 if no match is found!
     # This will translate into a UnexpectedExit error, so mute that if you
     # don't care about empty.
@@ -498,8 +498,10 @@ class SlurmClient(Connection):
         cmd = self._CONVERTER_VERSION_CMD.format(
             converter_path=self.slurm_converters_path),
         r = self.run_commands([cmd])
-        # split lines further into a k,v dict
-        result_dict = {line.rsplit(' ', 1)[0]: line.rsplit(' ', 1)[1] for line in r.split('\n')}
+        result_dict = {}
+        if r.ok:
+            # split lines further into a k,v dict
+            result_dict = {line.rsplit(' ', 1)[0]: line.rsplit(' ', 1)[1] for line in r.stdout.strip().split('\n')}
         return result_dict
         
     def setup_converters(self):

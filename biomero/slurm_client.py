@@ -236,6 +236,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
+    _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}'"
     # Note, grep returns exitcode 1 if no match is found!
     # This will translate into a UnexpectedExit error, so mute that if you
     # don't care about empty.
@@ -488,6 +489,19 @@ class SlurmClient(Connection):
                 # cmd = "singularity cache clean -f"
                 # r = self.run_commands([cmd])
 
+    def list_available_converter_versions(self) -> Dict:
+        """
+        Note, assumes you use versioned converters.
+        Will return a dict with a version of each converter on your Slurm.
+        However, doesn't work properly with unversioned sif.
+        """
+        cmd = self._CONVERTER_VERSION_CMD.format(
+            converter_path=self.slurm_converters_path),
+        r = self.run_commands([cmd])
+        # split lines further into a k,v dict
+        result_dict = {line.rsplit(' ', 1)[0]: line.rsplit(' ', 1)[1] for line in r.split('\n')}
+        return result_dict
+        
     def setup_converters(self):
         """
         Sets up converters for Slurm operations.
@@ -514,13 +528,18 @@ class SlurmClient(Connection):
                     from . import __version__
                     # use default container version of our package   
                     version = __version__
+                if version:
+                    chosen_converter = f"convert_{path}_{version}.sif"
+                else:
+                    chosen_converter = f"convert_{path}.sif"
                 with self.cd(self.slurm_converters_path):
-                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version
+                    substitutes['conv_name'] = chosen_converter
                     cmd = t.safe_substitute(substitutes)
                     logger.debug(f"substituted: {cmd}")
                     pull_commands.append(cmd)
@@ -1761,7 +1780,14 @@ class SlurmClient(Connection):
             logger.warning(
                 f"Conversion from {source_format} to {target_format} is not supported by default!")
 
-        chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
+        image = self.converter_images[f"{source_format}_to_{target_format}"]
+        version, image = self.parse_docker_image_version(image)
+        if version:
+            chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"
+        else:
+            chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
+        
+        logger.info(f"Converting with {chosen_converter}")
         sbatch_env = {
             "DATA_PATH": f"\"{data_path}\"",
             "CONVERSION_PATH": f"\"{self.slurm_converters_path}\"",

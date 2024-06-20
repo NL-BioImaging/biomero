@@ -275,8 +275,8 @@ def test_run_conversion_workflow_job_versioned(mock_result, mock_run_commands, s
     slurm_client.slurm_data_path = "/path/to/slurm_data"
     slurm_client.slurm_converters_path = "/path/to/slurm_converters"
     slurm_client.slurm_script_path = "/path/to/slurm_script"
-    slurm_client.converter_images = {'zarr_to_tiff': '1.0', 
-                                     'xyz_to_abc': 'v38.20-alpha.4'}
+    slurm_client.converter_images = {'zarr_to_tiff': 'cellularimagingcf/convert_zarr_to_tiff:1.0', 
+                                     'xyz_to_abc': 'cellularimagingcf/convert_xyz_to_abc:v38.20-alpha.4'}
 
     expected_config_file = f"config_{folder_name}.txt"
     expected_data_path = f"{slurm_client.slurm_data_path}/{folder_name}"

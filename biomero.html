@@ -928,8 +928,27 @@ set when running the command. Defaults to None.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.parse_docker_image_version">
-<span class="sig-name descname"><span class="pre">parse_docker_image_version</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.parse_docker_image_version"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.parse_docker_image_version" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-name descname"><span class="pre">parse_docker_image_version</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.parse_docker_image_version"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.parse_docker_image_version" title="Permalink to this definition"></a></dt>
+<dd><p>Parses the Docker image string to extract the image name and version tag.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>image</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – The Docker image string in the format ‘image_name:version’.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>A tuple containing:</dt><dd><ul class="simple">
+<li><p>version (str or None): The version tag if present, otherwise None.</p></li>
+<li><p>image_name (str): The image name if matched, otherwise the original image string.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.12)">tuple</a></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.pull_descriptor_from_github">

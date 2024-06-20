@@ -608,7 +608,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">:</span>
             <span class="n">pull_commands</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+                <span class="n">version</span><span class="p">,</span> <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
                     <span class="c1"># Deferred import to avoid circular dependency</span>
                     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">__version__</span>
@@ -1672,15 +1672,27 @@
 
         <span class="k">return</span> <span class="n">url_parts</span><span class="p">,</span> <span class="n">branch</span></div>
        
-<div class="viewcode-block" id="SlurmClient.parse_docker_image_version"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">[docs]</a>    <span class="k">def</span> <span class="nf">parse_docker_image_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+<div class="viewcode-block" id="SlurmClient.parse_docker_image_version"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">[docs]</a>    <span class="k">def</span> <span class="nf">parse_docker_image_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parses the Docker image string to extract the image name and version tag.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (str): The Docker image string in the format &#39;image_name:version&#39;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            tuple: A tuple containing:</span>
+<span class="sd">                - version (str or None): The version tag if present, otherwise None.</span>
+<span class="sd">                - image_name (str): The image name if matched, otherwise the original image string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Regular expression to match image:tag format</span>
         <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;^([^:]+)(?::([^:]+))?$&#39;</span>
         <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">image</span><span class="p">)</span>
+        
         <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
             <span class="n">image_name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
-            <span class="k">return</span> <span class="n">version</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="n">version</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span> <span class="n">image_name</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span></div>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">image</span></div>
     
 <div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span> <span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>

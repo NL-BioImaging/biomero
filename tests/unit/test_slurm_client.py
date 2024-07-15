@@ -234,7 +234,7 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
         {
             "DATA_PATH": f"\"{expected_data_path}\"",
             "CONVERSION_PATH": f"\"{slurm_client.slurm_converters_path}\"",
-            "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}.sif",
+            "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}_latest.sif",
             "SCRIPT_PATH": f"\"{slurm_client.slurm_script_path}\"",
             "CONFIG_FILE": f"\"{expected_config_file}\""
         }
@@ -1155,7 +1155,7 @@ def test_setup_slurm(_mock_CachedSession,
     _mock_Connection_put.assert_called()
     # mock_run.assert_any_call(f"mkdir -p {cpath}")
     mock_run.assert_any_call(
-        [f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &"])
+        [f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &"])
 
     # 4 images
     mock_run.assert_any_call([f"mkdir -p \"{expected_modelpaths}\""])

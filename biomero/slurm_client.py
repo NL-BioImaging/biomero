@@ -525,15 +525,12 @@ class SlurmClient(Connection):
             pull_commands = []
             for path, image in self.converter_images.items():
                 version, image = self.parse_docker_image_version(image)
-                if not version:
-                    # Deferred import to avoid circular dependency
-                    from . import __version__
-                    # use default container version of our package   
-                    version = __version__
                 if version:
                     chosen_converter = f"convert_{path}_{version}.sif"
                 else:
-                    chosen_converter = f"convert_{path}.sif"
+                    version = 'latest'
+                    logger.warning(f"Pulling 'latest' as no version was provided for {image}")
+                    chosen_converter = f"convert_{path}_latest.sif"
                 with self.cd(self.slurm_converters_path):
                     pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)

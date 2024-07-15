@@ -3,7 +3,7 @@ From: python:3.9-slim
 
 %post
     # Install required libraries with specific versions
-    pip install zarr==2.16.1 tifffile==2020.9.3 dask[array]==2021.3.0
+    pip install zarr==2.16.1 tifffile==2020.9.3 dask[array]==2021.3.0 numpy==1.26.4
 
 
 %files

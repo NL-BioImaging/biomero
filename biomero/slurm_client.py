@@ -594,7 +594,7 @@ class SlurmClient(Connection):
                     # EDIT -- NO, then we can't update! Force rebuild!
                     # download /build new container
                     convert_cmds.append(
-                        f"singularity build -F \"{convert_name}.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}.sif' &")
+                        f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &")
                 _ = self.run_commands(convert_cmds)
 
     def setup_job_scripts(self):
@@ -1779,7 +1779,7 @@ class SlurmClient(Connection):
             logger.warning(
                 f"Conversion from {source_format} to {target_format} is not supported by default!")
 
-        chosen_converter = f"convert_{source_format}_to_{target_format}.sif"
+        chosen_converter = f"convert_{source_format}_to_{target_format}_latest.sif"
         if self.converter_images:
             image = self.converter_images[f"{source_format}_to_{target_format}"]  
             version, image = self.parse_docker_image_version(image)

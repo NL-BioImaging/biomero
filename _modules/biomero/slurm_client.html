@@ -625,15 +625,12 @@
             <span class="n">pull_commands</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">version</span><span class="p">,</span> <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
-                    <span class="c1"># Deferred import to avoid circular dependency</span>
-                    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">__version__</span>
-                    <span class="c1"># use default container version of our package   </span>
-                    <span class="n">version</span> <span class="o">=</span> <span class="n">__version__</span>
                 <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
                     <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{path}</span><span class="s2">_</span><span class="si">{version}</span><span class="s2">.sif&quot;</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{path}</span><span class="s2">.sif&quot;</span>
+                    <span class="n">version</span> <span class="o">=</span> <span class="s1">&#39;latest&#39;</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pulling &#39;latest&#39; as no version was provided for </span><span class="si">{image}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{path}</span><span class="s2">_latest.sif&quot;</span>
                 <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
                     <span class="n">pull_template</span> <span class="o">=</span> <span class="s2">&quot;echo &#39;starting $path $version&#39; &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">nohup sh -c </span><span class="se">\&quot;</span><span class="s2">singularity pull --force --disable-cache $conv_name docker://$image:$version; echo &#39;finished $path $version&#39;</span><span class="se">\&quot;</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 &amp; disown&quot;</span>
                     <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">pull_template</span><span class="p">)</span>

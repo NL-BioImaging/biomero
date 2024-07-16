@@ -1895,7 +1895,7 @@
             <span class="s2">&quot;CONFIG_FILE&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{config_file}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
         <span class="p">}</span>
 
-        <span class="n">conversion_cmd</span> <span class="o">=</span> <span class="s2">&quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=</span><span class="se">\&quot;\\\&quot;</span><span class="s2">$PWD/$CONFIG_FILE</span><span class="se">\\\&quot;\&quot;</span><span class="s2"> --array=1-$N </span><span class="se">\&quot;</span><span class="s2">$SCRIPT_PATH/convert_job_array.sh</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+        <span class="n">conversion_cmd</span> <span class="o">=</span> <span class="s2">&quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=</span><span class="se">\&quot;</span><span class="s2">$PWD/$CONFIG_FILE</span><span class="se">\&quot;</span><span class="s2"> --array=1-$N </span><span class="se">\&quot;</span><span class="s2">$SCRIPT_PATH/convert_job_array.sh</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
         <span class="c1"># conversion_cmd_waiting = &quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\&quot;$PWD/$CONFIG_FILE\&quot; --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh&quot;</span>
 
         <span class="k">return</span> <span class="n">conversion_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span></div>

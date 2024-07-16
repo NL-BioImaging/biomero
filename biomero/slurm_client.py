@@ -1795,7 +1795,7 @@ class SlurmClient(Connection):
             "CONFIG_FILE": f"\"{config_file}\""
         }
 
-        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
+        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"\\\"$PWD/$CONFIG_FILE\\\"\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
         # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
 
         return conversion_cmd, sbatch_env

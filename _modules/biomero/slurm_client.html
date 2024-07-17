@@ -600,8 +600,17 @@
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">])</span>
         <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-            <span class="c1"># split lines further into a k,v dict</span>
-            <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)}</span>
+            <span class="c1"># Iterate over each line in the output</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">):</span>
+                <span class="c1"># Split the line into key and version</span>
+                <span class="n">key</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>                
+                <span class="c1"># Check if the key already exists in the dictionary</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">result_dict</span><span class="p">:</span>
+                    <span class="c1"># Append the version to the existing list</span>
+                    <span class="n">result_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Create a new list with the version</span>
+                    <span class="n">result_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">version</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">result_dict</span></div>
         
 <div class="viewcode-block" id="SlurmClient.setup_converters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_converters">[docs]</a>    <span class="k">def</span> <span class="nf">setup_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

@@ -38,4 +38,5 @@ if [ -e "$file_to_convert" ]; then
 else
     # Log if no corresponding input file is found
     echo "No corresponding input file for task $SLURM_ARRAY_TASK_ID."
+    exit 1
 fi

@@ -520,6 +520,12 @@ class SlurmClient(Connection):
             convert_cmds.append(f"mkdir -p \"{self.slurm_converters_path}\"")
         r = self.run_commands(convert_cmds)
         
+        # copy generic job array script over to slurm
+        convert_job_local = files("resources").joinpath(
+            "convert_job_array.sh")
+        _ = self.put(local=convert_job_local,
+                    remote=self.slurm_script_path)
+        
         ## PULL converter if provided in config
         if self.converter_images:
             pull_commands = []
@@ -564,11 +570,6 @@ class SlurmClient(Connection):
                             " Check 'sing.log' on Slurm for progress.")
         else:
             ## BUILD converter from singularity def file
-            # copy generic job array script over to slurm
-            convert_job_local = files("resources").joinpath(
-                "convert_job_array.sh")
-            _ = self.put(local=convert_job_local,
-                        remote=self.slurm_script_path)
             # currently known converters
             # 3a. ZARR to TIFF
             # TODO extract these values to e.g. config if we have more

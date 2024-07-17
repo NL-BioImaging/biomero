@@ -596,7 +596,7 @@
 <span class="sd">        However, doesn&#39;t work properly with unversioned sif.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_CONVERTER_VERSION_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="n">converter_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">),</span>
+            <span class="n">converter_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">])</span>
         <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>

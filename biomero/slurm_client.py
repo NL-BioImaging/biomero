@@ -500,8 +500,17 @@ class SlurmClient(Connection):
         r = self.run_commands([cmd])
         result_dict = {}
         if r.ok:
-            # split lines further into a k,v dict
-            result_dict = {line.rsplit(' ', 1)[0]: line.rsplit(' ', 1)[1] for line in r.stdout.strip().split('\n')}
+            # Iterate over each line in the output
+            for line in r.stdout.strip().split('\n'):
+                # Split the line into key and version
+                key, version = line.rsplit(' ', 1)                
+                # Check if the key already exists in the dictionary
+                if key in result_dict:
+                    # Append the version to the existing list
+                    result_dict[key].append(version)
+                else:
+                    # Create a new list with the version
+                    result_dict[key] = [version]
         return result_dict
         
     def setup_converters(self):

@@ -496,7 +496,7 @@ class SlurmClient(Connection):
         However, doesn't work properly with unversioned sif.
         """
         cmd = self._CONVERTER_VERSION_CMD.format(
-            converter_path=self.slurm_converters_path),
+            converter_path=self.slurm_converters_path)
         r = self.run_commands([cmd])
         result_dict = {}
         if r.ok:

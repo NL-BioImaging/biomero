@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Dict, List, Optional, Tuple, Any
+from uuid import UUID
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
 from invoke.exceptions import UnexpectedExit
@@ -29,6 +30,7 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+from biomero.aggregates import WorkflowTracker
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +51,14 @@ class SlurmJob:
 
     Args:
         submit_result (Result): The result of submitting the job.
-        job_id (int): The Slurm job ID.
-
-    Example:
+        job_id (int): The Sluslurm_job_id
         # Submit some job with the SlurmClient
-        submit_result, job_id = slurmClient.run_workflow(
-            workflow_name, workflow_version, input_data, email, time, **kwargs)
+        submit_result, job_id, wf_id, task_id = slurmClient.run_workflow(
+            workflow_name, workflow_version, input_data, email, time, wf_id,
+            **kwargs)
             
         # Create a SlurmJob instance
-        slurmJob = SlurmJob(submit_result, job_id)
+        slurmJob = SlurmJob(submit_result, job_id, wf_id, task_id)
 
         if not slurmJob.ok:
             logger.warning(f"Error with job: {slurmJob.get_error()}")
@@ -76,7 +77,9 @@ class SlurmJob:
     
     def __init__(self,
                  submit_result: Result,
-                 job_id: int):
+                 job_id: int,
+                 wf_id: UUID, 
+                 task_id: UUID):
         """
         Initialize a SlurmJob instance.
 
@@ -85,6 +88,8 @@ class SlurmJob:
             job_id (int): The Slurm job ID.
         """
         self.job_id = job_id
+        self.wf_id = wf_id
+        self.task_id = task_id
         self.submit_result = submit_result
         self.ok = self.submit_result.ok
         self.job_state = None
@@ -221,7 +226,7 @@ class SlurmClient(Connection):
     Example 2:
         # Create a SlurmClient and setup Slurm (download containers etc.)
 
-        with SlurmClient.from_config(init_slurm=True) as client:
+        with SlurmClient.from_config(inislurm_job_id
 
             client.run_workflow(...)
 
@@ -276,6 +281,7 @@ class SlurmClient(Connection):
                  slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
                  slurm_script_repo: str = None,
                  init_slurm: bool = False,
+                 track_workflows: bool = True,
                  ):
         """Initializes a new instance of the SlurmClient class.
 
@@ -380,6 +386,14 @@ class SlurmClient(Connection):
 
         self.init_workflows()
         self.validate(validate_slurm_setup=init_slurm)
+        
+        # Setup workflow tracking
+        self.track_workflows = track_workflows
+        if self.track_workflows:  # use configured persistence from env
+            self.workflowTracker = WorkflowTracker()
+        else:  # turn off persistence, override
+            self.workflowTracker = WorkflowTracker(env={
+                "PERSISTENCE_MODULE": ""})
 
     def init_workflows(self, force_update: bool = False):
         """
@@ -1238,8 +1252,9 @@ class SlurmClient(Connection):
                      input_data: str,
                      email: Optional[str] = None,
                      time: Optional[str] = None,
+                     wf_id: Optional[UUID] = None,
                      **kwargs
-                     ) -> Tuple[Result, int]:
+                     ) -> Tuple[Result, int, UUID, UUID]:
         """
         Run a specified workflow on Slurm using the given parameters.
 
@@ -1252,24 +1267,48 @@ class SlurmClient(Connection):
             email (str, optional): Email address for Slurm job notifications.
             time (str, optional): Time limit for the Slurm job in the 
                 format HH:MM:SS.
+            wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
-            Tuple[Result, int]:
-                A tuple containing the result of starting the workflow job and
-                the Slurm job ID, or -1 if the job ID could not be extracted.
+            Tuple[Result, int, UUID, UUID]:
+                A tuple containing the result of starting the workflow job, 
+                the Slurm job ID, the workflow ID, and the task ID. 
+                If the Slurm job ID could not be extracted, it returns -1 for the job ID.
 
         Note:
-            The Slurm job ID is extracted from the result of the 
-            `run_commands` method.
+            The Slurm job ID is extracted from the result of the `run_commands` method. 
+            If `track_workflows` is enabled, workflow and task tracking is performed.
         """
+        if not wf_id:
+            wf_id = self.workflowTracker.initiate_workflow(
+                workflow_name,
+                workflow_version,
+                -1,
+                -1
+            )
+        task_id = self.workflowTracker.add_task_to_workflow(
+            wf_id,
+            workflow_name, 
+            workflow_version,
+            input_data,
+            kwargs)
+        logger.debug(f"Added new task {task_id} to workflow {wf_id}")
+            
         sbatch_cmd, sbatch_env = self.get_workflow_command(
             workflow_name, workflow_version, input_data, email, time, **kwargs)
         print(f"Running {workflow_name} job on {input_data} on Slurm:\
             {sbatch_cmd} w/ {sbatch_env}")
         logger.info(f"Running {workflow_name} job on {input_data} on Slurm")
         res = self.run_commands([sbatch_cmd], sbatch_env)
-        return res, self.extract_job_id(res)
+        slurm_job_id = self.extract_job_id(res)
+        
+        if self.track_workflows and task_id:
+            self.workflowTracker.start_task(task_id)
+            self.workflowTracker.add_job_id(task_id, slurm_job_id)
+            self.workflowTracker.add_result(task_id, res)
+            
+        return res, slurm_job_id, wf_id, task_id
 
     def run_workflow_job(self,
                          workflow_name: str,
@@ -1277,6 +1316,7 @@ class SlurmClient(Connection):
                          input_data: str,
                          email: Optional[str] = None,
                          time: Optional[str] = None,
+                         wf_id: Optional[UUID] = None,
                          **kwargs
                          ) -> SlurmJob:
         """
@@ -1288,19 +1328,23 @@ class SlurmClient(Connection):
             input_data (str): Name of the input data folder containing input image files.
             email (str, optional): Email address for Slurm job notifications.
             time (str, optional): Time limit for the Slurm job in the format HH:MM:SS.
+            wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
             SlurmJob: A SlurmJob instance representing the started workflow job.
         """
-        result, job_id = self.run_workflow(
-            workflow_name, workflow_version, input_data, email, time, **kwargs)
-        return SlurmJob(result, job_id)
+        result, job_id, wf_id, task_id = self.run_workflow(
+            workflow_name, workflow_version, input_data, email, time, wf_id, 
+            **kwargs)
+        return SlurmJob(result, job_id, wf_id, task_id)
 
-    def run_conversion_workflow_job(self, folder_name: str,
+    def run_conversion_workflow_job(self, 
+                                    folder_name: str,
                                     source_format: str = 'zarr',
-                                    target_format: str = 'tiff'
-                                    ) -> Tuple[Result, int]:
+                                    target_format: str = 'tiff',
+                                    wf_id: UUID = None
+                                    ) -> SlurmJob:
         """
         Run the data conversion workflow on Slurm using the given data folder.
 
@@ -1310,9 +1354,8 @@ class SlurmClient(Connection):
             target_format (str): Target data format after conversion (default is 'tiff').
 
         Returns:
-            Tuple[Result, int]:
-                A tuple containing the result of starting the conversion job and
-                the Slurm job ID, or -1 if the job ID could not be extracted.
+            SlurmJob:
+                the conversion job
 
         Warning:
             The default implementation only supports conversion from 'zarr' to 'tiff'.
@@ -1324,7 +1367,7 @@ class SlurmClient(Connection):
 
         # Construct all commands to run consecutively
         data_path = f"{self.slurm_data_path}/{folder_name}"
-        conversion_cmd, sbatch_env = self.get_conversion_command(
+        conversion_cmd, sbatch_env, chosen_converter, version = self.get_conversion_command(
             data_path, config_file, source_format, target_format)
         commands = [
             f"find \"{data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{config_file}\"",
@@ -1332,11 +1375,26 @@ class SlurmClient(Connection):
             f"echo \"Number of .{source_format} files: $N\"",
             conversion_cmd
         ]
+        
+        if not wf_id:
+            wf_id = self.workflowTracker.initiate_workflow(
+                "conversion",
+                -1,
+                -1,
+                -1
+            )
+        task_id = self.workflowTracker.add_task_to_workflow(
+            wf_id,
+            chosen_converter,
+            version,
+            data_path,
+            sbatch_env
+        )
 
         # Run all commands consecutively
         res = self.run_commands(commands, sbatch_env)
-
-        return SlurmJob(res, self.extract_job_id(res))
+        
+        return SlurmJob(res, self.extract_job_id(res), wf_id, task_id)
 
     def extract_job_id(self, result: Result) -> int:
         """
@@ -1761,7 +1819,7 @@ class SlurmClient(Connection):
     def get_conversion_command(self, data_path: str,
                                config_file: str,
                                source_format: str = 'zarr',
-                               target_format: str = 'tiff') -> Tuple[str, Dict]:
+                               target_format: str = 'tiff') -> Tuple[str, Dict, str, str]:
         """
         Generate Slurm conversion command and environment variables for data conversion.
 
@@ -1772,9 +1830,9 @@ class SlurmClient(Connection):
             target_format (str): Target data format (default is 'tiff').
 
         Returns:
-            Tuple[str, Dict]:
+            Tuple[str, Dict, str, str]:
                 A tuple containing the Slurm conversion command and
-                the environment variables.
+                the environment variables, followed by the converter image name and version.
 
         Warning:
             The default implementation only supports conversion from 'zarr' to 'tiff'.
@@ -1790,11 +1848,13 @@ class SlurmClient(Connection):
                 f"Conversion from {source_format} to {target_format} is not supported by default!")
 
         chosen_converter = f"convert_{source_format}_to_{target_format}_latest.sif"
+        version = None
         if self.converter_images:
             image = self.converter_images[f"{source_format}_to_{target_format}"]  
             version, image = self.parse_docker_image_version(image)
             if version:
-                chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"    
+                chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"
+        version = version or "latest"
         
         logger.info(f"Converting with {chosen_converter}")
         sbatch_env = {
@@ -1808,7 +1868,7 @@ class SlurmClient(Connection):
         conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
         # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
 
-        return conversion_cmd, sbatch_env
+        return conversion_cmd, sbatch_env, chosen_converter, version
 
     def workflow_params_to_envvars(self, **kwargs) -> Dict:
         """

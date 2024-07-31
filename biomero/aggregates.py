@@ -119,6 +119,7 @@ class Task(Aggregate):
         self.job_ids = []
         self.results = []
         self.result_message = None
+        self.status = None
         logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
 
     class JobIdAdded(Aggregate.Event):
@@ -128,6 +129,14 @@ class Task(Aggregate):
     def add_job_id(self, job_id):
         logger.debug(f"Adding job_id to Task: task_id={self.id}, job_id={job_id}")
         self.job_ids.append(job_id)
+    
+    class StatusUpdated(Aggregate.Event):
+        status: str
+
+    @event(StatusUpdated)
+    def update_task_status(self, status):
+        logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")
+        self.status = status
 
     class ResultAdded(Aggregate.Event):
         result: ResultDict
@@ -253,4 +262,11 @@ class WorkflowTracker(Application):
         
         task = self.repository.get(task_id)
         task.add_result(result)
+        self.save(task)
+        
+    def update_task_status(self, task_id, status):
+        logger.debug(f"Adding status to task: task_id={task_id}, status={status}")
+        
+        task = self.repository.get(task_id)
+        task.update_task_status(status)
         self.save(task)

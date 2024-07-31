@@ -74,12 +74,14 @@ class SlurmJob:
                 raise e
 
     """
+    SLURM_POLLING_INTERVAL = 10  # seconds
     
     def __init__(self,
                  submit_result: Result,
                  job_id: int,
                  wf_id: UUID, 
-                 task_id: UUID):
+                 task_id: UUID,
+                 slurm_polling_interval: int = SLURM_POLLING_INTERVAL):
         """
         Initialize a SlurmJob instance.
 
@@ -90,6 +92,7 @@ class SlurmJob:
         self.job_id = job_id
         self.wf_id = wf_id
         self.task_id = task_id
+        self.slurm_polling_interval = slurm_polling_interval
         self.submit_result = submit_result
         self.ok = self.submit_result.ok
         self.job_state = None
@@ -124,7 +127,9 @@ class SlurmJob:
             self.job_state = job_status_dict[self.job_id]
             # wait for 10 seconds before checking again
             omeroConn.keepAlive()  # keep the OMERO connection alive
-            timesleep.sleep(10)
+            slurmClient.workflowTracker.update_task_status(self.task_id, 
+                                                           self.job_state)
+            timesleep.sleep(self.slurm_polling_interval)
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
         logger.info(
             f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")

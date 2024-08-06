@@ -30,7 +30,8 @@ from string import Template
 from importlib_resources import files
 import io
 import os
-from biomero.aggregates import WorkflowTracker
+from biomero.eventsourcing import WorkflowTracker, JobAccounting
+from eventsourcing.system import System, SingleThreadedRunner
 
 logger = logging.getLogger(__name__)
 
@@ -392,13 +393,17 @@ class SlurmClient(Connection):
         self.init_workflows()
         self.validate(validate_slurm_setup=init_slurm)
         
-        # Setup workflow tracking
+        # Setup workflow tracking and accounting
         self.track_workflows = track_workflows
+        system = System(pipes=[[WorkflowTracker, JobAccounting]])
         if self.track_workflows:  # use configured persistence from env
-            self.workflowTracker = WorkflowTracker()
+            runner = SingleThreadedRunner(system)
         else:  # turn off persistence, override
-            self.workflowTracker = WorkflowTracker(env={
+            runner = SingleThreadedRunner(system, env={
                 "PERSISTENCE_MODULE": ""})
+        runner.start()
+        self.workflowTracker = runner.get(WorkflowTracker)
+        self.jobAccounting = runner.get(JobAccounting)
 
     def init_workflows(self, force_update: bool = False):
         """

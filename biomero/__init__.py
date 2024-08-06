@@ -13,4 +13,4 @@ except ModuleNotFoundError:  # Python 3.7
     except pkg_resources.DistributionNotFound:
         __version__ = "Version not found"
         
-from .aggregates import *
+from .eventsourcing import *

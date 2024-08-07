@@ -14,3 +14,4 @@ except ModuleNotFoundError:  # Python 3.7
         __version__ = "Version not found"
         
 from .eventsourcing import *
+from .views import *

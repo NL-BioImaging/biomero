@@ -30,7 +30,8 @@ from string import Template
 from importlib_resources import files
 import io
 import os
-from biomero.eventsourcing import WorkflowTracker, JobAccounting
+from biomero.eventsourcing import WorkflowTracker
+from biomero.views import JobAccounting
 from eventsourcing.system import System, SingleThreadedRunner
 
 logger = logging.getLogger(__name__)
@@ -1404,7 +1405,14 @@ class SlurmClient(Connection):
         # Run all commands consecutively
         res = self.run_commands(commands, sbatch_env)
         
-        return SlurmJob(res, self.extract_job_id(res), wf_id, task_id)
+        slurm_job_id = self.extract_job_id(res)
+        
+        if self.track_workflows and task_id:
+            self.workflowTracker.start_task(task_id)
+            self.workflowTracker.add_job_id(task_id, slurm_job_id)
+            self.workflowTracker.add_result(task_id, res)
+        
+        return SlurmJob(res, slurm_job_id, wf_id, task_id)
 
     def extract_job_id(self, result: Result) -> int:
         """

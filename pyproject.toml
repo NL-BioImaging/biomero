@@ -30,8 +30,9 @@ dependencies = [
     "fabric==3.1.0",
     "paramiko==3.4.0",
     "importlib_resources>=5.4.0",
-    "eventsourcing[crypto,postgres-dev]==9.2.22",
-    "sqlalchemy==2.0.32"
+    "eventsourcing[crypto]==9.2.22",
+    "sqlalchemy==2.0.32",
+    "psycopg2==2.9.9"
 ]
 
 [tool.setuptools.packages]
@@ -42,7 +43,8 @@ find = {}  # Scan the project directory with the default parameters
 [project.optional-dependencies]
 test = [
     "pytest",
-    "mock"
+    "mock",
+    "psycopg2-binary"
 ]
 
 [project.urls]

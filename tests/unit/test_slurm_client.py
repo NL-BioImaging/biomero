@@ -3,8 +3,7 @@ import pytest
 import mock
 from mock import patch, MagicMock
 from paramiko import SSHException
-import os
-
+# import os
 # using actual env vars
 # @pytest.fixture(scope='session', autouse=True)
 # def set_env_vars():
@@ -35,6 +34,11 @@ def mock_env_vars():
     with patch('os.getenv', lambda key, default=None: mock_env.get(key, default)):
         yield
 
+
+class SerializableMagicMock(MagicMock, dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
 
 @pytest.fixture
 @patch('biomero.slurm_client.Connection.create_session')
@@ -169,7 +173,7 @@ def test_get_logfile_from_slurm(mock_get, slurm_client):
 
 
 @patch('biomero.slurm_client.logger')
-@patch.object(SlurmClient, 'run_commands', return_value=MagicMock(ok=True, stdout=""))
+@patch.object(SlurmClient, 'run_commands', return_value=SerializableMagicMock(ok=True, stdout=""))
 def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # GIVEN
     data_location = "/local/path/to/store"
@@ -188,7 +192,7 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
 
 
 @patch('biomero.slurm_client.logger')
-@patch.object(SlurmClient, 'get', return_value=MagicMock(ok=True, stdout=""))
+@patch.object(SlurmClient, 'get', return_value=SerializableMagicMock(ok=True, stdout=""))
 def test_copy_zip_locally(mock_get, mock_logger, slurm_client):
     # GIVEN
     local_tmp_storage = "/local/path/to/store"
@@ -247,8 +251,8 @@ def test_get_workflow_command(slurm_client,
 
 
 @pytest.mark.parametrize("source_format, target_format", [("zarr", "tiff"), ("xyz", "abc")])
-@patch('biomero.slurm_client.SlurmClient.run_commands')
-@patch('fabric.Result')
+@patch('biomero.slurm_client.SlurmClient.run_commands', new_callable=SerializableMagicMock)
+@patch('fabric.Result', new_callable=SerializableMagicMock)
 def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_client, source_format, target_format):
     # GIVEN
     folder_name = "example_folder"
@@ -297,8 +301,8 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
     
     
 @pytest.mark.parametrize("source_format, target_format, version", [("zarr", "tiff", "1.0"), ("xyz", "abc", "v38.20-alpha.4")])
-@patch('biomero.slurm_client.SlurmClient.run_commands')
-@patch('fabric.Result')
+@patch('biomero.slurm_client.SlurmClient.run_commands', new_callable=SerializableMagicMock)
+@patch('fabric.Result', new_callable=SerializableMagicMock)
 def test_run_conversion_workflow_job_versioned(mock_result, mock_run_commands, slurm_client, source_format, target_format, version):
     # GIVEN
     folder_name = "example_folder"
@@ -539,7 +543,7 @@ def test_extract_data_location_from_log_exc(mock_run_commands,
     slurm_job_id = "123"
     logfile = "path/to/logfile.txt"
     expected_data_location = '/path/to/data'
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=False, stdout=expected_data_location)
 
     # WHEN
@@ -558,7 +562,7 @@ def test_extract_data_location_from_log_2(mock_run_commands,
     # GIVEN
     slurm_job_id = "123"
     expected_data_location = '/path/to/data'
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=expected_data_location)
 
     # WHEN
@@ -578,7 +582,7 @@ def test_extract_data_location_from_log(mock_run_commands,
     slurm_job_id = "123"
     logfile = "path/to/logfile.txt"
     expected_data_location = '/path/to/data'
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=expected_data_location)
 
     # WHEN
@@ -607,7 +611,7 @@ def test_get_job_status_command(slurm_client):
 def test_check_job_status(mock_run_commands,
                           slurm_client):
     # GIVEN
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout="12345 RUNNING\n67890 COMPLETED")
 
     # WHEN
@@ -671,7 +675,7 @@ def test_check_job_array_status(mock_run_commands, slurm_client):
     2339_12       COMPLETED 2024-02-29T10:34:53 
     2339_[13-94+   PENDING  Unknown"""
 
-    mock_run_commands.return_value = MagicMock(ok=True, stdout=mock_stdout)
+    mock_run_commands.return_value = SerializableMagicMock(ok=True, stdout=mock_stdout)
 
     # WHEN
     job_status_dict, _ = slurm_client.check_job_status([2304, 2339])
@@ -689,7 +693,7 @@ def test_check_job_array_status(mock_run_commands, slurm_client):
 def test_check_job_status_exc(mock_run_commands,
                               mock_logger, slurm_client):
     # GIVEN
-    return_mock = mock.MagicMock(
+    return_mock = SerializableMagicMock(
         ok=False, stdout="12345 RUNNING\n67890 COMPLETED")
 
     mock_run_commands.return_value = return_mock
@@ -710,7 +714,7 @@ def test_check_job_status_exc(mock_run_commands,
 def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
                                mock_logger, slurm_client):
     # GIVEN
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=None)
 
     # WHEN
@@ -758,8 +762,8 @@ def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
     mock_workflow_params_to_subs.return_value = {
         'PARAMS': '--param1 $PARAM1_NAME'}
     mock_generate_job.return_value = "GeneratedJobScript"
-    mock_put.return_value = MagicMock(ok=True)
-    mock_run.return_value = MagicMock(ok=True)
+    mock_put.return_value = SerializableMagicMock(ok=True)
+    mock_run.return_value = SerializableMagicMock(ok=True)
 
     # WHEN
     slurm_client.update_slurm_scripts(generate_jobs=True)
@@ -814,7 +818,7 @@ def test_list_completed_jobs(mock_run_commands,
 
     # Mocking the run_commands method
     stdout_content = "98765\n43210\n"
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=stdout_content)
 
     # WHEN
@@ -840,7 +844,7 @@ def test_list_active_jobs(mock_run_commands,
 
     # Mocking the run_commands method
     stdout_content = "12345\n67890\n"
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=stdout_content)
 
     # WHEN
@@ -866,7 +870,7 @@ def test_run_commands(mock_run, slurm_client):
     sep = ' && '
 
     # Mocking the run method
-    mock_run.return_value = mock.MagicMock(
+    mock_run.return_value = SerializableMagicMock(
         ok=True, stdout="Command executed successfully")
 
     # WHEN
@@ -900,7 +904,7 @@ def test_get_active_job_progress(mock_get_recent_log_command,
 
     # Mocking the run_commands method
     stdout_content = "Progress: 50%\nSome other text\nProgress: 75%\n"
-    mock_run_commands.return_value = mock.MagicMock(
+    mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=stdout_content)
 
     # WHEN
@@ -927,7 +931,7 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
     data_location = "/path"
     logfile = "/path/to/logfile"
 
-    mock_run_commands.return_value = mock.MagicMock(ok=True)
+    mock_run_commands.return_value = SerializableMagicMock(ok=True)
 
     # WHEN
     result = slurm_client.cleanup_tmp_files(
@@ -961,7 +965,7 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     found_location = '/path'
 
     mock_extract_data_location.return_value = found_location
-    mock_run_commands.return_value = mock.MagicMock(ok=True)
+    mock_run_commands.return_value = SerializableMagicMock(ok=True)
 
     # WHEN
     result = slurm_client.cleanup_tmp_files(
@@ -998,7 +1002,7 @@ def test_from_config(mock_ConfigParser,
     mock_SlurmClient.return_value = None
 
     # Create a MagicMock instance to represent the ConfigParser object
-    mock_configparser_instance = mock.MagicMock()
+    mock_configparser_instance = MagicMock()
 
     # Set the behavior or attributes of the mock_configparser_instance as needed
     mock_configparser_instance.read.return_value = None

@@ -32,14 +32,25 @@ class JobAccounting(ProcessApplication):
         super().__init__(*args, **kwargs)
         
         # Read database configuration from environment variables
-        database_url = URL.create(
-            drivername="postgresql+psycopg2",
-            username=os.getenv('POSTGRES_USER'),
-            password=os.getenv('POSTGRES_PASSWORD'),
-            host=os.getenv('POSTGRES_HOST', 'localhost'),
-            port=os.getenv('POSTGRES_PORT', 5432),
-            database=os.getenv('POSTGRES_DBNAME')
-        )
+        persistence_mod = os.getenv('PERSISTENCE_MODULE')
+        if 'postgres' in persistence_mod:
+            logger.info("Using postgres database")
+            database_url = URL.create(
+                drivername="postgresql+psycopg2",
+                username=os.getenv('POSTGRES_USER'),
+                password=os.getenv('POSTGRES_PASSWORD'),
+                host=os.getenv('POSTGRES_HOST', 'localhost'),
+                port=os.getenv('POSTGRES_PORT', 5432),
+                database=os.getenv('POSTGRES_DBNAME')
+            )
+        elif 'sqlite' in persistence_mod:
+            logger.info("Using sqlite in-mem database")
+            database_url = URL.create(
+                drivername="sqlite",
+                database=os.getenv('SQLITE_DBNAME')
+            )
+        else:
+            raise NotImplementedError(f"Can't handle {persistence_mod}")
         
         # Set up SQLAlchemy engine and session
         self.engine = create_engine(database_url)

@@ -3,6 +3,37 @@ import pytest
 import mock
 from mock import patch, MagicMock
 from paramiko import SSHException
+import os
+
+# using actual env vars
+# @pytest.fixture(scope='session', autouse=True)
+# def set_env_vars():
+#     # Set environment variables
+#     os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
+#     os.environ["SQLITE_DBNAME"] = ":memory:"
+
+#     # Optional: Return a dictionary of the set variables if needed elsewhere
+#     yield {
+#         "PERSISTENCE_MODULE": "eventsourcing.sqlite",
+#         "SQLITE_DBNAME": ":memory:",
+#     }
+
+#     # Optionally, clean up the environment variables after tests are done
+#     del os.environ["PERSISTENCE_MODULE"]
+#     del os.environ["SQLITE_DBNAME"]
+
+
+@pytest.fixture(autouse=True)
+def mock_env_vars():
+    # Define mock environment variables
+    mock_env = {
+        "PERSISTENCE_MODULE": "eventsourcing.sqlite",
+        "SQLITE_DBNAME": ":memory:",
+    }
+    
+    # Patch os.getenv to return values from the mock environment
+    with patch('os.getenv', lambda key, default=None: mock_env.get(key, default)):
+        yield
 
 
 @pytest.fixture

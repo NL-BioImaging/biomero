@@ -19,18 +19,8 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
-class JobView(Base):
-    __tablename__ = 'biomero_job_view'
-
-    slurm_job_id = Column(Integer, primary_key=True)
-    user = Column(Integer, nullable=False)
-    group = Column(Integer, nullable=False)
-
-
-class JobAccounting(ProcessApplication):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
+class BaseApplication:
+    def __init__(self):
         # Read database configuration from environment variables
         persistence_mod = os.getenv('PERSISTENCE_MODULE')
         if 'postgres' in persistence_mod:
@@ -51,18 +41,40 @@ class JobAccounting(ProcessApplication):
             )
         else:
             raise NotImplementedError(f"Can't handle {persistence_mod}")
-        
+
         # Set up SQLAlchemy engine and session
         self.engine = create_engine(database_url)
         self.SessionLocal = sessionmaker(bind=self.engine)
         
+        # Create defined tables (subclasses of Base) if they don't exist
+        Base.metadata.create_all(self.engine)
+
+
+class JobView(Base):
+    __tablename__ = 'biomero_job_view'
+
+    slurm_job_id = Column(Integer, primary_key=True)
+    user = Column(Integer, nullable=False)
+    group = Column(Integer, nullable=False)
+    
+
+class JobProgressView(Base):
+    __tablename__ = 'biomero_job_progress_view'
+
+    slurm_job_id = Column(Integer, primary_key=True)
+    status = Column(String, nullable=False)
+    progress = Column(String, nullable=True)
+
+
+class JobAccounting(ProcessApplication, BaseApplication):
+    def __init__(self, *args, **kwargs):
+        ProcessApplication.__init__(self, *args, **kwargs)
+        BaseApplication.__init__(self)
+        
         # State tracking
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
         self.tasks = {}      # {task_id: wf_id}
-        self.jobs = {}       # {job_id: (task_id, user, group)}    
-        
-        # Create defined tables (subclasses of Base) if they don't exist
-        Base.metadata.create_all(self.engine)
+        self.jobs = {}       # {job_id: (task_id, user, group)}   
     
     @singledispatchmethod
     def policy(self, domain_event, process_event):
@@ -116,7 +128,7 @@ class JobAccounting(ProcessApplication):
                 self.jobs[job_id] = (task_id, user, group)
                 logger.debug(f"Job added: job_id={job_id}, task_id={task_id}, user={user}, group={group}")
                 
-                
+
                 # Update view table
                 self.update_view_table(job_id, user, group)
         else:
@@ -176,3 +188,78 @@ class JobAccounting(ProcessApplication):
                 result = {user: [job.slurm_job_id for job in jobs]}
                 logger.debug(f"Retrieved jobs for user={user} and group={group}: {result}")
                 return result
+            
+            
+class JobProgress(ProcessApplication, BaseApplication):
+    def __init__(self, *args, **kwargs):
+        ProcessApplication.__init__(self, *args, **kwargs)
+        BaseApplication.__init__(self)
+        
+        # State tracking
+        self.task_to_job = {}  # {task_id: job_id}
+        self.job_status = {}   # {job_id: {"status": status, "progress": progress}}
+    
+    @singledispatchmethod
+    def policy(self, domain_event, process_event):
+        """Default policy"""
+    
+    @policy.register(Task.JobIdAdded)
+    def _(self, domain_event, process_event):
+        """Handle JobIdAdded event"""
+        job_id = domain_event.job_id
+        task_id = domain_event.originator_id
+        
+        # Track task to job mapping
+        self.task_to_job[task_id] = job_id
+        logger.debug(f"JobId added: job_id={job_id}, task_id={task_id}")
+        
+    @policy.register(Task.StatusUpdated)
+    def _(self, domain_event, process_event):
+        """Handle StatusUpdated event"""
+        task_id = domain_event.originator_id
+        status = domain_event.status
+        
+        job_id = self.task_to_job.get(task_id)
+        if job_id is not None:
+            if job_id in self.job_status:
+                self.job_status[job_id]["status"] = status
+            else:
+                self.job_status[job_id] = {"status": status, "progress": None}
+            
+            logger.debug(f"Status updated: job_id={job_id}, status={status}")
+            # Update view table
+            self.update_view_table(job_id)
+    
+    @policy.register(Task.ProgressUpdated)
+    def _(self, domain_event, process_event):
+        """Handle ProgressUpdated event"""
+        task_id = domain_event.originator_id
+        progress = domain_event.progress
+        
+        job_id = self.task_to_job.get(task_id)
+        if job_id is not None:
+            if job_id in self.job_status:
+                self.job_status[job_id]["progress"] = progress
+            else:
+                self.job_status[job_id] = {"status": "UNKNOWN", "progress": progress}
+            
+            logger.debug(f"Progress updated: job_id={job_id}, progress={progress}")
+            # Update view table
+            self.update_view_table(job_id)
+        
+    def update_view_table(self, job_id):
+        """Update the view table with new job status and progress information."""
+        with self.SessionLocal() as session:
+            try:
+                job_info = self.job_status[job_id]
+                new_job_progress = JobProgressView(
+                    slurm_job_id=job_id,
+                    status=job_info["status"],
+                    progress=job_info["progress"]
+                )
+                session.merge(new_job_progress)  # Use merge to insert or update
+                session.commit()
+                logger.debug(f"Inserted/Updated job progress in view table: job_id={job_id}, status={job_info['status']}, progress={job_info['progress']}")
+            except IntegrityError:
+                session.rollback()
+                logger.error(f"Failed to insert/update job progress in view table: job_id={job_id}")

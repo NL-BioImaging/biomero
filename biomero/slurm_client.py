@@ -31,7 +31,7 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker
-from biomero.views import JobAccounting
+from biomero.views import JobAccounting, JobProgress
 from eventsourcing.system import System, SingleThreadedRunner
 
 logger = logging.getLogger(__name__)
@@ -98,6 +98,7 @@ class SlurmJob:
         self.submit_result = submit_result
         self.ok = self.submit_result.ok
         self.job_state = None
+        self.progress = None
         self.error_message = self.submit_result.stderr if hasattr(self.submit_result, 'stderr') else ''
 
     def wait_for_completion(self, slurmClient, omeroConn) -> str:
@@ -121,6 +122,7 @@ class SlurmJob:
                                      "TIMEOUT+"):
             job_status_dict, poll_result = slurmClient.check_job_status(
                 [self.job_id])
+            self.progress = slurmClient.get_active_job_progress(self.job_id)
             if not poll_result.ok:
                 logger.warning(
                     f"Error checking job status:{poll_result.stderr}")
@@ -131,6 +133,8 @@ class SlurmJob:
             omeroConn.keepAlive()  # keep the OMERO connection alive
             slurmClient.workflowTracker.update_task_status(self.task_id, 
                                                            self.job_state)
+            slurmClient.workflowTracker.update_task_progress(
+                self.task_id, self.progress)
             timesleep.sleep(self.slurm_polling_interval)
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
         logger.info(
@@ -396,7 +400,10 @@ class SlurmClient(Connection):
         
         # Setup workflow tracking and accounting
         self.track_workflows = track_workflows
-        system = System(pipes=[[WorkflowTracker, JobAccounting]])
+        system = System(pipes=[
+            [WorkflowTracker, JobAccounting],
+            [WorkflowTracker, JobProgress]
+            ])
         if self.track_workflows:  # use configured persistence from env
             runner = SingleThreadedRunner(system)
         else:  # turn off persistence, override
@@ -405,6 +412,7 @@ class SlurmClient(Connection):
         runner.start()
         self.workflowTracker = runner.get(WorkflowTracker)
         self.jobAccounting = runner.get(JobAccounting)
+        self.jobProgress = runner.get(JobProgress)
 
     def init_workflows(self, force_update: bool = False):
         """
@@ -896,7 +904,7 @@ class SlurmClient(Connection):
     def get_active_job_progress(self,
                                 slurm_job_id: str,
                                 pattern: str = r"\d+%",
-                                env: Optional[Dict[str, str]] = None) -> str:
+                                env: Optional[Dict[str, str]] = None) -> Any:
         """
         Get the progress of an active Slurm job from its logfiles.
 
@@ -909,7 +917,7 @@ class SlurmClient(Connection):
                 to set when running the command. Defaults to None.
 
         Returns:
-            str: The progress of the Slurm job.
+            Any: The progress of the Slurm job according to the pattern, or None.
         """
         cmdlist = []
         cmd = self.get_recent_log_command(
@@ -922,13 +930,14 @@ class SlurmClient(Connection):
         except Exception as e:
             logger.error(f"Issue with run command: {e}")
         # Match the specified pattern in the result's stdout
+        latest_progress = None
         try:
             latest_progress = re.findall(
                 pattern, result.stdout)[-1]
         except Exception as e:
-            logger.error(f"Issue with extracting progress: {e}")
+            logger.warning(f"Issue with extracting progress: {e}")
 
-        return f"Progress: {latest_progress}\n"
+        return latest_progress
 
     def run_commands(self, cmdlist: List[str],
                      env: Optional[Dict[str, str]] = None,

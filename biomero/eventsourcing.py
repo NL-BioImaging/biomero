@@ -140,6 +140,14 @@ class Task(Aggregate):
     def update_task_status(self, status):
         logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")
         self.status = status
+    
+    class ProgressUpdated(Aggregate.Event):
+        progress: str
+
+    @event(ProgressUpdated)
+    def update_task_progress(self, progress):
+        logger.debug(f"Adding progress to Task: task_id={self.id}, progress={progress}")
+        self.progress = progress
 
     class ResultAdded(Aggregate.Event):
         result: ResultDict
@@ -189,7 +197,7 @@ class WorkflowTracker(Application):
                           description: str,
                           user: int,
                           group: int) -> UUID:
-        logger.debug(f"Initiating workflow: name={name}, description={description}, user={user}, group={group}")
+        logger.debug(f"[WFT] Initiating workflow: name={name}, description={description}, user={user}, group={group}")
         workflow = WorkflowRun(name, description, user, group)
         self.save(workflow)
         return workflow.id
@@ -201,7 +209,7 @@ class WorkflowTracker(Application):
                              input_data: Dict[str, Any],
                              kwargs: Dict[str, Any]
                              ) -> UUID:
-        logger.debug(f"Adding task to workflow: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
+        logger.debug(f"[WFT] Adding task to workflow: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
 
         task = Task(workflow_id,
                     task_name,
@@ -215,66 +223,73 @@ class WorkflowTracker(Application):
         return task.id
 
     def start_workflow(self, workflow_id: UUID):
-        logger.debug(f"Starting workflow: workflow_id={workflow_id}")
+        logger.debug(f"[WFT] Starting workflow: workflow_id={workflow_id}")
 
         workflow = self.repository.get(workflow_id)
         workflow.start_workflow()
         self.save(workflow)
 
     def complete_workflow(self, workflow_id: UUID):
-        logger.debug(f"Completing workflow: workflow_id={workflow_id}")
+        logger.debug(f"[WFT] Completing workflow: workflow_id={workflow_id}")
 
         workflow = self.repository.get(workflow_id)
         workflow.complete_workflow()
         self.save(workflow)
 
     def fail_workflow(self, workflow_id: UUID, error_message: str):
-        logger.debug(f"Failing workflow: workflow_id={workflow_id}, error_message={error_message}")
+        logger.debug(f"[WFT] Failing workflow: workflow_id={workflow_id}, error_message={error_message}")
 
         workflow = self.repository.get(workflow_id)
         workflow.fail_workflow(error_message)
         self.save(workflow)
 
     def start_task(self, task_id: UUID):
-        logger.debug(f"Starting task: task_id={task_id}")
+        logger.debug(f"[WFT] Starting task: task_id={task_id}")
 
         task = self.repository.get(task_id)
         task.start_task()
         self.save(task)
 
     def complete_task(self, task_id: UUID, message: str):
-        logger.debug(f"Completing task: task_id={task_id}, message={message}")
+        logger.debug(f"[WFT] Completing task: task_id={task_id}, message={message}")
 
         task = self.repository.get(task_id)
         task.complete_task(message)
         self.save(task)
 
     def fail_task(self, task_id: UUID, error_message: str):
-        logger.debug(f"Failing task: task_id={task_id}, error_message={error_message}")
+        logger.debug(f"[WFT] Failing task: task_id={task_id}, error_message={error_message}")
 
         task = self.repository.get(task_id)
         task.fail_task(error_message)
         self.save(task)
 
     def add_job_id(self, task_id, slurm_job_id):
-        logger.debug(f"Adding job_id to task: task_id={task_id}, slurm_job_id={slurm_job_id}")
+        logger.debug(f"[WFT] Adding job_id to task: task_id={task_id}, slurm_job_id={slurm_job_id}")
 
         task = self.repository.get(task_id)
         task.add_job_id(slurm_job_id)
         self.save(task)
 
     def add_result(self, task_id, result):
-        logger.debug(f"Adding result to task: task_id={task_id}, result={result}")
+        logger.debug(f"[WFT] Adding result to task: task_id={task_id}, result={result}")
 
         task = self.repository.get(task_id)
         task.add_result(result)
         self.save(task)
 
     def update_task_status(self, task_id, status):
-        logger.debug(f"Adding status to task: task_id={task_id}, status={status}")
+        logger.debug(f"[WFT] Adding status to task: task_id={task_id}, status={status}")
 
         task = self.repository.get(task_id)
         task.update_task_status(status)
+        self.save(task)
+        
+    def update_task_progress(self, task_id, progress):
+        logger.debug(f"[WFT] Adding progress to task: task_id={task_id}, progress={progress}")
+
+        task = self.repository.get(task_id)
+        task.update_task_progress(progress)
         self.save(task)
 
 

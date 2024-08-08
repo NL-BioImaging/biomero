@@ -915,7 +915,7 @@ def test_get_active_job_progress(mock_get_recent_log_command,
         log_file=slurm_client._LOGFILE.format(slurm_job_id=slurm_job_id))
     mock_run_commands.assert_called_once_with([log_cmd], env={})
 
-    assert result == "Progress: 75%\n"
+    assert result == "75%"
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')

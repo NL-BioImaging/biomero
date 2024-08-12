@@ -31,7 +31,7 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker
-from biomero.views import JobAccounting, JobProgress
+from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics
 from eventsourcing.system import System, SingleThreadedRunner
 
 logger = logging.getLogger(__name__)
@@ -402,7 +402,8 @@ class SlurmClient(Connection):
         self.track_workflows = track_workflows
         system = System(pipes=[
             [WorkflowTracker, JobAccounting],
-            [WorkflowTracker, JobProgress]
+            [WorkflowTracker, JobProgress],
+            [WorkflowTracker, WorkflowAnalytics]
             ])
         if self.track_workflows:  # use configured persistence from env
             runner = SingleThreadedRunner(system)
@@ -413,6 +414,7 @@ class SlurmClient(Connection):
         self.workflowTracker = runner.get(WorkflowTracker)
         self.jobAccounting = runner.get(JobAccounting)
         self.jobProgress = runner.get(JobProgress)
+        self.workflowAnalytics = runner.get(WorkflowAnalytics)
 
     def init_workflows(self, force_update: bool = False):
         """

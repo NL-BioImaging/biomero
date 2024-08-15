@@ -2,11 +2,12 @@ import os
 
 from eventsourcing.system import ProcessApplication
 from eventsourcing.dispatch import singledispatchmethod
+from eventsourcing.utils import get_topic
 from uuid import NAMESPACE_URL, UUID, uuid5
 from typing import Any, Dict, List
 import logging
 from sqlalchemy import create_engine, text, Column, Integer, String, URL, DateTime, Float
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -53,48 +54,60 @@ class TaskExecution(Base):
     
 # ------------------- View Listener Applications ------------------ #
 
-
-class BaseApplication:
-    def __init__(self):
-        # Read database configuration from environment variables
-        persistence_mod = os.getenv('PERSISTENCE_MODULE')
-        if 'postgres' in persistence_mod:
-            logger.info("Using postgres database")
-            database_url = URL.create(
-                drivername="postgresql+psycopg2",
-                username=os.getenv('POSTGRES_USER'),
-                password=os.getenv('POSTGRES_PASSWORD'),
-                host=os.getenv('POSTGRES_HOST', 'localhost'),
-                port=os.getenv('POSTGRES_PORT', 5432),
-                database=os.getenv('POSTGRES_DBNAME')
-            )
-        elif 'sqlite' in persistence_mod:
-            logger.info("Using sqlite in-mem database")
-            database_url = URL.create(
-                drivername="sqlite",
-                database=os.getenv('SQLITE_DBNAME')
-            )
-        else:
-            raise NotImplementedError(f"Can't handle {persistence_mod}")
-
-        # Set up SQLAlchemy engine and session
-        self.engine = create_engine(database_url)
-        self.SessionLocal = sessionmaker(bind=self.engine)
+class EngineManager:
+    _engine = None
+    _scoped_session_topic = None
+    _session = None
         
-        # Create defined tables (subclasses of Base) if they don't exist
-        Base.metadata.create_all(self.engine)
+    @classmethod
+    def create_scoped_session(cls):
+        if cls._engine is None:      
+            persistence_mod = os.getenv('PERSISTENCE_MODULE')
+            if 'sqlalchemy' in persistence_mod:
+                logger.info("Using sqlalchemy database")
+                database_url=os.getenv('SQLALCHEMY_URL')
+                cls._engine = create_engine(database_url)
+            else:
+                raise NotImplementedError(f"Can't handle {persistence_mod}")
+            
+            # setup tables if needed
+            Base.metadata.create_all(cls._engine)
+            
+            # Create a scoped_session object.
+            cls._session = scoped_session(
+                sessionmaker(autocommit=False, autoflush=False, 
+                             bind=cls._engine)
+            )
+            
+            class MyScopedSessionAdapter:
+                def __getattribute__(self, item: str) -> None:
+                    return getattr(cls._session, item)
+                
+            # Produce the topic of the scoped session adapter class.
+            cls._scoped_session_topic = get_topic(MyScopedSessionAdapter)
+
+        return cls._scoped_session_topic
+            
+    @classmethod
+    def close_engine(cls):
+        if cls._engine is not None:
+            cls._session.remove()
+            cls._engine.dispose()
+            cls._engine = None
+            cls._session = None  
+            cls._scoped_session_topic = None          
+            logger.info("Database engine disposed.")
 
 
-class JobAccounting(ProcessApplication, BaseApplication):
+class JobAccounting(ProcessApplication):
     def __init__(self, *args, **kwargs):
         ProcessApplication.__init__(self, *args, **kwargs)
-        BaseApplication.__init__(self)
         
         # State tracking
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
         self.tasks = {}      # {task_id: wf_id}
         self.jobs = {}       # {job_id: (task_id, user, group)}   
-    
+                   
     @singledispatchmethod
     def policy(self, domain_event, process_event):
         """Default policy"""
@@ -147,7 +160,6 @@ class JobAccounting(ProcessApplication, BaseApplication):
                 self.jobs[job_id] = (task_id, user, group)
                 logger.debug(f"Job added: job_id={job_id}, task_id={task_id}, user={user}, group={group}")
                 
-
                 # Update view table
                 self.update_view_table(job_id, user, group)
         else:
@@ -158,7 +170,7 @@ class JobAccounting(ProcessApplication, BaseApplication):
         
     def update_view_table(self, job_id, user, group):
         """Update the view table with new job information."""
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             try:
                 new_job = JobView(slurm_job_id=job_id, user=user, group=group)
                 session.add(new_job)
@@ -185,7 +197,7 @@ class JobAccounting(ProcessApplication, BaseApplication):
         """
         if user is None and group is None:
             # Retrieve all jobs grouped by user
-            with self.SessionLocal() as session:
+            with self.recorder.transaction() as session:
                 jobs = session.query(JobView.user, JobView.slurm_job_id).all()
                 user_jobs = {}
                 for user_id, job_id in jobs:
@@ -194,7 +206,7 @@ class JobAccounting(ProcessApplication, BaseApplication):
                     user_jobs[user_id].append(job_id)
                 return user_jobs
         else:
-            with self.SessionLocal() as session:
+            with self.recorder.transaction() as session:
                 query = session.query(JobView.slurm_job_id)
                 
                 if user is not None:
@@ -209,10 +221,9 @@ class JobAccounting(ProcessApplication, BaseApplication):
                 return result
             
             
-class JobProgress(ProcessApplication, BaseApplication):
+class JobProgress(ProcessApplication):
     def __init__(self, *args, **kwargs):
         ProcessApplication.__init__(self, *args, **kwargs)
-        BaseApplication.__init__(self)
         
         # State tracking
         self.task_to_job = {}  # {task_id: job_id}
@@ -268,7 +279,7 @@ class JobProgress(ProcessApplication, BaseApplication):
         
     def update_view_table(self, job_id):
         """Update the view table with new job status and progress information."""
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             try:
                 job_info = self.job_status[job_id]
                 new_job_progress = JobProgressView(
@@ -284,10 +295,9 @@ class JobProgress(ProcessApplication, BaseApplication):
                 logger.error(f"Failed to insert/update job progress in view table: job_id={job_id}")
 
 
-class WorkflowAnalytics(BaseApplication, ProcessApplication):
+class WorkflowAnalytics(ProcessApplication):
     def __init__(self, *args, **kwargs):
         ProcessApplication.__init__(self, *args, **kwargs)
-        BaseApplication.__init__(self)
 
         # State tracking for workflows and tasks
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
@@ -403,7 +413,7 @@ class WorkflowAnalytics(BaseApplication, ProcessApplication):
             user_id = self.workflows[wf_id]["user"]
             group_id = self.workflows[wf_id]["group"]
 
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             try:
                 existing_task = session.query(TaskExecution).filter_by(task_id=task_id).first()
                 if existing_task:
@@ -447,7 +457,7 @@ class WorkflowAnalytics(BaseApplication, ProcessApplication):
         Returns:
         - Dictionary of task names and versions to counts.
         """
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             query = session.query(
                 TaskExecution.task_name,
                 TaskExecution.task_version,
@@ -478,7 +488,7 @@ class WorkflowAnalytics(BaseApplication, ProcessApplication):
         Returns:
         - Dictionary of task names and versions to average duration (in seconds).
         """
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             query = session.query(
                 TaskExecution.task_name,
                 TaskExecution.task_version,
@@ -512,7 +522,7 @@ class WorkflowAnalytics(BaseApplication, ProcessApplication):
         Returns:
         - Dictionary of task names and versions to lists of failure reasons.
         """
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             query = session.query(
                 TaskExecution.task_name,
                 TaskExecution.task_version,
@@ -548,7 +558,7 @@ class WorkflowAnalytics(BaseApplication, ProcessApplication):
         Returns:
         - Dictionary mapping date to the count of task executions on that date.
         """
-        with self.SessionLocal() as session:
+        with self.recorder.transaction() as session:
             query = session.query(
                 func.date(TaskExecution.start_time),
                 func.count(TaskExecution.task_name)

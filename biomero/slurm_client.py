@@ -31,7 +31,7 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker
-from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics
+from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, EngineManager
 from eventsourcing.system import System, SingleThreadedRunner
 
 logger = logging.getLogger(__name__)
@@ -406,7 +406,9 @@ class SlurmClient(Connection):
             [WorkflowTracker, WorkflowAnalytics]
             ])
         if self.track_workflows:  # use configured persistence from env
-            runner = SingleThreadedRunner(system)
+            scoped_session_topic = EngineManager.create_scoped_session()
+            runner = SingleThreadedRunner(system, env={
+                'SQLALCHEMY_SCOPED_SESSION_TOPIC': scoped_session_topic})
         else:  # turn off persistence, override
             runner = SingleThreadedRunner(system, env={
                 "PERSISTENCE_MODULE": ""})
@@ -415,6 +417,14 @@ class SlurmClient(Connection):
         self.jobAccounting = runner.get(JobAccounting)
         self.jobProgress = runner.get(JobProgress)
         self.workflowAnalytics = runner.get(WorkflowAnalytics)
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Ensure to call the parent class's __exit__ 
+        # to clean up Connection resources
+        super().__exit__(exc_type, exc_val, exc_tb)
+        # Cleanup resources specific to SlurmClient
+        EngineManager.close_engine()
+        # If we have any other resources to close or cleanup, do it here
 
     def init_workflows(self, force_update: bool = False):
         """

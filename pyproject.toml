@@ -32,7 +32,8 @@ dependencies = [
     "importlib_resources>=5.4.0",
     "eventsourcing[crypto]==9.2.22",
     "sqlalchemy==2.0.32",
-    "psycopg2==2.9.9"
+    "psycopg2==2.9.9",
+    "eventsourcing_sqlalchemy==0.7"
 ]
 
 [tool.setuptools.packages]

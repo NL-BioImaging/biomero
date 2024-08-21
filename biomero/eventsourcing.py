@@ -12,13 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.application import Application
 from uuid import NAMESPACE_URL, UUID, uuid5
 from typing import Any, Dict, List
 from fabric import Result
 import logging
+from biomero.database import EngineManager
 
 
 # Create a logger for this module
@@ -200,6 +200,7 @@ class WorkflowTracker(Application):
         logger.debug(f"[WFT] Initiating workflow: name={name}, description={description}, user={user}, group={group}")
         workflow = WorkflowRun(name, description, user, group)
         self.save(workflow)
+        EngineManager.commit()
         return workflow.id
 
     def add_task_to_workflow(self,
@@ -217,9 +218,11 @@ class WorkflowTracker(Application):
                     input_data,
                     kwargs)
         self.save(task)
+        EngineManager.commit()
         workflow = self.repository.get(workflow_id)
         workflow.add_task(task.id)
         self.save(workflow)
+        EngineManager.commit()
         return task.id
 
     def start_workflow(self, workflow_id: UUID):
@@ -228,6 +231,7 @@ class WorkflowTracker(Application):
         workflow = self.repository.get(workflow_id)
         workflow.start_workflow()
         self.save(workflow)
+        EngineManager.commit()
 
     def complete_workflow(self, workflow_id: UUID):
         logger.debug(f"[WFT] Completing workflow: workflow_id={workflow_id}")
@@ -235,6 +239,7 @@ class WorkflowTracker(Application):
         workflow = self.repository.get(workflow_id)
         workflow.complete_workflow()
         self.save(workflow)
+        EngineManager.commit()
 
     def fail_workflow(self, workflow_id: UUID, error_message: str):
         logger.debug(f"[WFT] Failing workflow: workflow_id={workflow_id}, error_message={error_message}")
@@ -242,6 +247,7 @@ class WorkflowTracker(Application):
         workflow = self.repository.get(workflow_id)
         workflow.fail_workflow(error_message)
         self.save(workflow)
+        EngineManager.commit()
 
     def start_task(self, task_id: UUID):
         logger.debug(f"[WFT] Starting task: task_id={task_id}")
@@ -249,6 +255,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.start_task()
         self.save(task)
+        EngineManager.commit()
 
     def complete_task(self, task_id: UUID, message: str):
         logger.debug(f"[WFT] Completing task: task_id={task_id}, message={message}")
@@ -256,6 +263,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.complete_task(message)
         self.save(task)
+        EngineManager.commit()
 
     def fail_task(self, task_id: UUID, error_message: str):
         logger.debug(f"[WFT] Failing task: task_id={task_id}, error_message={error_message}")
@@ -263,6 +271,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.fail_task(error_message)
         self.save(task)
+        EngineManager.commit()
 
     def add_job_id(self, task_id, slurm_job_id):
         logger.debug(f"[WFT] Adding job_id to task: task_id={task_id}, slurm_job_id={slurm_job_id}")
@@ -270,6 +279,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.add_job_id(slurm_job_id)
         self.save(task)
+        EngineManager.commit()
 
     def add_result(self, task_id, result):
         logger.debug(f"[WFT] Adding result to task: task_id={task_id}, result={result}")
@@ -277,6 +287,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.add_result(result)
         self.save(task)
+        EngineManager.commit()
 
     def update_task_status(self, task_id, status):
         logger.debug(f"[WFT] Adding status to task: task_id={task_id}, status={status}")
@@ -284,6 +295,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.update_task_status(status)
         self.save(task)
+        EngineManager.commit()
         
     def update_task_progress(self, task_id, progress):
         logger.debug(f"[WFT] Adding progress to task: task_id={task_id}, progress={progress}")
@@ -291,6 +303,7 @@ class WorkflowTracker(Application):
         task = self.repository.get(task_id)
         task.update_task_progress(progress)
         self.save(task)
+        EngineManager.commit()
 
 
 

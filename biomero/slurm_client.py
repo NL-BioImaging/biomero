@@ -31,7 +31,8 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker
-from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, EngineManager
+from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics
+from biomero.database import EngineManager
 from eventsourcing.system import System, SingleThreadedRunner
 
 logger = logging.getLogger(__name__)
@@ -1407,7 +1408,7 @@ class SlurmClient(Connection):
             f"echo \"Number of .{source_format} files: $N\"",
             conversion_cmd
         ]
-        
+        logger.debug(f"wf_id: {wf_id}")
         if not wf_id:
             wf_id = self.workflowTracker.initiate_workflow(
                 "conversion",
@@ -1415,6 +1416,7 @@ class SlurmClient(Connection):
                 -1,
                 -1
             )
+        logger.debug(f"wf_id: {wf_id}")
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
             chosen_converter,

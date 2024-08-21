@@ -11,92 +11,16 @@ from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from biomero.eventsourcing import WorkflowRun, Task
+from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView
 
 
 logger = logging.getLogger(__name__)
 
-# --------------------- VIEWS DB tables/classes ---------------------------- #
-
-# Base class for declarative class definitions
-Base = declarative_base()
-
-
-class JobView(Base):
-    __tablename__ = 'biomero_job_view'
-
-    slurm_job_id = Column(Integer, primary_key=True)
-    user = Column(Integer, nullable=False)
-    group = Column(Integer, nullable=False)
-    
-
-class JobProgressView(Base):
-    __tablename__ = 'biomero_job_progress_view'
-
-    slurm_job_id = Column(Integer, primary_key=True)
-    status = Column(String, nullable=False)
-    progress = Column(String, nullable=True)
-    
-
-class TaskExecution(Base):
-    __tablename__ = 'biomero_task_execution'
-
-    task_id = Column(PGUUID(as_uuid=True), primary_key=True)
-    task_name = Column(String, nullable=False)
-    task_version = Column(String)
-    user_id = Column(Integer, nullable=True)
-    group_id = Column(Integer, nullable=True)
-    status = Column(String, nullable=False)
-    start_time = Column(DateTime, nullable=False)
-    end_time = Column(DateTime, nullable=True)
-    error_type = Column(String, nullable=True)
-    
     
 # ------------------- View Listener Applications ------------------ #
-
-class EngineManager:
-    _engine = None
-    _scoped_session_topic = None
-    _session = None
-        
-    @classmethod
-    def create_scoped_session(cls):
-        if cls._engine is None:      
-            persistence_mod = os.getenv('PERSISTENCE_MODULE')
-            if 'sqlalchemy' in persistence_mod:
-                logger.info("Using sqlalchemy database")
-                database_url=os.getenv('SQLALCHEMY_URL')
-                cls._engine = create_engine(database_url)
-            else:
-                raise NotImplementedError(f"Can't handle {persistence_mod}")
-            
-            # setup tables if needed
-            Base.metadata.create_all(cls._engine)
-            
-            # Create a scoped_session object.
-            cls._session = scoped_session(
-                sessionmaker(autocommit=False, autoflush=False, 
-                             bind=cls._engine)
-            )
-            
-            class MyScopedSessionAdapter:
-                def __getattribute__(self, item: str) -> None:
-                    return getattr(cls._session, item)
-                
-            # Produce the topic of the scoped session adapter class.
-            cls._scoped_session_topic = get_topic(MyScopedSessionAdapter)
-
-        return cls._scoped_session_topic
-            
-    @classmethod
-    def close_engine(cls):
-        if cls._engine is not None:
-            cls._session.remove()
-            cls._engine.dispose()
-            cls._engine = None
-            cls._session = None  
-            cls._scoped_session_topic = None          
-            logger.info("Database engine disposed.")
 
 
 class JobAccounting(ProcessApplication):
@@ -170,16 +94,16 @@ class JobAccounting(ProcessApplication):
         
     def update_view_table(self, job_id, user, group):
         """Update the view table with new job information."""
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             try:
                 new_job = JobView(slurm_job_id=job_id, user=user, group=group)
                 session.add(new_job)
                 session.commit()
                 logger.debug(f"Inserted job into view table: job_id={job_id}, user={user}, group={group}")
-            except IntegrityError:
+            except IntegrityError as e:
                 session.rollback()
                 # Handle the case where the job already exists in the table if necessary
-                logger.error(f"Failed to insert job into view table (already exists?): job_id={job_id}, user={user}, group={group}")
+                logger.error(f"Failed to insert job into view table (already exists?): job_id={job_id}, user={user}, group={group}. Error {e}")
 
     def get_jobs(self, user=None, group=None):
         """Retrieve jobs for a specific user and/or group.
@@ -197,7 +121,7 @@ class JobAccounting(ProcessApplication):
         """
         if user is None and group is None:
             # Retrieve all jobs grouped by user
-            with self.recorder.transaction() as session:
+            with EngineManager.get_session() as session:
                 jobs = session.query(JobView.user, JobView.slurm_job_id).all()
                 user_jobs = {}
                 for user_id, job_id in jobs:
@@ -206,7 +130,7 @@ class JobAccounting(ProcessApplication):
                     user_jobs[user_id].append(job_id)
                 return user_jobs
         else:
-            with self.recorder.transaction() as session:
+            with EngineManager.get_session() as session:
                 query = session.query(JobView.slurm_job_id)
                 
                 if user is not None:
@@ -279,7 +203,7 @@ class JobProgress(ProcessApplication):
         
     def update_view_table(self, job_id):
         """Update the view table with new job status and progress information."""
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             try:
                 job_info = self.job_status[job_id]
                 new_job_progress = JobProgressView(
@@ -293,6 +217,12 @@ class JobProgress(ProcessApplication):
             except IntegrityError:
                 session.rollback()
                 logger.error(f"Failed to insert/update job progress in view table: job_id={job_id}")
+
+
+# @event.listens_for(Engine, "before_cursor_execute")
+# def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+#     logger.debug(f"SQL: {statement}")
+#     logger.debug(f"Parameters: {parameters}")
 
 
 class WorkflowAnalytics(ProcessApplication):
@@ -347,14 +277,16 @@ class WorkflowAnalytics(ProcessApplication):
             self.tasks[task_id].update({
                 "task_name": task_name,
                 "task_version": task_version,
-                "start_time": timestamp_created
+                "start_time": timestamp_created,
+                "status": "CREATED"
             })
         else:
             # Initialize task tracking if TaskAdded hasn't been processed yet
             self.tasks[task_id] = {
                 "task_name": task_name,
                 "task_version": task_version,
-                "start_time": timestamp_created
+                "start_time": timestamp_created,
+                "status": "CREATED"
             }
 
         logger.debug(f"Task created: task_id={task_id}, task_name={task_name}, timestamp={timestamp_created}")
@@ -413,9 +345,10 @@ class WorkflowAnalytics(ProcessApplication):
             user_id = self.workflows[wf_id]["user"]
             group_id = self.workflows[wf_id]["group"]
 
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             try:
                 existing_task = session.query(TaskExecution).filter_by(task_id=task_id).first()
+                logger.debug(f"Existing: {existing_task}. vs info {task_info}")
                 if existing_task:
                     # Update existing task execution record
                     existing_task.task_name = task_info.get("task_name", existing_task.task_name)
@@ -443,9 +376,10 @@ class WorkflowAnalytics(ProcessApplication):
                 
                 session.commit()
                 logger.debug(f"Updated/Inserted task execution into view table: task_id={task_id}, task_name={task_info.get('task_name')}")
-            except IntegrityError:
+            except IntegrityError as e:
                 session.rollback()
-                logger.error(f"Failed to insert/update task execution into view table: task_id={task_id}")
+                logger.error(f"Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
+                logger.debug(f"Task info: {task_info}")
 
     def get_task_counts(self, user=None, group=None):
         """Retrieve task execution counts grouped by task name and version.
@@ -457,7 +391,7 @@ class WorkflowAnalytics(ProcessApplication):
         Returns:
         - Dictionary of task names and versions to counts.
         """
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             query = session.query(
                 TaskExecution.task_name,
                 TaskExecution.task_version,
@@ -488,7 +422,7 @@ class WorkflowAnalytics(ProcessApplication):
         Returns:
         - Dictionary of task names and versions to average duration (in seconds).
         """
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             query = session.query(
                 TaskExecution.task_name,
                 TaskExecution.task_version,
@@ -522,7 +456,7 @@ class WorkflowAnalytics(ProcessApplication):
         Returns:
         - Dictionary of task names and versions to lists of failure reasons.
         """
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             query = session.query(
                 TaskExecution.task_name,
                 TaskExecution.task_version,
@@ -558,7 +492,7 @@ class WorkflowAnalytics(ProcessApplication):
         Returns:
         - Dictionary mapping date to the count of task executions on that date.
         """
-        with self.recorder.transaction() as session:
+        with EngineManager.get_session() as session:
             query = session.query(
                 func.date(TaskExecution.start_time),
                 func.count(TaskExecution.task_name)

@@ -64,7 +64,7 @@ Your Slurm cluster/login node needs to have:
 Your OMERO _processing_ node needs to have:
 1. SSH client and access to the Slurm cluster (w/ private key / headless)
 2. SCP access to the Slurm cluster
-3. Python3.7+
+3. Python3.8+
 4. This library installed 
     - Latest release on PyPI `python3 -m pip install biomero`
     - or latest Github version `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'`

@@ -49,15 +49,12 @@ class EngineManager:
     _session = None
         
     @classmethod
-    def create_scoped_session(cls):
+    def create_scoped_session(cls, sqlalchemy_url=None):
         if cls._engine is None:      
-            persistence_mod = os.getenv('PERSISTENCE_MODULE')
-            if 'sqlalchemy' in persistence_mod:
-                logger.info("Using sqlalchemy database")
-                database_url = os.getenv('SQLALCHEMY_URL')
-                cls._engine = create_engine(database_url)
-            else:
-                raise NotImplementedError(f"Can't handle {persistence_mod}")
+            # Note, we only allow sqlalchemy eventsourcing module
+            if not sqlalchemy_url:
+                sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
+            cls._engine = create_engine(sqlalchemy_url)
             
             # setup tables if needed
             Base.metadata.create_all(cls._engine)

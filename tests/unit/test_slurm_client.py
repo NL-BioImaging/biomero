@@ -1,4 +1,6 @@
-from biomero import SlurmClient
+import logging
+from uuid import uuid4
+from biomero import SlurmClient, NoOpWorkflowTracker
 import pytest
 import mock
 from mock import patch, MagicMock
@@ -969,6 +971,131 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     assert result.ok is True
 
 
+@pytest.mark.parametrize("track_workflows, enable_job_accounting, enable_job_progress, enable_workflow_analytics, expected_tracker_classes", [
+    # Case when everything is enabled
+    (True, True, True, True, {"workflowTracker": "WorkflowTracker", "jobAccounting": "JobAccounting", "jobProgress": "JobProgress", "workflowAnalytics": "WorkflowAnalytics"}),
+    
+    # Case when tracking is disabled (NoOp for all)
+    (False, True, True, True, {"workflowTracker": "NoOpWorkflowTracker", "jobAccounting": "NoOpWorkflowTracker", "jobProgress": "NoOpWorkflowTracker", "workflowAnalytics": "NoOpWorkflowTracker"}),
+
+    # Case when only accounting is disabled
+    (True, False, True, True, {"workflowTracker": "WorkflowTracker", "jobAccounting": "NoOpWorkflowTracker", "jobProgress": "JobProgress", "workflowAnalytics": "WorkflowAnalytics"}),
+
+    # Case when only progress is disabled
+    (True, True, False, True, {"workflowTracker": "WorkflowTracker", "jobAccounting": "JobAccounting", "jobProgress": "NoOpWorkflowTracker", "workflowAnalytics": "WorkflowAnalytics"}),
+
+    # Case when only analytics is disabled
+    (True, True, True, False, {"workflowTracker": "WorkflowTracker", "jobAccounting": "JobAccounting", "jobProgress": "JobProgress", "workflowAnalytics": "NoOpWorkflowTracker"}),
+
+    # Case when all listeners are disabled
+    (True, False, False, False, {"workflowTracker": "WorkflowTracker", "jobAccounting": "NoOpWorkflowTracker", "jobProgress": "NoOpWorkflowTracker", "workflowAnalytics": "NoOpWorkflowTracker"})
+])
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.Connection.run')
+def test_workflow_tracker_and_listeners_no_op(
+        mock_run, mock_put, mock_open, mock_session,
+        track_workflows, enable_job_accounting, enable_job_progress, enable_workflow_analytics,
+        expected_tracker_classes, caplog):
+    """
+    Test that the WorkflowTracker, JobAccounting, JobProgress, and WorkflowAnalytics
+    are set to NoOpWorkflowTracker when tracking is disabled or listeners are disabled.
+    """
+    # GIVEN
+    slurm_client = SlurmClient(
+        host="localhost",
+        port=8022,
+        user="slurm",
+        slurm_data_path="datapath",
+        slurm_images_path="imagespath",
+        slurm_script_path="scriptpath",
+        slurm_converters_path="converterspath",
+        slurm_script_repo="repo-url",
+        slurm_model_paths={'wf': 'path'},
+        slurm_model_images={'wf': 'image'},
+        slurm_model_repos={'wf': 'https://github.com/example/workflow1'},
+        track_workflows=track_workflows,
+        enable_job_accounting=enable_job_accounting,
+        enable_job_progress=enable_job_progress,
+        enable_workflow_analytics=enable_workflow_analytics
+    )
+
+    # THEN
+    # Check workflow tracker
+    assert slurm_client.workflowTracker.__class__.__name__ == expected_tracker_classes['workflowTracker']
+
+    # Check job accounting listener
+    assert slurm_client.jobAccounting.__class__.__name__ == expected_tracker_classes['jobAccounting']
+
+    # Check job progress listener
+    assert slurm_client.jobProgress.__class__.__name__ == expected_tracker_classes['jobProgress']
+
+    # Check workflow analytics listener
+    assert slurm_client.workflowAnalytics.__class__.__name__ == expected_tracker_classes['workflowAnalytics']
+    
+    # WHEN (No-Op calls)
+    if isinstance(slurm_client.workflowTracker, NoOpWorkflowTracker):
+        # Call NoOp methods on workflowTracker
+        slurm_client.workflowTracker.start_workflow("dummy_workflow")
+        slurm_client.workflowTracker.update_status("dummy_status")
+        # WHEN
+        workflow_id = uuid4()
+        task_name = 'example_task'
+        task_version = '1.0'
+        input_data = {'key': 'value'}
+        kwargs = {'param1': 'value1', 'param2': 'value2'}
+        with caplog.at_level(logging.DEBUG):
+            # Call methods that should be no-ops
+            slurm_client.workflowTracker.add_task_to_workflow(
+                workflow_id=workflow_id,
+                task_name=task_name,
+                task_version=task_version,
+                input_data=input_data,
+                kwargs=kwargs
+            )
+
+            # THEN
+            # Assert that appropriate log messages are generated for NoOpWorkflowTracker
+            for record in caplog.records:
+                if record.message.startswith("[No-op] Called function: add_task_to_workflow"):
+                    assert f"'workflow_id': {repr(workflow_id)}" in record.message
+                    assert f"'task_name': {repr(task_name)}" in record.message
+                    assert f"'task_version': {repr(task_version)}" in record.message
+                    assert f"'input_data': {repr(input_data)}" in record.message
+                    assert f"'kwargs': {repr(kwargs)}" in record.message
+
+    if isinstance(slurm_client.jobAccounting, NoOpWorkflowTracker):
+        # Call NoOp methods on jobAccounting
+        slurm_client.jobAccounting.record_job("dummy_job")
+        slurm_client.jobAccounting.get_job_status("dummy_job")
+
+    if isinstance(slurm_client.jobProgress, NoOpWorkflowTracker):
+        # Call NoOp methods on jobProgress
+        slurm_client.jobProgress.track_progress("dummy_progress")
+
+    if isinstance(slurm_client.workflowAnalytics, NoOpWorkflowTracker):
+        # Call NoOp methods on workflowAnalytics
+        slurm_client.workflowAnalytics.generate_report("dummy_report")
+        
+    # THEN
+    with caplog.at_level(logging.DEBUG):
+        # Assert that appropriate log messages are generated for NoOpWorkflowTracker
+        for tracker_name, tracker_class in expected_tracker_classes.items():
+            tracker = getattr(slurm_client, tracker_name)
+            if tracker_class == "NoOpWorkflowTracker":
+                # Call a method to trigger the no-op behavior
+                tracker.some_method()
+                # Check the log output
+                assert any(record.message.startswith("[No-op] Called function: some_method") for record in caplog.records)
+    
+    
+    # THEN (No actions should be performed, and nothing should break)
+    # We can only verify that no exceptions are raised and no actual work was done
+    # Logs or other side-effects can be checked if logging is added to NoOpWorkflowTracker
+    assert True  # No exception means test passes
+
+
 @patch('biomero.slurm_client.Connection.create_session')
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.Connection.put')
@@ -993,7 +1120,18 @@ def test_from_config(mock_ConfigParser,
     mock_configparser_instance.read.return_value = None
     mv = "configvalue"
     mock_configparser_instance.get.return_value = mv
-    mock_configparser_instance.getboolean.return_value = True
+    mock_configparser_instance.getboolean.side_effect = lambda section, option, fallback: {
+        'track_workflows': True,
+        'enable_job_accounting': True,
+        'enable_job_progress': True,
+        'enable_workflow_analytics': True
+    }.get(option, fallback)
+    
+    # Set up mock for 'sqlalchemy_url' (new addition)
+    mock_configparser_instance.get.side_effect = lambda section, option, fallback=None: {
+        ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+    }.get((section, option), mv)
+    
     model_dict = {
         "m1": "v1"
     }
@@ -1028,10 +1166,8 @@ def test_from_config(mock_ConfigParser,
             return conv_dict
         else:
             return {}.items()
-    
+
     mock_configparser_instance.items.side_effect = items_side_effect
-    # mock_configparser_instance.items.return_value = {**model_dict, **repo_dict,
-    #                                                  **job_dict, **jp_dict}
 
     # Configure the MagicMock to return the mock_configparser_instance when called
     mock_ConfigParser.return_value = mock_configparser_instance
@@ -1061,10 +1197,16 @@ def test_from_config(mock_ConfigParser,
         slurm_model_jobs_params=jp_dict_out,  # expected slurm_model_jobs_params value,
         slurm_script_path=mv,  # expected slurm_script_path value,
         slurm_script_repo=mv,  # expected slurm_script_repo value,
-        init_slurm=init_slurm
+        init_slurm=init_slurm,
+        track_workflows=True,  # expected track_workflows value
+        enable_job_accounting=True,  # expected enable_job_accounting value
+        enable_job_progress=True,  # expected enable_job_progress value
+        enable_workflow_analytics=True,  # expected enable_workflow_analytics value
+        sqlalchemy_url='sqlite:///test.db'  # expected sqlalchemy_url value
     )
 
-    
+
+   
 def test_parse_docker_image_with_version(slurm_client):
     version, image_name = slurm_client.parse_docker_image_version("example_image:1.0")
     assert version == "1.0"

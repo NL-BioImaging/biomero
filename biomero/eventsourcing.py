@@ -189,6 +189,19 @@ class Task(Aggregate):
 
 # -------------------- APPLICATIONS -------------------- #
 
+class NoOpWorkflowTracker:
+    def __getattr__(self, name):
+        """
+        Override attribute access to make all methods no-op.
+        Logs a warning with the function name and parameters passed.
+        """
+        def no_op_function(*args, **kwargs):
+            logger.debug(f"[No-op] Called function: {name} with args: {args}, kwargs: {kwargs}")
+            # Optionally log the parameters or add warnings instead
+            return None
+
+        return no_op_function
+
 
 class WorkflowTracker(Application):
 

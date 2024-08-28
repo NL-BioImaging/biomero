@@ -1,6 +1,8 @@
 import logging
 from uuid import uuid4
-from biomero import SlurmClient, NoOpWorkflowTracker
+from biomero.slurm_client import SlurmClient
+from biomero.eventsourcing import NoOpWorkflowTracker
+from biomero.database import EngineManager
 import pytest
 import mock
 from mock import patch, MagicMock
@@ -26,6 +28,8 @@ class SerializableMagicMock(MagicMock, dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 @pytest.fixture
 @patch('biomero.slurm_client.Connection.create_session')
@@ -35,11 +39,13 @@ class SerializableMagicMock(MagicMock, dict):
 def slurm_client(_mock_run,
                  _mock_put, _mock_open,
                  _mock_session):
+    logging.info("EngineManager.__dict__: %s", EngineManager.__dict__)
     return SlurmClient("localhost", 8022, "slurm")
 
 
 @patch.object(SlurmClient, 'run_commands_split_out')
 def test_get_all_image_versions_and_data_files(mock_run_commands_split_out, slurm_client):
+    
     # GIVEN
     slurm_client.slurm_images_path = "/path/to/slurm/images"
     slurm_client.slurm_data_path = "/path/to/slurm/data"

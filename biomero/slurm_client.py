@@ -50,11 +50,13 @@ class SlurmJob:
         submit_result (Result): The result of submitting the job.
         ok (bool): Indicates whether the job submission was successful.
         job_state (str): The current state of the Slurm job.
-        error_message (str): The error message, if any.
+        progress (str): The progress of the Slurm job.
+        error_message (str): The error message, if any, encountered during job submission.
+        wf_id (UUID): The workflow ID associated with the job.
+        task_id (UUID): The task ID within the workflow.
+        slurm_polling_interval (int): The polling interval (in seconds) for checking the job status.
 
-    Args:
-        submit_result (Result): The result of submitting the job.
-        job_id (int): The Sluslurm_job_id
+    Example:
         # Submit some job with the SlurmClient
         submit_result, job_id, wf_id, task_id = slurmClient.run_workflow(
             workflow_name, workflow_version, input_data, email, time, wf_id,
@@ -91,6 +93,10 @@ class SlurmJob:
         Args:
             submit_result (Result): The result of submitting the job.
             job_id (int): The Slurm job ID.
+            wf_id (UUID): The workflow ID associated with this job.
+            task_id (UUID): The task ID within the workflow.
+            slurm_polling_interval (int, optional): The interval in seconds for 
+                polling the job status. Defaults to SLURM_POLLING_INTERVAL.
         """
         self.job_id = job_id
         self.wf_id = wf_id
@@ -218,6 +224,7 @@ class SlurmClient(Connection):
             containing the Slurm job submission scripts. Optional.
 
     Example:
+        
         # Create a SlurmClient object as contextmanager
 
         with SlurmClient.from_config() as client:
@@ -236,9 +243,10 @@ class SlurmClient(Connection):
             print(result.stdout)
 
     Example 2:
+        
         # Create a SlurmClient and setup Slurm (download containers etc.)
 
-        with SlurmClient.from_config(inislurm_job_id
+        with SlurmClient.from_config(init_slurm=True) as client:
 
             client.run_workflow(...)
 

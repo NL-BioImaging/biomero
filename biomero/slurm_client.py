@@ -32,8 +32,10 @@ import io
 import os
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics
-from biomero.database import EngineManager
+from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution
 from eventsourcing.system import System, SingleThreadedRunner
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import text
 
 logger = logging.getLogger(__name__)
 
@@ -433,12 +435,15 @@ class SlurmClient(Connection):
         
         # Initialize the analytics system
         self.sqlalchemy_url = sqlalchemy_url
-        self.initialize_analytics_system()
+        self.initialize_analytics_system(reset_tables=init_slurm)
     
-    def initialize_analytics_system(self):
+    def initialize_analytics_system(self, reset_tables=False):
         """
         Initialize the analytics system based on the analytics configuration
         passed to the constructor.
+        
+        Args:
+            reset_tables (bool): If True, drops and recreates all views.
         """
         # Get persistence settings, prioritize environment variables
         persistence_module = os.getenv("PERSISTENCE_MODULE", "eventsourcing_sqlalchemy")
@@ -483,6 +488,50 @@ class SlurmClient(Connection):
             logger.warning("Tracking workflows is disabled. No-op WorkflowTracker will be used.")        
             self.workflowTracker = NoOpWorkflowTracker()
             
+        self.setup_listeners(runner, reset_tables)
+
+    def setup_listeners(self, runner, reset_tables):
+        # Only when people run init script, we just drop and rebuild.
+        self.get_listeners(runner)
+            
+        # Optionally drop and recreate tables
+        if reset_tables:
+            logger.info("Resetting view tables.")
+            tables = [] 
+            # gather the listener tables
+            listeners = [self.jobAccounting, 
+                         self.jobProgress, 
+                         self.workflowAnalytics]
+            for listener in listeners:
+                if listener:
+                    tables.append(listener.recorder.tracking_table_name)
+                    tables.append(listener.recorder.events_table_name)
+            runner.stop()
+            # gather the view tables
+            tables.append(TaskExecution.__tablename__)
+            tables.append(JobProgressView.__tablename__)
+            tables.append(JobView.__tablename__) 
+            with EngineManager.get_session() as session:
+                try:
+                    # Begin a transaction
+                    for table in tables:
+                        # Drop the table if it exists
+                        logger.info(f"Dropping table {table}")
+                        drop_table_sql = text(f'DROP TABLE IF EXISTS {table}')
+                        session.execute(drop_table_sql)
+                    # Only when people run init script, we just drop and rebuild.
+                    session.commit()
+                    logger.info("Dropped view tables successfully")
+                except IntegrityError as e:
+                    logger.error(e)
+                    session.rollback()
+                    raise Exception(f"Error trying to reset the view tables: {e}") 
+                
+            EngineManager.close_engine() # close current sql session          
+            # restart runner, listeners and recreate views
+            self.initialize_analytics_system(reset_tables=False)
+            
+    def get_listeners(self, runner):
         if self.track_workflows and self.enable_job_accounting:
             self.jobAccounting = runner.get(JobAccounting)
         else:
@@ -1518,7 +1567,7 @@ class SlurmClient(Connection):
         logger.debug(f"wf_id: {wf_id}")
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
-            chosen_converter,
+            f"convert_{source_format}_to_{target_format}".upper(),
             version,
             data_path,
             sbatch_env

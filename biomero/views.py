@@ -98,21 +98,21 @@ class JobAccounting(ProcessApplication):
                 logger.debug(f"Job added: job_id={job_id}, task_id={task_id}, user={user}, group={group}")
                 
                 # Update view table
-                self.update_view_table(job_id, user, group)
+                self.update_view_table(job_id, user, group, task_id)
         else:
             logger.debug(f"JobIdAdded event ignored: task_id={task_id} not found in tasks")
             
         # use .collect_events(agg) instead of .save(agg)
         # process_event.collect_events(jobaccount)
         
-    def update_view_table(self, job_id, user, group):
+    def update_view_table(self, job_id, user, group, task_id):
         """Update the view table with new job information."""
         with EngineManager.get_session() as session:
             try:
-                new_job = JobView(slurm_job_id=job_id, user=user, group=group)
+                new_job = JobView(slurm_job_id=job_id, user=user, group=group, task_id=task_id)
                 session.add(new_job)
                 session.commit()
-                logger.debug(f"Inserted job into view table: job_id={job_id}, user={user}, group={group}")
+                logger.debug(f"Inserted job into view table: job_id={job_id}, user={user}, group={group}, task_id={task_id}")
             except IntegrityError as e:
                 session.rollback()
                 # Handle the case where the job already exists in the table if necessary

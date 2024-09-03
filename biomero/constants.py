@@ -16,6 +16,7 @@
 
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
+CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 
 

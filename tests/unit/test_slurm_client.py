@@ -2,12 +2,13 @@ import logging
 from uuid import uuid4
 from biomero.slurm_client import SlurmClient
 from biomero.eventsourcing import NoOpWorkflowTracker
-from biomero.database import EngineManager
+from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
 import pytest
 import mock
 from mock import patch, MagicMock
 from paramiko import SSHException
 import os
+from sqlalchemy import inspect
 
 
 @pytest.fixture(autouse=True)
@@ -976,6 +977,66 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
 
     assert result.ok is True
 
+
+def table_exists(session, table_name):
+    inspector = inspect(session.bind)
+    return inspector.has_table(table_name)
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.Connection.run')
+def test_sqlalchemy_tables_exist(mock_run, mock_put, mock_open, mock_session, caplog):
+    """
+    Test that after initializing SlurmClient with all listeners enabled, 
+    the relevant SQLAlchemy tables exist in the database.
+    """
+    # Initialize the analytics system (with reset_tables=False to not drop them)
+    with caplog.at_level(logging.INFO):
+        slurm_client = SlurmClient(
+            host="localhost",
+            port=8022,
+            user="slurm",
+            slurm_data_path="datapath",
+            slurm_images_path="imagespath",
+            slurm_script_path="scriptpath",
+            slurm_converters_path="converterspath",
+            slurm_script_repo="repo-url",
+            slurm_model_paths={'wf': 'path'},
+            slurm_model_images={'wf': 'image'},
+            slurm_model_repos={'wf': 'https://github.com/example/workflow1'},
+            track_workflows=True,  # Enable workflow tracking
+            enable_job_accounting=True,  # Enable job accounting
+            enable_job_progress=True,  # Enable job progress tracking
+            enable_workflow_analytics=True,  # Enable workflow analytics
+            init_slurm=True  # Trigger the initialization of Slurm
+        )
+        
+        # Check that the expected log message for table drops is present
+        assert any("Dropped view tables successfully" in record.message for record in caplog.records), \
+            "Expected log message 'Dropped view tables successfully' was not found."
+
+    # Check that the expected tables exist
+    with EngineManager.get_session() as session:
+        expected_tables = [
+            # Listener event and tracking tables
+            slurm_client.jobAccounting.recorder.tracking_table_name,
+            slurm_client.jobAccounting.recorder.events_table_name,
+            slurm_client.jobProgress.recorder.tracking_table_name,
+            slurm_client.jobProgress.recorder.events_table_name,
+            slurm_client.workflowAnalytics.recorder.tracking_table_name,
+            slurm_client.workflowAnalytics.recorder.events_table_name,
+            
+            # Views
+            TaskExecution.__tablename__,
+            JobProgressView.__tablename__,
+            JobView.__tablename__
+        ]
+        
+        # Ensure each expected table exists in the database
+        for table in expected_tables:
+            assert table_exists(session, table), f"Table {table} should exist but does not."
+            
 
 @pytest.mark.parametrize("track_workflows, enable_job_accounting, enable_job_progress, enable_workflow_analytics, expected_tracker_classes", [
     # Case when everything is enabled

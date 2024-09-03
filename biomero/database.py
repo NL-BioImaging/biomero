@@ -35,12 +35,14 @@ class JobView(Base):
         slurm_job_id (Integer): The unique identifier for the Slurm job.
         user (Integer): The ID of the user who submitted the job.
         group (Integer): The group ID associated with the job.
+        task_id (UUID): The unique identifier for the biomero task
     """
     __tablename__ = 'biomero_job_view'
 
     slurm_job_id = Column(Integer, primary_key=True)
     user = Column(Integer, nullable=False)
     group = Column(Integer, nullable=False)
+    task_id = Column(PGUUID(as_uuid=True))
     
 
 class JobProgressView(Base):
@@ -121,7 +123,7 @@ class EngineManager:
                 sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
             cls._engine = create_engine(sqlalchemy_url)
             
-            # setup tables if needed
+            # setup tables if they don't exist yet
             Base.metadata.create_all(cls._engine)
             
             # Create a scoped_session object.

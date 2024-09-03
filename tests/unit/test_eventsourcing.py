@@ -88,6 +88,25 @@ def workflow_tracker_and_workflow_analytics():
     runner.stop()
 
 
+def test_runner():
+    # Create a System instance with the necessary components
+    system = System(pipes=[[WorkflowTracker, JobAccounting]])
+    runner = SingleThreadedRunner(system)
+    runner.start()
+
+    # Get the application
+    wft = runner.get(WorkflowTracker)
+
+    # when
+    assert wft.closing.is_set() is False
+    runner.stop()
+    assert wft.closing.is_set() is True
+    
+    # runner.start()
+    # wft2 = runner.get(WorkflowTracker)
+    # assert wft2.closing.is_set() is False
+    
+
 def test_initiate_workflow(workflow_tracker):
     # Initiating a workflow
     workflow_id = workflow_tracker.initiate_workflow(
@@ -596,7 +615,8 @@ def test_job_acc_update_view_table(workflow_tracker_and_job_accounting):
     job_id = "67890"
     user = 1
     group = 2
-    job_accounting.update_view_table(job_id=job_id, user=user, group=group)
+    job_accounting.update_view_table(job_id=job_id, user=user, group=group, 
+                                     task_id=uuid.uuid4())
 
     # THEN verify the JobView entry using SQLAlchemy
     with EngineManager.get_session() as session:
@@ -615,9 +635,12 @@ def test_job_acc_get_jobs_for_user(workflow_tracker_and_job_accounting):
     workflow_tracker, job_accounting = workflow_tracker_and_job_accounting
 
     # Simulate adding jobs
-    job_accounting.update_view_table(job_id=100, user=1, group=2)
-    job_accounting.update_view_table(job_id=200, user=1, group=2)
-    job_accounting.update_view_table(job_id=300, user=2, group=3)
+    job_accounting.update_view_table(job_id=100, user=1, group=2, 
+                                     task_id=uuid.uuid4())
+    job_accounting.update_view_table(job_id=200, user=1, group=2, 
+                                     task_id=uuid.uuid4())
+    job_accounting.update_view_table(job_id=300, user=2, group=3, 
+                                     task_id=uuid.uuid4())
 
     # WHEN retrieving jobs for a specific user
     jobs = job_accounting.get_jobs(user=1)
@@ -639,9 +662,12 @@ def test_job_acc_get_jobs_for_group(workflow_tracker_and_job_accounting):
     workflow_tracker, job_accounting = workflow_tracker_and_job_accounting
 
     # Simulate adding jobs
-    job_accounting.update_view_table(job_id=400, user=1, group=2)
-    job_accounting.update_view_table(job_id=500, user=2, group=2)
-    job_accounting.update_view_table(job_id=600, user=2, group=3)
+    job_accounting.update_view_table(job_id=400, user=1, group=2,
+                                     task_id=uuid.uuid4())
+    job_accounting.update_view_table(job_id=500, user=2, group=2,
+                                     task_id=uuid.uuid4())
+    job_accounting.update_view_table(job_id=600, user=2, group=3,
+                                     task_id=uuid.uuid4())
 
     # WHEN retrieving jobs for a specific group
     jobs = job_accounting.get_jobs(group=2)
@@ -663,9 +689,12 @@ def test_job_acc_get_jobs_all(workflow_tracker_and_job_accounting):
     workflow_tracker, job_accounting = workflow_tracker_and_job_accounting
 
     # Simulate adding jobs
-    job_accounting.update_view_table(job_id=700, user=1, group=2)
-    job_accounting.update_view_table(job_id=800, user=1, group=2)
-    job_accounting.update_view_table(job_id=900, user=2, group=3)
+    job_accounting.update_view_table(job_id=700, user=1, group=2,
+                                     task_id=uuid.uuid4())
+    job_accounting.update_view_table(job_id=800, user=1, group=2,
+                                     task_id=uuid.uuid4())
+    job_accounting.update_view_table(job_id=900, user=2, group=3,
+                                     task_id=uuid.uuid4())
 
     # WHEN retrieving all jobs
     jobs = job_accounting.get_jobs()

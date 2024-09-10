@@ -59,8 +59,32 @@ class JobProgressView(Base):
     slurm_job_id = Column(Integer, primary_key=True)
     status = Column(String, nullable=False)
     progress = Column(String, nullable=True)
-    
 
+
+class WorkflowProgressView(Base):
+    """
+    SQLAlchemy model for the 'workflow_progress_view' table.
+
+    Attributes:
+        workflow_id (PGUUID): The unique identifier for the workflow (primary key).
+        status (String, optional): The current status of the workflow.
+        progress (String, optional): The progress status of the workflow.
+        user (String, optional): The user who initiated the workflow.
+        group (String, optional): The group associated with the workflow.
+        name (String, optional): The name of the workflow
+    """
+    __tablename__ = 'biomero_workflow_progress_view'
+
+    workflow_id = Column(PGUUID(as_uuid=True), primary_key=True)
+    status = Column(String, nullable=True)
+    progress = Column(String, nullable=True)
+    user = Column(Integer, nullable=True)
+    group = Column(Integer, nullable=True)
+    name = Column(String, nullable=True)
+    task = Column(String, nullable=True)
+    start_time = Column(DateTime, nullable=False)
+    
+    
 class TaskExecution(Base):
     """
     SQLAlchemy model for the 'biomero_task_execution' table.

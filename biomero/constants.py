@@ -108,3 +108,14 @@ class transfer:
     FORMAT_ZARR = 'ZARR'
     FOLDER = "Folder_Name"
     FOLDER_DEFAULT = 'SLURM_IMAGES_'
+    
+
+class workflow_status:
+    INITIALIZING = "INITIALIZING"
+    TRANSFERRING = "TRANSFERRING"
+    CONVERTING = "CONVERTING"
+    RETRIEVING = "RETRIEVING"
+    DONE = "DONE"
+    FAILED = "FAILED"
+    RUNNING = "RUNNING"
+    JOB_STATUS = "JOB_"

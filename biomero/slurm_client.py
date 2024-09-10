@@ -31,8 +31,8 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
-from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics
-from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution
+from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
+from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
 from eventsourcing.system import System, SingleThreadedRunner
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
@@ -467,6 +467,7 @@ class SlurmClient(Connection):
             # Add JobProgress to the pipeline if enabled
             if self.enable_job_progress:
                 pipes.append([WorkflowTracker, JobProgress])
+                pipes.append([WorkflowTracker, WorkflowProgress])
             
             # Add WorkflowAnalytics to the pipeline if enabled
             if self.enable_workflow_analytics:
@@ -500,7 +501,8 @@ class SlurmClient(Connection):
             tables = [] 
             # gather the listener tables
             listeners = [self.jobAccounting, 
-                         self.jobProgress, 
+                         self.jobProgress,
+                         self.wfProgress, 
                          self.workflowAnalytics]
             for listener in listeners:
                 if listener:
@@ -510,6 +512,7 @@ class SlurmClient(Connection):
             # gather the view tables
             tables.append(TaskExecution.__tablename__)
             tables.append(JobProgressView.__tablename__)
+            tables.append(WorkflowProgressView.__tablename__)
             tables.append(JobView.__tablename__) 
             with EngineManager.get_session() as session:
                 try:
@@ -530,22 +533,43 @@ class SlurmClient(Connection):
             EngineManager.close_engine() # close current sql session          
             # restart runner, listeners and recreate views
             self.initialize_analytics_system(reset_tables=False)
+            # Update the view tables again
+            listeners = [self.jobAccounting, 
+                         self.jobProgress,
+                         self.wfProgress, 
+                         self.workflowAnalytics]
+            for listener in listeners:
+                if listener:
+                    self.bring_listener_uptodate(listener)
             
     def get_listeners(self, runner):
         if self.track_workflows and self.enable_job_accounting:
-            self.jobAccounting = runner.get(JobAccounting)
+            self.jobAccounting = runner.get(JobAccounting)   
         else:
             self.jobAccounting = NoOpWorkflowTracker()
         
         if self.track_workflows and self.enable_job_progress:
             self.jobProgress = runner.get(JobProgress)
+            self.wfProgress = runner.get(WorkflowProgress)
         else:
             self.jobProgress = NoOpWorkflowTracker()
+            self.wfProgress = NoOpWorkflowTracker()
         
         if self.track_workflows and self.enable_workflow_analytics:
             self.workflowAnalytics = runner.get(WorkflowAnalytics)
         else:
             self.workflowAnalytics = NoOpWorkflowTracker()
+
+    def bring_listener_uptodate(self, listener):
+        with EngineManager.get_session() as session:
+            try:
+                # Begin a transaction
+                listener.pull_and_process(leader_name=WorkflowTracker.__name__, start=1)
+                session.commit()
+                logger.info("Updated listener successfully")
+            except IntegrityError as e:
+                logger.error(e)
+                session.rollback()
             
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Ensure to call the parent class's __exit__ 

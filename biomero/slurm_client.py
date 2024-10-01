@@ -505,7 +505,7 @@ class SlurmClient(Connection):
                          self.wfProgress, 
                          self.workflowAnalytics]
             for listener in listeners:
-                if listener:
+                if not isinstance(listener, NoOpWorkflowTracker):
                     tables.append(listener.recorder.tracking_table_name)
                     tables.append(listener.recorder.events_table_name)
             runner.stop()
@@ -560,11 +560,11 @@ class SlurmClient(Connection):
         else:
             self.workflowAnalytics = NoOpWorkflowTracker()
 
-    def bring_listener_uptodate(self, listener):
+    def bring_listener_uptodate(self, listener, start=1):
         with EngineManager.get_session() as session:
             try:
                 # Begin a transaction
-                listener.pull_and_process(leader_name=WorkflowTracker.__name__, start=1)
+                listener.pull_and_process(leader_name=WorkflowTracker.__name__, start=start)
                 session.commit()
                 logger.info("Updated listener successfully")
             except IntegrityError as e:

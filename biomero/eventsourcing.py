@@ -92,7 +92,7 @@ class WorkflowRun(Aggregate):
         self.user = user
         self.group = group
         self.tasks = []
-        logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")
+        # logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")
 
     class TaskAdded(Aggregate.Event):
         """
@@ -105,7 +105,7 @@ class WorkflowRun(Aggregate):
 
     @event(TaskAdded)
     def add_task(self, task_id: UUID):
-        logger.debug(f"Adding task to WorkflowRun: task_id={task_id}")
+        # logger.debug(f"Adding task to WorkflowRun: task_id={task_id}")
         self.tasks.append(task_id)
 
     class WorkflowStarted(Aggregate.Event):
@@ -116,7 +116,7 @@ class WorkflowRun(Aggregate):
 
     @event(WorkflowStarted)
     def start_workflow(self):
-        logger.debug(f"Starting workflow: id={self.id}")
+        # logger.debug(f"Starting workflow: id={self.id}")
         pass
 
     class WorkflowCompleted(Aggregate.Event):
@@ -127,7 +127,7 @@ class WorkflowRun(Aggregate):
 
     @event(WorkflowCompleted)
     def complete_workflow(self):
-        logger.debug(f"Completing workflow: id={self.id}")
+        # logger.debug(f"Completing workflow: id={self.id}")
         pass
 
     class WorkflowFailed(Aggregate.Event):
@@ -141,7 +141,7 @@ class WorkflowRun(Aggregate):
 
     @event(WorkflowFailed)
     def fail_workflow(self, error_message: str):
-        logger.debug(f"Failing workflow: id={self.id}, error_message={error_message}")
+        # logger.debug(f"Failing workflow: id={self.id}, error_message={error_message}")
         pass
 
 
@@ -196,7 +196,8 @@ class Task(Aggregate):
         self.results = []
         self.result_message = None
         self.status = None
-        logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
+        # Not logging on aggregates, they get reconstructed so much
+        # logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
 
     class JobIdAdded(Aggregate.Event):
         """
@@ -209,7 +210,7 @@ class Task(Aggregate):
 
     @event(JobIdAdded)
     def add_job_id(self, job_id):
-        logger.debug(f"Adding job_id to Task: task_id={self.id}, job_id={job_id}")
+        # logger.debug(f"Adding job_id to Task: task_id={self.id}, job_id={job_id}")
         self.job_ids.append(job_id)
 
     class StatusUpdated(Aggregate.Event):
@@ -223,7 +224,7 @@ class Task(Aggregate):
 
     @event(StatusUpdated)
     def update_task_status(self, status):
-        logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")
+        # logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")
         self.status = status
     
     class ProgressUpdated(Aggregate.Event):
@@ -237,7 +238,7 @@ class Task(Aggregate):
 
     @event(ProgressUpdated)
     def update_task_progress(self, progress):
-        logger.debug(f"Adding progress to Task: task_id={self.id}, progress={progress}")
+        # logger.debug(f"Adding progress to Task: task_id={self.id}, progress={progress}")
         self.progress = progress
 
     class ResultAdded(Aggregate.Event):
@@ -250,13 +251,13 @@ class Task(Aggregate):
         result: ResultDict
 
     def add_result(self, result: Result):
-        logger.debug(f"Adding result to Task: task_id={self.id}, result={result}")
+        # logger.debug(f"Adding result to Task: task_id={self.id}, result={result}")
         result = ResultDict(result)
         self._add_result(result)
 
     @event(ResultAdded)
     def _add_result(self, result: ResultDict):
-        logger.debug(f"Adding result to Task results: task_id={self.id}, result={result}")
+        # logger.debug(f"Adding result to Task results: task_id={self.id}, result={result}")
         self.results.append(result)
 
     class TaskStarted(Aggregate.Event):
@@ -267,7 +268,7 @@ class Task(Aggregate):
 
     @event(TaskStarted)
     def start_task(self):
-        logger.debug(f"Starting task: id={self.id}")
+        # logger.debug(f"Starting task: id={self.id}")
         pass
 
     class TaskCompleted(Aggregate.Event):
@@ -281,7 +282,7 @@ class Task(Aggregate):
 
     @event(TaskCompleted)
     def complete_task(self, result: str):
-        logger.debug(f"Completing task: id={self.id}, result={result}")
+        # logger.debug(f"Completing task: id={self.id}, result={result}")
         self.result_message = result
 
     class TaskFailed(Aggregate.Event):
@@ -295,7 +296,7 @@ class Task(Aggregate):
 
     @event(TaskFailed)
     def fail_task(self, error_message: str):
-        logger.debug(f"Failing task: id={self.id}, error_message={error_message}")
+        # logger.debug(f"Failing task: id={self.id}, error_message={error_message}")
         self.result_message = error_message
         pass
 

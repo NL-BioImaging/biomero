@@ -63,6 +63,7 @@ class JobAccounting(ProcessApplication):
         # Optionally, persist this state if needed
         # Optionally, add an event to do that, then save via collect
         # process_event.collect_events(jobaccount, wfView)   
+        EngineManager.commit()
 
     @policy.register(WorkflowRun.TaskAdded)
     def _(self, domain_event, process_event):
@@ -77,6 +78,7 @@ class JobAccounting(ProcessApplication):
         # Optionally, persist this state if needed
         # use .collect_events(agg) instead of .save(agg)
         # process_event.collect_events(taskView)
+        EngineManager.commit()
 
     @policy.register(Task.JobIdAdded)
     def _(self, domain_event, process_event):
@@ -104,6 +106,7 @@ class JobAccounting(ProcessApplication):
             
         # use .collect_events(agg) instead of .save(agg)
         # process_event.collect_events(jobaccount)
+        EngineManager.commit()
         
     def update_view_table(self, job_id, user, group, task_id):
         """Update the view table with new job information."""
@@ -188,24 +191,27 @@ class WorkflowProgress(ProcessApplication):
                                        "name": name,
                                        "task": None,
                                        "start_time": start_time}
-        logger.debug(f"Workflow initiated: wf_id={wf_id}, name={name}, user={user}, group={group}, status={wfs.INITIALIZING}")
+        logger.debug(f"[WFP] Workflow initiated: wf_id={wf_id}, name={name}, user={user}, group={group}, status={wfs.INITIALIZING} -- {domain_event.__dict__}")
         self.update_view_table(wf_id)
+        EngineManager.commit()
 
     @policy.register(WorkflowRun.WorkflowCompleted)
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
         self.workflows[wf_id]["status"] = wfs.DONE
         self.workflows[wf_id]["progress"] = "100%"
-        logger.debug(f"Status updated: wf_id={wf_id}, status={wfs.DONE}")
+        logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.DONE} -- {domain_event.__dict__}")
         self.update_view_table(wf_id)
+        EngineManager.commit()
         
     @policy.register(WorkflowRun.WorkflowFailed)
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
         error = domain_event.error_message
         self.workflows[wf_id]["status"] = wfs.FAILED
-        logger.debug(f"Status updated: wf_id={wf_id}, status={wfs.FAILED}")
+        logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.FAILED} -- {domain_event.__dict__}")
         self.update_view_table(wf_id)
+        EngineManager.commit()
 
     @policy.register(WorkflowRun.TaskAdded)
     def _(self, domain_event, process_event):
@@ -218,7 +224,8 @@ class WorkflowProgress(ProcessApplication):
             self.tasks[task_id]["workflow_id"] = wf_id
             if wf_id in self.workflows:
                 self.workflows[wf_id]["task"] = self.tasks[task_id]["task_name"]
-        logger.debug(f"Task added: task_id={task_id}, wf_id={wf_id}")
+        logger.debug(f"[WFP] Task added: task_id={task_id}, wf_id={wf_id} -- {domain_event.__dict__}")
+        EngineManager.commit()
 
     @policy.register(Task.TaskCreated)
     def _(self, domain_event, process_event):
@@ -231,7 +238,8 @@ class WorkflowProgress(ProcessApplication):
             "workflow_id": None, 
             "progress": None 
             }
-        logger.debug(f"Task created: task_id={task_id}, task_name={task_name}")
+        logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
+        EngineManager.commit()
 
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
@@ -283,8 +291,9 @@ class WorkflowProgress(ProcessApplication):
                 # Update the workflow status
                 self.workflows[wf_id]["status"] = workflow_status
                 self.workflows[wf_id]["progress"] = workflow_prog
-                logger.debug(f"Status updated: wf_id={wf_id}, task_id={task_id}, status={workflow_status}")
+                logger.debug(f"[WFP] Status updated: wf_id={wf_id}, task_id={task_id}, status={workflow_status} -- {domain_event.__dict__}")
                 self.update_view_table(wf_id)
+        EngineManager.commit()
 
     @policy.register(Task.ProgressUpdated)
     def _(self, domain_event, process_event):
@@ -297,8 +306,9 @@ class WorkflowProgress(ProcessApplication):
             wf_id = self.tasks[task_id]["workflow_id"]
             if wf_id and wf_id in self.workflows:
                 self.workflows[wf_id]["task_progress"] = progress
-                logger.debug(f"(Task) Progress updated: wf_id={wf_id}, progress={progress}")
-                self.update_view_table(wf_id)
+                logger.debug(f"[WFP] (Task) Progress updated: wf_id={wf_id}, progress={progress} -- {domain_event.__dict__}")
+                self.update_view_table(wf_id)   
+        EngineManager.commit() 
     
     def update_view_table(self, wf_id):
         """Update the view table with new workflow status, progress, user, and group."""
@@ -317,11 +327,10 @@ class WorkflowProgress(ProcessApplication):
                 )
                 session.merge(new_workflow_progress)
                 session.commit()
-                logger.debug(f"Inserted wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
+                logger.debug(f"[WFP] Inserted wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
             except IntegrityError:
                 session.rollback()
-                logger.error(f"Failed to insert/update wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
-
+                logger.error(f"[WFP] Failed to insert/update wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
 
 
 class JobProgress(ProcessApplication):
@@ -344,7 +353,8 @@ class JobProgress(ProcessApplication):
         
         # Track task to job mapping
         self.task_to_job[task_id] = job_id
-        logger.debug(f"JobId added: job_id={job_id}, task_id={task_id}")
+        logger.debug(f"[JP] JobId added: job_id={job_id}, task_id={task_id} -- {domain_event.__dict__}")
+        EngineManager.commit()
         
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
@@ -359,9 +369,10 @@ class JobProgress(ProcessApplication):
             else:
                 self.job_status[job_id] = {"status": status, "progress": None}
             
-            logger.debug(f"Status updated: job_id={job_id}, status={status}")
+            logger.debug(f"[JP] Status updated: job_id={job_id}, status={status} -- {domain_event.__dict__}")
             # Update view table
             self.update_view_table(job_id)
+        EngineManager.commit()
     
     @policy.register(Task.ProgressUpdated)
     def _(self, domain_event, process_event):
@@ -376,9 +387,10 @@ class JobProgress(ProcessApplication):
             else:
                 self.job_status[job_id] = {"status": "UNKNOWN", "progress": progress}
             
-            logger.debug(f"Progress updated: job_id={job_id}, progress={progress}")
+            logger.debug(f"[JP] Progress updated: job_id={job_id}, progress={progress} -- {domain_event.__dict__}")
             # Update view table
             self.update_view_table(job_id)
+        EngineManager.commit()
         
     def update_view_table(self, job_id):
         """Update the view table with new job status and progress information."""
@@ -392,10 +404,10 @@ class JobProgress(ProcessApplication):
                 )
                 session.merge(new_job_progress)  # Use merge to insert or update
                 session.commit()
-                logger.debug(f"Inserted/Updated job progress in view table: job_id={job_id}, status={job_info['status']}, progress={job_info['progress']}")
+                logger.debug(f"[JP] Inserted/Updated job progress in view table: job_id={job_id}, status={job_info['status']}, progress={job_info['progress']}")
             except IntegrityError:
                 session.rollback()
-                logger.error(f"Failed to insert/update job progress in view table: job_id={job_id}")
+                logger.error(f"[JP] Failed to insert/update job progress in view table: job_id={job_id}")
 
 
 # @event.listens_for(Engine, "before_cursor_execute")
@@ -426,7 +438,8 @@ class WorkflowAnalytics(ProcessApplication):
 
         # Track workflow
         self.workflows[wf_id] = {"user": user, "group": group}
-        logger.debug(f"Workflow initiated: wf_id={wf_id}, user={user}, group={group}")
+        logger.debug(f"[WFA] Workflow initiated: wf_id={wf_id}, user={user}, group={group} -- {domain_event.__dict__}")
+        EngineManager.commit()
 
     @policy.register(WorkflowRun.TaskAdded)
     def _(self, domain_event, process_event):
@@ -441,7 +454,8 @@ class WorkflowAnalytics(ProcessApplication):
             # In case TaskAdded arrives before TaskCreated (unlikely but possible)
             self.tasks[task_id] = {"wf_id": wf_id}
 
-        logger.debug(f"Task added: task_id={task_id}, wf_id={wf_id}")
+        logger.debug(f"[WFA] Task added: task_id={task_id}, wf_id={wf_id} -- {domain_event.__dict__}")
+        EngineManager.commit()
 
     @policy.register(Task.TaskCreated)
     def _(self, domain_event, process_event):
@@ -468,8 +482,9 @@ class WorkflowAnalytics(ProcessApplication):
                 "status": "CREATED"
             }
 
-        logger.debug(f"Task created: task_id={task_id}, task_name={task_name}, timestamp={timestamp_created}")
+        logger.debug(f"[WFA] Task created: task_id={task_id}, task_name={task_name}, timestamp={timestamp_created} -- {domain_event.__dict__}")
         self.update_view_table(task_id)
+        EngineManager.commit()
 
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
@@ -480,8 +495,9 @@ class WorkflowAnalytics(ProcessApplication):
         # Update task with status
         if task_id in self.tasks:
             self.tasks[task_id]["status"] = status
-            logger.debug(f"Task status updated: task_id={task_id}, status={status}")
+            logger.debug(f"[WFA] Task status updated: task_id={task_id}, status={status} -- {domain_event.__dict__}")
             self.update_view_table(task_id)
+        EngineManager.commit()
 
     @policy.register(Task.TaskCompleted)
     def _(self, domain_event, process_event):
@@ -492,8 +508,9 @@ class WorkflowAnalytics(ProcessApplication):
         # Update task with end time
         if task_id in self.tasks:
             self.tasks[task_id]["end_time"] = timestamp_completed
-            logger.debug(f"Task completed: task_id={task_id}, end_time={timestamp_completed}")
+            logger.debug(f"[WFA] Task completed: task_id={task_id}, end_time={timestamp_completed} -- {domain_event.__dict__}")
             self.update_view_table(task_id)
+        EngineManager.commit()
 
     @policy.register(Task.TaskFailed)
     def _(self, domain_event, process_event):
@@ -506,8 +523,9 @@ class WorkflowAnalytics(ProcessApplication):
         if task_id in self.tasks:
             self.tasks[task_id]["end_time"] = timestamp_failed
             self.tasks[task_id]["error_type"] = error_message
-            logger.debug(f"Task failed: task_id={task_id}, end_time={timestamp_failed}, error={error_message}")
+            logger.debug(f"[WFA] Task failed: task_id={task_id}, end_time={timestamp_failed}, error={error_message} -- {domain_event.__dict__}")
             self.update_view_table(task_id)
+        EngineManager.commit()
 
     def update_view_table(self, task_id):
         """Update the view table with new task execution information."""
@@ -554,11 +572,11 @@ class WorkflowAnalytics(ProcessApplication):
                     session.add(new_task_execution)
                 
                 session.commit()
-                logger.debug(f"Updated/Inserted task execution into view table: task_id={task_id}, task_name={task_info.get('task_name')}")
+                logger.debug(f"[WFA] Updated/Inserted task execution into view table: task_id={task_id}, task_name={task_info.get('task_name')}")
             except IntegrityError as e:
                 session.rollback()
-                logger.error(f"Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
-                logger.debug(f"Task info: {task_info}")
+                logger.error(f"[WFA] Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
+                logger.debug(f"[WFA] Task info: {task_info}")
 
     def get_task_counts(self, user=None, group=None):
         """Retrieve task execution counts grouped by task name and version.
@@ -588,7 +606,7 @@ class WorkflowAnalytics(ProcessApplication):
                 (task_name, task_version): count
                 for task_name, task_version, count in task_counts
             }
-            logger.debug(f"Retrieved task counts: {result}")
+            logger.debug(f"[WFA] Retrieved task counts: {result}")
             return result
 
     def get_average_task_duration(self, user=None, group=None):
@@ -622,7 +640,7 @@ class WorkflowAnalytics(ProcessApplication):
                 (task_name, task_version): avg_duration
                 for task_name, task_version, avg_duration in task_durations
             }
-            logger.debug(f"Retrieved average task durations: {result}")
+            logger.debug(f"[WFA] Retrieved average task durations: {result}")
             return result
 
     def get_task_failures(self, user=None, group=None):
@@ -657,7 +675,7 @@ class WorkflowAnalytics(ProcessApplication):
                     result[key] = []
                 result[key].append(error_type)
             
-            logger.debug(f"Retrieved task failures: {result}")
+            logger.debug(f"[WFA] Retrieved task failures: {result}")
             return result
 
     def get_task_usage_over_time(self, task_name, user=None, group=None):
@@ -689,5 +707,5 @@ class WorkflowAnalytics(ProcessApplication):
                 date: count
                 for date, count in usage_over_time
             }
-            logger.debug(f"Retrieved task usage over time for {task_name}: {result}")
+            logger.debug(f"[WFA] Retrieved task usage over time for {task_name}: {result}")
             return result

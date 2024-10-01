@@ -152,7 +152,7 @@ class EngineManager:
             
             # Create a scoped_session object.
             cls._session = scoped_session(
-                sessionmaker(autocommit=False, autoflush=False, bind=cls._engine)
+                sessionmaker(autocommit=False, autoflush=True, bind=cls._engine)
             )
             
             class MyScopedSessionAdapter:

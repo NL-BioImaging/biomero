@@ -1,12 +1,12 @@
-from datetime import datetime, timedelta, timezone
-import json
+from datetime import datetime, timezone
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 import uuid
 import pytest
 from biomero.eventsourcing import Task, WorkflowTracker
-from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics
+from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution
+from biomero.constants import workflow_status as wfs
 from uuid import UUID
 import logging
 from eventsourcing.system import System, SingleThreadedRunner
@@ -68,6 +68,21 @@ def workflow_tracker_and_job_progress():
 
     # Yield the instances of WorkflowTracker and JobProgress
     yield runner.get(WorkflowTracker), runner.get(JobProgress)
+
+    # Cleanup after tests
+    runner.stop()
+    
+
+@pytest.fixture
+def workflow_tracker_and_workflow_progress():
+    """Fixture to initialize System and SingleThreadedRunner with WorkflowTracker and JobProgress."""
+    # Create a System instance with the necessary components
+    system = System(pipes=[[WorkflowTracker, WorkflowProgress]])
+    runner = SingleThreadedRunner(system)
+    runner.start()
+
+    # Yield the instances of WorkflowTracker and JobProgress
+    yield runner.get(WorkflowTracker), runner.get(WorkflowProgress)
 
     # Cleanup after tests
     runner.stop()
@@ -711,6 +726,189 @@ def test_job_acc_get_jobs_all(workflow_tracker_and_job_accounting):
                 user_jobs[job_view.user] = []
             user_jobs[job_view.user].append(job_view.slurm_job_id)
         assert user_jobs == {1: [700, 800], 2: [900]}
+
+
+def test_workflow_progress_workflow_initiated(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+
+    # THEN verify internal state in WorkflowProgress
+    assert workflow_id in workflow_progress.workflows
+    assert workflow_progress.workflows[workflow_id]["status"] == wfs.INITIALIZING
+    assert workflow_progress.workflows[workflow_id]["progress"] == "0%"
+    assert workflow_progress.workflows[workflow_id]["user"] == 1
+    assert workflow_progress.workflows[workflow_id]["group"] == 2
+
+
+def test_workflow_progress_workflow_completed(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+
+    # Complete the workflow
+    workflow_tracker.complete_workflow(workflow_id)
+
+    # THEN verify internal state in WorkflowProgress
+    assert workflow_id in workflow_progress.workflows
+    assert workflow_progress.workflows[workflow_id]["status"] == wfs.DONE
+    assert workflow_progress.workflows[workflow_id]["progress"] == "100%"
+
+
+def test_workflow_progress_workflow_failed(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+
+    # Mark the workflow as failed
+    error_message = "An error occurred"
+    workflow_tracker.fail_workflow(workflow_id, error_message)
+
+    # THEN verify internal state in WorkflowProgress
+    assert workflow_id in workflow_progress.workflows
+    assert workflow_progress.workflows[workflow_id]["status"] == wfs.FAILED
+
+
+def test_workflow_progress_task_added(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+
+    # Add a task to the workflow
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "task1", "v1", {"foo": "bar"}, {"bar": "baz"})
+
+    # THEN verify internal state in WorkflowProgress
+    assert task_id in workflow_progress.tasks
+    assert workflow_progress.tasks[task_id]["workflow_id"] == workflow_id
+    assert workflow_progress.workflows[workflow_id]["task"] == "task1"
+
+
+def test_workflow_progress_task_status_updated(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated and a task is added
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "task1", "v1", {"foo": "bar"}, {"bar": "baz"})
+
+    # Update the task status
+    status = "InProgress"
+    workflow_tracker.update_task_status(task_id, status)
+
+    # THEN verify internal state in WorkflowProgress
+    assert task_id in workflow_progress.tasks
+    assert workflow_progress.tasks[task_id]["workflow_id"] == workflow_id
+    assert workflow_progress.workflows[workflow_id]["status"] == wfs.JOB_STATUS + status
+
+
+def test_workflow_progress_task_progress_updated(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated and a task is added
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "task1", "v1", {"foo": "bar"}, {"bar": "baz"})
+
+    # Update the task progress
+    progress = "25%"
+    workflow_tracker.update_task_progress(task_id, progress)
+
+    # THEN verify internal state in WorkflowProgress
+    assert workflow_progress.tasks[task_id]["progress"] == progress
+    assert workflow_progress.workflows[workflow_id]["task_progress"] == progress
+    
+   
+def test_workflow_progress_all_statuses(workflow_tracker_and_workflow_progress):
+    # GIVEN a WorkflowTracker event system and workflow progress listener
+    workflow_tracker: WorkflowTracker
+    workflow_progress: WorkflowProgress
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+
+    # WHEN a workflow is initiated
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+
+    # Add tasks with names that will trigger all branches
+    task_names = [
+        ('_SLURM_Image_Transfer.py', 'InProgress'),
+        ('convert_image', 'InProgress'),  # should match the convert_ condition
+        ('SLURM_Get_Results.py', 'InProgress'),
+        ('SLURM_Run_Workflow.py', 'InProgress'),
+        ('unknown_task', 'InProgress')
+    ]
+
+    for task_name, status in task_names:
+        task_id = workflow_tracker.add_task_to_workflow(workflow_id, task_name, "v1", {"foo": "bar"}, {"bar": "baz"})
+        workflow_tracker.update_task_status(task_id, status)  # Update status to trigger logic
+
+        # Check expected status and progress after each update
+        if task_name == '_SLURM_Image_Transfer.py':
+            expected_status = wfs.TRANSFERRING
+            expected_progress = "5%"
+        elif task_name.startswith('convert_'):
+            expected_status = wfs.CONVERTING
+            expected_progress = "25%"
+        elif task_name == 'SLURM_Get_Results.py':
+            expected_status = wfs.RETRIEVING
+            expected_progress = "90%"
+        elif task_name == 'SLURM_Run_Workflow.py':
+            expected_status = wfs.RUNNING
+            expected_progress = "50%"
+        else:
+            expected_status = wfs.JOB_STATUS + status
+            expected_progress = "50%"
+
+        # Validate after each task status update
+        assert workflow_progress.workflows[workflow_id]["status"] == expected_status
+        assert workflow_progress.workflows[workflow_id]["progress"] == expected_progress
+
+    # Introduce task progress for interpolation
+    # Assume a task that updates its progress
+    task_id = workflow_tracker.add_task_to_workflow(workflow_id, 'some_task', "v1", {"foo": "bar"}, {"bar": "baz"})
+    workflow_tracker.update_task_progress(task_id, 43)  # Simulate a progress update of 43%
+    
+    # Manually set a previous task's progress to trigger interpolation logic
+    previous_task_id = workflow_tracker.add_task_to_workflow(workflow_id, 'previous_task', "v1", {"foo": "bar"}, {"bar": "baz"})
+    workflow_tracker.update_task_progress(previous_task_id, "43%")  # Simulate a previous progress of 50%
+
+    # Trigger the status update for the last task
+    workflow_tracker.update_task_status(task_id, 'InProgress')
+
+    # Check the workflow's updated progress using interpolation
+    expected_interpolated_progress = "67.2%"
+
+    # Assert final workflow status and interpolated progress
+    assert workflow_progress.workflows[workflow_id]["status"] == wfs.JOB_STATUS + 'InProgress'  # Final expected status
+    assert workflow_progress.workflows[workflow_id]["progress"] == expected_interpolated_progress  # Check interpolated progress
 
 
 def test_job_progress_job_id_added(workflow_tracker_and_job_progress):

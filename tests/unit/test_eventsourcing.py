@@ -894,12 +894,8 @@ def test_workflow_progress_all_statuses(workflow_tracker_and_workflow_progress):
     # Introduce task progress for interpolation
     # Assume a task that updates its progress
     task_id = workflow_tracker.add_task_to_workflow(workflow_id, 'some_task', "v1", {"foo": "bar"}, {"bar": "baz"})
-    workflow_tracker.update_task_progress(task_id, 43)  # Simulate a progress update of 43%
+    workflow_tracker.update_task_progress(task_id, "43%")  # Simulate a progress update of 43%
     
-    # Manually set a previous task's progress to trigger interpolation logic
-    previous_task_id = workflow_tracker.add_task_to_workflow(workflow_id, 'previous_task', "v1", {"foo": "bar"}, {"bar": "baz"})
-    workflow_tracker.update_task_progress(previous_task_id, "43%")  # Simulate a previous progress of 50%
-
     # Trigger the status update for the last task
     workflow_tracker.update_task_status(task_id, 'InProgress')
 

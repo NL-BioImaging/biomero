@@ -29,10 +29,10 @@ dependencies = [
     "fabric==3.1.0",
     "paramiko==3.4.0",
     "importlib_resources>=5.4.0",
-    "eventsourcing[crypto]==9.2.22",
+    "eventsourcing==9.3",
     "sqlalchemy==2.0.32",
     "psycopg2==2.9.9",
-    "eventsourcing_sqlalchemy==0.7" # requires py 3.8
+    "eventsourcing_sqlalchemy @ git+https://github.com/Cellular-Imaging-Amsterdam-UMC/eventsourcing-sqlalchemy@main#egg=eventsourcing_sqlalchemy"  # Specify the Git repo
 ]
 
 [tool.setuptools.packages]

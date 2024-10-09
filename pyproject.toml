@@ -32,7 +32,7 @@ dependencies = [
     "eventsourcing==9.3",
     "sqlalchemy==2.0.32",
     "psycopg2==2.9.9",
-    "eventsourcing_sqlalchemy @ git+https://github.com/Cellular-Imaging-Amsterdam-UMC/eventsourcing-sqlalchemy@main#egg=eventsourcing_sqlalchemy"  # Specify the Git repo
+    "eventsourcing_sqlalchemy @ git+https://github.com/pyeventsourcing/eventsourcing-sqlalchemy@105a48a9ffa5e5573b24f3e19a48d238135ac91d#egg=eventsourcing_sqlalchemy"  # Pinned to a specific commit
 ]
 
 [tool.setuptools.packages]

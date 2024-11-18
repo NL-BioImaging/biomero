@@ -918,12 +918,11 @@ class SlurmClient(Connection):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
                 slurm_model_jobs_params[k[:-len(suffix_job)]] = []
             elif job_param_match:
-                print(f"Match: {slurm_model_jobs_params}")
                 slurm_model_jobs_params[job_param_match.group(1)].append(
                     f" --{job_param_match.group(2)}={v}")
-                print(f"Added: {slurm_model_jobs_params}")
             else:
                 slurm_model_paths[k] = v
+        logger.info(f"Using job params: {slurm_model_jobs_params}")
 
         slurm_script_path = configs.get(
             "SLURM", "slurm_script_path",

@@ -263,9 +263,9 @@ Fill in the actual ip, this is just a placeholder!
   - chmod the config to 700 too: `sudo chmod 700 .ssh/config`
   - Ready! `ssh localslurm` (or whatever you called the alias)
 
-4. Let's edit the BIOMERO configuration `slurm-config.ini`, located in the worker-processor node
+4. Let's edit the BIOMERO configuration `slurm-config.ini`, located in the biomeroworker node
 
-  - `vi ~/NL-BIOMERO/worker-processor/slurm-config.ini`
+  - `vi ~/NL-BIOMERO/biomeroworker/slurm-config.ini`
   - Change the `host` if you did not use the `localslurm` alias in the config above.
   - Change ALL the `[SLURM]` paths to match our new slurm setup:
 
@@ -308,7 +308,7 @@ slurm_script_path=slurm-scripts
   - `cd NL-BIOMERO`
   - `docker compose down`
   - `docker compose up -d --build`
-  - Now `docker logs -f nl-biomero-omeroworker-processor-1` should show some good logs leading to: `Starting node omeroworker-processor`.
+  - Now `docker logs -f nl-biomero-biomeroworker-1` should show some good logs leading to: `Starting node biomeroworker`.
 
 
 ## 6. Showtime!
@@ -444,12 +444,12 @@ sbatch: error: Batch job submission failed: Requested node configuration is not 
 
 We will do this ad-hoc, by changing the configuration for CellPose in the `slurm-config.ini` in our installation:
 
-  - First, edit the config on the main VM with `vi worker-processor/slurm-config.ini`
+  - First, edit the config on the main VM with `vi biomeroworker/slurm-config.ini`
   - Add this line to your workflows `<wf>_job_cpus-per-task=2`, e.g. `cellpose_job_cpus-per-task=2` 
   - save file (`:wq`)
   - Don't forget to open your .ssh to the container `chmod -R 777 ~/.ssh` (and close it later)
-  - Restart the biomero container(s) (`docker compose down` & `docker compose up -d --build`, perhaps specifically for `omeroworker-processor`).
-  - Check logs to see if biomero started up properly `docker logs -f nl-biomero-omeroworker-processor-1` 
+  - Restart the biomero container(s) (`docker compose down` & `docker compose up -d --build`, perhaps specifically for `biomeroworker`).
+  - Check logs to see if biomero started up properly `docker logs -f nl-biomero-biomeroworker-1` 
 
 
 6. Next, time to segment! Time to spin up those SLURM compute nodes:

@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Dict, List, Optional, Tuple, Any
+from uuid import UUID
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
 from invoke.exceptions import UnexpectedExit
@@ -29,6 +30,12 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
+from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
+from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
+from eventsourcing.system import System, SingleThreadedRunner
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import text
 
 logger = logging.getLogger(__name__)
 
@@ -45,19 +52,20 @@ class SlurmJob:
         submit_result (Result): The result of submitting the job.
         ok (bool): Indicates whether the job submission was successful.
         job_state (str): The current state of the Slurm job.
-        error_message (str): The error message, if any.
-
-    Args:
-        submit_result (Result): The result of submitting the job.
-        job_id (int): The Slurm job ID.
+        progress (str): The progress of the Slurm job.
+        error_message (str): The error message, if any, encountered during job submission.
+        wf_id (UUID): The workflow ID associated with the job.
+        task_id (UUID): The task ID within the workflow.
+        slurm_polling_interval (int): The polling interval (in seconds) for checking the job status.
 
     Example:
         # Submit some job with the SlurmClient
-        submit_result, job_id = slurmClient.run_workflow(
-            workflow_name, workflow_version, input_data, email, time, **kwargs)
+        submit_result, job_id, wf_id, task_id = slurmClient.run_workflow(
+            workflow_name, workflow_version, input_data, email, time, wf_id,
+            **kwargs)
             
         # Create a SlurmJob instance
-        slurmJob = SlurmJob(submit_result, job_id)
+        slurmJob = SlurmJob(submit_result, job_id, wf_id, task_id)
 
         if not slurmJob.ok:
             logger.warning(f"Error with job: {slurmJob.get_error()}")
@@ -73,21 +81,33 @@ class SlurmJob:
                 raise e
 
     """
+    SLURM_POLLING_INTERVAL = 10  # seconds
     
     def __init__(self,
                  submit_result: Result,
-                 job_id: int):
+                 job_id: int,
+                 wf_id: UUID, 
+                 task_id: UUID,
+                 slurm_polling_interval: int = SLURM_POLLING_INTERVAL):
         """
         Initialize a SlurmJob instance.
 
         Args:
             submit_result (Result): The result of submitting the job.
             job_id (int): The Slurm job ID.
+            wf_id (UUID): The workflow ID associated with this job.
+            task_id (UUID): The task ID within the workflow.
+            slurm_polling_interval (int, optional): The interval in seconds for 
+                polling the job status. Defaults to SLURM_POLLING_INTERVAL.
         """
         self.job_id = job_id
+        self.wf_id = wf_id
+        self.task_id = task_id
+        self.slurm_polling_interval = slurm_polling_interval
         self.submit_result = submit_result
         self.ok = self.submit_result.ok
         self.job_state = None
+        self.progress = None
         self.error_message = self.submit_result.stderr if hasattr(self.submit_result, 'stderr') else ''
 
     def wait_for_completion(self, slurmClient, omeroConn) -> str:
@@ -111,6 +131,7 @@ class SlurmJob:
                                      "TIMEOUT+"):
             job_status_dict, poll_result = slurmClient.check_job_status(
                 [self.job_id])
+            self.progress = slurmClient.get_active_job_progress(self.job_id)
             if not poll_result.ok:
                 logger.warning(
                     f"Error checking job status:{poll_result.stderr}")
@@ -119,7 +140,11 @@ class SlurmJob:
             self.job_state = job_status_dict[self.job_id]
             # wait for 10 seconds before checking again
             omeroConn.keepAlive()  # keep the OMERO connection alive
-            timesleep.sleep(10)
+            slurmClient.workflowTracker.update_task_status(self.task_id, 
+                                                           self.job_state)
+            slurmClient.workflowTracker.update_task_progress(
+                self.task_id, self.progress)
+            timesleep.sleep(self.slurm_polling_interval)
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
         logger.info(
             f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
@@ -201,6 +226,7 @@ class SlurmClient(Connection):
             containing the Slurm job submission scripts. Optional.
 
     Example:
+        
         # Create a SlurmClient object as contextmanager
 
         with SlurmClient.from_config() as client:
@@ -219,6 +245,7 @@ class SlurmClient(Connection):
             print(result.stdout)
 
     Example 2:
+        
         # Create a SlurmClient and setup Slurm (download containers etc.)
 
         with SlurmClient.from_config(init_slurm=True) as client:
@@ -276,82 +303,100 @@ class SlurmClient(Connection):
                  slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
                  slurm_script_repo: str = None,
                  init_slurm: bool = False,
-                 ):
-        """Initializes a new instance of the SlurmClient class.
+                 track_workflows: bool = True,
+                 enable_job_accounting: bool = True,
+                 enable_job_progress: bool = True,
+                 enable_workflow_analytics: bool = True,
+                 sqlalchemy_url: str = None):
+        """
+        Initializes a new instance of the SlurmClient class.
 
-        It is preferable to use #from_config(...) method to initialize
-        parameters from a config file.
+        It is preferable to use the `#from_config(...)` method to initialize 
+        parameters from a configuration file.
 
         Args:
-            host (str, optional): The hostname or IP address of the remote
-                server. Defaults to _DEFAULT_HOST.
+            host (str, optional): The hostname or IP address of the remote 
+                server. Defaults to `_DEFAULT_HOST`.
             user (str, optional): The username to use when connecting to 
-                the remote server. Defaults to None, which defaults 
-                to config.user.
+                the remote server. Defaults to None, which falls back to 
+                `config.user`.
             port (int, optional): The SSH port to use when connecting.
-                Defaults to None, which defaults to config.port.
+                Defaults to None, which falls back to `config.port`.
             config (str, optional): Path to the SSH config file.
-                Defaults to None, which defaults to your SSH config file.
+                Defaults to None, which falls back to your SSH config file.
             gateway (Connection, optional): An optional gateway for connecting 
                 through a jump host. Defaults to None.
             forward_agent (bool, optional): Whether to forward the local SSH 
                 agent to the remote server. Defaults to None, which 
-                defaults to config.forward_agent.
+                falls back to `config.forward_agent`.
             connect_timeout (int, optional): Timeout for establishing the SSH 
-                connection. Defaults to None, which defaults 
-                to config.timeouts.connect.
+                connection. Defaults to None, which falls back to 
+                `config.timeouts.connect`.
             connect_kwargs (dict, optional): Additional keyword arguments for 
-                the underlying SSH connection. Handed verbatim to 
+                the underlying SSH connection. These are passed verbatim to 
                 `SSHClient.connect <paramiko.client.SSHClient.connect>`. 
                 Defaults to None. 
-            inline_ssh_env (bool, optional): Whether to use inline SSH
-                environment. This is necessary if the remote server has 
-                a restricted ``AcceptEnv`` setting (which is the common 
-                default). Defaults to _DEFAULT_INLINE_SSH_ENV.
-            slurm_data_path (str, optional): The path to the directory
-                containing the data files for Slurm jobs.
-                Defaults to _DEFAULT_SLURM_DATA_PATH.
-            slurm_images_path (str, optional): The path to the directory
-                containing the Singularity images for Slurm jobs.
-                Defaults to _DEFAULT_SLURM_IMAGES_PATH.
-            slurm_converters_path (str, optional): The path to the directory
-                containing the Singularity images for file converters.
-                Defaults to _DEFAULT_SLURM_CONVERTERS_PATH.
+            inline_ssh_env (bool, optional): Whether to use inline SSH 
+                environment variables. This is necessary if the remote server 
+                has a restricted `AcceptEnv` setting (the common default). 
+                Defaults to `_DEFAULT_INLINE_SSH_ENV`.
+            slurm_data_path (str, optional): The path to the directory 
+                containing the data files for Slurm jobs. 
+                Defaults to `_DEFAULT_SLURM_DATA_PATH`.
+            slurm_images_path (str, optional): The path to the directory 
+                containing the Singularity images for Slurm jobs. 
+                Defaults to `_DEFAULT_SLURM_IMAGES_PATH`.
+            slurm_converters_path (str, optional): The path to the directory 
+                containing the Singularity images for file converters. 
+                Defaults to `_DEFAULT_SLURM_CONVERTERS_PATH`.
             slurm_model_paths (dict, optional): A dictionary containing the 
-                paths to the Singularity images for specific Slurm job models.
+                paths to the Singularity images for specific Slurm job models. 
                 Defaults to None.
             slurm_model_repos (dict, optional): A dictionary containing the 
-                git repositories of Singularity images for specific Slurm 
-                job models.
-                Defaults to None.
+                Git repositories of Singularity images for specific Slurm 
+                job models. Defaults to None.
             slurm_model_images (dict, optional): A dictionary containing the 
-                dockerhub of the Singularity images for specific Slurm 
-                job models. Will fill automatically from the data in the git 
-                repository if you set init_slurm.
+                DockerHub images of the Singularity images for specific 
+                Slurm job models. Will be filled automatically from the 
+                data in the Git repository if `init_slurm` is set to True. 
                 Defaults to None.
-            converter_images (dict, optional): A dictionairy containing the
-                dockerhub of the Singularity images for converters. 
-                Will default to building converter available in this package
-                on Slurm instead if not configured.
+            converter_images (dict, optional): A dictionary containing the 
+                DockerHub images of the Singularity images for file converters. 
+                Will default to building the converter available in this package 
+                on Slurm instead if not configured. 
                 Defaults to None.
-            slurm_model_jobs (dict, optional): A dictionary containing
-                information about specific Slurm job models.
+            slurm_model_jobs (dict, optional): A dictionary containing 
+                information about specific Slurm job models. 
                 Defaults to None.
-            slurm_model_jobs_params (dict, optional): A dictionary containing
-                parameters for specific Slurm job models.
+            slurm_model_jobs_params (dict, optional): A dictionary containing 
+                parameters for specific Slurm job models. 
                 Defaults to None.
-            slurm_script_path (str, optional): The path to the directory
-                containing the Slurm job submission scripts on Slurm.
-                Defaults to _DEFAULT_SLURM_GIT_SCRIPT_PATH.
-            slurm_script_repo (str, optional): The git https URL for cloning
-                the repo containing the Slurm job submission scripts.
+            slurm_script_path (str, optional): The path to the directory 
+                containing the Slurm job submission scripts on Slurm. 
+                Defaults to `_DEFAULT_SLURM_GIT_SCRIPT_PATH`.
+            slurm_script_repo (str, optional): The Git HTTPS URL for cloning 
+                the repository containing the Slurm job submission scripts. 
                 Defaults to None.
-            init_slurm (bool): Whether to set up the required structures 
+            init_slurm (bool, optional): Whether to set up the required structures 
                 on Slurm after initiating this client. This includes creating 
-                missing folders, downloading container images, cloning git,etc.
-                This will take a while at first but will validate your setup.
-                Defaults to False to save time.
+                missing folders, downloading container images, cloning Git, etc. 
+                This process will take some time initially but will validate 
+                your setup. Defaults to False to save time.
+            track_workflows (bool, optional): Whether to track workflows. 
+                Defaults to True.
+            enable_job_accounting (bool, optional): Whether to enable job 
+                accounting. Defaults to True.
+            enable_job_progress (bool, optional): Whether to track job 
+                progress. Defaults to True.
+            enable_workflow_analytics (bool, optional): Whether to enable 
+                workflow analytics. Defaults to True.
+            sqlalchemy_url (str, optional): URL for eventsourcing database 
+                connection. Defaults to None, which falls back to the
+                `SQLALCHEMY_URL` environment variable. Note that it will
+                always be overridden with the environment variable 
+                `SQLALCHEMY_URL`, if that is set.
         """
+
         super(SlurmClient, self).__init__(host,
                                           user,
                                           port,
@@ -380,6 +425,159 @@ class SlurmClient(Connection):
 
         self.init_workflows()
         self.validate(validate_slurm_setup=init_slurm)
+        
+        # Setup workflow tracking and accounting
+        # Initialize the analytics settings
+        self.track_workflows = track_workflows
+        self.enable_job_accounting = enable_job_accounting
+        self.enable_job_progress = enable_job_progress
+        self.enable_workflow_analytics = enable_workflow_analytics
+        
+        # Initialize the analytics system
+        self.sqlalchemy_url = sqlalchemy_url
+        self.initialize_analytics_system(reset_tables=init_slurm)
+    
+    def initialize_analytics_system(self, reset_tables=False):
+        """
+        Initialize the analytics system based on the analytics configuration
+        passed to the constructor.
+        
+        Args:
+            reset_tables (bool): If True, drops and recreates all views.
+        """
+        # Get persistence settings, prioritize environment variables
+        persistence_module = os.getenv("PERSISTENCE_MODULE", "eventsourcing_sqlalchemy")
+        if persistence_module != "eventsourcing_sqlalchemy": 
+            raise NotImplementedError(f"Can't handle {persistence_module}. Currently only supports 'eventsourcing_sqlalchemy' as PERSISTENCE_MODULE")
+        
+        sqlalchemy_url = os.getenv("SQLALCHEMY_URL", self.sqlalchemy_url)
+        if not sqlalchemy_url:
+            raise ValueError("SQLALCHEMY_URL must be set either in init, config ('sqlalchemy_url') or as an environment variable.")
+        if sqlalchemy_url != self.sqlalchemy_url:
+            logger.info("Overriding configured SQLALCHEMY_URL with env var SQLALCHEMY_URL.")
+
+        # Build the system based on the analytics configuration
+        pipes = []
+        runner = None
+        if self.track_workflows:
+            # Add JobAccounting to the pipeline if enabled
+            if self.enable_job_accounting:
+                pipes.append([WorkflowTracker, JobAccounting])
+
+            # Add JobProgress to the pipeline if enabled
+            if self.enable_job_progress:
+                pipes.append([WorkflowTracker, JobProgress])
+                pipes.append([WorkflowTracker, WorkflowProgress])
+            
+            # Add WorkflowAnalytics to the pipeline if enabled
+            if self.enable_workflow_analytics:
+                pipes.append([WorkflowTracker, WorkflowAnalytics])
+
+            # Add onlys WorkflowTracker if no listeners are enabled
+            if not pipes:
+                pipes = [[WorkflowTracker]]
+                 
+            system = System(pipes=pipes)        
+            scoped_session_topic = EngineManager.create_scoped_session(
+                sqlalchemy_url=sqlalchemy_url)
+            runner = SingleThreadedRunner(system, env={
+                'SQLALCHEMY_SCOPED_SESSION_TOPIC': scoped_session_topic,
+                'PERSISTENCE_MODULE': persistence_module})
+            runner.start()
+            self.workflowTracker = runner.get(WorkflowTracker)  
+        else:  # turn off persistence, override
+            logger.warning("Tracking workflows is disabled. No-op WorkflowTracker will be used.")        
+            self.workflowTracker = NoOpWorkflowTracker()
+            
+        self.setup_listeners(runner, reset_tables)
+
+    def setup_listeners(self, runner, reset_tables):
+        # Only when people run init script, we just drop and rebuild.
+        self.get_listeners(runner)
+            
+        # Optionally drop and recreate tables
+        if reset_tables:
+            logger.info("Resetting view tables.")
+            tables = [] 
+            # gather the listener tables
+            listeners = [self.jobAccounting, 
+                         self.jobProgress,
+                         self.wfProgress, 
+                         self.workflowAnalytics]
+            for listener in listeners:
+                if not isinstance(listener, NoOpWorkflowTracker):
+                    tables.append(listener.recorder.tracking_table_name)
+                    tables.append(listener.recorder.events_table_name)
+            runner.stop()
+            # gather the view tables
+            tables.append(TaskExecution.__tablename__)
+            tables.append(JobProgressView.__tablename__)
+            tables.append(WorkflowProgressView.__tablename__)
+            tables.append(JobView.__tablename__) 
+            with EngineManager.get_session() as session:
+                try:
+                    # Begin a transaction
+                    for table in tables:
+                        # Drop the table if it exists
+                        logger.info(f"Dropping table {table}")
+                        drop_table_sql = text(f'DROP TABLE IF EXISTS {table}')
+                        session.execute(drop_table_sql)
+                    # Only when people run init script, we just drop and rebuild.
+                    session.commit()
+                    logger.info("Dropped view tables successfully")
+                except IntegrityError as e:
+                    logger.error(e)
+                    session.rollback()
+                    raise Exception(f"Error trying to reset the view tables: {e}") 
+                
+            EngineManager.close_engine() # close current sql session          
+            # restart runner, listeners and recreate views
+            self.initialize_analytics_system(reset_tables=False)
+            # Update the view tables again
+            listeners = [self.jobAccounting, 
+                         self.jobProgress,
+                         self.wfProgress, 
+                         self.workflowAnalytics]
+            for listener in listeners:
+                if listener:
+                    self.bring_listener_uptodate(listener)
+            
+    def get_listeners(self, runner):
+        if self.track_workflows and self.enable_job_accounting:
+            self.jobAccounting = runner.get(JobAccounting)   
+        else:
+            self.jobAccounting = NoOpWorkflowTracker()
+        
+        if self.track_workflows and self.enable_job_progress:
+            self.jobProgress = runner.get(JobProgress)
+            self.wfProgress = runner.get(WorkflowProgress)
+        else:
+            self.jobProgress = NoOpWorkflowTracker()
+            self.wfProgress = NoOpWorkflowTracker()
+        
+        if self.track_workflows and self.enable_workflow_analytics:
+            self.workflowAnalytics = runner.get(WorkflowAnalytics)
+        else:
+            self.workflowAnalytics = NoOpWorkflowTracker()
+
+    def bring_listener_uptodate(self, listener, start=1):
+        with EngineManager.get_session() as session:
+            try:
+                # Begin a transaction
+                listener.pull_and_process(leader_name=WorkflowTracker.__name__, start=start)
+                session.commit()
+                logger.info("Updated listener successfully")
+            except IntegrityError as e:
+                logger.error(e)
+                session.rollback()
+            
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Ensure to call the parent class's __exit__ 
+        # to clean up Connection resources
+        super().__exit__(exc_type, exc_val, exc_tb)
+        # Cleanup resources specific to SlurmClient
+        EngineManager.close_engine()
+        # If we have any other resources to close or cleanup, do it here
 
     def init_workflows(self, force_update: bool = False):
         """
@@ -668,17 +866,16 @@ class SlurmClient(Connection):
             - /etc/slurm-config.ini
             - ~/slurm-config.ini
 
-        Note that this is only for the SLURM specific values that we added.
+        Note that this is only for the SLURM-specific values that we added.
         Most configuration values are set via configuration mechanisms from
-        Fabric library,
-        like SSH settings being loaded from SSH config, /etc/fabric.yml or
-        environment variables.
+        Fabric library, like SSH settings being loaded from SSH config, 
+        /etc/fabric.yml or environment variables.
         See Fabric's documentation for more info on configuration if needed.
 
         Args:
             configfile (str): The path to your configuration file. Optional.
             init_slurm (bool): Initiate / validate slurm setup. Optional
-                Might take some time the first time with downloading etc.
+                Might take some time the first time with downloading, etc.
 
         Returns:
             SlurmClient: A new SlurmClient object.
@@ -689,6 +886,7 @@ class SlurmClient(Connection):
         configs.read([cls._DEFAULT_CONFIG_PATH_1,
                      cls._DEFAULT_CONFIG_PATH_2,
                      configfile])
+        
         # Read the required parameters from the configuration file,
         # fallback to defaults
         host = configs.get("SSH", "host", fallback=cls._DEFAULT_HOST)
@@ -720,12 +918,11 @@ class SlurmClient(Connection):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
                 slurm_model_jobs_params[k[:-len(suffix_job)]] = []
             elif job_param_match:
-                print(f"Match: {slurm_model_jobs_params}")
                 slurm_model_jobs_params[job_param_match.group(1)].append(
                     f" --{job_param_match.group(2)}={v}")
-                print(f"Added: {slurm_model_jobs_params}")
             else:
                 slurm_model_paths[k] = v
+        logger.info(f"Using job params: {slurm_model_jobs_params}")
 
         slurm_script_path = configs.get(
             "SLURM", "slurm_script_path",
@@ -736,7 +933,6 @@ class SlurmClient(Connection):
         )
         
         # Parse converters, if available
-        # Should be key=value where key is a name and value a docker image
         try:
             converter_items = configs.items("CONVERTERS")
             if converter_items:
@@ -744,7 +940,22 @@ class SlurmClient(Connection):
             else:
                 converter_images = None  # Section exists but is empty
         except configparser.NoSectionError:
-            converter_images = None  # Section does not exist       
+            converter_images = None  # Section does not exist    
+            
+        # Read the analytics section, if available
+        try:
+            track_workflows = configs.getboolean('ANALYTICS', 'track_workflows', fallback=True)
+            enable_job_accounting = configs.getboolean('ANALYTICS', 'enable_job_accounting', fallback=True)
+            enable_job_progress = configs.getboolean('ANALYTICS', 'enable_job_progress', fallback=True)
+            enable_workflow_analytics = configs.getboolean('ANALYTICS', 'enable_workflow_analytics', fallback=True)
+            sqlalchemy_url = configs.get('ANALYTICS', 'sqlalchemy_url', fallback=None)
+        except configparser.NoSectionError:
+            # If the ANALYTICS section is missing, fallback to default values
+            track_workflows = True
+            enable_job_accounting = True
+            enable_job_progress = True
+            enable_workflow_analytics = True
+            sqlalchemy_url = None
         
         # Create the SlurmClient object with the parameters read from
         # the config file
@@ -761,7 +972,13 @@ class SlurmClient(Connection):
                    slurm_model_jobs_params=slurm_model_jobs_params,
                    slurm_script_path=slurm_script_path,
                    slurm_script_repo=slurm_script_repo,
-                   init_slurm=init_slurm)
+                   init_slurm=init_slurm,
+                   # Pass analytics settings to the constructor
+                   track_workflows=track_workflows,
+                   enable_job_accounting=enable_job_accounting,
+                   enable_job_progress=enable_job_progress,
+                   enable_workflow_analytics=enable_workflow_analytics,
+                   sqlalchemy_url=sqlalchemy_url)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
@@ -871,7 +1088,7 @@ class SlurmClient(Connection):
     def get_active_job_progress(self,
                                 slurm_job_id: str,
                                 pattern: str = r"\d+%",
-                                env: Optional[Dict[str, str]] = None) -> str:
+                                env: Optional[Dict[str, str]] = None) -> Any:
         """
         Get the progress of an active Slurm job from its logfiles.
 
@@ -884,7 +1101,7 @@ class SlurmClient(Connection):
                 to set when running the command. Defaults to None.
 
         Returns:
-            str: The progress of the Slurm job.
+            Any: The progress of the Slurm job according to the pattern, or None.
         """
         cmdlist = []
         cmd = self.get_recent_log_command(
@@ -897,13 +1114,14 @@ class SlurmClient(Connection):
         except Exception as e:
             logger.error(f"Issue with run command: {e}")
         # Match the specified pattern in the result's stdout
+        latest_progress = None
         try:
             latest_progress = re.findall(
                 pattern, result.stdout)[-1]
         except Exception as e:
-            logger.error(f"Issue with extracting progress: {e}")
+            logger.warning(f"Issue with extracting progress: {e}")
 
-        return f"Progress: {latest_progress}\n"
+        return latest_progress
 
     def run_commands(self, cmdlist: List[str],
                      env: Optional[Dict[str, str]] = None,
@@ -1238,8 +1456,9 @@ class SlurmClient(Connection):
                      input_data: str,
                      email: Optional[str] = None,
                      time: Optional[str] = None,
+                     wf_id: Optional[UUID] = None,
                      **kwargs
-                     ) -> Tuple[Result, int]:
+                     ) -> Tuple[Result, int, UUID, UUID]:
         """
         Run a specified workflow on Slurm using the given parameters.
 
@@ -1252,24 +1471,48 @@ class SlurmClient(Connection):
             email (str, optional): Email address for Slurm job notifications.
             time (str, optional): Time limit for the Slurm job in the 
                 format HH:MM:SS.
+            wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
-            Tuple[Result, int]:
-                A tuple containing the result of starting the workflow job and
-                the Slurm job ID, or -1 if the job ID could not be extracted.
+            Tuple[Result, int, UUID, UUID]:
+                A tuple containing the result of starting the workflow job, 
+                the Slurm job ID, the workflow ID, and the task ID. 
+                If the Slurm job ID could not be extracted, it returns -1 for the job ID.
 
         Note:
-            The Slurm job ID is extracted from the result of the 
-            `run_commands` method.
+            The Slurm job ID is extracted from the result of the `run_commands` method. 
+            If `track_workflows` is enabled, workflow and task tracking is performed.
         """
+        if not wf_id:
+            wf_id = self.workflowTracker.initiate_workflow(
+                workflow_name,
+                workflow_version,
+                -1,
+                -1
+            )
+        task_id = self.workflowTracker.add_task_to_workflow(
+            wf_id,
+            workflow_name, 
+            workflow_version,
+            input_data,
+            kwargs)
+        logger.debug(f"Added new task {task_id} to workflow {wf_id}")
+            
         sbatch_cmd, sbatch_env = self.get_workflow_command(
             workflow_name, workflow_version, input_data, email, time, **kwargs)
         print(f"Running {workflow_name} job on {input_data} on Slurm:\
             {sbatch_cmd} w/ {sbatch_env}")
         logger.info(f"Running {workflow_name} job on {input_data} on Slurm")
         res = self.run_commands([sbatch_cmd], sbatch_env)
-        return res, self.extract_job_id(res)
+        slurm_job_id = self.extract_job_id(res)
+        
+        if task_id:
+            self.workflowTracker.start_task(task_id)
+            self.workflowTracker.add_job_id(task_id, slurm_job_id)
+            self.workflowTracker.add_result(task_id, res)
+            
+        return res, slurm_job_id, wf_id, task_id
 
     def run_workflow_job(self,
                          workflow_name: str,
@@ -1277,6 +1520,7 @@ class SlurmClient(Connection):
                          input_data: str,
                          email: Optional[str] = None,
                          time: Optional[str] = None,
+                         wf_id: Optional[UUID] = None,
                          **kwargs
                          ) -> SlurmJob:
         """
@@ -1288,19 +1532,23 @@ class SlurmClient(Connection):
             input_data (str): Name of the input data folder containing input image files.
             email (str, optional): Email address for Slurm job notifications.
             time (str, optional): Time limit for the Slurm job in the format HH:MM:SS.
+            wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
             SlurmJob: A SlurmJob instance representing the started workflow job.
         """
-        result, job_id = self.run_workflow(
-            workflow_name, workflow_version, input_data, email, time, **kwargs)
-        return SlurmJob(result, job_id)
+        result, job_id, wf_id, task_id = self.run_workflow(
+            workflow_name, workflow_version, input_data, email, time, wf_id, 
+            **kwargs)
+        return SlurmJob(result, job_id, wf_id, task_id)
 
-    def run_conversion_workflow_job(self, folder_name: str,
+    def run_conversion_workflow_job(self, 
+                                    folder_name: str,
                                     source_format: str = 'zarr',
-                                    target_format: str = 'tiff'
-                                    ) -> Tuple[Result, int]:
+                                    target_format: str = 'tiff',
+                                    wf_id: UUID = None
+                                    ) -> SlurmJob:
         """
         Run the data conversion workflow on Slurm using the given data folder.
 
@@ -1310,9 +1558,8 @@ class SlurmClient(Connection):
             target_format (str): Target data format after conversion (default is 'tiff').
 
         Returns:
-            Tuple[Result, int]:
-                A tuple containing the result of starting the conversion job and
-                the Slurm job ID, or -1 if the job ID could not be extracted.
+            SlurmJob:
+                the conversion job
 
         Warning:
             The default implementation only supports conversion from 'zarr' to 'tiff'.
@@ -1324,7 +1571,7 @@ class SlurmClient(Connection):
 
         # Construct all commands to run consecutively
         data_path = f"{self.slurm_data_path}/{folder_name}"
-        conversion_cmd, sbatch_env = self.get_conversion_command(
+        conversion_cmd, sbatch_env, chosen_converter, version = self.get_conversion_command(
             data_path, config_file, source_format, target_format)
         commands = [
             f"find \"{data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{config_file}\"",
@@ -1332,11 +1579,34 @@ class SlurmClient(Connection):
             f"echo \"Number of .{source_format} files: $N\"",
             conversion_cmd
         ]
+        logger.debug(f"wf_id: {wf_id}")
+        if not wf_id:
+            wf_id = self.workflowTracker.initiate_workflow(
+                "conversion",
+                -1,
+                -1,
+                -1
+            )
+        logger.debug(f"wf_id: {wf_id}")
+        task_id = self.workflowTracker.add_task_to_workflow(
+            wf_id,
+            f"convert_{source_format}_to_{target_format}".upper(),
+            version,
+            data_path,
+            sbatch_env
+        )
 
         # Run all commands consecutively
         res = self.run_commands(commands, sbatch_env)
-
-        return SlurmJob(res, self.extract_job_id(res))
+        
+        slurm_job_id = self.extract_job_id(res)
+        
+        if task_id:
+            self.workflowTracker.start_task(task_id)
+            self.workflowTracker.add_job_id(task_id, slurm_job_id)
+            self.workflowTracker.add_result(task_id, res)
+        
+        return SlurmJob(res, slurm_job_id, wf_id, task_id)
 
     def extract_job_id(self, result: Result) -> int:
         """
@@ -1761,7 +2031,7 @@ class SlurmClient(Connection):
     def get_conversion_command(self, data_path: str,
                                config_file: str,
                                source_format: str = 'zarr',
-                               target_format: str = 'tiff') -> Tuple[str, Dict]:
+                               target_format: str = 'tiff') -> Tuple[str, Dict, str, str]:
         """
         Generate Slurm conversion command and environment variables for data conversion.
 
@@ -1772,9 +2042,9 @@ class SlurmClient(Connection):
             target_format (str): Target data format (default is 'tiff').
 
         Returns:
-            Tuple[str, Dict]:
+            Tuple[str, Dict, str, str]:
                 A tuple containing the Slurm conversion command and
-                the environment variables.
+                the environment variables, followed by the converter image name and version.
 
         Warning:
             The default implementation only supports conversion from 'zarr' to 'tiff'.
@@ -1790,11 +2060,13 @@ class SlurmClient(Connection):
                 f"Conversion from {source_format} to {target_format} is not supported by default!")
 
         chosen_converter = f"convert_{source_format}_to_{target_format}_latest.sif"
+        version = None
         if self.converter_images:
             image = self.converter_images[f"{source_format}_to_{target_format}"]  
             version, image = self.parse_docker_image_version(image)
             if version:
-                chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"    
+                chosen_converter = f"convert_{source_format}_to_{target_format}_{version}.sif"
+        version = version or "latest"
         
         logger.info(f"Converting with {chosen_converter}")
         sbatch_env = {
@@ -1808,7 +2080,7 @@ class SlurmClient(Connection):
         conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
         # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
 
-        return conversion_cmd, sbatch_env
+        return conversion_cmd, sbatch_env, chosen_converter, version
 
     def workflow_params_to_envvars(self, **kwargs) -> Dict:
         """

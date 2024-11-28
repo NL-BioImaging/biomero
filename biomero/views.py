@@ -151,6 +151,25 @@ class JobAccounting(ProcessApplication):
                 logger.debug(f"Retrieved jobs for user={user} and group={group}: {result}")
                 return result
             
+    def get_task_id(self, job_id):
+        """
+        Retrieve the task ID associated with a given job ID.
+
+        Parameters:
+        - job_id (int): The job ID (slurm_job_id) to look up.
+
+        Returns:
+        - UUID: The task ID associated with the job ID, or None if not found.
+        """
+        with EngineManager.get_session() as session:
+            try:
+                task_id = session.query(JobView.task_id).filter(JobView.slurm_job_id == job_id).one_or_none()
+                logger.debug(f"Retrieved task_id={task_id[0] if task_id else None} for job_id={job_id}")
+                return task_id[0] if task_id else None
+            except Exception as e:
+                logger.error(f"Failed to retrieve task_id for job_id={job_id}: {e}")
+                return None
+            
             
 class WorkflowProgress(ProcessApplication):
     def __init__(self, *args, **kwargs):

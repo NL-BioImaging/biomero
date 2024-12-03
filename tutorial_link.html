@@ -1990,10 +1990,10 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <li><p>Ready! <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">localslurm</span></code> (or whatever you called the alias)</p></li>
 </ul>
 <ol class="arabic simple" start="4">
-<li><p>Let’s edit the BIOMERO configuration <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, located in the worker-processor node</p></li>
+<li><p>Let’s edit the BIOMERO configuration <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, located in the biomeroworker node</p></li>
 </ol>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">~/NL-BIOMERO/worker-processor/slurm-config.ini</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">~/NL-BIOMERO/biomeroworker/slurm-config.ini</span></code></p></li>
 <li><p>Change the <code class="docutils literal notranslate"><span class="pre">host</span></code> if you did not use the <code class="docutils literal notranslate"><span class="pre">localslurm</span></code> alias in the config above.</p></li>
 <li><p>Change ALL the <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> paths to match our new slurm setup:</p></li>
 </ul>
@@ -2040,7 +2040,7 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">NL-BIOMERO</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">down</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
-<li><p>Now <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-omeroworker-processor-1</span></code> should show some good logs leading to: <code class="docutils literal notranslate"><span class="pre">Starting</span> <span class="pre">node</span> <span class="pre">omeroworker-processor</span></code>.</p></li>
+<li><p>Now <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-biomeroworker-1</span></code> should show some good logs leading to: <code class="docutils literal notranslate"><span class="pre">Starting</span> <span class="pre">node</span> <span class="pre">biomeroworker</span></code>.</p></li>
 </ul>
 </div>
 <div class="section" id="showtime">
@@ -2184,12 +2184,12 @@ drwxrwxr-x <span class="m">3</span> azureadmin azureadmin   <span class="m">46</
 </div>
 <p>We will do this ad-hoc, by changing the configuration for CellPose in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> in our installation:</p>
 <ul class="simple">
-<li><p>First, edit the config on the main VM with <code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">worker-processor/slurm-config.ini</span></code></p></li>
+<li><p>First, edit the config on the main VM with <code class="docutils literal notranslate"><span class="pre">vi</span> <span class="pre">biomeroworker/slurm-config.ini</span></code></p></li>
 <li><p>Add this line to your workflows <code class="docutils literal notranslate"><span class="pre">&lt;wf&gt;_job_cpus-per-task=2</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_cpus-per-task=2</span></code></p></li>
 <li><p>save file (<code class="docutils literal notranslate"><span class="pre">:wq</span></code>)</p></li>
 <li><p>Don’t forget to open your .ssh to the container <code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">-R</span> <span class="pre">777</span> <span class="pre">~/.ssh</span></code> (and close it later)</p></li>
-<li><p>Restart the biomero container(s) (<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code>, perhaps specifically for <code class="docutils literal notranslate"><span class="pre">omeroworker-processor</span></code>).</p></li>
-<li><p>Check logs to see if biomero started up properly <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-omeroworker-processor-1</span></code></p></li>
+<li><p>Restart the biomero container(s) (<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code>, perhaps specifically for <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code>).</p></li>
+<li><p>Check logs to see if biomero started up properly <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-biomeroworker-1</span></code></p></li>
 </ul>
 <ol class="arabic simple" start="6">
 <li><p>Next, time to segment! Time to spin up those SLURM compute nodes:</p></li>

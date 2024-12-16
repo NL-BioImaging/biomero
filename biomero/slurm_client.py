@@ -307,7 +307,8 @@ class SlurmClient(Connection):
                  enable_job_accounting: bool = True,
                  enable_job_progress: bool = True,
                  enable_workflow_analytics: bool = True,
-                 sqlalchemy_url: str = None):
+                 sqlalchemy_url: str = None,
+                 config_only: bool = False):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -424,18 +425,22 @@ class SlurmClient(Connection):
         self.get_or_create_github_session()
 
         self.init_workflows()
-        self.validate(validate_slurm_setup=init_slurm)
         
-        # Setup workflow tracking and accounting
-        # Initialize the analytics settings
-        self.track_workflows = track_workflows
-        self.enable_job_accounting = enable_job_accounting
-        self.enable_job_progress = enable_job_progress
-        self.enable_workflow_analytics = enable_workflow_analytics
+        if not config_only:
+            self.validate(validate_slurm_setup=init_slurm)
         
-        # Initialize the analytics system
-        self.sqlalchemy_url = sqlalchemy_url
-        self.initialize_analytics_system(reset_tables=init_slurm)
+            # Setup workflow tracking and accounting
+            # Initialize the analytics settings
+            self.track_workflows = track_workflows
+            self.enable_job_accounting = enable_job_accounting
+            self.enable_job_progress = enable_job_progress
+            self.enable_workflow_analytics = enable_workflow_analytics
+            
+            # Initialize the analytics system
+            self.sqlalchemy_url = sqlalchemy_url
+            self.initialize_analytics_system(reset_tables=init_slurm)
+        else:
+            logger.warning("Setup SlurmClient for config only")
     
     def initialize_analytics_system(self, reset_tables=False):
         """
@@ -858,7 +863,8 @@ class SlurmClient(Connection):
 
     @classmethod
     def from_config(cls, configfile: str = '',
-                    init_slurm: bool = False) -> 'SlurmClient':
+                    init_slurm: bool = False,
+                    config_only: bool = False) -> 'SlurmClient':
         """Creates a new SlurmClient object using the parameters read from a
         configuration file (.ini).
 
@@ -978,7 +984,8 @@ class SlurmClient(Connection):
                    enable_job_accounting=enable_job_accounting,
                    enable_job_progress=enable_job_progress,
                    enable_workflow_analytics=enable_workflow_analytics,
-                   sqlalchemy_url=sqlalchemy_url)
+                   sqlalchemy_url=sqlalchemy_url,
+                   config_only=config_only)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,

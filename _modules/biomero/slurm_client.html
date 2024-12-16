@@ -407,7 +407,8 @@
                  <span class="n">enable_job_accounting</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                  <span class="n">enable_job_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                  <span class="n">enable_workflow_analytics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                 <span class="n">sqlalchemy_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                 <span class="n">sqlalchemy_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">config_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes a new instance of the SlurmClient class.</span>
 
@@ -524,18 +525,22 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">init_workflows</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
         
-        <span class="c1"># Setup workflow tracking and accounting</span>
-        <span class="c1"># Initialize the analytics settings</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">track_workflows</span> <span class="o">=</span> <span class="n">track_workflows</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_accounting</span> <span class="o">=</span> <span class="n">enable_job_accounting</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_progress</span> <span class="o">=</span> <span class="n">enable_job_progress</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">enable_workflow_analytics</span> <span class="o">=</span> <span class="n">enable_workflow_analytics</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config_only</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
         
-        <span class="c1"># Initialize the analytics system</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">sqlalchemy_url</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">initialize_analytics_system</span><span class="p">(</span><span class="n">reset_tables</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
+            <span class="c1"># Setup workflow tracking and accounting</span>
+            <span class="c1"># Initialize the analytics settings</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">track_workflows</span> <span class="o">=</span> <span class="n">track_workflows</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_accounting</span> <span class="o">=</span> <span class="n">enable_job_accounting</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_progress</span> <span class="o">=</span> <span class="n">enable_job_progress</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">enable_workflow_analytics</span> <span class="o">=</span> <span class="n">enable_workflow_analytics</span>
+            
+            <span class="c1"># Initialize the analytics system</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">sqlalchemy_url</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initialize_analytics_system</span><span class="p">(</span><span class="n">reset_tables</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Setup SlurmClient for config only&quot;</span><span class="p">)</span>
     
 <div class="viewcode-block" id="SlurmClient.initialize_analytics_system"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.initialize_analytics_system">[docs]</a>    <span class="k">def</span> <span class="nf">initialize_analytics_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset_tables</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -958,7 +963,8 @@
 
 <div class="viewcode-block" id="SlurmClient.from_config"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.from_config">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_config</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-                    <span class="n">init_slurm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;SlurmClient&#39;</span><span class="p">:</span>
+                    <span class="n">init_slurm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="n">config_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;SlurmClient&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates a new SlurmClient object using the parameters read from a</span>
 <span class="sd">        configuration file (.ini).</span>
 
@@ -1078,7 +1084,8 @@
                    <span class="n">enable_job_accounting</span><span class="o">=</span><span class="n">enable_job_accounting</span><span class="p">,</span>
                    <span class="n">enable_job_progress</span><span class="o">=</span><span class="n">enable_job_progress</span><span class="p">,</span>
                    <span class="n">enable_workflow_analytics</span><span class="o">=</span><span class="n">enable_workflow_analytics</span><span class="p">,</span>
-                   <span class="n">sqlalchemy_url</span><span class="o">=</span><span class="n">sqlalchemy_url</span><span class="p">)</span></div>
+                   <span class="n">sqlalchemy_url</span><span class="o">=</span><span class="n">sqlalchemy_url</span><span class="p">,</span>
+                   <span class="n">config_only</span><span class="o">=</span><span class="n">config_only</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                           <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>

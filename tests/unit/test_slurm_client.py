@@ -44,6 +44,36 @@ def slurm_client(_mock_run,
     return SlurmClient("localhost", 8022, "slurm")
 
 
+def test_list_available_converter_versions(slurm_client):
+    """
+    Test the list_available_converter_versions method of SlurmClient.
+    """
+    # GIVEN
+    slurm_client._CONVERTER_VERSION_CMD = "echo {converter_path}/converter"
+    slurm_client.slurm_converters_path = "/path/to/converters"
+
+    # Mock the run_commands method
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=True,
+        stdout="converter1 1.0\nconverter2 2.1\nconverter1 1.1"
+    ))
+
+    expected_result = {
+        "converter1": ["1.0", "1.1"],
+        "converter2": ["2.1"]
+    }
+
+    # WHEN
+    result = slurm_client.list_available_converter_versions()
+
+    # THEN
+    assert result == expected_result
+    slurm_client.run_commands.assert_called_once_with(
+        ["echo /path/to/converters/converter"]
+    )
+
+
+
 @patch.object(SlurmClient, 'run_commands_split_out')
 def test_get_all_image_versions_and_data_files(mock_run_commands_split_out, slurm_client):
     

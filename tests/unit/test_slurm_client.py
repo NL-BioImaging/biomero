@@ -1179,6 +1179,7 @@ def test_from_config(mock_ConfigParser,
     configfile = 'test_config.ini'
     init_slurm = True
     mock_SlurmClient.return_value = None
+    config_only = False
 
     # Create a MagicMock instance to represent the ConfigParser object
     mock_configparser_instance = MagicMock()
@@ -1242,7 +1243,7 @@ def test_from_config(mock_ConfigParser,
     # WHEN
     # Call the class method that uses configparser
     SlurmClient.from_config(
-        configfile=configfile, init_slurm=init_slurm)
+        configfile=configfile, init_slurm=init_slurm, config_only=config_only)
 
     # THEN
     mock_configparser_instance.read.assert_called_once_with([
@@ -1269,7 +1270,8 @@ def test_from_config(mock_ConfigParser,
         enable_job_accounting=True,  # expected enable_job_accounting value
         enable_job_progress=True,  # expected enable_job_progress value
         enable_workflow_analytics=True,  # expected enable_workflow_analytics value
-        sqlalchemy_url='sqlite:///test.db'  # expected sqlalchemy_url value
+        sqlalchemy_url='sqlite:///test.db',  # expected sqlalchemy_url value
+        config_only=config_only
     )
 
 

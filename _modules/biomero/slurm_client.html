@@ -989,9 +989,9 @@
         <span class="c1"># Load the configuration file</span>
         <span class="n">configs</span> <span class="o">=</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">(</span><span class="n">allow_no_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="c1"># Loads from default locations and given location, missing files are ok</span>
-        <span class="n">configs</span><span class="o">.</span><span class="n">read</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_1</span><span class="p">,</span>
-                     <span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_2</span><span class="p">,</span>
-                     <span class="n">configfile</span><span class="p">])</span>
+        <span class="n">configs</span><span class="o">.</span><span class="n">read</span><span class="p">([</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_1</span><span class="p">),</span>
+                     <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_2</span><span class="p">),</span>
+                     <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">configfile</span><span class="p">)])</span>
         
         <span class="c1"># Read the required parameters from the configuration file,</span>
         <span class="c1"># fallback to defaults</span>

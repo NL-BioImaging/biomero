@@ -1277,9 +1277,9 @@ def test_from_config(mock_ConfigParser,
 
     # THEN
     mock_configparser_instance.read.assert_called_once_with([
-        SlurmClient._DEFAULT_CONFIG_PATH_1,
-        SlurmClient._DEFAULT_CONFIG_PATH_2,
-        configfile
+        os.path.expanduser(SlurmClient._DEFAULT_CONFIG_PATH_1),
+        os.path.expanduser(SlurmClient._DEFAULT_CONFIG_PATH_2),
+        os.path.expanduser(configfile)
     ])
     mock_SlurmClient.assert_called_with(
         host=mv,  # expected host value,

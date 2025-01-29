@@ -1279,6 +1279,7 @@ def test_from_config(mock_ConfigParser,
     mock_configparser_instance.read.assert_called_once_with([
         os.path.expanduser(SlurmClient._DEFAULT_CONFIG_PATH_1),
         os.path.expanduser(SlurmClient._DEFAULT_CONFIG_PATH_2),
+        os.path.expanduser(SlurmClient._DEFAULT_CONFIG_PATH_3),
         os.path.expanduser(configfile)
     ])
     mock_SlurmClient.assert_called_with(

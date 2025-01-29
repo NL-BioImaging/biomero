@@ -889,9 +889,9 @@ class SlurmClient(Connection):
         # Load the configuration file
         configs = configparser.ConfigParser(allow_no_value=True)
         # Loads from default locations and given location, missing files are ok
-        configs.read([cls._DEFAULT_CONFIG_PATH_1,
-                     cls._DEFAULT_CONFIG_PATH_2,
-                     configfile])
+        configs.read([os.path.expanduser(cls._DEFAULT_CONFIG_PATH_1),
+                     os.path.expanduser(cls._DEFAULT_CONFIG_PATH_2),
+                     os.path.expanduser(configfile)])
         
         # Read the required parameters from the configuration file,
         # fallback to defaults

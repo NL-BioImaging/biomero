@@ -354,7 +354,8 @@
 
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_DEFAULT_CONFIG_PATH_1</span> <span class="o">=</span> <span class="s2">&quot;/etc/slurm-config.ini&quot;</span>
-    <span class="n">_DEFAULT_CONFIG_PATH_2</span> <span class="o">=</span> <span class="s2">&quot;~/slurm-config.ini&quot;</span>
+    <span class="n">_DEFAULT_CONFIG_PATH_2</span> <span class="o">=</span> <span class="s2">&quot;/OMERO/slurm-config.ini&quot;</span>
+    <span class="n">_DEFAULT_CONFIG_PATH_3</span> <span class="o">=</span> <span class="s2">&quot;~/slurm-config.ini&quot;</span>
     <span class="n">_DEFAULT_HOST</span> <span class="o">=</span> <span class="s2">&quot;slurm&quot;</span>
     <span class="n">_DEFAULT_INLINE_SSH_ENV</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">_DEFAULT_SLURM_DATA_PATH</span> <span class="o">=</span> <span class="s2">&quot;my-scratch/data&quot;</span>
@@ -991,6 +992,7 @@
         <span class="c1"># Loads from default locations and given location, missing files are ok</span>
         <span class="n">configs</span><span class="o">.</span><span class="n">read</span><span class="p">([</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_1</span><span class="p">),</span>
                      <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_2</span><span class="p">),</span>
+                     <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_3</span><span class="p">),</span>
                      <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">configfile</span><span class="p">)])</span>
         
         <span class="c1"># Read the required parameters from the configuration file,</span>

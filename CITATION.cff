@@ -4,8 +4,7 @@
 cff-version: 1.2.0
 title: 'BIOMERO: BioImage analysis in OMERO'
 message: >-
-  If you use this software, please cite it using the
-  metadata from this file.
+  If you use this software, please cite it the article from preferred-citation
 type: software
 authors:
   - given-names: Torec Tom
@@ -76,3 +75,27 @@ keywords:
   - high-throughput-screening
   - high-content-screening
 license: Apache-2.0
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Luik"
+      given-names: "Torec T."
+      orcid: "https://orcid.org/0009-0007-9361-0586"
+    - family-names: "Rosas-Bertolini"
+      given-names: "Rodrigo"
+    - family-names: "Reits"
+      given-names: "Eric A.J."
+    - family-names: "Hoebe"
+      given-names: "Ron A."
+    - family-names: "Krawczyk"
+      given-names: "Przemek M."
+  title: "BIOMERO: A scalable and extensible image analysis framework"
+  journal: "Patterns"
+  volume: "5"
+  issue: "8"
+  year: 2024
+  month: 8
+  doi: "10.1016/j.patter.2024.101024"
+  url: "https://doi.org/10.1016/j.patter.2024.101024"
+  publisher:
+    name: "Cell Press"

@@ -32,6 +32,9 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.8108214
     description: ZENODO DOI for all versions
+  - type: doi
+    value: 10.1016/j.patter.2024.101024
+    description: Published paper in Cell Patterns
 repository-code: 'https://github.com/NL-BioImaging/biomero'
 url: 'https://nl-bioimaging.github.io/biomero/'
 repository: 'https://github.com/NL-BioImaging/biomero-scripts'

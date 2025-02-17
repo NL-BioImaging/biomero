@@ -21,7 +21,7 @@ jobs:
       env:
         SETUPTOOLS_SCM_PRETEND_VERSION: 1
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: html-docs
         path: docs/_build/html/

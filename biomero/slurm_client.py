@@ -813,36 +813,7 @@ class SlurmClient(Connection):
                     # download /build new container
                     convert_cmds.append(
                         f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &")
-                _ = self.run_commands(convert_cmds)
-            ## BUILD converter from singularity def file
-            # currently known converters
-            # 3a. ZARR to OME-TIFF
-            # TODO extract these values to e.g. config if we have more
-            convert_name = "convert_zarr_to_ometiff"
-            convert_py = f"{convert_name}.py"
-            convert_script_local = files("resources").joinpath(
-                convert_py)
-            convert_def = f"{convert_name}.def"
-            convert_def_local = files("resources").joinpath(
-                convert_def)
-            _ = self.put(local=convert_script_local,
-                        remote=self.slurm_converters_path)
-            _ = self.put(local=convert_def_local,
-                        remote=self.slurm_converters_path)
-            # Build singularity container from definition
-            with self.cd(self.slurm_converters_path):
-                convert_cmds = []
-                if self.slurm_images_path:
-                    # TODO Change the tmp dir?
-                    # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
-                    # only if file does not exist yet
-                    # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
-                    # EDIT -- NO, then we can't update! Force rebuild!
-                    # download /build new container
-                    convert_cmds.append(
-                        f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &")
-                _ = self.run_commands(convert_cmds)            
-
+                _ = self.run_commands(convert_cmds)        
     def setup_job_scripts(self):
         """
         Sets up job scripts for Slurm operations.

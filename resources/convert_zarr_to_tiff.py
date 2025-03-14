@@ -20,7 +20,7 @@ import dask.array as da
 import numpy as np
 import logging
 
-def rearrange_dimensions(volume, axes, target="XYZCT"):
+def rearrange_dimensions(volume, axes, target="TZCYX"):
     """
     Rearrange dimensions of an array to match the target dimension order
     
@@ -193,16 +193,18 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
                 # to make it easier to work with current BIOMERO workflow save as .tif instead of ome.tif 
                 output_file = os.path.splitext(zarr_file_path)[0] + f".{key}.tif"
 
-            # Create metadata with actual dimension order
-            metadata = {'axes': ordered_dims}
-            logger.info(f"Using metadata: {metadata}")
-
             dask_image_data.persist()
             # Write to TIFF with appropriate format settings
             if ordered_dims == "XYC":
                 tf.imwrite(output_file, dask_image_data, 
-                                planarconfig='contig', imagej=True)
-            else:            
+                                planarconfig='contig',
+                                # imagej=True,
+                                  )
+            else:   
+                # Create metadata with actual dimension order
+                metadata = {'axes': ordered_dims}
+                logger.info(f"Using metadata: {metadata}")
+         
                 tf.imwrite(output_file, 
                         dask_image_data,
                         photometric='minisblack',

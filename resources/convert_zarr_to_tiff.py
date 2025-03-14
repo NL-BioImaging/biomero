@@ -22,7 +22,7 @@ import logging
 
 def rearrange_dimensions(volume, axes, target="XYZCT"):
     """
-    Convert a dask array to right dimensions
+    Rearrange dimensions of an array to match the target dimension order
     
     Parameters
     ----------
@@ -31,11 +31,14 @@ def rearrange_dimensions(volume, axes, target="XYZCT"):
     axes : str or list
         Axes string or list of dimension names (e.g., 'TZCYX', 'YX', ['t', 'c', 'z', 'y', 'x'], etc.)
     target : str, optional
-        String specifying the desired dimension order, default is "XYZCT", but take just the dimensions which are in axes
+        String specifying the desired dimension order, default is "XYZCT"
+        Only dimensions present in the input axes will be used
         
     Returns
     -------
-    tuple of array with dimensions ordered according to target and the new dimension order
+    tuple-like object containing:
+        - The rearranged array with dimensions ordered according to target
+        - The new dimension order string
     """
     # Convert list of dimension names to string if needed
     if isinstance(axes, list):
@@ -100,12 +103,17 @@ def get_dimension_order(zarr_file, key):
     """
     Extract dimension ordering from OME-Zarr metadata
     
-    Args:
-        zarr_file: Opened zarr file
-        key: Key name for zarr dataset
+    Parameters
+    ----------
+    zarr_file : ome-zarr file
+        Opened zarr file
+    key : str
+        Key name for zarr dataset
         
-    Returns:
-        List of dimension names in order
+    Returns
+    -------
+    str or None
+        String representing dimension order (e.g., 'TZCYX') or None if can't be determined
     """
     try:
         # Try to get OME-Zarr metadata
@@ -121,7 +129,9 @@ def get_dimension_order(zarr_file, key):
                 logging.info(f"Dimension types: {dim_types}")
             except Exception as e:
                 logging.debug(f"Could not extract dimension types: {e}")
+            dim_order = ''.join(letter.upper() for letter in dim_order)
             return dim_order
+            
     except (KeyError, AttributeError) as e:
         logging.warning(f"Could not extract OME dimension order: {e}")
         # Fall back to guessing from shape
@@ -129,12 +139,21 @@ def get_dimension_order(zarr_file, key):
    
 def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
     """
-    Convert OME-Zarr file to TIFF maintaining dimension order
+    Convert OME-Zarr file to TIFF maintaining appropriate dimension order
     
-    Args:
-        zarr_file_path: Path to input zarr file
-        key: Key name for zarr dataset
-        output_file: Path for output tiff file
+    Parameters
+    ----------
+    zarr_file_path : str
+        Path to input zarr file
+    key : str, optional
+        Key name for zarr dataset. If None, the first available key will be used
+    output_file : str, optional
+        Path for output tiff file. If None, will be derived from input filename
+    
+    Raises
+    ------
+    ValueError
+        If no keys are found in the zarr file or if specified key doesn't exist
     """
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
@@ -159,9 +178,15 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
             # Create Dask array from zarr
             dask_image_data = da.from_zarr(zarr_file[key])
             logger.info(f"Original data shape: {dask_image_data.shape}")
-
-            # Rearrange dimensions to XYZCT
-            dask_image_data, ordered_dims = rearrange_dimensions(dask_image_data, dim_order)
+            
+            # Set appropriate target dimension order based on input data
+            if dim_order == 'CYX':
+                target = "XYC"  # ImageJ compatible format for RGB images
+            else:
+                target = "TZCYX"  
+                
+            # Rearrange dimensions to match target order
+            dask_image_data, ordered_dims = rearrange_dimensions(dask_image_data, dim_order, target)
             logger.info(f"Reordered data shape: {dask_image_data.shape} with dimensions {ordered_dims}")
             
             if output_file is None:
@@ -172,13 +197,17 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
             metadata = {'axes': ordered_dims}
             logger.info(f"Using metadata: {metadata}")
 
-            # Write to TIFF - keeping original dimension order
             dask_image_data.persist()
-            tf.imwrite(output_file, 
-                      dask_image_data,
-                      photometric='minisblack',
-                      ome=True,  
-                      metadata=metadata)
+            # Write to TIFF with appropriate format settings
+            if ordered_dims == "XYC":
+                tf.imwrite(output_file, dask_image_data, 
+                                planarconfig='contig', imagej=True)
+            else:            
+                tf.imwrite(output_file, 
+                        dask_image_data,
+                        photometric='minisblack',
+                        ome=True,
+                        metadata=metadata)
             
             logger.info(f"Conversion completed successfully with key: '{key}'.")
             logger.info(f"Output TIFF file: '{output_file}'")

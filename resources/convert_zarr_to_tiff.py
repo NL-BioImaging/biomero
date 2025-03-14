@@ -20,7 +20,7 @@ import dask.array as da
 import numpy as np
 import logging
 
-def rearrange_dimensions(volume, axes, target="XYZCT"):
+def rearrange_dimensions(volume, axes, target="TZCYX"):
     """
     Rearrange dimensions of an array to match the target dimension order
     

@@ -181,7 +181,7 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
             
             # Set appropriate target dimension order based on input data
             if dim_order == 'CYX':
-                target = "XYC"  # ImageJ compatible format for RGB images
+                target = "YXC"  # ImageJ compatible format for RGB images
             else:
                 target = "TZCYX"  
                 
@@ -195,7 +195,7 @@ def convert_zarr_to_tiff(zarr_file_path, key=None, output_file=None):
 
             dask_image_data.persist()
             # Write to TIFF with appropriate format settings
-            if ordered_dims == "XYC":
+            if ordered_dims == "YXC":
                 tf.imwrite(output_file, dask_image_data, 
                                 planarconfig='contig',
                                 # imagej=True,

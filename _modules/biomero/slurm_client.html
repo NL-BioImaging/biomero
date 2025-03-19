@@ -409,7 +409,9 @@
                  <span class="n">enable_job_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                  <span class="n">enable_workflow_analytics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                  <span class="n">sqlalchemy_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">config_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+                 <span class="n">config_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">slurm_data_bind_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">slurm_conversion_partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes a new instance of the SlurmClient class.</span>
 
@@ -519,6 +521,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span> <span class="o">=</span> <span class="n">converter_images</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs</span> <span class="o">=</span> <span class="n">slurm_model_jobs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs_params</span> <span class="o">=</span> <span class="n">slurm_model_jobs_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_bind_path</span> <span class="o">=</span> <span class="n">slurm_data_bind_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slurm_conversion_partition</span> <span class="o">=</span> <span class="n">slurm_conversion_partition</span>
 
         <span class="c1"># Init cache. Keep responses for 360 seconds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">sqlite</span><span class="o">.</span><span class="n">SQLiteCache</span><span class="p">(</span>
@@ -909,8 +913,7 @@
                     <span class="c1"># download /build new container</span>
                     <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="se">\&quot;</span><span class="si">{convert_name}</span><span class="s2">_latest.sif</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">{convert_def}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{convert_name}</span><span class="s2">_latest.sif&#39; &amp;&quot;</span><span class="p">)</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
-
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>        </div>
 <div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span> <span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets up job scripts for Slurm operations.</span>
@@ -1008,6 +1011,12 @@
         <span class="n">slurm_converters_path</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_converters_path&quot;</span><span class="p">,</span>
             <span class="n">fallback</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_SLURM_CONVERTERS_PATH</span><span class="p">)</span>
+        <span class="n">slurm_data_bind_path</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_data_bind_path&quot;</span><span class="p">,</span>
+            <span class="n">fallback</span><span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">slurm_conversion_partition</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_conversion_partition&quot;</span><span class="p">,</span>
+            <span class="n">fallback</span><span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
 
         <span class="c1"># Split the MODELS into paths, repos and images</span>
         <span class="n">models_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">configs</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="s2">&quot;MODELS&quot;</span><span class="p">))</span>
@@ -1087,7 +1096,9 @@
                    <span class="n">enable_job_progress</span><span class="o">=</span><span class="n">enable_job_progress</span><span class="p">,</span>
                    <span class="n">enable_workflow_analytics</span><span class="o">=</span><span class="n">enable_workflow_analytics</span><span class="p">,</span>
                    <span class="n">sqlalchemy_url</span><span class="o">=</span><span class="n">sqlalchemy_url</span><span class="p">,</span>
-                   <span class="n">config_only</span><span class="o">=</span><span class="n">config_only</span><span class="p">)</span></div>
+                   <span class="n">config_only</span><span class="o">=</span><span class="n">config_only</span><span class="p">,</span>
+                   <span class="n">slurm_data_bind_path</span><span class="o">=</span><span class="n">slurm_data_bind_path</span><span class="p">,</span>
+                   <span class="n">slurm_conversion_partition</span><span class="o">=</span><span class="n">slurm_conversion_partition</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                           <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -2122,8 +2133,10 @@
             <span class="s2">&quot;IMAGE_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_images_path}</span><span class="s2">/</span><span class="si">{model_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="s2">&quot;IMAGE_VERSION&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{workflow_version}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="s2">&quot;SINGULARITY_IMAGE&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{image}</span><span class="s2">_</span><span class="si">{workflow_version}</span><span class="s2">.sif</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;SCRIPT_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_script_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;SCRIPT_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_script_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
         <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_bind_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sbatch_env</span><span class="p">[</span><span class="s2">&quot;APPTAINER_BINDPATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_data_bind_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
         <span class="n">workflow_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflow_params_to_envvars</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">env</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">sbatch_env</span><span class="p">,</span> <span class="o">**</span><span class="n">workflow_env</span><span class="p">}</span>
 
@@ -2183,8 +2196,12 @@
             <span class="s2">&quot;CONVERSION_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_converters_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="s2">&quot;CONVERTER_IMAGE&quot;</span><span class="p">:</span> <span class="n">chosen_converter</span><span class="p">,</span>
             <span class="s2">&quot;SCRIPT_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_script_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;CONFIG_FILE&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{config_file}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;CONFIG_FILE&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{config_file}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
         <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_bind_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sbatch_env</span><span class="p">[</span><span class="s2">&quot;APPTAINER_BINDPATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_data_bind_path}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_conversion_partition</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sbatch_env</span><span class="p">[</span><span class="s2">&quot;CONVERSION_PARTITION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{self.slurm_conversion_partition}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
 
         <span class="n">conversion_cmd</span> <span class="o">=</span> <span class="s2">&quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=</span><span class="se">\&quot;</span><span class="s2">$PWD/$CONFIG_FILE</span><span class="se">\&quot;</span><span class="s2"> --array=1-$N </span><span class="se">\&quot;</span><span class="s2">$SCRIPT_PATH/convert_job_array.sh</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
         <span class="c1"># conversion_cmd_waiting = &quot;sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\&quot;$PWD/$CONFIG_FILE\&quot; --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh&quot;</span>

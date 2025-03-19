@@ -309,7 +309,9 @@ class SlurmClient(Connection):
                  enable_job_progress: bool = True,
                  enable_workflow_analytics: bool = True,
                  sqlalchemy_url: str = None,
-                 config_only: bool = False):
+                 config_only: bool = False,
+                 slurm_data_bind_path: str = None,
+                 slurm_conversion_partition: str = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -419,6 +421,8 @@ class SlurmClient(Connection):
         self.converter_images = converter_images
         self.slurm_model_jobs = slurm_model_jobs
         self.slurm_model_jobs_params = slurm_model_jobs_params
+        self.slurm_data_bind_path = slurm_data_bind_path
+        self.slurm_conversion_partition = slurm_conversion_partition
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
@@ -809,8 +813,7 @@ class SlurmClient(Connection):
                     # download /build new container
                     convert_cmds.append(
                         f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &")
-                _ = self.run_commands(convert_cmds)
-
+                _ = self.run_commands(convert_cmds)        
     def setup_job_scripts(self):
         """
         Sets up job scripts for Slurm operations.
@@ -908,6 +911,12 @@ class SlurmClient(Connection):
         slurm_converters_path = configs.get(
             "SLURM", "slurm_converters_path",
             fallback=cls._DEFAULT_SLURM_CONVERTERS_PATH)
+        slurm_data_bind_path = configs.get(
+            "SLURM", "slurm_data_bind_path",
+            fallback= None)
+        slurm_conversion_partition = configs.get(
+            "SLURM", "slurm_conversion_partition",
+            fallback= None)
 
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
@@ -987,7 +996,9 @@ class SlurmClient(Connection):
                    enable_job_progress=enable_job_progress,
                    enable_workflow_analytics=enable_workflow_analytics,
                    sqlalchemy_url=sqlalchemy_url,
-                   config_only=config_only)
+                   config_only=config_only,
+                   slurm_data_bind_path=slurm_data_bind_path,
+                   slurm_conversion_partition=slurm_conversion_partition)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
@@ -2022,8 +2033,10 @@ class SlurmClient(Connection):
             "IMAGE_PATH": f"\"{self.slurm_images_path}/{model_path}\"",
             "IMAGE_VERSION": f"{workflow_version}",
             "SINGULARITY_IMAGE": f"\"{image}_{workflow_version}.sif\"",
-            "SCRIPT_PATH": f"\"{self.slurm_script_path}\""
+            "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
         }
+        if self.slurm_data_bind_path is not None:
+            sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         workflow_env = self.workflow_params_to_envvars(**kwargs)
         env = {**sbatch_env, **workflow_env}
 
@@ -2083,8 +2096,12 @@ class SlurmClient(Connection):
             "CONVERSION_PATH": f"\"{self.slurm_converters_path}\"",
             "CONVERTER_IMAGE": chosen_converter,
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
-            "CONFIG_FILE": f"\"{config_file}\""
+            "CONFIG_FILE": f"\"{config_file}\"",
         }
+        if self.slurm_data_bind_path is not None:
+            sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
+        if self.slurm_conversion_partition is not None:
+            sbatch_env["CONVERSION_PARTITION"] = f"\"{self.slurm_conversion_partition}\""
 
         conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
         # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"

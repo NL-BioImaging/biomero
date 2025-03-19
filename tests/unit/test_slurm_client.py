@@ -234,10 +234,21 @@ def test_copy_zip_locally(mock_get, mock_logger, slurm_client):
             Slurm to {local_tmp_storage}')
 
 
-@pytest.mark.parametrize("email, time_limit", [("", ""), ("user@example.com", "10:00:00")])
-def test_get_workflow_command(slurm_client,
-                              email,
-                              time_limit):
+@pytest.mark.parametrize(
+    "email, time_limit, data_bind_path, conversion_partition",
+    [
+        ("", "", None, None),  # Test without bind path and partition
+        (
+            "user@example.com",
+            "10:00:00",
+            "/bind/path",
+            "partition_name",
+        ),  # Test with bind path and partition
+    ],
+)
+def test_get_workflow_command(
+    slurm_client, email, time_limit, data_bind_path, conversion_partition
+):
     # GIVEN
     workflow = "example_workflow"
     workflow_version = "1.0"
@@ -246,15 +257,20 @@ def test_get_workflow_command(slurm_client,
     slurm_client.slurm_model_paths = {"example_workflow": "workflow_path"}
     slurm_client.slurm_model_jobs = {"example_workflow": "job_script.sh"}
     slurm_client.slurm_model_jobs_params = {
-        "example_workflow": [" --param3=value3", " --param4=value4"]}
+        "example_workflow": [" --param3=value3", " --param4=value4"]
+    }
     slurm_client.slurm_model_images = {"example_workflow": "user/image"}
     slurm_client.slurm_data_path = "/path/to/slurm_data"
     slurm_client.slurm_converters_path = "/path/to/slurm_converters"
     slurm_client.slurm_images_path = "/path/to/slurm_images"
     slurm_client.slurm_script_path = "/path/to/slurm_script"
+    slurm_client.slurm_data_bind_path = data_bind_path
+    slurm_client.slurm_conversion_partition = conversion_partition
 
-    expected_sbatch_cmd = f"sbatch --param3=value3 --param4=value4 --time={time_limit} --mail-user={email} --output=omero-%j.log \
-            \"{slurm_client.slurm_script_path}/job_script.sh\""
+    expected_sbatch_cmd = (
+        f'sbatch --param3=value3 --param4=value4 --time={time_limit} --mail-user={email} --output=omero-%j.log \
+            "{slurm_client.slurm_script_path}/job_script.sh"'
+    )
     expected_env = {
         "DATA_PATH": '"/path/to/slurm_data/input_data_folder"',
         "IMAGE_PATH": '"/path/to/slurm_images/workflow_path"',
@@ -262,17 +278,27 @@ def test_get_workflow_command(slurm_client,
         "SINGULARITY_IMAGE": '"image_1.0.sif"',
         "SCRIPT_PATH": '"/path/to/slurm_script"',
         "PARAM1": "value1",
-        "PARAM2": "value2"
+        "PARAM2": "value2",
     }
+
+    # Add expected environment variables for bind path and partition if set
+    if data_bind_path is not None:
+        expected_env["APPTAINER_BINDPATH"] = f'"{data_bind_path}"'
 
     # WHEN
     sbatch_cmd, env = slurm_client.get_workflow_command(
-        workflow, workflow_version, input_data, email, time_limit, param1="value1", param2="value2")
+        workflow,
+        workflow_version,
+        input_data,
+        email,
+        time_limit,
+        param1="value1",
+        param2="value2",
+    )
 
     # THEN
     assert sbatch_cmd == expected_sbatch_cmd
     assert env == expected_env
-
 
 @pytest.mark.parametrize("source_format, target_format", [("zarr", "tiff"), ("xyz", "abc")])
 @patch('biomero.slurm_client.SlurmClient.run_commands', new_callable=SerializableMagicMock)
@@ -324,36 +350,63 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
     assert slurm_job.job_state is None
     
     
-@pytest.mark.parametrize("source_format, target_format, version", [("zarr", "tiff", "1.0"), ("xyz", "abc", "v38.20-alpha.4")])
-@patch('biomero.slurm_client.SlurmClient.run_commands', new_callable=SerializableMagicMock)
-@patch('fabric.Result', new_callable=SerializableMagicMock)
-def test_run_conversion_workflow_job_versioned(mock_result, mock_run_commands, slurm_client, source_format, target_format, version):
+@pytest.mark.parametrize(
+    "source_format, target_format, data_bind_path, conversion_partition",
+    [
+        ("zarr", "tiff", None, None),  # Test without bind path and partition
+        (
+            "xyz",
+            "abc",
+            "/bind/path",
+            "partition_name",
+        ),  # Test with bind path and partition
+    ],
+)
+@patch(
+    "biomero.slurm_client.SlurmClient.run_commands", new_callable=SerializableMagicMock
+)
+@patch("fabric.Result", new_callable=SerializableMagicMock)
+def test_run_conversion_workflow_job(
+    mock_result,
+    mock_run_commands,
+    slurm_client,
+    source_format,
+    target_format,
+    data_bind_path,
+    conversion_partition,
+):
     # GIVEN
     folder_name = "example_folder"
 
     slurm_client.slurm_data_path = "/path/to/slurm_data"
     slurm_client.slurm_converters_path = "/path/to/slurm_converters"
     slurm_client.slurm_script_path = "/path/to/slurm_script"
-    slurm_client.converter_images = {'zarr_to_tiff': 'cellularimagingcf/convert_zarr_to_tiff:1.0', 
-                                     'xyz_to_abc': 'cellularimagingcf/convert_xyz_to_abc:v38.20-alpha.4'}
+    slurm_client.converter_images = None
+    slurm_client.slurm_data_bind_path = data_bind_path
+    slurm_client.slurm_conversion_partition = conversion_partition
 
     expected_config_file = f"config_{folder_name}.txt"
     expected_data_path = f"{slurm_client.slurm_data_path}/{folder_name}"
-    expected_conversion_cmd, expected_sbatch_env = (
-        "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\"",
-        {
-            "DATA_PATH": f"\"{expected_data_path}\"",
-            "CONVERSION_PATH": f"\"{slurm_client.slurm_converters_path}\"",
-            "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}_{version}.sif",
-            "SCRIPT_PATH": f"\"{slurm_client.slurm_script_path}\"",
-            "CONFIG_FILE": f"\"{expected_config_file}\""
-        }
-    )
+    expected_sbatch_env = {
+        "DATA_PATH": f'"{expected_data_path}"',
+        "CONVERSION_PATH": f'"{slurm_client.slurm_converters_path}"',
+        "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}_latest.sif",
+        "SCRIPT_PATH": f'"{slurm_client.slurm_script_path}"',
+        "CONFIG_FILE": f'"{expected_config_file}"',
+    }
+
+    # Add expected environment variables for bind path and partition if set
+    if data_bind_path is not None:
+        expected_sbatch_env["APPTAINER_BINDPATH"] = f'"{data_bind_path}"'
+    if conversion_partition is not None:
+        expected_sbatch_env["CONVERSION_PARTITION"] = f'"{conversion_partition}"'
+
+    expected_conversion_cmd = 'sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N "$SCRIPT_PATH/convert_job_array.sh"'
     expected_commands = [
-        f"find \"{expected_data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{expected_config_file}\"",
-        f"N=$(wc -l < \"{expected_config_file}\")",
-        f"echo \"Number of .{source_format} files: $N\"",
-        expected_conversion_cmd
+        f'find "{expected_data_path}/data/in" -name "*.{source_format}" | awk \'{{print NR, $0}}\' > "{expected_config_file}"',
+        f'N=$(wc -l < "{expected_config_file}")',
+        f'echo "Number of .{source_format} files: $N"',
+        expected_conversion_cmd,
     ]
 
     # Mocking the run_commands method to avoid actual execution
@@ -361,7 +414,8 @@ def test_run_conversion_workflow_job_versioned(mock_result, mock_run_commands, s
 
     # WHEN
     slurm_job = slurm_client.run_conversion_workflow_job(
-        folder_name, source_format, target_format)
+        folder_name, source_format, target_format
+    )
 
     # THEN
     assert slurm_job is not None
@@ -373,7 +427,6 @@ def test_run_conversion_workflow_job_versioned(mock_result, mock_run_commands, s
     assert slurm_job.job_id == -1
     assert slurm_job.submit_result.ok
     assert slurm_job.job_state is None
-
 
 def test_pull_descriptor_from_github(slurm_client):
     # GIVEN
@@ -1301,8 +1354,10 @@ def test_from_config(mock_ConfigParser,
         enable_job_accounting=True,  # expected enable_job_accounting value
         enable_job_progress=True,  # expected enable_job_progress value
         enable_workflow_analytics=True,  # expected enable_workflow_analytics value
-        sqlalchemy_url='sqlite:///test.db',  # expected sqlalchemy_url value
-        config_only=config_only
+        sqlalchemy_url="sqlite:///test.db",  # expected sqlalchemy_url value
+        config_only=config_only,
+        slurm_data_bind_path=mv,
+        slurm_conversion_partition=mv,
     )
 
 

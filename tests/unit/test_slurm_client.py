@@ -235,19 +235,37 @@ def test_copy_zip_locally(mock_get, mock_logger, slurm_client):
 
 
 @pytest.mark.parametrize(
-    "email, time_limit, data_bind_path, conversion_partition",
+    "email, time_limit, data_bind_path, conversion_partition, param_values, expected_env_values",
     [
-        ("", "", None, None),  # Test without bind path and partition
+        # Case 1: Basic test without bind path and partition
         (
-            "user@example.com",
-            "10:00:00",
-            "/bind/path",
-            "partition_name",
-        ),  # Test with bind path and partition
-    ],
+            "", "", None, None,
+            {"param1": "value1", "param2": "value2"},
+            {"PARAM1": '"value1"', "PARAM2": '"value2"'}
+        ),
+        # Case 2: Test with bind path and partition
+        (
+            "user@example.com", "10:00:00", "/bind/path", "partition_name",
+            {"param1": "value1", "param2": "value2"},
+            {"PARAM1": '"value1"', "PARAM2": '"value2"'}
+        ),
+        # Case 3: Test with hyphenated parameter values
+        (
+            "", "", None, None,
+            {"param1": "value-with-hyphens", "param2": 42},
+            {"PARAM1": '"value-with-hyphens"', "PARAM2": "42"}
+        ),
+        # Case 4: Test with hyphenated parameter values and special characters
+        (
+            "", "", None, None,
+            {"model_name": "cyto-2.1-latest", "threshold": 0.5},
+            {"MODEL_NAME": '"cyto-2.1-latest"', "THRESHOLD": "0.5"}
+        ),
+    ]
 )
 def test_get_workflow_command(
-    slurm_client, email, time_limit, data_bind_path, conversion_partition
+    slurm_client, email, time_limit, data_bind_path, conversion_partition,
+    param_values, expected_env_values
 ):
     # GIVEN
     workflow = "example_workflow"
@@ -271,17 +289,19 @@ def test_get_workflow_command(
         f'sbatch --param3=value3 --param4=value4 --time={time_limit} --mail-user={email} --output=omero-%j.log \
             "{slurm_client.slurm_script_path}/job_script.sh"'
     )
+    
+    # Build expected environment dictionary
     expected_env = {
         "DATA_PATH": '"/path/to/slurm_data/input_data_folder"',
         "IMAGE_PATH": '"/path/to/slurm_images/workflow_path"',
         "IMAGE_VERSION": "1.0",
         "SINGULARITY_IMAGE": '"image_1.0.sif"',
         "SCRIPT_PATH": '"/path/to/slurm_script"',
-        "PARAM1": "value1",
-        "PARAM2": "value2",
     }
+    # Add the test-specific environment variables
+    expected_env.update(expected_env_values)
 
-    # Add expected environment variables for bind path and partition if set
+    # Add bind path if specified
     if data_bind_path is not None:
         expected_env["APPTAINER_BINDPATH"] = f'"{data_bind_path}"'
 
@@ -292,13 +312,13 @@ def test_get_workflow_command(
         input_data,
         email,
         time_limit,
-        param1="value1",
-        param2="value2",
+        **param_values
     )
 
     # THEN
     assert sbatch_cmd == expected_sbatch_cmd
     assert env == expected_env
+
 
 @pytest.mark.parametrize("source_format, target_format", [("zarr", "tiff"), ("xyz", "abc")])
 @patch('biomero.slurm_client.SlurmClient.run_commands', new_callable=SerializableMagicMock)

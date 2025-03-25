@@ -2118,8 +2118,8 @@ class SlurmClient(Connection):
         Returns:
             Dict: A dictionary containing the environment variables.
         """
-        workflow_env = {key.upper(): f"{value}" for key,
-                        value in kwargs.items()}
+        workflow_env = {key.upper(): f'"{value}"' if isinstance(value, str) or "-" in str(value) else f"{value}" 
+                   for key, value in kwargs.items()}
         logger.debug(workflow_env)
         return workflow_env
 

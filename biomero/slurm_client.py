@@ -1421,7 +1421,7 @@ class SlurmClient(Connection):
         flags = []
         for _, param in params.items():
             flag = param['cmd_flag']
-            flag = flag + " \"$" + param['name'].upper() + "\""
+            flag = flag + "=\"$" + param['name'].upper() + "\""
             flags.append(flag)
         subs['PARAMS'] = " ".join(flags)
         return subs

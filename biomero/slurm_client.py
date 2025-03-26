@@ -814,6 +814,7 @@ class SlurmClient(Connection):
                     convert_cmds.append(
                         f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &")
                 _ = self.run_commands(convert_cmds)        
+    
     def setup_job_scripts(self):
         """
         Sets up job scripts for Slurm operations.
@@ -1420,7 +1421,7 @@ class SlurmClient(Connection):
         flags = []
         for _, param in params.items():
             flag = param['cmd_flag']
-            flag = flag + " $" + param['name'].upper()
+            flag = flag + " \"$" + param['name'].upper() + "\""
             flags.append(flag)
         subs['PARAMS'] = " ".join(flags)
         return subs

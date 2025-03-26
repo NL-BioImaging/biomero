@@ -74,10 +74,10 @@ module load singularity > /dev/null 2>&1 || true
 # We run a (singularity) container with the provided ENV variables.
 # The container is already downloaded as a .simg file at $IMAGE_PATH.
 echo "Running workflow..."
-singularity run --nv $IMAGE_PATH/$SINGULARITY_IMAGE \
-	--infolder $DATA_PATH/data/in \
-	--outfolder $DATA_PATH/data/out \
-	--gtfolder $DATA_PATH/data/gt \
+singularity run --nv "$IMAGE_PATH/$SINGULARITY_IMAGE" \
+	--infolder "$DATA_PATH/data/in" \
+	--outfolder "$DATA_PATH/data/out" \
+	--gtfolder "$DATA_PATH/data/gt" \
 	--local \
 	$PARAMS \
 	-nmc && echo "Job completed successfully."

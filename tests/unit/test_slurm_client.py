@@ -900,7 +900,7 @@ def test_workflow_params_to_subs(slurm_client):
     result = slurm_client.workflow_params_to_subs(params)
 
     # THEN
-    expected_result = {'PARAMS': '--param1 $PARAM1_NAME --param2 $PARAM2_NAME'}
+    expected_result = {'PARAMS': '--param1 "$PARAM1_NAME" --param2 "$PARAM2_NAME"'}
     assert result == expected_result
 
 

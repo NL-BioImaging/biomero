@@ -13,6 +13,14 @@ _WARNING_: Please note that default settings are for short/medium jobs. If you r
 - Your Slurm job will timeout after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) on what configs to change.
 - Your OMERO script (incl [biomero-scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
 
+# BIOMERO 2.0
+
+Get ready for an enhanced BIOMERO! 
+
+In 2.0, we add full workflow tracking via a database and dashboard, with a plugin available for a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.
+
+All in all, BIOMERO 2.0 greatly enhances both the user interaction for BIOMERO and the FAIR metadata of all these resulting assets in OMERO. 
+
 # Overview
 
 In the figure below we show our **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**. 

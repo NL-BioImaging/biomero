@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BIOMERO - BioImage analysis in OMERO &mdash; BIOMERO 1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -11,9 +12,8 @@
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -44,7 +44,10 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">BIOMERO - BioImage analysis in OMERO</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#biomero-2-0">BIOMERO 2.0</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#overview">Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#deploy-with-nl-biomero">Deploy with NL-BIOMERO</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="#quickstart">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#slurm-requirements">Slurm Requirements</a></li>
@@ -55,6 +58,7 @@
 <li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO scripts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#docker-containers">(Docker) containers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurmclient-class">SlurmClient class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#slurm-config-ini">slurm-config.ini</a><ul>
@@ -101,6 +105,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">biomero</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+</ul>
 
         </div>
       </div>
@@ -126,8 +134,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="biomero-bioimage-analysis-in-omero">
-<h1>BIOMERO - BioImage analysis in OMERO<a class="headerlink" href="#biomero-bioimage-analysis-in-omero" title="Permalink to this headline"></a></h1>
+  <section id="biomero-bioimage-analysis-in-omero">
+<h1>BIOMERO - BioImage analysis in OMERO<a class="headerlink" href="#biomero-bioimage-analysis-in-omero" title="Permalink to this heading"></a></h1>
 <p><a class="reference external" href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" /></a> <a class="reference external" href="https://zenodo.org/badge/latestdoi/638954891"><img alt="DOI" src="https://zenodo.org/badge/638954891.svg" /></a> <a class="reference external" href="https://pypi.org/project/biomero/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/biomero" /></a> <a class="reference external" href="https://pypi.org/project/biomero/"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/biomero" /></a> <img alt="Slurm" src="https://img.shields.io/badge/Slurm-21.08.6-blue.svg" /> <img alt="OMERO" src="https://img.shields.io/badge/OMERO-5.6.8-blue.svg" /> <a class="reference external" href="https://fair-software.eu"><img alt="fair-software.eu" src="https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green" /></a> <a class="reference external" href="https://bestpractices.coreinfrastructure.org/projects/7530"><img alt="OpenSSF Best Practices" src="https://bestpractices.coreinfrastructure.org/projects/7530/badge" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml"><img alt="Sphinx build" src="https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment"><img alt="pages-build-deployment" src="https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml"><img alt="python-package build" src="https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml"><img alt="python-publish build" src="https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://coveralls.io/github/NL-BioImaging/biomero?branch=main"><img alt="Coverage Status" src="https://coveralls.io/repos/github/NL-BioImaging/biomero/badge.svg?branch=main" /></a></p>
 <p>The <strong>BIOMERO</strong> framework, for <strong>B</strong>io<strong>I</strong>mage analysis in <strong>OMERO</strong>, allows you to run (FAIR) bioimage analysis workflows directly from OMERO on a high-performance compute (HPC) cluster, remotely through SSH.</p>
 <p>The BIOMERO framework consists of this Python library <code class="docutils literal notranslate"><span class="pre">biomero</span></code>, together with the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> that can be run directly from the OMERO web interface.</p>
@@ -138,21 +146,30 @@
 <li><p>Your Slurm job will timeout after <strong>45 minutes</strong>! See <a class="reference internal" href="#time-limit-on-slurm"><span class="xref myst">Time Limit on Slurm</span></a> on what configs to change.</p></li>
 <li><p>Your OMERO script (incl <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">biomero-scripts</a>) will timeout after <strong>60 minutes</strong>! Change <a class="reference external" href="https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout">omero script timeout</a> settings if you expect longer workflows.</p></li>
 </ul>
-</div>
-<div class="section" id="biomero-2-0">
-<h1>BIOMERO 2.0<a class="headerlink" href="#biomero-2-0" title="Permalink to this headline"></a></h1>
+</section>
+<section id="biomero-2-0">
+<h1>BIOMERO 2.0<a class="headerlink" href="#biomero-2-0" title="Permalink to this heading"></a></h1>
 <p>Get ready for an enhanced BIOMERO!</p>
-<p>In 2.0, we add full workflow tracking via a database and dashboard, with a plugin available for a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.</p>
+<p>In 2.0, we add full workflow tracking via a database and dashboard, with the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> plugin providing a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.</p>
 <p>All in all, BIOMERO 2.0 greatly enhances both the user interaction for BIOMERO and the FAIR metadata of all these resulting assets in OMERO.</p>
-</div>
-<div class="section" id="overview">
-<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h1>
+</section>
+<section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this heading"></a></h1>
 <p>In the figure below we show our <strong>BIOMERO</strong> framework, for <strong>B</strong>io<strong>I</strong>mage analysis in <strong>OMERO</strong>.</p>
 <p>BIOMERO consists of this Python library (<code class="docutils literal notranslate"><span class="pre">biomero</span></code>) and the integrations within OMERO, currently through our <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a>.</p>
 <p><img alt="OMERO-Figure1_Overview_v5" src="https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981" /></p>
-</div>
-<div class="section" id="quickstart">
-<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline"></a></h1>
+<section id="deploy-with-nl-biomero">
+<h2>Deploy with NL-BIOMERO<a class="headerlink" href="#deploy-with-nl-biomero" title="Permalink to this heading"></a></h2>
+<p>For the easiest deployment and integration with other FAIR infrastructure, use the NL-BIOMERO stack:</p>
+<ul class="simple">
+<li><p>NL-BIOMERO deployment repo: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO</p></li>
+<li><p>OMERO.biomero OMERO.web plugin: https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero</p></li>
+<li><p>Prebuilt BIOMERO processor container: https://hub.docker.com/r/cellularimagingcf/biomero</p></li>
+</ul>
+</section>
+</section>
+<section id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this heading"></a></h1>
 <p>For a quick overview of what this library can do for you, we can install an example setup locally with Docker:</p>
 <ol class="arabic simple">
 <li><p>Setup a local OMERO w/ this library:</p>
@@ -185,11 +202,11 @@
 </ol>
 </li>
 </ol>
-</div>
-<div class="section" id="prerequisites-getting-started-with-biomero">
-<h1>Prerequisites &amp; Getting Started with BIOMERO<a class="headerlink" href="#prerequisites-getting-started-with-biomero" title="Permalink to this headline"></a></h1>
-<div class="section" id="slurm-requirements">
-<h2>Slurm Requirements<a class="headerlink" href="#slurm-requirements" title="Permalink to this headline"></a></h2>
+</section>
+<section id="prerequisites-getting-started-with-biomero">
+<h1>Prerequisites &amp; Getting Started with BIOMERO<a class="headerlink" href="#prerequisites-getting-started-with-biomero" title="Permalink to this heading"></a></h1>
+<section id="slurm-requirements">
+<h2>Slurm Requirements<a class="headerlink" href="#slurm-requirements" title="Permalink to this heading"></a></h2>
 <p>Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !</p>
 <p>Your Slurm cluster/login node needs to have:</p>
 <ol class="arabic simple">
@@ -200,9 +217,9 @@
 <li><p>(Optional) Git installed, if you want your own job scripts</p></li>
 <li><p>Slurm accounting enabled</p></li>
 </ol>
-</div>
-<div class="section" id="omero-requirements">
-<h2>OMERO Requirements<a class="headerlink" href="#omero-requirements" title="Permalink to this headline"></a></h2>
+</section>
+<section id="omero-requirements">
+<h2>OMERO Requirements<a class="headerlink" href="#omero-requirements" title="Permalink to this heading"></a></h2>
 <p>Your OMERO <em>processing</em> node needs to have:</p>
 <ol class="arabic simple">
 <li><p>SSH client and access to the Slurm cluster (w/ private key / headless)</p></li>
@@ -227,9 +244,9 @@
 </li>
 </ol>
 <p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
-</div>
-<div class="section" id="getting-started">
-<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h2>
+</section>
+<section id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this heading"></a></h2>
 <p>To connect an OMERO processor to a Slurm cluster using the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> library, users can follow these steps:</p>
 <ol class="arabic">
 <li><p>Setup passwordless public key authentication between your OMERO <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and your HPC server. E.g. follow  a <a class="reference external" href="https://www.ssh.com/academy/ssh/public-key-authentication">SSH tutorial</a> or <a class="reference external" href="https://linuxize.com/post/how-to-setup-passwordless-ssh-login/">this one</a>.</p>
@@ -283,10 +300,10 @@
 </pre></div>
 </div>
 <p>With the configuration files in place, you can utilize the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class from the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an OMERO processor.</p>
-</div>
-</div>
-<div class="section" id="biomero-scripts">
-<h1>BIOMERO scripts<a class="headerlink" href="#biomero-scripts" title="Permalink to this headline"></a></h1>
+</section>
+</section>
+<section id="biomero-scripts">
+<h1>BIOMERO scripts<a class="headerlink" href="#biomero-scripts" title="Permalink to this heading"></a></h1>
 <p>The easiest interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.</p>
 <p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
 <p>We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step).</p>
@@ -302,9 +319,9 @@
 <li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">CellPose</span> <span class="pre">Segmentation</span></code></a>: This is a more primitive script that only runs the actual workflow <code class="docutils literal notranslate"><span class="pre">CellPose</span></code> (if correctly configured). You will need to manually transfer data first (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code>) and manually retrieve data afterward (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code>).</p></li>
 </ul>
 <p>You are encouraged to create your own custom scripts. Do note the copy-left license enforced by OME.</p>
-</div>
-<div class="section" id="docker-containers">
-<h1>(Docker) containers<a class="headerlink" href="#docker-containers" title="Permalink to this headline"></a></h1>
+</section>
+<section id="docker-containers">
+<h1>(Docker) containers<a class="headerlink" href="#docker-containers" title="Permalink to this heading"></a></h1>
 <p>We host BIOMERO container dockerfiles at <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO">NL-BIOMERO</a>, which publishes container images to our public dockerhub <a class="reference external" href="https://hub.docker.com/repositories/cellularimagingcf">cellularimagingcf</a>. Specifically the <a class="reference external" href="https://hub.docker.com/repository/docker/cellularimagingcf/biomero/general">cellularimagingcf/biomero</a> image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging).</p>
 <p>You can mount your specific configurations over those in the container, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run the biomero container</span>
@@ -319,34 +336,49 @@
   <span class="o">--</span><span class="n">volume</span> <span class="o">/</span><span class="n">my</span><span class="o">/</span><span class="n">slurm</span><span class="o">-</span><span class="n">config</span><span class="o">.</span><span class="n">ini</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">slurm</span><span class="o">-</span><span class="n">config</span><span class="o">.</span><span class="n">ini</span> \
   <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">config</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">config</span> <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">key</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">id_rsa</span> <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">pubkey</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">id_rsa</span><span class="o">.</span><span class="n">pub</span>  <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">known_hosts</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">known_hosts</span> \
   <span class="o">--</span><span class="n">userns</span><span class="o">=</span><span class="n">keep</span><span class="o">-</span><span class="nb">id</span><span class="p">:</span><span class="n">uid</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span><span class="n">gid</span><span class="o">=</span><span class="mi">997</span> \
-  <span class="n">cellularimagingcf</span><span class="o">/</span><span class="n">biomero</span><span class="p">:</span><span class="mf">0.2</span><span class="o">.</span><span class="mi">3</span>
+  <span class="n">cellularimagingcf</span><span class="o">/</span><span class="n">biomero</span><span class="p">:</span><span class="mf">0.2.3</span>
 </pre></div>
 </div>
 <p>This will spin up the docker container (in Podman) with omero config (<code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">CONFIG_omero_..</span></code>), mounting the required data drives (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/mnt/...</span></code>) and adding a new slurm config (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/my/slurm-config.ini:/etc/slurm-config.ini</span></code>) and the required SSH settings (<code class="docutils literal notranslate"><span class="pre">--secret</span> <span class="pre">...,target=/tmp/.ssh/...</span></code>) to access the remote HPC.</p>
 <p>Note: the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> are installed on the <a class="reference external" href="https://hub.docker.com/repository/docker/cellularimagingcf/omeroserver/general">main server</a>, not on the BIOMERO processor.</p>
 <p>Note2: We will also update these containers with our own desired changes, so they will likely not be 1:1 copy with basic omero containers. Especially when we start making a nicer UI for BIOMERO. We will keep up-to-date with the OMERO releases when possible.</p>
-</div>
-<div class="section" id="see-the-tutorials">
-<h1>See the tutorials<a class="headerlink" href="#see-the-tutorials" title="Permalink to this headline"></a></h1>
+</section>
+<section id="see-the-tutorials">
+<h1>See the tutorials<a class="headerlink" href="#see-the-tutorials" title="Permalink to this heading"></a></h1>
 <p>I have also provided tutorials on connecting to a Local or Cloud Slurm, and tutorials on how to add your FAIR workflows to this setup. Those can give some more insights as well.</p>
-</div>
-<div class="section" id="ssh">
-<h1>SSH<a class="headerlink" href="#ssh" title="Permalink to this headline"></a></h1>
+</section>
+<section id="developer-eventsourcing-and-views">
+<h1>Developer: Eventsourcing and Views<a class="headerlink" href="#developer-eventsourcing-and-views" title="Permalink to this heading"></a></h1>
+<p>BIOMERO tracks workflow execution with eventsourcing and maintains denormalized SQL views for fast queries.</p>
+<ul class="simple">
+<li><p>Event side: aggregates in <code class="docutils literal notranslate"><span class="pre">biomero.eventsourcing</span></code> (<code class="docutils literal notranslate"><span class="pre">WorkflowRun</span></code>, <code class="docutils literal notranslate"><span class="pre">Task</span></code>) emit immutable events and are persisted by <code class="docutils literal notranslate"><span class="pre">eventsourcing_sqlalchemy</span></code>. These tables are library-managed; do not add Alembic migrations for them.</p></li>
+<li><p>View side: <code class="docutils literal notranslate"><span class="pre">biomero.views</span></code> processes events and updates SQLAlchemy models in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">biomero_job_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_job_progress_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_workflow_progress_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_task_execution</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Migrations: only BIOMERO view tables are migrated via Alembic (<code class="docutils literal notranslate"><span class="pre">biomero/migrations</span></code>, version table <code class="docutils literal notranslate"><span class="pre">alembic_version_biomero</span></code>). A startup runner upgrades on boot and uses a Postgres advisory lock. To adopt existing schemas once, set <code class="docutils literal notranslate"><span class="pre">BIOMERO_ALLOW_AUTO_STAMP=1</span></code>.</p></li>
+<li><p>Changing aggregates: keep backward compatibility by adding upcasters (see comments in <code class="docutils literal notranslate"><span class="pre">biomero.eventsourcing</span></code>). Rebuild views by reprocessing events if shapes change.</p></li>
+</ul>
+<p>See the full developer guide in the Sphinx docs under “Developer → Eventsourcing and Views”.</p>
+</section>
+<section id="ssh">
+<h1>SSH<a class="headerlink" href="#ssh" title="Permalink to this heading"></a></h1>
 <p>Note: this library is built for <strong>SSH-based connections</strong>. If you could, it would be a lot easier to just have the OMERO <code class="docutils literal notranslate"><span class="pre">processor</span></code> server and the <code class="docutils literal notranslate"><span class="pre">slurm</span></code> client server be (on) the same machine: then you can just directly call <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> and other <code class="docutils literal notranslate"><span class="pre">slurm</span></code> commands from OMERO scripts and Slurm would have better access to your data.</p>
 <p>This is mainly for those cases where you already have an external HPC cluster and want to connect your OMERO instance.</p>
 <p>Theoretically, you could extend the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class and change the <code class="docutils literal notranslate"><span class="pre">run</span></code> commands to not use SSH, but just a <code class="docutils literal notranslate"><span class="pre">subprocess</span></code>. We might implement this if we need it in the future.
 But then you could also look at other Python libraries like <a class="reference external" href="https://github.com/facebookincubator/submitit">submitit</a>.</p>
-</div>
-<div class="section" id="slurmclient-class">
-<h1>SlurmClient class<a class="headerlink" href="#slurmclient-class" title="Permalink to this headline"></a></h1>
+</section>
+<section id="slurmclient-class">
+<h1>SlurmClient class<a class="headerlink" href="#slurmclient-class" title="Permalink to this heading"></a></h1>
 <p>The SlurmClient class is the main entrypoint in using this library.
 It is a Python class that extends the Connection class from the Fabric library. It allows connecting to and interacting with a Slurm cluster over SSH.</p>
 <p>It includes attributes for specifying paths to directories for Slurm data and Singularity images, as well as specific paths, repositories, and Dockerhub information for different Singularity image models.</p>
 <p>The class provides methods for running commands on the remote Slurm host, submitting jobs, checking job status, retrieving job output, and tailing log files.</p>
 <p>It also offers a <code class="docutils literal notranslate"><span class="pre">from_config</span></code> class method to create a <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> object by reading configuration parameters from a file. Overall, the class provides a convenient way to work with Slurm clusters and manage job execution and monitoring.</p>
-</div>
-<div class="section" id="slurm-config-ini">
-<h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this headline"></a></h1>
+</section>
+<section id="slurm-config-ini">
+<h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this heading"></a></h1>
 <p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is a configuration file used by the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:</p>
 <p>[<strong>SSH</strong>]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user’s SSH config file or in <code class="docutils literal notranslate"><span class="pre">/etc/fabric.yml</span></code>.</p>
 <p>[<strong>SLURM</strong>]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.</p>
@@ -355,14 +387,14 @@ It is a Python class that extends the Connection class from the Fabric library. 
 All values for sbatch can be applied (see e.g. <a class="reference external" href="https://slurm.schedmd.com/sbatch.html">here</a>) and will be forwarded to the job command.</p>
 <p>For example</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
-<span class="n">cellpose_job_gres</span><span class="o">=</span><span class="n">gpu</span><span class="p">:</span><span class="mi">1</span><span class="n">g</span><span class="o">.</span><span class="mi">10</span><span class="n">gb</span><span class="p">:</span><span class="mi">1</span>
+<span class="n">cellpose_job_gres</span><span class="o">=</span><span class="n">gpu</span><span class="p">:</span><span class="mi">1</span><span class="n">g</span><span class="mf">.10</span><span class="n">gb</span><span class="p">:</span><span class="mi">1</span>
 <span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
 <span class="n">cellpose_job_mem</span><span class="o">=</span><span class="mi">15</span><span class="n">GB</span>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file allows users to configure paths, repositories, and other settings specific to their Slurm cluster and the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> package, providing flexibility and customization options.</p>
-<div class="section" id="time-limit-on-slurm">
-<h2>Time Limit on Slurm<a class="headerlink" href="#time-limit-on-slurm" title="Permalink to this headline"></a></h2>
+<section id="time-limit-on-slurm">
+<h2>Time Limit on Slurm<a class="headerlink" href="#time-limit-on-slurm" title="Permalink to this heading"></a></h2>
 <p>An important Slurm job config is the time limit: <code class="docutils literal notranslate"><span class="pre">SBATCH</span> <span class="pre">--time=00:45:00</span></code> is the default in BIOMERO (max 45 minutes per job).
 The format is <code class="docutils literal notranslate"><span class="pre">d-hh:mm:ss</span></code></p>
 <p>WARNING: After this time, the job will timeout and this scenario is not handled by BIOMERO (yet)! You will lose your processing progress.</p>
@@ -373,10 +405,10 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 <li><p>Per specific run, provide it in the OMERO script UI like <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py">SLURM_CellPose_Segmentation.py</a></p></li>
 </ul>
 <p>Note that it might take longer for Slurm to schedule your job if you put the time very high, or possibly even make it wait indefinitely (see –time explanation in https://slurm.schedmd.com/sbatch.html). We will work on smart timing, but for now it is hardcoded and configurable.</p>
-</div>
-</div>
-<div class="section" id="how-to-add-an-existing-workflow">
-<h1>How to add an existing workflow<a class="headerlink" href="#how-to-add-an-existing-workflow" title="Permalink to this headline"></a></h1>
+</section>
+</section>
+<section id="how-to-add-an-existing-workflow">
+<h1>How to add an existing workflow<a class="headerlink" href="#how-to-add-an-existing-workflow" title="Permalink to this heading"></a></h1>
 <p>To add an existing (containerized) workflow, add it to the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file like in our example:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
 <span class="c1"># CELLPOSE SEGMENTATION</span>
@@ -407,25 +439,25 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 </ul>
 </li>
 </ol>
-<div class="section" id="workflow-metadata-via-descriptor-json">
-<h2>Workflow metadata via descriptor.json<a class="headerlink" href="#workflow-metadata-via-descriptor-json" title="Permalink to this headline"></a></h2>
+<section id="workflow-metadata-via-descriptor-json">
+<h2>Workflow metadata via descriptor.json<a class="headerlink" href="#workflow-metadata-via-descriptor-json" title="Permalink to this heading"></a></h2>
 <p>A lot of the automation in this library is based on metadata of the workflow, provided in the source code of the workflow, specifically the <a class="reference external" href="https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/blob/v1.2.7/descriptor.json">descriptor.json</a>.</p>
 <p>For example, the OMERO script UI can be generated automatically, based on this descriptor. And also, the Slurm job script can be generated automatically, based on this descriptor.</p>
 <p>This metadata scheme is (based on) Cytomine / BIAFLOWS, and you can find details of it and how to create one yourself on their website, e.g. this <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">Cytomine dev-guide</a> or this <a class="reference external" href="https://neubias-wg5.github.io/developer_guide_add_new_workflow_to_biaflows_instance.html">BIAFLOWS dev-guide</a>.</p>
 <p><strong>NOTE!</strong> We do not require the <code class="docutils literal notranslate"><span class="pre">cytomine_&lt;...&gt;</span></code> authentication parameters. They are not mandatory. In fact, we ignore them. But it might be beneficial to make your workflow compatible with Cytomine as well.</p>
-<div class="section" id="schema">
-<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline"></a></h3>
+<section id="schema">
+<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this heading"></a></h3>
 <p>At this point, we are using the <code class="docutils literal notranslate"><span class="pre">cytomine-0.1</span></code> <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/descriptor-reference">schema</a>, in the future we will also want to support other schemas, like <a class="reference external" href="https://boutiques.github.io/">Boutiques</a>, <a class="reference external" href="https://www.commonwl.org/">commonwl</a> or <a class="reference external" href="https://www.mlflow.org/docs/latest/projects.html">MLFlow</a>.</p>
 <p>We will try to stay compatible with all such schemas (perhaps with less functionality because of missing metadata).</p>
 <p>At this point, we do not strictly validate the schema, we just read expected fields from the <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code>.</p>
-</div>
-</div>
-<div class="section" id="multiple-versions">
-<h2>Multiple versions<a class="headerlink" href="#multiple-versions" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+<section id="multiple-versions">
+<h2>Multiple versions<a class="headerlink" href="#multiple-versions" title="Permalink to this heading"></a></h2>
 <p>Note that while it is possible to have multiple versions of the same workflow on Slurm (and select the desired one in OMERO), it is not possible to configure this yet. We assume for now you only want one version to start with. You can always update this config to download a new version to Slurm.</p>
-</div>
-<div class="section" id="i-o">
-<h2>I/O<a class="headerlink" href="#i-o" title="Permalink to this headline"></a></h2>
+</section>
+<section id="i-o">
+<h2>I/O<a class="headerlink" href="#i-o" title="Permalink to this heading"></a></h2>
 <p>Unless you change the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> job, the input is expected to be:</p>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">infolder</span></code> parameter</p>
@@ -444,8 +476,8 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 </ul>
 </li>
 </ul>
-<div class="section" id="wrapper-py">
-<h3>Wrapper.py<a class="headerlink" href="#wrapper-py" title="Permalink to this headline"></a></h3>
+<section id="wrapper-py">
+<h3>Wrapper.py<a class="headerlink" href="#wrapper-py" title="Permalink to this heading"></a></h3>
 <p>Note that you can also use the <a class="reference external" href="https://github.com/Neubias-WG5/W_Template/blob/master/wrapper.py">wrapper.py</a> setup from BIAFLOWS to handle the I/O for you:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">BiaflowsJob</span><span class="o">.</span><span class="n">from_cli</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="k">as</span> <span class="n">bj</span><span class="p">:</span>
         <span class="c1"># Change following to the actual problem class of the workflow</span>
@@ -484,8 +516,8 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 <span class="n">diameter</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">diameter</span>
 <span class="n">cp_model</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">cp_model</span>
 <span class="n">use_gpu</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">use_gpu</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chosen model: </span><span class="si">{cp_model}</span><span class="s2"> | Channel </span><span class="si">{nuc_channel}</span><span class="s2"> | Diameter </span><span class="si">{diameter}</span><span class="s2"> | Cell prob threshold </span><span class="si">{prob_thresh}</span><span class="s2"> | GPU </span><span class="si">{use_gpu}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">,</span> <span class="s2">&quot;--dir&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;--pretrained_model&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{cp_model}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;--save_tif&quot;</span><span class="p">,</span> <span class="s2">&quot;--no_npy&quot;</span><span class="p">,</span> <span class="s2">&quot;--chan&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">&quot;--diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">&quot;--cellprob_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prob_thresh</span><span class="p">)]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chosen model: </span><span class="si">{</span><span class="n">cp_model</span><span class="si">}</span><span class="s2"> | Channel </span><span class="si">{</span><span class="n">nuc_channel</span><span class="si">}</span><span class="s2"> | Diameter </span><span class="si">{</span><span class="n">diameter</span><span class="si">}</span><span class="s2"> | Cell prob threshold </span><span class="si">{</span><span class="n">prob_thresh</span><span class="si">}</span><span class="s2"> | GPU </span><span class="si">{</span><span class="n">use_gpu</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">,</span> <span class="s2">&quot;--dir&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;--pretrained_model&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cp_model</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;--save_tif&quot;</span><span class="p">,</span> <span class="s2">&quot;--no_npy&quot;</span><span class="p">,</span> <span class="s2">&quot;--chan&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">&quot;--diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">&quot;--cellprob_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prob_thresh</span><span class="p">)]</span>
 <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using GPU!&quot;</span><span class="p">)</span>
     <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;--use_gpu&quot;</span><span class="p">)</span>
@@ -540,11 +572,11 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 </pre></div>
 </div>
 <p>Once again, just a commandline <code class="docutils literal notranslate"><span class="pre">--headless</span></code> call to <code class="docutils literal notranslate"><span class="pre">ImageJ</span></code>, wrapped in this Python script and this container.</p>
-</div>
-</div>
-</div>
-<div class="section" id="how-to-add-your-new-custom-workflow">
-<h1>How to add your new custom workflow<a class="headerlink" href="#how-to-add-your-new-custom-workflow" title="Permalink to this headline"></a></h1>
+</section>
+</section>
+</section>
+<section id="how-to-add-your-new-custom-workflow">
+<h1>How to add your new custom workflow<a class="headerlink" href="#how-to-add-your-new-custom-workflow" title="Permalink to this heading"></a></h1>
 <p>Building workflows like this will make them more <a class="reference external" href="https://www.go-fair.org/fair-principles/">FAIR</a> (also for <a class="reference external" href="https://fair-software.eu/about">software</a>) and uses best practices like code versioning and containerization!</p>
 <p>Also take a look at our in-depth tutorial on adding a Cellprofiler pipeline as a workflow to BIOMERO.</p>
 <p>Here is a shorter version:
@@ -578,16 +610,16 @@ Say you have a script in Python and you want to make it available on OMERO and S
 </ul>
 </li>
 </ol>
-</div>
-<div class="section" id="slurm-jobs">
-<h1>Slurm jobs<a class="headerlink" href="#slurm-jobs" title="Permalink to this headline"></a></h1>
-<div class="section" id="generating-jobs">
-<h2>Generating jobs<a class="headerlink" href="#generating-jobs" title="Permalink to this headline"></a></h2>
+</section>
+<section id="slurm-jobs">
+<h1>Slurm jobs<a class="headerlink" href="#slurm-jobs" title="Permalink to this heading"></a></h1>
+<section id="generating-jobs">
+<h2>Generating jobs<a class="headerlink" href="#generating-jobs" title="Permalink to this heading"></a></h2>
 <p>By default, <code class="docutils literal notranslate"><span class="pre">biomero</span></code> will generate basic slurm jobs for each workflow, based on the metadata provided in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> and a <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a>.
 It will replace <code class="docutils literal notranslate"><span class="pre">$PARAMS</span></code> with the (non-<code class="docutils literal notranslate"><span class="pre">cytomine_</span></code>) parameters given in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code>. See also the <a class="reference internal" href="#parameters"><span class="xref myst">Parameters</span></a> section below.</p>
-</div>
-<div class="section" id="how-to-add-your-own-slurm-job">
-<h2>How to add your own Slurm job<a class="headerlink" href="#how-to-add-your-own-slurm-job" title="Permalink to this headline"></a></h2>
+</section>
+<section id="how-to-add-your-own-slurm-job">
+<h2>How to add your own Slurm job<a class="headerlink" href="#how-to-add-your-own-slurm-job" title="Permalink to this heading"></a></h2>
 <p>You could change the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a> and generate new jobs, by running <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=True)</span></code> (or <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts(generate_jobs=True)</span></code>)</p>
 <p>Or you could add your jobs to a <a class="reference external" href="https://github.com/TorecLuik/slurm-scripts">Github repository</a> and reference this in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, both in the field <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> and every <code class="docutils literal notranslate"><span class="pre">&lt;workflow&gt;_job</span></code>:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
@@ -619,8 +651,8 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 </div>
 <p>You can update the jobs by calling <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts()</span></code>, which will pull the repository(‘s default branch).</p>
 <p>This might be useful, for example if you have other hardware requirements for your workflow(s) than the default job asks for, or if you want to run more than just 1 singularity container.</p>
-<div class="section" id="parameters">
-<h3>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline"></a></h3>
+<section id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h3>
 <p>The library will provide the parameters from your <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> as environment variables to the call. E.g. <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">DIAMETER=0;</span> <span class="pre">sbatch</span> <span class="pre">...</span></code>.</p>
 <p>Other environment variables provided are:</p>
 <ul class="simple">
@@ -648,16 +680,16 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 <li><p><code class="docutils literal notranslate"><span class="pre">--output=omero-%4j.log</span></code> (mandatory)</p></li>
 </ul>
 <p>We could add more overrides in the future, and perhaps make them available as global configuration variables in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>.</p>
-</div>
-</div>
-</div>
-<div class="section" id="batching">
-<h1>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h1>
+</section>
+</section>
+</section>
+<section id="batching">
+<h1>Batching<a class="headerlink" href="#batching" title="Permalink to this heading"></a></h1>
 <p>We can simply use <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> for running your workflow 1:1, so 1 job to 1 workflow. This could speed up your workflow already, as <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> servers are likely equipped with strong CPU and GPU.</p>
 <p>However, <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> is also built for parallel processing on multiple (or the same) servers. We can accomplish this by running multiple jobs for 1 workflow. This is simple for <a class="reference external" href="https://en.wikipedia.org/wiki/Embarrassingly_parallel#:~:text=In%20parallel%20computing%2C%20an%20embarrassingly,a%20number%20of%20parallel%20tasks.">embarrassingly parallel</a> tasks, like segmenting multiple images: just provide each job with a different set of input images. If you have 100 images, you could run 10 jobs on 10 images and (given enough resources available for you on Slurm) that could be 10x faster. In theory, you could run 1 job per image, but at some point you run into the overhead cost of Slurm (and OMERO) and it might actually slow down again (as you incur this cost a 100 times instead of 10 times).</p>
-</div>
-<div class="section" id="using-the-gpu-on-slurm">
-<h1>Using the GPU on Slurm<a class="headerlink" href="#using-the-gpu-on-slurm" title="Permalink to this headline"></a></h1>
+</section>
+<section id="using-the-gpu-on-slurm">
+<h1>Using the GPU on Slurm<a class="headerlink" href="#using-the-gpu-on-slurm" title="Permalink to this heading"></a></h1>
 <p>Note, the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">default</span></a> Slurm job script will not request any GPU resources.</p>
 <p>This is because GPU resources are expensive and some programs do not work with GPU.</p>
 <p>We can instead <em>enable</em> the use of GPU by either providing our own Slurm job scripts, or setting an override value in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>:</p>
@@ -697,9 +729,9 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 </pre></div>
 </div>
 <p>Now the CellPose job should run for maximum of 30 minutes, instead of the default.</p>
-</div>
-<div class="section" id="transfering-data">
-<h1>Transfering data<a class="headerlink" href="#transfering-data" title="Permalink to this headline"></a></h1>
+</section>
+<section id="transfering-data">
+<h1>Transfering data<a class="headerlink" href="#transfering-data" title="Permalink to this heading"></a></h1>
 <p>We have added methods to this library to help with transferring data to the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> cluster, using the same SSH connection (via SCP or SFTP).</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">slurmClient.transfer_data(...)</span></code></p>
@@ -729,9 +761,9 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 </li>
 </ul>
 <p>And more; see the docstring of <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and example OMERO scripts.</p>
-</div>
-<div class="section" id="testing-the-python-code">
-<h1>Testing the Python code<a class="headerlink" href="#testing-the-python-code" title="Permalink to this headline"></a></h1>
+</section>
+<section id="testing-the-python-code">
+<h1>Testing the Python code<a class="headerlink" href="#testing-the-python-code" title="Permalink to this heading"></a></h1>
 <p>You can test the library by installing the extra test dependencies:</p>
 <ol class="arabic simple">
 <li><p>Create a venv to isolate the python install:
@@ -741,11 +773,11 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 <li><p>Run pytest from this venv:
 <code class="docutils literal notranslate"><span class="pre">venvTest/Scripts/pytest</span></code></p></li>
 </ol>
-</div>
-<div class="section" id="logging">
-<h1>Logging<a class="headerlink" href="#logging" title="Permalink to this headline"></a></h1>
+</section>
+<section id="logging">
+<h1>Logging<a class="headerlink" href="#logging" title="Permalink to this heading"></a></h1>
 <p>Debug logging can be enabled with the standard python logging module, for example with logging.basicConfig():</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">logging</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;DEBUG&#39;</span><span class="p">)</span>
 </pre></div>
@@ -758,7 +790,7 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
     <span class="n">runScript</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
+</section>
 
 
            </div>

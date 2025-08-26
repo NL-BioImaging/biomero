@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eventsourcing and Views (Developer) &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="biomero package" href="../biomero.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html">BIOMERO - BioImage analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-2-0">BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-scripts">BIOMERO scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#logging">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Eventsourcing and Views (Developer)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#event-side">Event side</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#environment">Environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#versioning-aggregates">Versioning aggregates</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#view-side">View side</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#rebuilding-views-reprojection">Rebuilding views (reprojection)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#schema-changes-and-migrations-views-only">Schema changes and migrations (views only)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gotchas">Gotchas</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Eventsourcing and Views (Developer)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/developer/eventsourcing.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="eventsourcing-and-views-developer">
+<h1>Eventsourcing and Views (Developer)<a class="headerlink" href="#eventsourcing-and-views-developer" title="Permalink to this heading"></a></h1>
+<p>This page explains how BIOMERO tracks workflow execution using eventsourcing, and how read models (“views”) are maintained and migrated.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Event side: domain aggregates emit immutable events and are stored in an event store (via eventsourcing_sqlalchemy).</p></li>
+<li><p>View side: lightweight SQLAlchemy models are updated by ProcessApplications that listen to events and persist denormalized rows for fast queries and dashboards.</p></li>
+</ul>
+</section>
+<section id="event-side">
+<h2>Event side<a class="headerlink" href="#event-side" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Aggregates: see <code class="docutils literal notranslate"><span class="pre">biomero.eventsourcing</span></code>
+- <code class="docutils literal notranslate"><span class="pre">WorkflowRun</span></code> (create/start/complete/fail; holds list of task IDs)
+- <code class="docutils literal notranslate"><span class="pre">Task</span></code> (create/start/complete/fail; adds Slurm job IDs; status/progress; results)</p></li>
+<li><p>Application service: <code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code> orchestrates aggregate lifecycle methods and commits using <code class="docutils literal notranslate"><span class="pre">EngineManager</span></code>.</p></li>
+<li><p>Persistence: the event store is managed by the eventsourcing library. Do not write Alembic migrations for its tables.</p></li>
+</ul>
+<section id="environment">
+<h3>Environment<a class="headerlink" href="#environment" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p>Required env vars:
+- <code class="docutils literal notranslate"><span class="pre">PERSISTENCE_MODULE=eventsourcing_sqlalchemy</span></code>
+- <code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL=postgresql+psycopg2://...</span></code> (or sqlite for tests)</p></li>
+<li><p>Engine wiring: <code class="docutils literal notranslate"><span class="pre">EngineManager.create_scoped_session()</span></code> configures the SQLAlchemy engine/session used both by eventsourcing and the views.</p></li>
+</ul>
+</section>
+<section id="versioning-aggregates">
+<h3>Versioning aggregates<a class="headerlink" href="#versioning-aggregates" title="Permalink to this heading"></a></h3>
+<p>When changing aggregate or event schemas, keep backward compatibility with stored events:</p>
+<ul class="simple">
+<li><p>Bump <code class="docutils literal notranslate"><span class="pre">INITIAL_VERSION</span></code> (or class_version) as appropriate.</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">upcast_vX_vY(state)</span></code> static methods on Aggregate/Event classes to adapt older event snapshots to the new shape.</p></li>
+<li><p>See the eventsourcing docs for versioning patterns.</p></li>
+</ul>
+</section>
+</section>
+<section id="view-side">
+<h2>View side<a class="headerlink" href="#view-side" title="Permalink to this heading"></a></h2>
+<p>Views are updated by ProcessApplications that consume events and persist into BIOMERO-owned tables (all start with <code class="docutils literal notranslate"><span class="pre">biomero_...</span></code>):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.JobAccounting</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_job_view</span></code> (user/group + task_id per Slurm job)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.JobProgress</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_job_progress_view</span></code> (status/progress per Slurm job)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.WorkflowProgress</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_workflow_progress_view</span></code> (status/progress/name/user/group/task)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.WorkflowAnalytics</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_task_execution</span></code> (per-task analytics, timings, failures)</p></li>
+</ul>
+<p>These are standard SQLAlchemy models defined in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code>. They are the only BIOMERO tables covered by Alembic migrations.</p>
+<section id="rebuilding-views-reprojection">
+<h3>Rebuilding views (reprojection)<a class="headerlink" href="#rebuilding-views-reprojection" title="Permalink to this heading"></a></h3>
+<p>Views are derived data and can be safely rebuilt from the event log:</p>
+<ol class="arabic simple">
+<li><p>Truncate view tables (optional):
+- <code class="docutils literal notranslate"><span class="pre">biomero_job_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_job_progress_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_workflow_progress_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_task_execution</span></code></p></li>
+<li><p>Reprocess events from the start with a System runner:</p></li>
+</ol>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span><span class="p">,</span> <span class="n">SingleThreadedRunner</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowTracker</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobAccounting</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">,</span> <span class="n">WorkflowProgress</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span>
+
+<span class="n">system</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">pipes</span><span class="o">=</span><span class="p">[[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">JobAccounting</span><span class="p">],</span>
+                       <span class="p">[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">],</span>
+                       <span class="p">[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">WorkflowProgress</span><span class="p">],</span>
+                       <span class="p">[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span><span class="p">]])</span>
+<span class="n">runner</span> <span class="o">=</span> <span class="n">SingleThreadedRunner</span><span class="p">(</span><span class="n">system</span><span class="p">)</span>
+<span class="n">runner</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<span class="c1"># Optionally call: runner.get(WorkflowTracker).pull_and_process(leader_name=WorkflowTracker.__name__)</span>
+<span class="n">runner</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Notes:
+- View upserts use <code class="docutils literal notranslate"><span class="pre">session.merge(...)</span></code> or primary keys to stay idempotent.
+- If you change primary keys or uniqueness, do a one-off cleanup before reprojecting.</p>
+</section>
+</section>
+<section id="schema-changes-and-migrations-views-only">
+<h2>Schema changes and migrations (views only)<a class="headerlink" href="#schema-changes-and-migrations-views-only" title="Permalink to this heading"></a></h2>
+<p>BIOMERO ships with an Alembic track scoped to its own tables. The event store tables are excluded and managed by the library.</p>
+<ul>
+<li><p>Config: <code class="docutils literal notranslate"><span class="pre">biomero/migrations</span></code> (version table: <code class="docutils literal notranslate"><span class="pre">alembic_version_biomero</span></code>)</p></li>
+<li><p>Startup migrator: <code class="docutils literal notranslate"><span class="pre">biomero.db_migrate.run_migrations_on_startup()</span></code>
+- Controlled by env:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_RUN_MIGRATIONS=1</span></code> (default) to auto-upgrade on start</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ALLOW_AUTO_STAMP=1</span></code> to adopt an existing schema (stamps head once if BIOMERO tables already exist)</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+<p>Typical workflow (autogenerate a revision for view changes):</p>
+<ol class="arabic simple">
+<li><p>Edit SQLAlchemy models in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code> (BIOMERO view tables only).</p></li>
+<li><p>Generate a migration:</p></li>
+</ol>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ensure SQLALCHEMY_URL points to a dev DB that is up-to-date</span>
+<span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">alembic</span> <span class="o">-</span><span class="n">c</span> <span class="n">biomero</span><span class="o">/</span><span class="n">migrations</span><span class="o">/</span><span class="n">alembic</span><span class="o">.</span><span class="n">ini</span> <span class="n">revision</span> <span class="o">--</span><span class="n">autogenerate</span> <span class="o">-</span><span class="n">m</span> <span class="s2">&quot;view change&quot;</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Commit the migration version file to Git to be packaged with the release</p></li>
+</ol>
+</section>
+<section id="gotchas">
+<h2>Gotchas<a class="headerlink" href="#gotchas" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Do not include eventsourcing tables in Alembic. Our env.py filters to BIOMERO view tables only.</p></li>
+<li><p>When changing aggregates, add upcasters so old events can still be rehydrated.</p></li>
+<li><p>Rebuilding views is safe; prefer that over complex data migrations.</p></li>
+<li><p>In production, the startup migrator uses a Postgres advisory lock to avoid concurrent upgrades.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../biomero.html" class="btn btn-neutral float-left" title="biomero package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

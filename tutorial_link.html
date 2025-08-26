@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cellprofiler tutorial &mdash; BIOMERO 1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -11,9 +12,8 @@
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -50,6 +50,7 @@
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-scripts">BIOMERO scripts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#docker-containers">(Docker) containers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#ssh">SSH</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurmclient-class">SlurmClient class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
@@ -186,6 +187,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">biomero</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+</ul>
 
         </div>
       </div>
@@ -212,46 +217,46 @@
            <div itemprop="articleBody">
              
   <hr class="docutils" />
-<div class="section" id="cellprofiler-tutorial">
-<h1>Cellprofiler tutorial<a class="headerlink" href="#cellprofiler-tutorial" title="Permalink to this headline"></a></h1>
+<section id="cellprofiler-tutorial">
+<h1>Cellprofiler tutorial<a class="headerlink" href="#cellprofiler-tutorial" title="Permalink to this heading"></a></h1>
 <p>Cellprofiler is already known for excellent interoperability with OMERO. You can directly load images into the cellprofiler pipelines.</p>
 <p>Cellprofiler also has options to run in batch mode and headless, for analyzing big data on compute clusters, like we want as well.</p>
 <p>However, for our purposes, this is insufficient, as we want to run it from OMERO, and on a compute cluster that only has SSH access.</p>
 <p>In this tutorial I will show you how to add a cellprofiler pipeline as a workflow to OMERO and Slurm, with this client library.</p>
-<div class="section" id="prerequisite-omero-slurm-and-biomero">
-<h2>0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">biomero</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-biomero" title="Permalink to this headline"></a></h2>
+<section id="prerequisite-omero-slurm-and-biomero">
+<h2>0. Prerequisite: OMERO, Slurm and <code class="docutils literal notranslate"><span class="pre">biomero</span></code>.<a class="headerlink" href="#prerequisite-omero-slurm-and-biomero" title="Permalink to this heading"></a></h2>
 <p>We assume you have these 3 components setup and connected. If not, follow the main <a class="reference internal" href="#README.md"><span class="xref myst">README</span></a> first.</p>
-</div>
-<div class="section" id="grab-the-data-and-pipeline">
-<h2>1. Grab the data and pipeline<a class="headerlink" href="#grab-the-data-and-pipeline" title="Permalink to this headline"></a></h2>
+</section>
+<section id="grab-the-data-and-pipeline">
+<h2>1. Grab the data and pipeline<a class="headerlink" href="#grab-the-data-and-pipeline" title="Permalink to this heading"></a></h2>
 <p>We want to try something ready-made, and we like spots here at the AMC.</p>
 <p>So let’s grab this spot-counting example from the cellprofiler website:
 https://github.com/tischi/cellprofiler-practical-NeuBIAS-Lisbon-2017/blob/master/practical-handout.md</p>
-</div>
-<div class="section" id="try-the-pipeline-locally">
-<h2>2. Try the pipeline locally<a class="headerlink" href="#try-the-pipeline-locally" title="Permalink to this headline"></a></h2>
-<div class="section" id="ui">
-<h3>UI<a class="headerlink" href="#ui" title="Permalink to this headline"></a></h3>
+</section>
+<section id="try-the-pipeline-locally">
+<h2>2. Try the pipeline locally<a class="headerlink" href="#try-the-pipeline-locally" title="Permalink to this heading"></a></h2>
+<section id="ui">
+<h3>UI<a class="headerlink" href="#ui" title="Permalink to this heading"></a></h3>
 <p>It is always a good idea to test your algorithms locally before jumping to remote compute.
 You can walk through the readme, or open the <a class="reference external" href="https://github.com/tischi/cellprofiler-practical-NeuBIAS-Lisbon-2017/blob/master/PLA-dot-counting-with-speckle-enhancement.cpproj">PLA-dot-counting-with-speckle-enhancement.cpproj</a>. It seems to be a bit older, so we have to fix the threshold (<code class="docutils literal notranslate"><span class="pre">(0.0</span></code> to <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) and change the input to our local file location.</p>
-</div>
-<div class="section" id="export-pipeline-file-only">
-<h3>Export pipeline file only<a class="headerlink" href="#export-pipeline-file-only" title="Permalink to this headline"></a></h3>
+</section>
+<section id="export-pipeline-file-only">
+<h3>Export pipeline file only<a class="headerlink" href="#export-pipeline-file-only" title="Permalink to this heading"></a></h3>
 <p>Cellprofiler works with both <code class="docutils literal notranslate"><span class="pre">.cpproj</span></code> and <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code>. The project version hardcodes the filepaths in there, which we don’t want. So go to <code class="docutils literal notranslate"><span class="pre">File</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Export</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> and save this as a <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code> file.</p>
 <p>Another bonus is that <code class="docutils literal notranslate"><span class="pre">.cppipe</span></code> is human-readable and editable. Important later on.</p>
-</div>
-<div class="section" id="headless">
-<h3>headless<a class="headerlink" href="#headless" title="Permalink to this headline"></a></h3>
+</section>
+<section id="headless">
+<h3>headless<a class="headerlink" href="#headless" title="Permalink to this heading"></a></h3>
 <p>After it works, let’s try it headless too:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./cellprofiler.exe -c -p &#39;&lt;path-to&gt;\PLA-dot-counting-with-speckle-enhancement.cppipe&#39; -o &#39;&lt;path-to&gt;\cellprofiler_results&#39; -i &#39;&lt;path-to&gt;\PLA_data
 </pre></div>
 </div>
 <p>Here we provide the input images (<code class="docutils literal notranslate"><span class="pre">-i</span></code>), the output folder (<code class="docutils literal notranslate"><span class="pre">-o</span></code>), the project (<code class="docutils literal notranslate"><span class="pre">-p</span></code>) and headless mode (<code class="docutils literal notranslate"><span class="pre">-c</span></code>).</p>
 <p>See <a class="reference external" href="https://carpenter-singh-lab.broadinstitute.org/blog/getting-started-using-cellprofiler-command-line">this blog</a> for more info on the commandline parameters.</p>
-</div>
-</div>
-<div class="section" id="upload-the-data-to-omero">
-<h2>3. Upload the data to OMERO<a class="headerlink" href="#upload-the-data-to-omero" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+<section id="upload-the-data-to-omero">
+<h2>3. Upload the data to OMERO<a class="headerlink" href="#upload-the-data-to-omero" title="Permalink to this heading"></a></h2>
 <p>Let’s make a screen out of these 8 wells, for fun.</p>
 <ul class="simple">
 <li><p>Open the importer.</p></li>
@@ -267,13 +272,13 @@ You can walk through the readme, or open the <a class="reference external" href=
 </li>
 <li><p>Now we have a plate with 8 wells in a screen in OMERO.</p></li>
 </ul>
-</div>
-<div class="section" id="package-the-cellprofiler-in-a-fair-package">
-<h2>4. Package the cellprofiler in a FAIR package<a class="headerlink" href="#package-the-cellprofiler-in-a-fair-package" title="Permalink to this headline"></a></h2>
+</section>
+<section id="package-the-cellprofiler-in-a-fair-package">
+<h2>4. Package the cellprofiler in a FAIR package<a class="headerlink" href="#package-the-cellprofiler-in-a-fair-package" title="Permalink to this heading"></a></h2>
 <p>To create a FAIR workflow, let’s follow the steps from Biaflows for creating a new workflow, as they explained it quite well already: https://neubias-wg5.github.io/creating_bia_workflow_and_adding_to_biaflows_instance.html</p>
 <p>We just ignore some parts specific to the BIAFLOWS server, like adding as a trusted source. We will add the workflow to OMERO and Slurm instead, as a final step.</p>
-<div class="section" id="create-a-workflow-github-repository">
-<h3>0. Create a workflow Github repository<a class="headerlink" href="#create-a-workflow-github-repository" title="Permalink to this headline"></a></h3>
+<section id="create-a-workflow-github-repository">
+<h3>0. Create a workflow Github repository<a class="headerlink" href="#create-a-workflow-github-repository" title="Permalink to this heading"></a></h3>
 <p>To kickstart, we can reuse some of the workflow setup for CellProfiler from <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler">Neubias</a> github.</p>
 <p>You can follow along, or just use my version at the end (https://github.com/TorecLuik/W_SpotCounting-CellProfiler)</p>
 <ul class="simple">
@@ -298,9 +303,9 @@ You can walk through the readme, or open the <a class="reference external" href=
 <li><p>Open the folder in your favorite <a class="reference external" href="https://code.visualstudio.com/">editor</a></p></li>
 <li><p>Copy the project we want to this folder e.g. <code class="docutils literal notranslate"><span class="pre">PLA-dot-counting-with-speckle-enhancement.cpproj</span></code></p></li>
 </ul>
-</div>
-<div class="section" id="a-create-a-dockerfile-for-cellprofiler">
-<h3>a. Create a Dockerfile for cellprofiler<a class="headerlink" href="#a-create-a-dockerfile-for-cellprofiler" title="Permalink to this headline"></a></h3>
+</section>
+<section id="a-create-a-dockerfile-for-cellprofiler">
+<h3>a. Create a Dockerfile for cellprofiler<a class="headerlink" href="#a-create-a-dockerfile-for-cellprofiler" title="Permalink to this heading"></a></h3>
 <p>The Dockerfile installs our whole environment.</p>
 <p>We want:</p>
 <ol class="arabic simple">
@@ -317,45 +322,45 @@ You can walk through the readme, or open the <a class="reference external" href=
 We want the newest one, so I rewrote the Dockerfile:</p>
 <details>
   <summary>Our new/changed Dockerfile</summary>
-<div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span> <span class="s">cellprofiler/cellprofiler</span>
+<div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span><span class="w"> </span><span class="s">cellprofiler/cellprofiler</span>
 </pre></div>
 </div>
 <p>Instead of installing cellprofiler manually, it turns out they host containers images themselves, so let’s reuse <a class="reference external" href="https://hub.docker.com/r/cellprofiler/cellprofiler">those</a>.</p>
 <div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># Install Python3.7</span>
-<span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install -y python3.7 python3.7-dev python3.7-venv
-<span class="k">RUN</span> python3.7 -m pip install --upgrade pip <span class="o">&amp;&amp;</span> python3.7 -m pip install Cython
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3.7<span class="w"> </span>python3.7-dev<span class="w"> </span>python3.7-venv
+<span class="k">RUN</span><span class="w"> </span>python3.7<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python3.7<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>Cython
 </pre></div>
 </div>
 <p>This cellprofiler image is quite modern, but we need an older Python to work with the Cytomine/Biaflows libraries. So we Install Python3.7 (and Cython package).</p>
 <div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># ------------------------------------------------------------------------------</span>
 <span class="c"># Install Cytomine python client</span>
-<span class="k">RUN</span> git clone https://github.com/cytomine-uliege/Cytomine-python-client.git <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    <span class="nb">cd</span> Cytomine-python-client <span class="o">&amp;&amp;</span> git checkout tags/v2.7.3 <span class="o">&amp;&amp;</span> <span class="se">\ </span>
-    python3.7 -m pip install . <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    <span class="nb">cd</span> .. <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    rm -r Cytomine-python-client
+<span class="k">RUN</span><span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/cytomine-uliege/Cytomine-python-client.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span>Cytomine-python-client<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>checkout<span class="w"> </span>tags/v2.7.3<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\ </span>
+<span class="w">    </span>python3.7<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>.<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span>..<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>rm<span class="w"> </span>-r<span class="w"> </span>Cytomine-python-client
 
 <span class="c"># ------------------------------------------------------------------------------</span>
 <span class="c"># Install BIAFLOWS utilities (annotation exporter, compute metrics, helpers,...)</span>
-<span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install libgeos-dev -y <span class="o">&amp;&amp;</span> apt-get clean
-<span class="k">RUN</span> git clone https://github.com/Neubias-WG5/biaflows-utilities.git <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    <span class="nb">cd</span> biaflows-utilities/ <span class="o">&amp;&amp;</span> git checkout tags/v0.9.1 <span class="o">&amp;&amp;</span> python3.7 -m pip install .
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libgeos-dev<span class="w"> </span>-y<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>clean
+<span class="k">RUN</span><span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Neubias-WG5/biaflows-utilities.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span>biaflows-utilities/<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>checkout<span class="w"> </span>tags/v0.9.1<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python3.7<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>.
 
 <span class="c"># install utilities binaries</span>
-<span class="k">RUN</span> chmod +x biaflows-utilities/bin/*
-<span class="k">RUN</span> cp biaflows-utilities/bin/* /usr/bin/ <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    rm -r biaflows-utilities
+<span class="k">RUN</span><span class="w"> </span>chmod<span class="w"> </span>+x<span class="w"> </span>biaflows-utilities/bin/*
+<span class="k">RUN</span><span class="w"> </span>cp<span class="w"> </span>biaflows-utilities/bin/*<span class="w"> </span>/usr/bin/<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>rm<span class="w"> </span>-r<span class="w"> </span>biaflows-utilities
 </pre></div>
 </div>
 <p>These 2 parts install specific versions of the biaflows library and Cytomine library with Python 3.7.</p>
 <div class="highlight-Dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># ------------------------------------------------------------------------------</span>
 <span class="c"># Add repository files: wrapper, command and descriptor</span>
-<span class="k">RUN</span> mkdir /app
-<span class="k">ADD</span> wrapper.py /app/wrapper.py
-<span class="k">ADD</span> PLA-dot-counting-with-speckle-enhancement.cppipe /app/PLA-dot-counting-with-speckle-enhancement.cppipe
-<span class="k">ADD</span> descriptor.json /app/descriptor.json
+<span class="k">RUN</span><span class="w"> </span>mkdir<span class="w"> </span>/app
+<span class="k">ADD</span><span class="w"> </span>wrapper.py<span class="w"> </span>/app/wrapper.py
+<span class="k">ADD</span><span class="w"> </span>PLA-dot-counting-with-speckle-enhancement.cppipe<span class="w"> </span>/app/PLA-dot-counting-with-speckle-enhancement.cppipe
+<span class="k">ADD</span><span class="w"> </span>descriptor.json<span class="w"> </span>/app/descriptor.json
 
-<span class="k">ENTRYPOINT</span> <span class="p">[</span><span class="s2">&quot;python3.7&quot;</span><span class="p">,</span><span class="s2">&quot;/app/wrapper.py&quot;</span><span class="p">]</span>
+<span class="k">ENTRYPOINT</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;python3.7&quot;</span><span class="p">,</span><span class="s2">&quot;/app/wrapper.py&quot;</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>Finally we add our own workflow to <code class="docutils literal notranslate"><span class="pre">/app</span></code> folder:</p>
@@ -366,85 +371,85 @@ We want the newest one, so I rewrote the Dockerfile:</p>
 </ul>
 <p>And we tell the image to call <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> with python3.7 when we start it up using an <code class="docutils literal notranslate"><span class="pre">ENTRYPOINT</span></code>. This also forwards commandline parameters that you provide to the <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> script, e.g. workflow parameters.</p>
 </details>
-</div>
-<div class="section" id="b-setup-the-metadata-in-descriptor-json">
-<h3>b. Setup the metadata in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code><a class="headerlink" href="#b-setup-the-metadata-in-descriptor-json" title="Permalink to this headline"></a></h3>
+</section>
+<section id="b-setup-the-metadata-in-descriptor-json">
+<h3>b. Setup the metadata in <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code><a class="headerlink" href="#b-setup-the-metadata-in-descriptor-json" title="Permalink to this heading"></a></h3>
 <p>We actually don’t have any input parameters (except the default input/output) at this moment. Look at <a class="reference internal" href="#extra-how-to-add-workflow-parameters-to-cellprofiler"><span class="xref myst">this</span></a> extra chapter for more info on how to approach that.</p>
 <p>So we can just use the basic <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> that was given and remove the last 2 non-cytomine parameters.
 Mainly, update the name, description and where we will publish the container (your new dockerhub account).</p>
 <details>
   <summary>Example full json</summary>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-  <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;SpotCounting-CellProfiler&quot;</span><span class="p">,</span>
-  <span class="nt">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Workflow for spot counting in CellProfiler&quot;</span><span class="p">,</span>
-  <span class="nt">&quot;container-image&quot;</span><span class="p">:</span> <span class="p">{</span>
-    <span class="nt">&quot;image&quot;</span><span class="p">:</span> <span class="s2">&quot;torecluik/w_spotcounting-cellprofiler&quot;</span><span class="p">,</span>
-    <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;singularity&quot;</span>
-  <span class="p">},</span>
-  <span class="nt">&quot;command-line&quot;</span><span class="p">:</span> <span class="s2">&quot;python wrapper.py CYTOMINE_HOST CYTOMINE_PUBLIC_KEY CYTOMINE_PRIVATE_KEY CYTOMINE_ID_PROJECT CYTOMINE_ID_SOFTWARE&quot;</span><span class="p">,</span>
-  <span class="nt">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[</span>
-    <span class="p">{</span>
-      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_host&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS host&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
-      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;String&quot;</span>
-    <span class="p">},</span>
-    <span class="p">{</span>
-      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_public_key&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS public key&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
-      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;String&quot;</span>
-    <span class="p">},</span>
-    <span class="p">{</span>
-      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_private_key&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS private key&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
-      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;String&quot;</span>
-    <span class="p">},</span>
-    <span class="p">{</span>
-      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_id_project&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS project ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
-      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Number&quot;</span>
-    <span class="p">},</span>
-    <span class="p">{</span>
-      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine_id_software&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;value-key&quot;</span><span class="p">:</span> <span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span> <span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;BIAFLOWS software ID&quot;</span><span class="p">,</span>
-      <span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-      <span class="nt">&quot;optional&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
-      <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Number&quot;</span>
-    <span class="p">}</span>
-  <span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SpotCounting-CellProfiler&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Workflow for spot counting in CellProfiler&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;container-image&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;torecluik/w_spotcounting-cellprofiler&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;singularity&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;command-line&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;python wrapper.py CYTOMINE_HOST CYTOMINE_PUBLIC_KEY CYTOMINE_PRIVATE_KEY CYTOMINE_ID_PROJECT CYTOMINE_ID_SOFTWARE&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;inputs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_host&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS host&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;String&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_public_key&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS public key&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;String&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_private_key&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS private key&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;String&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_id_project&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS project ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Number&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_id_software&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS software ID&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Number&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
 
-  <span class="nt">&quot;schema-version&quot;</span><span class="p">:</span> <span class="s2">&quot;cytomine-0.1&quot;</span>
+<span class="w">  </span><span class="nt">&quot;schema-version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine-0.1&quot;</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 </details>
-</div>
-<div class="section" id="c-update-the-command-in-wrapper-py">
-<h3>c. Update the command in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code><a class="headerlink" href="#c-update-the-command-in-wrapper-py" title="Permalink to this headline"></a></h3>
+</section>
+<section id="c-update-the-command-in-wrapper-py">
+<h3>c. Update the command in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code><a class="headerlink" href="#c-update-the-command-in-wrapper-py" title="Permalink to this heading"></a></h3>
 <p>So the wrapper gets called when the container starts.
 This is where we ‘wrap’ our pipeline by handling input/output and parameters.
 We also have to make sure that we call the pipeline correctly here.</p>
 <details>
   <summary>Our changes to the wrapper</summary>
 <p>This first part we keep the same: the <code class="docutils literal notranslate"><span class="pre">BiaflowsJob</span></code> will parse the commandline parameters for us and provide those as <code class="docutils literal notranslate"><span class="pre">bj.parameter.&lt;param_name&gt;</span></code> if we did want them. But we don’t use any right now.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
     <span class="n">base_path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;HOME&quot;</span><span class="p">))</span> <span class="c1"># Mandatory for Singularity</span>
     <span class="n">problem_cls</span> <span class="o">=</span> <span class="n">CLASS_OBJSEG</span>
 
@@ -478,9 +483,9 @@ We also have to make sure that we call the pipeline correctly here.</p>
 We keep it in for the logs, but they are essentially a <a class="reference external" href="https://en.wikipedia.org/wiki/NOP_(code)"><code class="docutils literal notranslate"><span class="pre">no-op</span></code></a> because we will provide the command-line parameters <code class="docutils literal notranslate"><span class="pre">--local</span></code> and <code class="docutils literal notranslate"><span class="pre">-nmc</span></code> (<code class="docutils literal notranslate"><span class="pre">n</span></code>o <code class="docutils literal notranslate"><span class="pre">m</span></code>etric <code class="docutils literal notranslate"><span class="pre">c</span></code>omputation).</p>
 </details>
 <p>Full changes can be found <a class="reference external" href="https://github.com/TorecLuik/W_SpotCounting-CellProfiler/blob/master/wrapper.py">here</a></p>
-</div>
-<div class="section" id="d-run-locally">
-<h3>d. Run locally<a class="headerlink" href="#d-run-locally" title="Permalink to this headline"></a></h3>
+</section>
+<section id="d-run-locally">
+<h3>d. Run locally<a class="headerlink" href="#d-run-locally" title="Permalink to this heading"></a></h3>
 <p>Now that we have a docker, we can run this locally or anywhere that we have docker installed, without the need for having the right version of cellprofiler, etc.
 Let’s try it out:</p>
 <ol class="arabic simple" start="0">
@@ -501,9 +506,9 @@ Let’s try it out:</p>
 </ol>
 <p>This should work the same as <a class="reference internal" href="#2-try-the-pipeline-locally"><span class="xref myst">before</span></a>, with a bit of extra logging thrown in.
 Except now, we didn’t need to have cellprofiler installed! Anyone with <code class="docutils literal notranslate"><span class="pre">Docker</span></code> (or <code class="docutils literal notranslate"><span class="pre">Podman</span></code> or <code class="docutils literal notranslate"><span class="pre">Singularity</span></code>) can run this workflow now.</p>
-</div>
-<div class="section" id="e-publish-to-github-and-dockerhub">
-<h3>e. Publish to GitHub and DockerHub<a class="headerlink" href="#e-publish-to-github-and-dockerhub" title="Permalink to this headline"></a></h3>
+</section>
+<section id="e-publish-to-github-and-dockerhub">
+<h3>e. Publish to GitHub and DockerHub<a class="headerlink" href="#e-publish-to-github-and-dockerhub" title="Permalink to this heading"></a></h3>
 <p>So how do other people get to use our workflow?</p>
 <ol class="arabic simple">
 <li><p>We publish the source online on Github:</p></li>
@@ -535,8 +540,8 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 <li><p>Great! now everybody (with internet access) can pull your workflow image and run it <a class="reference internal" href="#d-run-locally"><span class="xref myst">locally</span></a>: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span> <span class="pre">-nmc</span></code></p></li>
 </ul>
 <p>And this is what we will make OMERO do on the Slurm cluster next.</p>
-<div class="section" id="optional-manually-publish-the-image-on-dockerhub">
-<h4>Optional: Manually publish the image on Dockerhub:<a class="headerlink" href="#optional-manually-publish-the-image-on-dockerhub" title="Permalink to this headline"></a></h4>
+<section id="optional-manually-publish-the-image-on-dockerhub">
+<h4>Optional: Manually publish the image on Dockerhub:<a class="headerlink" href="#optional-manually-publish-the-image-on-dockerhub" title="Permalink to this heading"></a></h4>
 <ul class="simple">
 <li><p>First, create an account on Dockerhub if you don’t have one</p></li>
 <li><p>Login locally on the commandline to this account too: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">login</span></code></p></li>
@@ -551,11 +556,11 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 <li><p>Great! now everybody (with internet access) can pull your workflow image and run it <a class="reference internal" href="#d-run-locally"><span class="xref myst">locally</span></a>: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&lt;my-drive&gt;\PLA\:/data-it</span> <span class="pre">&lt;your-dockerhub-user&gt;/w_spotcounting-cellprofiler:v1.0.0</span> <span class="pre">--local</span> <span class="pre">--infolder</span> <span class="pre">/data-it/PLA_data</span> <span class="pre">--outfolder</span> <span class="pre">/data-it/out</span> <span class="pre">--gtfolder</span> <span class="pre">/data-it/gt</span> <span class="pre">-nmc</span></code></p></li>
 </ul>
 <p>And this is what we will make OMERO do on the Slurm cluster next.</p>
-</div>
-</div>
-</div>
-<div class="section" id="add-this-workflow-to-the-omero-slurm-client">
-<h2>5. Add this workflow to the OMERO Slurm Client<a class="headerlink" href="#add-this-workflow-to-the-omero-slurm-client" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+</section>
+<section id="add-this-workflow-to-the-omero-slurm-client">
+<h2>5. Add this workflow to the OMERO Slurm Client<a class="headerlink" href="#add-this-workflow-to-the-omero-slurm-client" title="Permalink to this heading"></a></h2>
 <ol class="arabic simple">
 <li><p>Let’s adjust the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> on our OMERO processor server.</p></li>
 </ol>
@@ -595,24 +600,24 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <span class="c1">#</span>
 <span class="c1"># Example OMERO.script to instantiate a &#39;empty&#39; Slurm connection.</span>
 
-<span class="kn">import</span> <span class="nn">omero</span>
-<span class="kn">import</span> <span class="nn">omero.gateway</span>
-<span class="kn">from</span> <span class="nn">omero</span> <span class="kn">import</span> <span class="n">scripts</span>
-<span class="kn">from</span> <span class="nn">omero.rtypes</span> <span class="kn">import</span> <span class="n">rstring</span><span class="p">,</span> <span class="n">unwrap</span>
-<span class="kn">from</span> <span class="nn">biomero</span> <span class="kn">import</span> <span class="n">SlurmClient</span>
-<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">omero</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">omero.gateway</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omero</span><span class="w"> </span><span class="kn">import</span> <span class="n">scripts</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omero.rtypes</span><span class="w"> </span><span class="kn">import</span> <span class="n">rstring</span><span class="p">,</span> <span class="n">unwrap</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">SlurmClient</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">runScript</span><span class="p">():</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">runScript</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The main entry point of the script</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">client</span> <span class="o">=</span> <span class="n">scripts</span><span class="o">.</span><span class="n">client</span><span class="p">(</span>
         <span class="s1">&#39;Slurm Init&#39;</span><span class="p">,</span>
-        <span class="sd">&#39;&#39;&#39;Will initiate the Slurm environment for workflow execution.</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Will initiate the Slurm environment for workflow execution.</span>
 
 <span class="sd">        You can provide a config file location, </span>
 <span class="sd">        and/or it will look for default locations:</span>
@@ -637,7 +642,7 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
                 <span class="n">slurmClient</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Slurm is setup:&quot;</span>
                 <span class="n">models</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">get_all_image_versions_and_data_files</span><span class="p">()</span>
-                <span class="n">message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Models: </span><span class="si">{models}</span><span class="se">\n</span><span class="s2">Data:</span><span class="si">{data}</span><span class="s2">&quot;</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Models: </span><span class="si">{</span><span class="n">models</span><span class="si">}</span><span class="se">\n</span><span class="s2">Data:</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
 
         <span class="n">client</span><span class="o">.</span><span class="n">setOutput</span><span class="p">(</span><span class="s2">&quot;Message&quot;</span><span class="p">,</span> <span class="n">rstring</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">message</span><span class="p">)))</span>
 
@@ -656,9 +661,9 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <li><p>your image ‘v1.0.0’.</p></li>
 <li><p>And also a job-script for Slurm, automatically generated (unless you changed that behaviour in the <code class="docutils literal notranslate"><span class="pre">slurm-config</span></code>).</p></li>
 </ul>
-</div>
-<div class="section" id="add-a-omero-script-to-run-this-from-the-web-ui">
-<h2>6. Add a OMERO script to run this from the Web UI<a class="headerlink" href="#add-a-omero-script-to-run-this-from-the-web-ui" title="Permalink to this headline"></a></h2>
+</section>
+<section id="add-a-omero-script-to-run-this-from-the-web-ui">
+<h2>6. Add a OMERO script to run this from the Web UI<a class="headerlink" href="#add-a-omero-script-to-run-this-from-the-web-ui" title="Permalink to this heading"></a></h2>
 <ol class="arabic simple">
 <li><p>select a screen / dataset</p></li>
 <li><p>select workflow</p></li>
@@ -669,9 +674,9 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <p>I have created several OMERO scripts using this library, and the <a class="reference internal" href="#"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">run_workflow</span></code></span></a> can do this for us.
 It will attach the results as a zipfile attachment to the screen.
 Perhaps we can integrate with OMERO.Tables in the future.</p>
-</div>
-<div class="section" id="extra-how-to-add-workflow-parameters-to-cellprofiler">
-<h2>Extra: How to add workflow parameters to cellprofiler?<a class="headerlink" href="#extra-how-to-add-workflow-parameters-to-cellprofiler" title="Permalink to this headline"></a></h2>
+</section>
+<section id="extra-how-to-add-workflow-parameters-to-cellprofiler">
+<h2>Extra: How to add workflow parameters to cellprofiler?<a class="headerlink" href="#extra-how-to-add-workflow-parameters-to-cellprofiler" title="Permalink to this heading"></a></h2>
 <p>So normally, adding workflow parameters to your commandline in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> is easy, like <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-Cellpose/blob/master/wrapper.py#L62C8-L65C37">this</a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span>        <span class="c1"># Add here the code for running the analysis script</span>
         <span class="c1">#&quot;--chan&quot;, &quot;{:d}&quot;.format(nuc_channel)</span>
@@ -692,9 +697,9 @@ It matches the <code class="docutils literal notranslate"><span class="pre">name
 However, if you use the same module twice (like in our example pipeline), it will overwrite both of them with the same value.
 In our example, that does not work properly, e.g. the size of a nucleus should NOT be the same as the size of a spot.</p>
 <p>Options 2 and 3 are an exercise for the reader. There is an example in the OMERO docs of using the CellProfiler Python API: <a class="reference external" href="https://omero-guides.readthedocs.io/en/latest/cellprofiler/docs/gettingstarted.html">Getting started with CellProfiler and OMERO</a>.</p>
-</div>
-<div class="section" id="extra-2-we-should-add-a-license">
-<h2>Extra 2: We should add a LICENSE<a class="headerlink" href="#extra-2-we-should-add-a-license" title="Permalink to this headline"></a></h2>
+</section>
+<section id="extra-2-we-should-add-a-license">
+<h2>Extra 2: We should add a LICENSE<a class="headerlink" href="#extra-2-we-should-add-a-license" title="Permalink to this heading"></a></h2>
 <p>See the importance of a license <a class="reference external" href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository#choosing-the-right-license">here</a>:</p>
 <blockquote>
 <div><p>You’re under no obligation to choose a license. However, without a license, the default copyright laws apply, meaning that you retain all rights to your source code and no one may reproduce, distribute, or create derivative works from your work. If you’re creating an open source project, we strongly encourage you to include an open source license.</p>
@@ -703,24 +708,24 @@ In our example, that does not work properly, e.g. the size of a nucleus should N
 To make this easier for the future, always add a license. I <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/issues/2">asked</a> them to add one to the example workflows.</p>
 <p>A nice permissive default is <a class="reference external" href="https://choosealicense.com/licenses/apache-2.0/">Apache 2.0</a>. It allows people to generally use it however they want, private / commercial / open / closed etc.</p>
 <p>But there is also <code class="docutils literal notranslate"><span class="pre">copyleft</span></code>, where people can only adapt your code if they also keep the same license on all their code; e.g. <a class="reference external" href="https://choosealicense.com/licenses/gpl-3.0/">GNU</a>. That is a bit more restrictive.</p>
-</div>
-</div>
+</section>
+</section>
 <hr class="docutils" />
-<div class="section" id="cellexpansion-tutorial">
-<h1>CellExpansion tutorial<a class="headerlink" href="#cellexpansion-tutorial" title="Permalink to this headline"></a></h1>
-<div class="section" id="introduction">
-<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline"></a></h2>
+<section id="cellexpansion-tutorial">
+<h1>CellExpansion tutorial<a class="headerlink" href="#cellexpansion-tutorial" title="Permalink to this heading"></a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this heading"></a></h2>
 <p>Different type of aggregates of proteins can form inside a nucleus or inside the cytoplasm of a cell.
 In our example, we have aggregates (spots) outside of the nucleus and we want to quantify these per cell.</p>
-</div>
-<div class="section" id="import-data-to-omero">
-<h2>1. Import data to OMERO<a class="headerlink" href="#import-data-to-omero" title="Permalink to this headline"></a></h2>
+</section>
+<section id="import-data-to-omero">
+<h2>1. Import data to OMERO<a class="headerlink" href="#import-data-to-omero" title="Permalink to this heading"></a></h2>
 <p>Import <a class="reference internal" href="#./images/Cells.tif"><span class="xref myst">data</span></a> as you would normally.</p>
 <p>We use this image ‘Cells.tif’, shown as part of this png with a mask here:</p>
 <p><img alt="Nuclei label image" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/nuclei_labels.png?raw=true" /></p>
-</div>
-<div class="section" id="extract-masks-with-cellpose">
-<h2>2. Extract masks with Cellpose<a class="headerlink" href="#extract-masks-with-cellpose" title="Permalink to this headline"></a></h2>
+</section>
+<section id="extract-masks-with-cellpose">
+<h2>2. Extract masks with Cellpose<a class="headerlink" href="#extract-masks-with-cellpose" title="Permalink to this heading"></a></h2>
 <p>This process is actually 2 steps: we want the nuclei masks and also the aggregates masks.
 Luckily these were stained with different colors and are available in different channels:</p>
 <ul class="simple">
@@ -730,9 +735,9 @@ Luckily these were stained with different colors and are available in different 
 <p>So we can run 2 CellPose workflows on OMERO and retrieve both masks.
 We store them as images in a new dataset and particularly name them: “{original_file}NucleiLabels.{ext}”  and “{original_file}GranulesLabels.{ext}”.</p>
 <p>Combine both in the same dataset afterward, this will be our input dataset for the CellExpansion algorithm.</p>
-</div>
-<div class="section" id="cellexpansion">
-<h2>3. CellExpansion<a class="headerlink" href="#cellexpansion" title="Permalink to this headline"></a></h2>
+</section>
+<section id="cellexpansion">
+<h2>3. CellExpansion<a class="headerlink" href="#cellexpansion" title="Permalink to this heading"></a></h2>
 <p>To estimate the amount of aggregates per cell, we actually need the cytoplasm in our example. Then we can calculate overlap.</p>
 <p>One could segment the cytoplasm, especially in this image (its just channel 1), but we have a Python script that does this algorithmically instead for the fun of it.</p>
 <p>We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.</p>
@@ -760,9 +765,9 @@ Instead, we should package it in a lightweight container with the correct Python
 <li><p>Run the workflow on our Nuclei mask.
 Output the new mask back as image in a new dataset.</p></li>
 </ol>
-</div>
-<div class="section" id="calculate-overlap">
-<h2>Calculate overlap<a class="headerlink" href="#calculate-overlap" title="Permalink to this headline"></a></h2>
+</section>
+<section id="calculate-overlap">
+<h2>Calculate overlap<a class="headerlink" href="#calculate-overlap" title="Permalink to this heading"></a></h2>
 <p>We calculate overlap with another very short Python script.
 It outputs the overlap counts of 2 masks.</p>
 <p>Example original code:</p>
@@ -785,15 +790,15 @@ It outputs the overlap counts of 2 masks.</p>
 <li><p>Call the new workflow on this dataset / image selection, and supply the suffixes chosen (“_CellExpansion” and “_Aggregates”) as parameter. Then make sure to upload the result of the workflow as a zip, as it will be a csv file.</p></li>
 <li><p>Check the resulting csv for a count of aggregates per cell!</p></li>
 </ol>
-</div>
-<div class="section" id="workflow-management">
-<h2>Workflow management?<a class="headerlink" href="#workflow-management" title="Permalink to this headline"></a></h2>
+</section>
+<section id="workflow-management">
+<h2>Workflow management?<a class="headerlink" href="#workflow-management" title="Permalink to this heading"></a></h2>
 <p>Of course, this required knowledge and manual manipulation of renaming images and supplying that metadata to the next workflow. Ideally you would be able to string singular workflows together with Input/Output like using NextFlow or Snakemake. We are looking into it for a future version.</p>
-</div>
-<div class="section" id="extra">
-<h2>Extra<a class="headerlink" href="#extra" title="Permalink to this headline"></a></h2>
-<div class="section" id="out-of-memory">
-<h3>Out of memory<a class="headerlink" href="#out-of-memory" title="Permalink to this headline"></a></h3>
+</section>
+<section id="extra">
+<h2>Extra<a class="headerlink" href="#extra" title="Permalink to this heading"></a></h2>
+<section id="out-of-memory">
+<h3>Out of memory<a class="headerlink" href="#out-of-memory" title="Permalink to this heading"></a></h3>
 <p>While running CellPose on the Aggregates, my job ran out of memory. So I had to bump up the default memory used by the generated job scripts, in <code class="docutils literal notranslate"><span class="pre">slurm_config.ini</span></code>:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
 <span class="c1"># CELLPOSE SEGMENTATION</span>
@@ -816,20 +821,20 @@ It outputs the overlap counts of 2 masks.</p>
 <p>I added the <code class="docutils literal notranslate"><span class="pre">...mem=15GB</span></code> configuration, which will add <code class="docutils literal notranslate"><span class="pre">mem=15GB</span></code> to the Slurm job command from now on for CellPose workflows.
 No need to restart the server, these changes get picked up whenever we start a new client from this config file (which is when we start a new script).</p>
 <p>So after updating that <code class="docutils literal notranslate"><span class="pre">ini</span></code> file, I kickstart the workflow for channel 2 again and this time it works and returns the mask.</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 <hr class="docutils" />
-<div class="section" id="local-slurm-tutorial">
-<h1>Local Slurm tutorial<a class="headerlink" href="#local-slurm-tutorial" title="Permalink to this headline"></a></h1>
-<div class="section" id="id1">
-<h2>Introduction<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
+<section id="local-slurm-tutorial">
+<h1>Local Slurm tutorial<a class="headerlink" href="#local-slurm-tutorial" title="Permalink to this heading"></a></h1>
+<section id="id1">
+<h2>Introduction<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
 <p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.</p>
 <p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up locally and connect your (local) OMERO to it.
 This is what we will cover in this tutorial.</p>
-</div>
-<div class="section" id="requirements">
-<h2>0. Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline"></a></h2>
+</section>
+<section id="requirements">
+<h2>0. Requirements<a class="headerlink" href="#requirements" title="Permalink to this heading"></a></h2>
 <p>To follow this tutorial, you need:</p>
 <ul class="simple">
 <li><p>Git</p></li>
@@ -849,11 +854,11 @@ This is what we will cover in this tutorial.</p>
 </ol>
 <p>System requirements could be less, but then you have to change some configurations for Slurm.</p>
 <p>I provide ready-to-go TL;DR, but in the details of each chapter I walk through the steps I took to make these containers ready.</p>
-</div>
-<div class="section" id="setup-docker-containers-for-slurm">
-<h2>1. Setup Docker containers for Slurm<a class="headerlink" href="#setup-docker-containers-for-slurm" title="Permalink to this headline"></a></h2>
-<div class="section" id="tl-dr">
-<h3>TL;DR:<a class="headerlink" href="#tl-dr" title="Permalink to this headline"></a></h3>
+</section>
+<section id="setup-docker-containers-for-slurm">
+<h2>1. Setup Docker containers for Slurm<a class="headerlink" href="#setup-docker-containers-for-slurm" title="Permalink to this heading"></a></h2>
+<section id="tl-dr">
+<h3>TL;DR:<a class="headerlink" href="#tl-dr" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">slurm-docker-cluster</span></code> locally: <a class="reference external" href="https://github.com/TorecLuik/slurm-docker-cluster">here</a></p></li>
 </ul>
@@ -869,18 +874,18 @@ This is what we will cover in this tutorial.</p>
 </ul>
 <p>Note: these compute nodes are not setup to use GPU, that is a whole other challenge that we will not get into. But even on CPU, Slurm can be useful for parallel processing and keeping track of a queue of jobs.</p>
 <p>So let’s clone this <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster">repository</a> to our local system:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/giovtorres/slurm-docker-cluster.git .
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/giovtorres/slurm-docker-cluster.git<span class="w"> </span>.
 </pre></div>
 </div>
 <p>You can build and run these containers as described in their <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster/blob/master/README.md">README</a>. Then you can already play around with Slurm that way, so try it out!</p>
 </details>
 <p>However, we are missing an ingredient: SSH access!</p>
-</div>
-</div>
-<div class="section" id="add-ssh-access">
-<h2>2. Add SSH access<a class="headerlink" href="#add-ssh-access" title="Permalink to this headline"></a></h2>
-<div class="section" id="id2">
-<h3>TL;DR:<a class="headerlink" href="#id2" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="add-ssh-access">
+<h2>2. Add SSH access<a class="headerlink" href="#add-ssh-access" title="Permalink to this heading"></a></h2>
+<section id="id2">
+<h3>TL;DR:<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Copy your public SSH key (<code class="docutils literal notranslate"><span class="pre">id_rsa.pub</span></code>) into this git folder (it will get copied into the Docker image when you build it)</p></li>
 <li><p>Add a SSH config file, store it as <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code> (no extension):</p></li>
@@ -901,27 +906,27 @@ This is what we will cover in this tutorial.</p>
 <p>We want to combine the 2 Dockerfiles. However, one is <code class="docutils literal notranslate"><span class="pre">ubuntu</span></code> and the other is <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code>. The biggest difference is that <code class="docutils literal notranslate"><span class="pre">rockylinux</span></code> uses the <code class="docutils literal notranslate"><span class="pre">yum</span></code> package manager to install software, instead of <code class="docutils literal notranslate"><span class="pre">apt</span></code>. We will stick to the Slurm image as the base image and just add the OpenSSH on top of it.</p>
 <p>Turns out, another difference is the use of <code class="docutils literal notranslate"><span class="pre">systemctld</span></code> causing all kinds of issues.
 So I spent the time to activate OpenSSH server on Rocky linux:</p>
-<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span> <span class="s">rockylinux:8</span>
+<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span><span class="w"> </span><span class="s">rockylinux:8</span>
 
-... # all the Slurm stuff from original Dockerfile ... 
+...<span class="w"> </span>#<span class="w"> </span>all<span class="w"> </span>the<span class="w"> </span>Slurm<span class="w"> </span>stuff<span class="w"> </span>from<span class="w"> </span>original<span class="w"> </span>Dockerfile<span class="w"> </span>...<span class="w"> </span>
 
 <span class="c">## ------- Setup SSH ------</span>
-<span class="k">RUN</span> yum update <span class="o">&amp;&amp;</span> yum install  openssh-server initscripts sudo -y
+<span class="k">RUN</span><span class="w"> </span>yum<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>yum<span class="w"> </span>install<span class="w">  </span>openssh-server<span class="w"> </span>initscripts<span class="w"> </span>sudo<span class="w"> </span>-y
 <span class="c"># Create a user “sshuser” and group “sshgroup”</span>
 <span class="c"># RUN groupadd sshgroup &amp;&amp; useradd -ms /bin/bash -g sshgroup sshuser</span>
 <span class="c"># Create sshuser directory in home</span>
-<span class="k">RUN</span> mkdir -p /home/slurm/.ssh
+<span class="k">RUN</span><span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/home/slurm/.ssh
 <span class="c"># Copy the ssh public key in the authorized_keys file. The idkey.pub below is a public key file you get from ssh-keygen. They are under ~/.ssh directory by default.</span>
-<span class="k">COPY</span> id_rsa.pub /home/slurm/.ssh/authorized_keys
+<span class="k">COPY</span><span class="w"> </span>id_rsa.pub<span class="w"> </span>/home/slurm/.ssh/authorized_keys
 <span class="c"># change ownership of the key file. </span>
-<span class="k">RUN</span> chown slurm:slurm /home/slurm/.ssh/authorized_keys <span class="o">&amp;&amp;</span> chmod <span class="m">600</span> /home/slurm/.ssh/authorized_keys
+<span class="k">RUN</span><span class="w"> </span>chown<span class="w"> </span>slurm:slurm<span class="w"> </span>/home/slurm/.ssh/authorized_keys<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>/home/slurm/.ssh/authorized_keys
 <span class="c"># Start SSH service</span>
 <span class="c"># RUN service ssh start</span>
 <span class="c"># RUN /etc/init.d/sshd start</span>
-<span class="k">RUN</span> /usr/bin/ssh-keygen -A
+<span class="k">RUN</span><span class="w"> </span>/usr/bin/ssh-keygen<span class="w"> </span>-A
 <span class="c"># Expose docker port 22</span>
-<span class="k">EXPOSE</span><span class="s"> 22</span>
-<span class="k">CMD</span> <span class="p">[</span><span class="s2">&quot;/usr/sbin/sshd&quot;</span><span class="p">,</span><span class="s2">&quot;-D&quot;</span><span class="p">]</span>
+<span class="k">EXPOSE</span><span class="w"> </span><span class="s">22</span>
+<span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/usr/sbin/sshd&quot;</span><span class="p">,</span><span class="s2">&quot;-D&quot;</span><span class="p">]</span>
 <span class="c"># CMD [&quot;slurmdbd&quot;]</span>
 </pre></div>
 </div>
@@ -930,27 +935,27 @@ So I spent the time to activate OpenSSH server on Rocky linux:</p>
 This last part is important: to build this new version, you need to copy your public SSH key into this Docker image.
 This is performed in this line:</p>
 <div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="c"># Copy the ssh public key in the authorized_keys file. The idkey.pub below is a public key file you get from ssh-keygen. They are under ~/.ssh directory by default.</span>
-<span class="k">COPY</span> id_rsa.pub /home/&lt;user&gt;/.ssh/authorized_keys
+<span class="k">COPY</span><span class="w"> </span>id_rsa.pub<span class="w"> </span>/home/&lt;user&gt;/.ssh/authorized_keys
 </pre></div>
 </div>
 <p>So, you need to add your <code class="docutils literal notranslate"><span class="pre">id_rsa.pub</span></code> public key to this directory, so Docker can copy it when it builds the image.</p>
 <p>Turns out, we also need to change the entrypoint script:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>... <span class="c1"># other stuff from script</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>...<span class="w"> </span><span class="c1"># other stuff from script</span>
 
-<span class="k">if</span> <span class="o">[</span> <span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span> <span class="o">=</span> <span class="s2">&quot;slurmctld&quot;</span> <span class="o">]</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;slurmctld&quot;</span><span class="w"> </span><span class="o">]</span>
 <span class="k">then</span>
-    <span class="nb">echo</span> <span class="s2">&quot;---&gt; Starting the MUNGE Authentication service (munged) ...&quot;</span>
-    gosu munge /usr/sbin/munged
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;---&gt; Starting the MUNGE Authentication service (munged) ...&quot;</span>
+<span class="w">    </span>gosu<span class="w"> </span>munge<span class="w"> </span>/usr/sbin/munged
 
-    <span class="nb">echo</span> <span class="s2">&quot;---&gt; Starting SSH Daemon (sshd) ...&quot;</span>
-    <span class="c1"># exec /usr/bin/ssh-keygen -A</span>
-    <span class="nb">exec</span> /usr/sbin/sshd -D <span class="p">&amp;</span>
-    <span class="nb">exec</span> rm /run/nologin <span class="p">&amp;</span>
-    <span class="nb">exec</span> chmod <span class="m">777</span> /data <span class="p">&amp;</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;---&gt; Starting SSH Daemon (sshd) ...&quot;</span>
+<span class="w">    </span><span class="c1"># exec /usr/bin/ssh-keygen -A</span>
+<span class="w">    </span><span class="nb">exec</span><span class="w"> </span>/usr/sbin/sshd<span class="w"> </span>-D<span class="w"> </span><span class="p">&amp;</span>
+<span class="w">    </span><span class="nb">exec</span><span class="w"> </span>rm<span class="w"> </span>/run/nologin<span class="w"> </span><span class="p">&amp;</span>
+<span class="w">    </span><span class="nb">exec</span><span class="w"> </span>chmod<span class="w"> </span><span class="m">777</span><span class="w"> </span>/data<span class="w"> </span><span class="p">&amp;</span>
 
-    <span class="nb">echo</span> <span class="s2">&quot;---&gt; Waiting for slurmdbd to become active before starting slurmctld ...&quot;</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;---&gt; Waiting for slurmdbd to become active before starting slurmctld ...&quot;</span>
 
-    ... <span class="c1"># other stuff from script</span>
+<span class="w">    </span>...<span class="w"> </span><span class="c1"># other stuff from script</span>
 </pre></div>
 </div>
 <p>We added the command to start the SSH daemon on the CTLD here, where it is actually called.
@@ -994,12 +999,12 @@ So now we can connect SSH to our localhost and be forwarded to this Slurm contai
 <ol class="arabic simple" start="2">
 <li><p>SSH into the control node:</p></li>
 </ol>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>ssh -i C:\Users\&lt;you&gt;\.ssh\id_rsa slurm@localhost -p 2222 -o UserKnownHostsFile=/dev/null
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span> <span class="n">-i</span> <span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\&lt;</span><span class="n">you</span><span class="p">&gt;\.</span><span class="n">ssh</span><span class="p">\</span><span class="n">id_rsa</span> <span class="n">slurm</span><span class="nv">@localhost</span> <span class="n">-p</span> <span class="n">2222</span> <span class="n">-o</span> <span class="n">UserKnownHostsFile</span><span class="p">=/</span><span class="n">dev</span><span class="p">/</span><span class="n">null</span>
 </pre></div>
 </div>
 <p>This should connect as the <code class="docutils literal notranslate"><span class="pre">slurm</span></code> user to the control container on port 2222 (type yes to connect, we will fix promptless login later).</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>Last login: Tue Aug  <span class="m">8</span> <span class="m">15</span>:48:31 <span class="m">2023</span> from <span class="m">172</span>.21.0.1
-<span class="o">[</span>slurm@slurmctld ~<span class="o">]</span>$
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>Last<span class="w"> </span>login:<span class="w"> </span>Tue<span class="w"> </span>Aug<span class="w">  </span><span class="m">8</span><span class="w"> </span><span class="m">15</span>:48:31<span class="w"> </span><span class="m">2023</span><span class="w"> </span>from<span class="w"> </span><span class="m">172</span>.21.0.1
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>~<span class="o">]</span>$
 </pre></div>
 </div>
 <p>Congratulations!</p>
@@ -1008,11 +1013,11 @@ So now we can connect SSH to our localhost and be forwarded to this Slurm contai
 <p>For this, add <a class="reference internal" href="#../example.config"><span class="xref myst">this</span></a> config file as your <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>, no extension. See <a class="reference external" href="https://www.ssh.com/academy/ssh/config">here</a> for more information.</p>
 <p>Of course, first update the values with those you used to SSH before, e.g.:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
-	<span class="na">HostName localhost</span>
-	<span class="na">User slurm</span>
-	<span class="na">Port 2222</span>
-	<span class="na">IdentityFile ~/.ssh/id_rsa</span>
-	<span class="na">StrictHostKeyChecking no</span>
+<span class="w">	</span><span class="na">HostName localhost</span>
+<span class="w">	</span><span class="na">User slurm</span>
+<span class="w">	</span><span class="na">Port 2222</span>
+<span class="w">	</span><span class="na">IdentityFile ~/.ssh/id_rsa</span>
+<span class="w">	</span><span class="na">StrictHostKeyChecking no</span>
 </pre></div>
 </div>
 <p>Then try it out:
@@ -1031,12 +1036,12 @@ It is also possible that a host key has just been changed.
 <p>The host key changed =)</p>
 <p>If you don’t add this flag, it will safe you from danger and deny access. Of course, that is not very useful for our tutorial.</p>
 </details>
-</div>
-</div>
-<div class="section" id="test-slurm">
-<h2>3. Test Slurm<a class="headerlink" href="#test-slurm" title="Permalink to this headline"></a></h2>
-<div class="section" id="id3">
-<h3>TL;DR:<a class="headerlink" href="#id3" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="test-slurm">
+<h2>3. Test Slurm<a class="headerlink" href="#test-slurm" title="Permalink to this heading"></a></h2>
+<section id="id3">
+<h3>TL;DR:<a class="headerlink" href="#id3" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Spin up the Slurm cluster: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>SSH into the control node: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">localslurm</span></code></p></li>
@@ -1047,47 +1052,47 @@ It is also possible that a host key has just been changed.
 <details>
   <summary>Details</summary>
 <p>Now connect via SSH to Slurm, change to <code class="docutils literal notranslate"><span class="pre">/data</span></code> (our fileserver shared between the Slurm nodes) and let’s see if Slurm works:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld ~<span class="o">]</span>$ <span class="nb">cd</span> /data
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/data
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>squeue
+<span class="w">             </span>JOBID<span class="w"> </span>PARTITION<span class="w">     </span>NAME<span class="w">     </span>USER<span class="w"> </span>ST<span class="w">       </span>TIME<span class="w">  </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$
 </pre></div>
 </div>
 <p>The queue is empty!
 Let’s fill it up with some short tasks:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
-Submitted batch job <span class="m">5</span>
-Submitted batch job <span class="m">6</span>
-Submitted batch job <span class="m">7</span>
-Submitted batch job <span class="m">8</span>
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
-                 <span class="m">7</span>    normal     wrap    slurm  R       <span class="m">0</span>:01      <span class="m">1</span> c1
-                 <span class="m">8</span>    normal     wrap    slurm  R       <span class="m">0</span>:01      <span class="m">1</span> c2
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">5</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">6</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">7</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">8</span>
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>squeue
+<span class="w">             </span>JOBID<span class="w"> </span>PARTITION<span class="w">     </span>NAME<span class="w">     </span>USER<span class="w"> </span>ST<span class="w">       </span>TIME<span class="w">  </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<span class="w">                 </span><span class="m">7</span><span class="w">    </span>normal<span class="w">     </span>wrap<span class="w">    </span>slurm<span class="w">  </span>R<span class="w">       </span><span class="m">0</span>:01<span class="w">      </span><span class="m">1</span><span class="w"> </span>c1
+<span class="w">                 </span><span class="m">8</span><span class="w">    </span>normal<span class="w">     </span>wrap<span class="w">    </span>slurm<span class="w">  </span>R<span class="w">       </span><span class="m">0</span>:01<span class="w">      </span><span class="m">1</span><span class="w"> </span>c2
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$
 </pre></div>
 </div>
 <p>I fired off 4 jobs that take 2 seconds, so a few remained in the queue by the time I called for an update. You can also see they split over the 2 compute nodes <code class="docutils literal notranslate"><span class="pre">c1</span></code> and <code class="docutils literal notranslate"><span class="pre">c2</span></code>.</p>
 <p>The jobs wrote their stdout output in the current dir (<code class="docutils literal notranslate"><span class="pre">/data</span></code>, which is where permission issues might come in):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ ls
-slurm-3.out  slurm-4.out  slurm-5.out  slurm-6.out  slurm-7.out  slurm-8.out
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ cat slurm-7.out
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>ls
+slurm-3.out<span class="w">  </span>slurm-4.out<span class="w">  </span>slurm-5.out<span class="w">  </span>slurm-6.out<span class="w">  </span>slurm-7.out<span class="w">  </span>slurm-8.out
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>cat<span class="w"> </span>slurm-7.out
 c1
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ cat slurm-8.out
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>cat<span class="w"> </span>slurm-8.out
 c2
-<span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$
+<span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$
 </pre></div>
 </div>
 </details>
 <p>They logged the <code class="docutils literal notranslate"><span class="pre">hostname</span></code> command, which returned <code class="docutils literal notranslate"><span class="pre">c1</span></code> for some and <code class="docutils literal notranslate"><span class="pre">c2</span></code> for others, as those were the hosts the compute was used from.</p>
 <p>Now let’s connect OMERO to our Slurm!</p>
-</div>
-</div>
-<div class="section" id="omero-omero-slurm-client">
-<h2>4. OMERO &amp; OMERO Slurm Client<a class="headerlink" href="#omero-omero-slurm-client" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+<section id="omero-omero-slurm-client">
+<h2>4. OMERO &amp; OMERO Slurm Client<a class="headerlink" href="#omero-omero-slurm-client" title="Permalink to this heading"></a></h2>
 <p>Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.</p>
-<div class="section" id="id4">
-<h3>TL;DR:<a class="headerlink" href="#id4" title="Permalink to this headline"></a></h3>
+<section id="id4">
+<h3>TL;DR:<a class="headerlink" href="#id4" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
 <li><p>Fire up the OMERO containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
@@ -1099,11 +1104,11 @@ c2
   <summary>Details</summary>
 <p>======= OMERO in Docker =======</p>
 <p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>-b<span class="w"> </span>processors<span class="w"> </span>https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
 <p>Let’s (build it and) fire it up:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
 </pre></div>
 </div>
 <p>======= OMERO web =======</p>
@@ -1116,26 +1121,26 @@ c2
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>However, we need to change the <code class="docutils literal notranslate"><span class="pre">HostName</span></code> to match one that the container can understand. <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from our machine, but not from within a Docker container. Instead, we need to use <code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> (<a class="reference external" href="https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host">documentation</a>).</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
-	<span class="na">HostName host.docker.internal</span>
-	<span class="na">User slurm</span>
-	<span class="na">Port 2222</span>
-	<span class="na">IdentityFile ~/.ssh/id_rsa</span>
-	<span class="na">StrictHostKeyChecking no</span>
+<span class="w">	</span><span class="na">HostName host.docker.internal</span>
+<span class="w">	</span><span class="na">User slurm</span>
+<span class="w">	</span><span class="na">Port 2222</span>
+<span class="w">	</span><span class="na">IdentityFile ~/.ssh/id_rsa</span>
+<span class="w">	</span><span class="na">StrictHostKeyChecking no</span>
 </pre></div>
 </div>
 <p>Restart your OMERO cluster if you already started it:
 <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p>
 <p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span>...\docker-example-omero-grid&gt; docker-compose exec omeroworker-5 /bin/bash
-bash-4.2$ ssh slurm
-Last login: Wed Aug  9 13:08:54 2023 from 172.21.0.1
-[slurm@slurmctld ~]$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
-[slurm@slurmctld ~]$ exit
-logout
-Connection to host.docker.internal closed.
-bash-4.2$ exit
-exit
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">docker-example-omero-grid</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">omeroworker</span><span class="p">-</span><span class="n">5</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
+<span class="n">bash</span><span class="p">-</span><span class="n">4</span><span class="p">.</span><span class="n">2</span><span class="p">$</span> <span class="n">ssh</span> <span class="n">slurm</span>
+<span class="n">Last</span> <span class="n">login</span><span class="p">:</span> <span class="n">Wed</span> <span class="n">Aug</span>  <span class="n">9</span> <span class="n">13</span><span class="p">:</span><span class="n">08</span><span class="p">:</span><span class="n">54</span> <span class="n">2023</span> <span class="n">from</span> <span class="n">172</span><span class="p">.</span><span class="n">21</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span>
+<span class="p">[</span><span class="n">slurm</span><span class="nv">@slurmctld</span> <span class="p">~]$</span> <span class="n">squeue</span>
+             <span class="n">JOBID</span> <span class="n">PARTITION</span>     <span class="n">NAME</span>     <span class="n">USER</span> <span class="n">ST</span>       <span class="n">TIME</span>  <span class="n">NODES</span> <span class="n">NODELIST</span><span class="p">(</span><span class="n">REASON</span><span class="p">)</span>
+<span class="p">[</span><span class="n">slurm</span><span class="nv">@slurmctld</span> <span class="p">~]$</span> <span class="n">exit</span>
+<span class="n">logout</span>
+<span class="n">Connection</span> <span class="n">to</span> <span class="n">host</span><span class="p">.</span><span class="n">docker</span><span class="p">.</span><span class="n">internal</span> <span class="n">closed</span><span class="p">.</span>
+<span class="n">bash</span><span class="p">-</span><span class="n">4</span><span class="p">.</span><span class="n">2</span><span class="p">$</span> <span class="n">exit</span>
+<span class="n">exit</span>
 </pre></div>
 </div>
 <p>======= slurm-config.ini =======</p>
@@ -1347,12 +1352,12 @@ exit
 <p>Note, this will take a while, since it is downloading workflow docker images and building (singularity) containers from them.</p>
 <p>Congratulations! We have setup workflows CellPose <code class="docutils literal notranslate"><span class="pre">v1.2.7</span></code>, Cellprofiler Spot <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code> and CellExpansion <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>. And there are no data files yet.</p>
 <p>Let’s go run some segmentation workflow then!</p>
-</div>
-</div>
-<div class="section" id="workflows">
-<h2>5. Workflows!<a class="headerlink" href="#workflows" title="Permalink to this headline"></a></h2>
-<div class="section" id="id5">
-<h3>TL;DR:<a class="headerlink" href="#id5" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="workflows">
+<h2>5. Workflows!<a class="headerlink" href="#workflows" title="Permalink to this heading"></a></h2>
+<section id="id5">
+<h3>TL;DR:<a class="headerlink" href="#id5" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>In web, select your images and run script <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code></p>
 <ul class="simple">
@@ -1396,15 +1401,15 @@ Turns out, our Slurm doesn’t have the compute nodes to execute this operation.
 </div>
 </details>
 <p>That should take you through connecting OMERO with a local Slurm setup.</p>
-</div>
-<div class="section" id="batching">
-<h3>Batching<a class="headerlink" href="#batching" title="Permalink to this headline"></a></h3>
+</section>
+<section id="batching">
+<h3>Batching<a class="headerlink" href="#batching" title="Permalink to this heading"></a></h3>
 <p>Try <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code> (here)[https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py] to see if there is any speedup by splitting your images over multiple jobs/batches.</p>
 <p>We have installed 2 nodes in this Slurm cluster, so you could make 2 batches of half the images and get your results quicker. However we are also limited to compute 2 jobs in parallel, so smaller (than half) batches will just wait in the queue (with some overhead) and probably take longer in total.</p>
 <details>
 Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
 <p>Let’s check on the Slurm node:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sacct --starttime <span class="s2">&quot;2023-06-13T17:00:00&quot;</span> --format Jobid,State,start,end,JobName%-18,Elapsed -n -X --endtime <span class="s2">&quot;now&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sacct<span class="w"> </span>--starttime<span class="w"> </span><span class="s2">&quot;2023-06-13T17:00:00&quot;</span><span class="w"> </span>--format<span class="w"> </span>Jobid,State,start,end,JobName%-18,Elapsed<span class="w"> </span>-n<span class="w"> </span>-X<span class="w"> </span>--endtime<span class="w"> </span><span class="s2">&quot;now&quot;</span>
 </pre></div>
 </div>
 <p>In my latest example, it was 1 minute (30%) faster to have 2 batches/jobs (<code class="docutils literal notranslate"><span class="pre">32</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">33</span></code>) vs 1 job (<code class="docutils literal notranslate"><span class="pre">31</span></code>):</p>
@@ -1415,20 +1420,20 @@ Note that there is always overhead cost, so the speedup will not be linear. Howe
 </pre></div>
 </div>
 </details>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 <hr class="docutils" />
-<div class="section" id="google-cloud-slurm-tutorial">
-<h1>Google Cloud Slurm tutorial<a class="headerlink" href="#google-cloud-slurm-tutorial" title="Permalink to this headline"></a></h1>
-<div class="section" id="id6">
-<h2>Introduction<a class="headerlink" href="#id6" title="Permalink to this headline"></a></h2>
+<section id="google-cloud-slurm-tutorial">
+<h1>Google Cloud Slurm tutorial<a class="headerlink" href="#google-cloud-slurm-tutorial" title="Permalink to this heading"></a></h1>
+<section id="id6">
+<h2>Introduction<a class="headerlink" href="#id6" title="Permalink to this heading"></a></h2>
 <p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.</p>
 <p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) OMERO to it.
 This is what we will cover in this tutorial, specifically Google Cloud.</p>
-</div>
-<div class="section" id="id7">
-<h2>0. Requirements<a class="headerlink" href="#id7" title="Permalink to this headline"></a></h2>
+</section>
+<section id="id7">
+<h2>0. Requirements<a class="headerlink" href="#id7" title="Permalink to this heading"></a></h2>
 <p>To follow this tutorial, you need:</p>
 <ul class="simple">
 <li><p>Git</p></li>
@@ -1438,11 +1443,11 @@ This is what we will cover in this tutorial, specifically Google Cloud.</p>
 </ul>
 <p>I use Windows here, but it should work on Linux/Mac too. If not, let me know.</p>
 <p>I provide ready-to-go TL;DR, but in the details of each chapter I walk through the steps I took to make these containers ready.</p>
-</div>
-<div class="section" id="setup-google-cloud-for-slurm">
-<h2>1. Setup Google Cloud for Slurm<a class="headerlink" href="#setup-google-cloud-for-slurm" title="Permalink to this headline"></a></h2>
-<div class="section" id="id8">
-<h3>TL;DR:<a class="headerlink" href="#id8" title="Permalink to this headline"></a></h3>
+</section>
+<section id="setup-google-cloud-for-slurm">
+<h2>1. Setup Google Cloud for Slurm<a class="headerlink" href="#setup-google-cloud-for-slurm" title="Permalink to this heading"></a></h2>
+<section id="id8">
+<h3>TL;DR:<a class="headerlink" href="#id8" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Follow this <a class="reference external" href="https://cloud.google.com/hpc-toolkit/docs/quickstarts/slurm-cluster">tutorial</a> from Google Cloud. Click ‘guide me’.</p></li>
 <li><p>Make a new Google Account to do this, with free $300 credits to use Slurm for a bit. This requires the creditcard (but no cost).</p></li>
@@ -1452,12 +1457,12 @@ This is what we will cover in this tutorial, specifically Google Cloud.</p>
 <p>So, we follow this <a class="reference external" href="https://cloud.google.com/hpc-toolkit/docs/quickstarts/slurm-cluster">tutorial</a> and end up with a <code class="docutils literal notranslate"><span class="pre">hpcsmall</span></code> VM on Google Cloud.</p>
 </details>
 <p>However, we are missing an ingredient: SSH access!</p>
-</div>
-</div>
-<div class="section" id="id9">
-<h2>2. Add SSH access<a class="headerlink" href="#id9" title="Permalink to this headline"></a></h2>
-<div class="section" id="id10">
-<h3>TL;DR:<a class="headerlink" href="#id10" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id9">
+<h2>2. Add SSH access<a class="headerlink" href="#id9" title="Permalink to this heading"></a></h2>
+<section id="id10">
+<h3>TL;DR:<a class="headerlink" href="#id10" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Add your public SSH key (<code class="docutils literal notranslate"><span class="pre">~/.ssh/id_rsa.pub</span></code>) to the Google Cloud instance, like <a class="reference external" href="https://cloud.google.com/compute/docs/connect/add-ssh-keys?cloudshell=true#gcloud">here</a>. Easiest is with Cloud shell, upload your public key, and run <code class="docutils literal notranslate"><span class="pre">gcloud</span> <span class="pre">compute</span> <span class="pre">os-login</span> <span class="pre">ssh-keys</span> <span class="pre">add</span>&#160;&#160;&#160; <span class="pre">--key-file=id_rsa.pub</span></code></p></li>
 <li><p>Turn the <a class="reference external" href="https://console.cloud.google.com/net-security/firewall-manager/firewall-policies/list">firewall</a> setting (e.g. <code class="docutils literal notranslate"><span class="pre">hpc-small-net-fw-allow-iap-ingress</span></code>) to allow <code class="docutils literal notranslate"><span class="pre">0.0.0.0/0</span></code> as IP ranges for <code class="docutils literal notranslate"><span class="pre">tcp:22</span></code>.</p></li>
@@ -1509,12 +1514,12 @@ The External IP was on the <a class="reference external" href="https://console.c
 <p>Now you should be able to login with a simple: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">gcslurm</span></code>.</p>
 <p>Congratulations!</p>
 </details>
-</div>
-</div>
-<div class="section" id="id11">
-<h2>3. Test Slurm<a class="headerlink" href="#id11" title="Permalink to this headline"></a></h2>
-<div class="section" id="id12">
-<h3>TL;DR:<a class="headerlink" href="#id12" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id11">
+<h2>3. Test Slurm<a class="headerlink" href="#id11" title="Permalink to this heading"></a></h2>
+<section id="id12">
+<h3>TL;DR:<a class="headerlink" href="#id12" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>SSH into the login node: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">gcslurm</span></code></p></li>
 <li><p>Start some filler jobs: <code class="docutils literal notranslate"><span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span></code></p></li>
@@ -1524,41 +1529,41 @@ The External IP was on the <a class="reference external" href="https://console.c
 <details>
   <summary>Details</summary>
 <p>Now connect via SSH to Google Cloud Slurm and let’s see if Slurm works:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
-<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span> <span class="o">&amp;&amp;</span>  sbatch --wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
-Submitted batch job <span class="m">4</span>
-Submitted batch job <span class="m">5</span>
-Submitted batch job <span class="m">6</span>
-Submitted batch job <span class="m">7</span>
-<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
-                 <span class="m">4</span>     debug     wrap t_t_luik CF       <span class="m">0</span>:03      <span class="m">1</span> hpcsmall-debug-ghpc-3
-                 <span class="m">5</span>     debug     wrap t_t_luik PD       <span class="m">0</span>:00      <span class="m">1</span> <span class="o">(</span>Resources<span class="o">)</span>
-                 <span class="m">6</span>     debug     wrap t_t_luik PD       <span class="m">0</span>:00      <span class="m">1</span> <span class="o">(</span>Priority<span class="o">)</span>
-                 <span class="m">7</span>     debug     wrap t_t_luik PD       <span class="m">0</span>:00      <span class="m">1</span> <span class="o">(</span>Priority<span class="o">)</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>squeue
+<span class="w">             </span>JOBID<span class="w"> </span>PARTITION<span class="w">     </span>NAME<span class="w">     </span>USER<span class="w"> </span>ST<span class="w">       </span>TIME<span class="w">  </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">4</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">5</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">6</span>
+Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">7</span>
+<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>squeue
+<span class="w">             </span>JOBID<span class="w"> </span>PARTITION<span class="w">     </span>NAME<span class="w">     </span>USER<span class="w"> </span>ST<span class="w">       </span>TIME<span class="w">  </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<span class="w">                 </span><span class="m">4</span><span class="w">     </span>debug<span class="w">     </span>wrap<span class="w"> </span>t_t_luik<span class="w"> </span>CF<span class="w">       </span><span class="m">0</span>:03<span class="w">      </span><span class="m">1</span><span class="w"> </span>hpcsmall-debug-ghpc-3
+<span class="w">                 </span><span class="m">5</span><span class="w">     </span>debug<span class="w">     </span>wrap<span class="w"> </span>t_t_luik<span class="w"> </span>PD<span class="w">       </span><span class="m">0</span>:00<span class="w">      </span><span class="m">1</span><span class="w"> </span><span class="o">(</span>Resources<span class="o">)</span>
+<span class="w">                 </span><span class="m">6</span><span class="w">     </span>debug<span class="w">     </span>wrap<span class="w"> </span>t_t_luik<span class="w"> </span>PD<span class="w">       </span><span class="m">0</span>:00<span class="w">      </span><span class="m">1</span><span class="w"> </span><span class="o">(</span>Priority<span class="o">)</span>
+<span class="w">                 </span><span class="m">7</span><span class="w">     </span>debug<span class="w">     </span>wrap<span class="w"> </span>t_t_luik<span class="w"> </span>PD<span class="w">       </span><span class="m">0</span>:00<span class="w">      </span><span class="m">1</span><span class="w"> </span><span class="o">(</span>Priority<span class="o">)</span>
 </pre></div>
 </div>
 <p>I fired off 4 jobs that take some seconds, so they are still in the queue by the time I call the <code class="docutils literal notranslate"><span class="pre">squeue</span></code>. Note that the first one might take a while since Google Cloud has to fire up a new compute node for the first time.</p>
 <p>The jobs wrote their stdout output in the current dir:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ ls
-slurm-4.out  slurm-5.out  slurm-6.out  slurm-7.out
-<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ squeue
-             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
-<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ cat slurm-4.out
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>ls
+slurm-4.out<span class="w">  </span>slurm-5.out<span class="w">  </span>slurm-6.out<span class="w">  </span>slurm-7.out
+<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>squeue
+<span class="w">             </span>JOBID<span class="w"> </span>PARTITION<span class="w">     </span>NAME<span class="w">     </span>USER<span class="w"> </span>ST<span class="w">       </span>TIME<span class="w">  </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>cat<span class="w"> </span>slurm-4.out
 hpcsmall-debug-ghpc-3
-<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001 ~<span class="o">]</span>$ cat slurm-5.out
+<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>cat<span class="w"> </span>slurm-5.out
 hpcsmall-debug-ghpc-3
 </pre></div>
 </div>
 <p>All on the same node that was spun up, on-demand, by Google Cloud. You should be able to see it still alive in the <code class="docutils literal notranslate"><span class="pre">VM</span> <span class="pre">instances</span></code> <a class="reference external" href="https://console.cloud.google.com/compute/instances">tab</a> as well. It will be destroyed again if not used for a while, saving you costs.</p>
 </details>
-</div>
-</div>
-<div class="section" id="b-install-requirements-singularity-apptainer-and-7zip">
-<h2>3b. Install requirements: Singularity / Apptainer and 7zip<a class="headerlink" href="#b-install-requirements-singularity-apptainer-and-7zip" title="Permalink to this headline"></a></h2>
-<div class="section" id="id13">
-<h3>TL;DR:<a class="headerlink" href="#id13" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="b-install-requirements-singularity-apptainer-and-7zip">
+<h2>3b. Install requirements: Singularity / Apptainer and 7zip<a class="headerlink" href="#b-install-requirements-singularity-apptainer-and-7zip" title="Permalink to this heading"></a></h2>
+<section id="id13">
+<h3>TL;DR:<a class="headerlink" href="#id13" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Follow this <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> to install Singularity, but in step 5 please install in <code class="docutils literal notranslate"><span class="pre">/opt/apps</span></code> ! <code class="docutils literal notranslate"><span class="pre">/apps</span></code> is not actually shared with all nodes.</p></li>
 <li><p>Execute the following to update <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code>:</p></li>
@@ -1575,27 +1580,27 @@ hpcsmall-debug-ghpc-3
 <p>If the ssh connection to the login node doesn’t work from Google Cloud Shell, you can continue with the steps by using the SSH connection (<code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">gcslurm</span></code>) that we just built from your local commandline.</p>
 <p>Use this URL for the singularity tar:</p>
 <p><code class="docutils literal notranslate"><span class="pre">https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz <span class="o">&amp;&amp;</span> tar -xzf singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>.tar.gz <span class="o">&amp;&amp;</span> <span class="nb">cd</span> singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-3.8.7.tar.gz<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tar<span class="w"> </span>-xzf<span class="w"> </span>singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>.tar.gz<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>singularity-<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span>
 </pre></div>
 </div>
 <p>The module step did not work for me, because it is the wrong directory in the guide!</p>
 <p>In step 5, we need to install to <code class="docutils literal notranslate"><span class="pre">/opt/apps</span></code> instead! This is very important because the compute nodes that have to execute the job need to have access to this software too, and this directory is the actual shared directory:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./mconfig --prefix<span class="o">=</span>/opt/apps/singularity/<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span> <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    make -C ./builddir <span class="o">&amp;&amp;</span> <span class="se">\</span>
-    sudo make -C ./builddir install
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./mconfig<span class="w"> </span>--prefix<span class="o">=</span>/opt/apps/singularity/<span class="si">${</span><span class="nv">SINGULARITY_VERSION</span><span class="si">}</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>make<span class="w"> </span>-C<span class="w"> </span>./builddir<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>sudo<span class="w"> </span>make<span class="w"> </span>-C<span class="w"> </span>./builddir<span class="w"> </span>install
 </pre></div>
 </div>
 <p>Now <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">avail</span></code> should list <code class="docutils literal notranslate"><span class="pre">singularity</span></code>.</p>
 <p>So <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">singularity</span></code> and now <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">--version</span></code> should give you <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">version</span> <span class="pre">3.8.7</span></code>.</p>
 </details>
 <p>Now let’s connect OMERO to our Slurm!</p>
-</div>
-</div>
-<div class="section" id="id14">
-<h2>4. OMERO &amp; OMERO Slurm Client<a class="headerlink" href="#id14" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+<section id="id14">
+<h2>4. OMERO &amp; OMERO Slurm Client<a class="headerlink" href="#id14" title="Permalink to this heading"></a></h2>
 <p>Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.</p>
-<div class="section" id="id15">
-<h3>TL;DR:<a class="headerlink" href="#id15" title="Permalink to this headline"></a></h3>
+<section id="id15">
+<h3>TL;DR:<a class="headerlink" href="#id15" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
 <li><p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to point to <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already)</p></li>
@@ -1608,7 +1613,7 @@ hpcsmall-debug-ghpc-3
   <summary>Details</summary>
 <p>======= OMERO in Docker =======</p>
 <p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>-b<span class="w"> </span>processors<span class="w"> </span>https://github.com/TorecLuik/docker-example-omero-grid-amc.git
 </pre></div>
 </div>
 <p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to be the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already).</p>
@@ -1624,7 +1629,7 @@ hpcsmall-debug-ghpc-3
 <p>And we also set all directories to be relative to the home dir, and we reduced CellPose CPU drastically to fit into the small Slurm cluster we made in Google Cloud.</p>
 <p>This way, it will use the right SSH setting to connect with our Google Cloud Slurm.</p>
 <p>Let’s (build it and) fire it up:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose up -d --build
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
 </pre></div>
 </div>
 <p>======= OMERO web =======</p>
@@ -1653,12 +1658,12 @@ hpcsmall-debug-ghpc-3
 <p>Note, this will take a while, since it is downloading workflow docker images and building (singularity) containers from them.</p>
 <p>Congratulations! We have setup workflows CellPose <code class="docutils literal notranslate"><span class="pre">v1.2.7</span></code>, Cellprofiler Spot <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code> and CellExpansion <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>. And there are no data files yet.</p>
 <p>Let’s go run some segmentation workflow then!</p>
-</div>
-</div>
-<div class="section" id="id16">
-<h2>5. Workflows!<a class="headerlink" href="#id16" title="Permalink to this headline"></a></h2>
-<div class="section" id="id17">
-<h3>TL;DR:<a class="headerlink" href="#id17" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="id16">
+<h2>5. Workflows!<a class="headerlink" href="#id16" title="Permalink to this heading"></a></h2>
+<section id="id17">
+<h3>TL;DR:<a class="headerlink" href="#id17" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>In web, select your images and run script <code class="docutils literal notranslate"><span class="pre">slurm/SLURM</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code></p>
 <ul class="simple">
@@ -1688,31 +1693,31 @@ hpcsmall-debug-ghpc-3
 <p>You can check the progress with the <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code> script.</p>
 </details>
 <p>That should take you through connecting OMERO with a Google Cloud Slurm setup!</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 <hr class="docutils" />
-<div class="section" id="microsoft-azure-slurm-tutorial">
-<h1>Microsoft Azure Slurm tutorial<a class="headerlink" href="#microsoft-azure-slurm-tutorial" title="Permalink to this headline"></a></h1>
-<div class="section" id="id18">
-<h2>Introduction<a class="headerlink" href="#id18" title="Permalink to this headline"></a></h2>
+<section id="microsoft-azure-slurm-tutorial">
+<h1>Microsoft Azure Slurm tutorial<a class="headerlink" href="#microsoft-azure-slurm-tutorial" title="Permalink to this heading"></a></h1>
+<section id="id18">
+<h2>Introduction<a class="headerlink" href="#id18" title="Permalink to this heading"></a></h2>
 <p>This library is meant to be used with some external HPC cluster using Slurm, to offload your (OMERO) compute to servers suited for it.</p>
 <p>However, if you don’t have ready access (yet) to such a cluster, you might want to spin some test environment up in the Cloud and connect your (local) OMERO to it.
 This is what we will cover in this tutorial, specifically <strong>Microsoft Azure</strong>.</p>
-</div>
-<div class="section" id="id19">
-<h2>0. Requirements<a class="headerlink" href="#id19" title="Permalink to this headline"></a></h2>
+</section>
+<section id="id19">
+<h2>0. Requirements<a class="headerlink" href="#id19" title="Permalink to this heading"></a></h2>
 <p>To follow this tutorial, you need:</p>
 <ul class="simple">
 <li><p>OMERO Insight</p></li>
 <li><p>An Azure account (and credits)</p></li>
 </ul>
 <p>I try to provide a tl;dr when I can, otherwise I go step by step.</p>
-</div>
-<div class="section" id="setup-microsoft-azure-for-slurm">
-<h2>1. Setup Microsoft Azure for Slurm<a class="headerlink" href="#setup-microsoft-azure-for-slurm" title="Permalink to this headline"></a></h2>
-<div class="section" id="id20">
-<h3>TL;DR:<a class="headerlink" href="#id20" title="Permalink to this headline"></a></h3>
+</section>
+<section id="setup-microsoft-azure-for-slurm">
+<h2>1. Setup Microsoft Azure for Slurm<a class="headerlink" href="#setup-microsoft-azure-for-slurm" title="Permalink to this heading"></a></h2>
+<section id="id20">
+<h3>TL;DR:<a class="headerlink" href="#id20" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>Make a new Azure account if you don’t have one. Hopefully you get/have some free credits.</p></li>
 <li><p>Create an new App “BIOMERO” via “App registrations”</p>
@@ -1747,10 +1752,10 @@ This is what we will cover in this tutorial, specifically <strong>Microsoft Azur
 <details>
   <summary>Details</summary>
 <p>So, we follow this <a class="reference external" href="https://www.youtube.com/watch?v=qIm6PAFVsmU">tutorial</a> and end up with a <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster</span></code> (that’s what I named the VM) VM on Microsoft Azure. It also downloaded the SSH private key for us (<code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster_key.pem</span></code>).</p>
-</div>
+</section>
 <hr class="docutils" />
-<div class="section" id="suggested-alternative-use-a-basic-slurm-cluster">
-<h3>Suggested alternative: use a basic Slurm cluster<a class="headerlink" href="#suggested-alternative-use-a-basic-slurm-cluster" title="Permalink to this headline"></a></h3>
+<section id="suggested-alternative-use-a-basic-slurm-cluster">
+<h3>Suggested alternative: use a basic Slurm cluster<a class="headerlink" href="#suggested-alternative-use-a-basic-slurm-cluster" title="Permalink to this heading"></a></h3>
 <p>CycleCloud already comes with a basic Slurm setup, that is more up-to-date than this specific GPU powered version.
 Especially if you will not use GPU anyway (because $$).</p>
 <p>So, given you followed the movie to get a CycleCloud VM up and running, let’s setup a basic Slurm cluster instead.</p>
@@ -1794,10 +1799,10 @@ Especially if you will not use GPU anyway (because $$).</p>
 </div>
 <p>Apptainer is singularity and will provide the singularity (alias) command.</p>
 </details>
-</div>
-</div>
-<div class="section" id="addendum-setting-up-slurm-accounting-db">
-<h2>1 - Addendum - Setting up Slurm Accounting DB<a class="headerlink" href="#addendum-setting-up-slurm-accounting-db" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+<section id="addendum-setting-up-slurm-accounting-db">
+<h2>1 - Addendum - Setting up Slurm Accounting DB<a class="headerlink" href="#addendum-setting-up-slurm-accounting-db" title="Permalink to this heading"></a></h2>
 <ol class="arabic simple" start="0">
 <li><p>Expected price: 16.16 euro / month</p></li>
 <li><p>We follow <a class="reference external" href="https://techcommunity.microsoft.com/t5/azure-high-performance-computing/setting-up-slurm-job-accounting-with-azure-cyclecloud-and-azure/ba-p/4083685">this recent blog</a></p>
@@ -1808,16 +1813,16 @@ Especially if you will not use GPU anyway (because $$).</p>
 </ol>
 <details>
   <summary>Details</summary>
-<div class="section" id="a-create-extra-subnet-on-your-virtual-network">
-<h3>A. Create extra subnet on your virtual network<a class="headerlink" href="#a-create-extra-subnet-on-your-virtual-network" title="Permalink to this headline"></a></h3>
+<section id="a-create-extra-subnet-on-your-virtual-network">
+<h3>A. Create extra subnet on your virtual network<a class="headerlink" href="#a-create-extra-subnet-on-your-virtual-network" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><p>Go to your <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster-vnet</span></code></p></li>
 <li><p>Go to <code class="docutils literal notranslate"><span class="pre">Subnets</span></code> Settings</p></li>
 <li><p>Create a new subnet with <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">Subnet</span></code>, named <code class="docutils literal notranslate"><span class="pre">mysql</span></code> (and default settings)</p></li>
 </ul>
-</div>
-<div class="section" id="b-azure-database">
-<h3>B. Azure database<a class="headerlink" href="#b-azure-database" title="Permalink to this headline"></a></h3>
+</section>
+<section id="b-azure-database">
+<h3>B. Azure database<a class="headerlink" href="#b-azure-database" title="Permalink to this heading"></a></h3>
 <p>We create a <a class="reference external" href="https://portal.azure.com/#create/Microsoft.MySQLFlexibleServer">MySQL Flexible Server</a></p>
 <ul class="simple">
 <li><p>Server name <code class="docutils literal notranslate"><span class="pre">slurm-accounting-database</span></code> (or whatever is available)</p></li>
@@ -1861,9 +1866,9 @@ I think this is optional though.</p>
 <li><p>First named <code class="docutils literal notranslate"><span class="pre">hpc</span></code>, default settings</p></li>
 <li><p>Remote named <code class="docutils literal notranslate"><span class="pre">acct</span></code>, connecting to the <code class="docutils literal notranslate"><span class="pre">hpc-slurm-cluster-vnet</span></code>.</p></li>
 </ul>
-</div>
-<div class="section" id="c-slurm-accounting-settings">
-<h3>C. Slurm Accounting settings<a class="headerlink" href="#c-slurm-accounting-settings" title="Permalink to this headline"></a></h3>
+</section>
+<section id="c-slurm-accounting-settings">
+<h3>C. Slurm Accounting settings<a class="headerlink" href="#c-slurm-accounting-settings" title="Permalink to this heading"></a></h3>
 <p>Ok, now back in CycleCloud, we will set Slurm Accounting:</p>
 <ol class="arabic simple">
 <li><p>Edit cluster</p></li>
@@ -1881,19 +1886,19 @@ your chosen Server name (check the Azure portal). For me it was <code class="doc
 <li><p>Test out if the <code class="docutils literal notranslate"><span class="pre">sacct</span></code> command works!</p></li>
 </ol>
 </details>
-</div>
-</div>
-<div class="section" id="id21">
-<h2>2. Test Slurm<a class="headerlink" href="#id21" title="Permalink to this headline"></a></h2>
+</section>
+</section>
+<section id="id21">
+<h2>2. Test Slurm<a class="headerlink" href="#id21" title="Permalink to this heading"></a></h2>
 <ol class="arabic simple">
 <li><p>SSH into the login node: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">gcslurm</span></code></p></li>
 <li><p>Start some filler jobs: <code class="docutils literal notranslate"><span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span> <span class="pre">&amp;&amp;</span>&#160; <span class="pre">sbatch</span> <span class="pre">--wrap=&quot;sleep</span> <span class="pre">5</span> <span class="pre">&amp;&amp;</span> <span class="pre">hostname&quot;</span></code></p></li>
 <li><p>Check the progress: <code class="docutils literal notranslate"><span class="pre">squeue</span></code> (perhaps also check Azure CycleCloud to see your HPC VMs spinning up, takes a few min)</p></li>
 <li><p>Check some output when its done, e.g. job 1: <code class="docutils literal notranslate"><span class="pre">cat</span> <span class="pre">slurm-1.out</span></code></p></li>
 </ol>
-</div>
-<div class="section" id="test-singularity-on-slurm">
-<h2>3. Test Singularity on Slurm<a class="headerlink" href="#test-singularity-on-slurm" title="Permalink to this headline"></a></h2>
+</section>
+<section id="test-singularity-on-slurm">
+<h2>3. Test Singularity on Slurm<a class="headerlink" href="#test-singularity-on-slurm" title="Permalink to this heading"></a></h2>
 <p>For example, run:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sbatch -n 1 --wrap &quot;hostname &gt; lolcow.log &amp;&amp; singularity run docker://godlovedc/lolcow &gt;&gt; lolcow.log&quot;
 </pre></div>
@@ -1904,25 +1909,25 @@ Then let’s tail the logfile:</p>
 </pre></div>
 </div>
 <p>First we see the slurm node that is computing, and later we will see the funny cow.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld data<span class="o">]</span>$ tail -f lolcow.log
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>lolcow.log
 c1
- _______________________________________
-/ Must I hold a candle to my shames?    <span class="se">\</span>
-<span class="p">|</span>                                       <span class="p">|</span>
-<span class="p">|</span> -- William Shakespeare, <span class="s2">&quot;The Merchant |</span>
-<span class="s2">\ of Venice&quot;</span>                            /
- ---------------------------------------
-        <span class="se">\ </span>  ^__^
-         <span class="se">\ </span> <span class="o">(</span>oo<span class="o">)</span><span class="se">\_</span>______
-            <span class="o">(</span>__<span class="o">)</span><span class="se">\ </span>      <span class="o">)</span><span class="se">\/\</span>
-                <span class="o">||</span>----w <span class="p">|</span>
-                <span class="o">||</span>     <span class="o">||</span>
+<span class="w"> </span>_______________________________________
+/<span class="w"> </span>Must<span class="w"> </span>I<span class="w"> </span>hold<span class="w"> </span>a<span class="w"> </span>candle<span class="w"> </span>to<span class="w"> </span>my<span class="w"> </span>shames?<span class="w">    </span><span class="se">\</span>
+<span class="p">|</span><span class="w">                                       </span><span class="p">|</span>
+<span class="p">|</span><span class="w"> </span>--<span class="w"> </span>William<span class="w"> </span>Shakespeare,<span class="w"> </span><span class="s2">&quot;The Merchant |</span>
+<span class="s2">\ of Venice&quot;</span><span class="w">                            </span>/
+<span class="w"> </span>---------------------------------------
+<span class="w">        </span><span class="se">\ </span><span class="w">  </span>^__^
+<span class="w">         </span><span class="se">\ </span><span class="w"> </span><span class="o">(</span>oo<span class="o">)</span><span class="se">\_</span>______
+<span class="w">            </span><span class="o">(</span>__<span class="o">)</span><span class="se">\ </span><span class="w">      </span><span class="o">)</span><span class="se">\/\</span>
+<span class="w">                </span><span class="o">||</span>----w<span class="w"> </span><span class="p">|</span>
+<span class="w">                </span><span class="o">||</span><span class="w">     </span><span class="o">||</span>
 </pre></div>
 </div>
 <p>Exit logs with <code class="docutils literal notranslate"><span class="pre">CTRL+C</span></code>, and the server with <code class="docutils literal notranslate"><span class="pre">exit</span></code>, and enjoy your Azure Slurm cluster.</p>
-</div>
-<div class="section" id="setting-up-bi-omero-in-azure-too-optional">
-<h2>5. Setting up (BI)OMERO in Azure too (Optional)<a class="headerlink" href="#setting-up-bi-omero-in-azure-too-optional" title="Permalink to this headline"></a></h2>
+</section>
+<section id="setting-up-bi-omero-in-azure-too-optional">
+<h2>5. Setting up (BI)OMERO in Azure too (Optional)<a class="headerlink" href="#setting-up-bi-omero-in-azure-too-optional" title="Permalink to this heading"></a></h2>
 <p>We will install (BI)OMERO on the CycleCloud VM that we have running anyway.
 Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <ol class="arabic simple">
@@ -2043,9 +2048,9 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>Now <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">nl-biomero-biomeroworker-1</span></code> should show some good logs leading to: <code class="docutils literal notranslate"><span class="pre">Starting</span> <span class="pre">node</span> <span class="pre">biomeroworker</span></code>.</p></li>
 </ul>
-</div>
-<div class="section" id="showtime">
-<h2>6. Showtime!<a class="headerlink" href="#showtime" title="Permalink to this headline"></a></h2>
+</section>
+<section id="showtime">
+<h2>6. Showtime!<a class="headerlink" href="#showtime" title="Permalink to this heading"></a></h2>
 <ol class="arabic simple">
 <li><p>Go to your OMERO web at <code class="docutils literal notranslate"><span class="pre">http://&lt;your-VM-ip&gt;:4080/</span></code> (<code class="docutils literal notranslate"><span class="pre">root</span></code>/<code class="docutils literal notranslate"><span class="pre">omero</span></code>)</p></li>
 <li><p>Let’s initialize BIOMERO: <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Script</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">biomero</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">init</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">SLURM</span> <span class="pre">Init</span> <span class="pre">environment...</span></code>; run that script</p></li>
@@ -2057,16 +2062,16 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <li><p>Check the <code class="docutils literal notranslate"><span class="pre">Check</span> <span class="pre">Queue</span></code> box</p></li>
 <li><p>Run the script, you should get something like this, an empty queue:</p></li>
 </ul>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>JOBID PARTITION NAME USER ST TIME NODES NODELIST<span class="o">(</span>REASON<span class="o">)</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>JOBID<span class="w"> </span>PARTITION<span class="w"> </span>NAME<span class="w"> </span>USER<span class="w"> </span>ST<span class="w"> </span>TIME<span class="w"> </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
 </pre></div>
 </div>
 <ul class="simple">
 <li><p>You can try some other ones, e.g. check the <code class="docutils literal notranslate"><span class="pre">Check</span> <span class="pre">Cluster</span></code> box instead:</p></li>
 </ul>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>PARTITION AVAIL TIMELIMIT NODES STATE NODELIST 
-dynamic up infinite <span class="m">0</span> n/a 
-hpc* up infinite <span class="m">2</span> idle~ biomero-cluster-basic-hpc-<span class="o">[</span><span class="m">1</span>-2<span class="o">]</span> 
-htc up infinite <span class="m">2</span> idle~ biomero-cluster-basic-htc-<span class="o">[</span><span class="m">1</span>-2<span class="o">]</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>PARTITION<span class="w"> </span>AVAIL<span class="w"> </span>TIMELIMIT<span class="w"> </span>NODES<span class="w"> </span>STATE<span class="w"> </span>NODELIST<span class="w"> </span>
+dynamic<span class="w"> </span>up<span class="w"> </span>infinite<span class="w"> </span><span class="m">0</span><span class="w"> </span>n/a<span class="w"> </span>
+hpc*<span class="w"> </span>up<span class="w"> </span>infinite<span class="w"> </span><span class="m">2</span><span class="w"> </span>idle~<span class="w"> </span>biomero-cluster-basic-hpc-<span class="o">[</span><span class="m">1</span>-2<span class="o">]</span><span class="w"> </span>
+htc<span class="w"> </span>up<span class="w"> </span>infinite<span class="w"> </span><span class="m">2</span><span class="w"> </span>idle~<span class="w"> </span>biomero-cluster-basic-htc-<span class="o">[</span><span class="m">1</span>-2<span class="o">]</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -2082,89 +2087,89 @@ htc up infinite <span class="m">2</span> idle~ biomero-cluster-basic-htc-<span c
 <li><p>Change the Linux Command to <code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">**/*</span></code> (we want to check all subfolders too).</p></li>
 <li><p>Run it. Press the <code class="docutils literal notranslate"><span class="pre">i</span></code> button for proper formatting and scroll down to see what we made</p></li>
 </ul>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="o">===</span> <span class="nv">stdout</span> <span class="o">===</span>
--rw-r--r-- <span class="m">1</span> azureadmin azureadmin <span class="m">1336</span> Mar <span class="m">21</span> <span class="m">17</span>:44 slurm-scripts/convert_job_array.sh
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="o">===</span><span class="w"> </span><span class="nv">stdout</span><span class="w"> </span><span class="o">===</span>
+-rw-r--r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">1336</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>slurm-scripts/convert_job_array.sh
 
 my-scratch/singularity_images:
-total <span class="m">0</span>
-drwxrwxr-x <span class="m">3</span> azureadmin azureadmin  <span class="m">24</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
-drwxrwxr-x <span class="m">3</span> azureadmin azureadmin  <span class="m">32</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin <span class="m">117</span> Mar <span class="m">21</span> <span class="m">17</span>:45 converters
+total<span class="w"> </span><span class="m">0</span>
+drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">  </span><span class="m">24</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">  </span><span class="m">32</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">117</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>converters
 
 singularity_images/workflows:
-total <span class="m">16</span>
-drwxrwxr-x <span class="m">6</span> azureadmin azureadmin   <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
-drwxrwxr-x <span class="m">3</span> azureadmin azureadmin    <span class="m">23</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">40</span> Mar <span class="m">21</span> <span class="m">17</span>:42 cellexpansion
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">54</span> Mar <span class="m">21</span> <span class="m">17</span>:36 cellpose
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">52</span> Mar <span class="m">21</span> <span class="m">17</span>:40 cellprofiler_spot
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin   <span class="m">695</span> Mar <span class="m">21</span> <span class="m">17</span>:45 pull_images.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">10802</span> Mar <span class="m">21</span> <span class="m">17</span>:45 sing.log
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">43</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting
+total<span class="w"> </span><span class="m">16</span>
+drwxrwxr-x<span class="w"> </span><span class="m">6</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">126</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">23</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">40</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:42<span class="w"> </span>cellexpansion
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">54</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:36<span class="w"> </span>cellpose
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">52</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:40<span class="w"> </span>cellprofiler_spot
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">695</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>pull_images.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">10802</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>sing.log
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">43</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting
 
 slurm-scripts/jobs:
-total <span class="m">16</span>
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin  <span class="m">100</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
-drwxrwxr-x <span class="m">3</span> azureadmin azureadmin   <span class="m">46</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3358</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellexpansion.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3406</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellpose.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3184</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellprofiler_spot.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3500</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting.sh
+total<span class="w"> </span><span class="m">16</span>
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">  </span><span class="m">100</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">46</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3358</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>cellexpansion.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3406</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>cellpose.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3184</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>cellprofiler_spot.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3500</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting.sh
 </pre></div>
 </div>
 <ul class="simple">
 <li><p>Or better yet, run this linux command for full info on <em>all</em> (non-hidden) subdirectories: <code class="docutils literal notranslate"><span class="pre">find</span> <span class="pre">.</span> <span class="pre">-type</span> <span class="pre">d</span> <span class="pre">-not</span> <span class="pre">-path</span> <span class="pre">'*/.*'</span> <span class="pre">-exec</span> <span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">{}</span> <span class="pre">+</span></code>. This should show that we downloaded some of the workflows to our Slurm cluster already:</p></li>
 </ul>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./singularity_images/workflows:
-total <span class="m">16</span>
-drwxrwxr-x <span class="m">6</span> azureadmin azureadmin   <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
-drwxrwxr-x <span class="m">3</span> azureadmin azureadmin    <span class="m">23</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">40</span> Mar <span class="m">21</span> <span class="m">17</span>:42 cellexpansion
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">54</span> Mar <span class="m">21</span> <span class="m">17</span>:36 cellpose
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">52</span> Mar <span class="m">21</span> <span class="m">17</span>:40 cellprofiler_spot
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin   <span class="m">695</span> Mar <span class="m">21</span> <span class="m">17</span>:45 pull_images.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">10802</span> Mar <span class="m">21</span> <span class="m">17</span>:45 sing.log
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin    <span class="m">43</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting
+total<span class="w"> </span><span class="m">16</span>
+drwxrwxr-x<span class="w"> </span><span class="m">6</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">126</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">23</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">40</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:42<span class="w"> </span>cellexpansion
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">54</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:36<span class="w"> </span>cellpose
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">52</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:40<span class="w"> </span>cellprofiler_spot
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">695</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>pull_images.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">10802</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>sing.log
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">43</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting
 
 ./singularity_images/workflows/cellexpansion:
-total <span class="m">982536</span>
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">40</span> Mar <span class="m">21</span> <span class="m">17</span>:42 .
-drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">1006116864</span> Mar <span class="m">21</span> <span class="m">17</span>:42 w_cellexpansion_v2.0.1.sif
+total<span class="w"> </span><span class="m">982536</span>
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">         </span><span class="m">40</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:42<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">6</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">        </span><span class="m">126</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rwxr-xr-x<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">1006116864</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:42<span class="w"> </span>w_cellexpansion_v2.0.1.sif
 
 ./singularity_images/workflows/cellpose:
-total <span class="m">4672820</span>
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">54</span> Mar <span class="m">21</span> <span class="m">17</span>:36 .
-drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">4784967680</span> Mar <span class="m">21</span> <span class="m">17</span>:36 t_nucleisegmentation-cellpose_v1.2.9.sif
+total<span class="w"> </span><span class="m">4672820</span>
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">         </span><span class="m">54</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:36<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">6</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">        </span><span class="m">126</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rwxr-xr-x<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">4784967680</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:36<span class="w"> </span>t_nucleisegmentation-cellpose_v1.2.9.sif
 
 ./singularity_images/workflows/cellprofiler_spot:
-total <span class="m">2215916</span>
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">52</span> Mar <span class="m">21</span> <span class="m">17</span>:40 .
-drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">2269097984</span> Mar <span class="m">21</span> <span class="m">17</span>:40 w_spotcounting-cellprofiler_v1.0.1.sif
+total<span class="w"> </span><span class="m">2215916</span>
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">         </span><span class="m">52</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:40<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">6</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">        </span><span class="m">126</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rwxr-xr-x<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">2269097984</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:40<span class="w"> </span>w_spotcounting-cellprofiler_v1.0.1.sif
 
 ./singularity_images/workflows/spotcounting:
-total <span class="m">982720</span>
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin         <span class="m">43</span> Mar <span class="m">21</span> <span class="m">17</span>:44 .
-drwxrwxr-x <span class="m">6</span> azureadmin azureadmin        <span class="m">126</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rwxr-xr-x <span class="m">1</span> azureadmin azureadmin <span class="m">1006305280</span> Mar <span class="m">21</span> <span class="m">17</span>:44 w_countmaskoverlap_v1.0.1.sif
+total<span class="w"> </span><span class="m">982720</span>
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">         </span><span class="m">43</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">6</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">        </span><span class="m">126</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rwxr-xr-x<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">1006305280</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>w_countmaskoverlap_v1.0.1.sif
 
 ./slurm-scripts:
-total <span class="m">8</span>
-drwxrwxr-x  <span class="m">3</span> azureadmin azureadmin   <span class="m">46</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
-drwxr-xr-x <span class="m">12</span> azureadmin azureadmin <span class="m">4096</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rw-r--r--  <span class="m">1</span> azureadmin azureadmin <span class="m">1336</span> Mar <span class="m">21</span> <span class="m">17</span>:44 convert_job_array.sh
-drwxrwxr-x  <span class="m">2</span> azureadmin azureadmin  <span class="m">100</span> Mar <span class="m">21</span> <span class="m">17</span>:31 <span class="nb">jobs</span>
+total<span class="w"> </span><span class="m">8</span>
+drwxrwxr-x<span class="w">  </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">46</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>.
+drwxr-xr-x<span class="w"> </span><span class="m">12</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">4096</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rw-r--r--<span class="w">  </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">1336</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>convert_job_array.sh
+drwxrwxr-x<span class="w">  </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">  </span><span class="m">100</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span><span class="nb">jobs</span>
 
 ./slurm-scripts/jobs:
-total <span class="m">16</span>
-drwxrwxr-x <span class="m">2</span> azureadmin azureadmin  <span class="m">100</span> Mar <span class="m">21</span> <span class="m">17</span>:31 .
-drwxrwxr-x <span class="m">3</span> azureadmin azureadmin   <span class="m">46</span> Mar <span class="m">21</span> <span class="m">17</span>:31 ..
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3358</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellexpansion.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3406</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellpose.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3184</span> Mar <span class="m">21</span> <span class="m">17</span>:44 cellprofiler_spot.sh
--rw-rw-r-- <span class="m">1</span> azureadmin azureadmin <span class="m">3500</span> Mar <span class="m">21</span> <span class="m">17</span>:44 spotcounting.sh
+total<span class="w"> </span><span class="m">16</span>
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">  </span><span class="m">100</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>.
+drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">46</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:31<span class="w"> </span>..
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3358</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>cellexpansion.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3406</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>cellpose.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3184</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>cellprofiler_spot.sh
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3500</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting.sh
 </pre></div>
 </div>
 <ol class="arabic simple" start="5">
@@ -2221,14 +2226,14 @@ drwxrwxr-x <span class="m">3</span> azureadmin azureadmin   <span class="m">46</
 </ul>
 </li>
 </ul>
-</div>
-</div>
-<div class="section" id="extra-thoughts">
-<h1>Extra thoughts<a class="headerlink" href="#extra-thoughts" title="Permalink to this headline"></a></h1>
+</section>
+</section>
+<section id="extra-thoughts">
+<h1>Extra thoughts<a class="headerlink" href="#extra-thoughts" title="Permalink to this heading"></a></h1>
 <ul class="simple">
 <li><p>Perhaps also make the Cluster have a static IP, instead of changing whenever you terminate it: https://learn.microsoft.com/en-us/azure/cyclecloud/how-to/network-security?view=cyclecloud-8</p></li>
 </ul>
-</div>
+</section>
 
 
            </div>

@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.views &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html">BIOMERO - BioImage analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0">BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.views</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.views</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2024 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessApplication</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.dispatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">singledispatchmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.exc</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntegrityError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">func</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowRun</span><span class="p">,</span> <span class="n">Task</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">JobView</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="p">,</span> <span class="n">JobProgressView</span><span class="p">,</span> <span class="n">WorkflowProgressView</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">workflow_status</span> <span class="k">as</span> <span class="n">wfs</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+    
+<span class="c1"># ------------------- View Listener Applications ------------------ #</span>
+
+
+<div class="viewcode-block" id="JobAccounting"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobAccounting</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">ProcessApplication</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># State tracking</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {wf_id: {&quot;user&quot;: user, &quot;group&quot;: group}}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{}</span>      <span class="c1"># {task_id: wf_id}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="p">{}</span>       <span class="c1"># {job_id: (task_id, user, group)}   </span>
+                   
+<div class="viewcode-block" id="JobAccounting.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Default policy&quot;&quot;&quot;</span></div>
+        
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">WorkflowInitiated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle WorkflowInitiated event&quot;&quot;&quot;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">user</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">group</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        
+        <span class="c1"># Track workflow</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span> <span class="s2">&quot;group&quot;</span><span class="p">:</span> <span class="n">group</span><span class="p">}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Workflow initiated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Optionally, persist this state if needed</span>
+        <span class="c1"># Optionally, add an event to do that, then save via collect</span>
+        <span class="c1"># process_event.collect_events(jobaccount, wfView)   </span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">TaskAdded</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle TaskAdded event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_id</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        
+        <span class="c1"># Track task</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task added: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>    
+
+        <span class="c1"># Optionally, persist this state if needed</span>
+        <span class="c1"># use .collect_events(agg) instead of .save(agg)</span>
+        <span class="c1"># process_event.collect_events(taskView)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">JobIdAdded</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle JobIdAdded event&quot;&quot;&quot;</span>
+        <span class="c1"># Grab event payload</span>
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        
+        <span class="c1"># Find workflow and user/group for the task</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">wf_id</span><span class="p">:</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">]</span>
+                <span class="n">group</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span>
+                
+                <span class="c1"># Track job</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job added: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+                <span class="c1"># Update view table</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;JobIdAdded event ignored: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> not found in tasks&quot;</span><span class="p">)</span>
+            
+        <span class="c1"># use .collect_events(agg) instead of .save(agg)</span>
+        <span class="c1"># process_event.collect_events(jobaccount)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+<div class="viewcode-block" id="JobAccounting.update_view_table"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.update_view_table">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_view_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the view table with new job information.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">new_job</span> <span class="o">=</span> <span class="n">JobView</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_job</span><span class="p">)</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inserted job into view table: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">, task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                <span class="c1"># Handle the case where the job already exists in the table if necessary</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to insert job into view table (already exists?): job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">. Error </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="JobAccounting.get_jobs"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.get_jobs">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve jobs for a specific user and/or group.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        - user (int, optional): The user ID to filter by.</span>
+<span class="sd">        - group (int, optional): The group ID to filter by.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">        - Dictionary of user IDs to lists of job IDs if no user is specified.</span>
+<span class="sd">        - Dictionary with a single user ID key and a list of job IDs if user is specified.</span>
+<span class="sd">        </span>
+<span class="sd">        Raises:</span>
+<span class="sd">        - ValueError: If neither user nor group is provided.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Retrieve all jobs grouped by user</span>
+            <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+                <span class="n">jobs</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">JobView</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">JobView</span><span class="o">.</span><span class="n">slurm_job_id</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+                <span class="n">user_jobs</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">user_id</span><span class="p">,</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">user_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">user_jobs</span><span class="p">:</span>
+                        <span class="n">user_jobs</span><span class="p">[</span><span class="n">user_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">user_jobs</span><span class="p">[</span><span class="n">user_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">user_jobs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">JobView</span><span class="o">.</span><span class="n">slurm_job_id</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">)</span>
+                
+                <span class="n">jobs</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="n">user</span><span class="p">:</span> <span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">slurm_job_id</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">]}</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Retrieved jobs for user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2"> and group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">result</span></div>
+            
+<div class="viewcode-block" id="JobAccounting.get_task_id"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.get_task_id">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_task_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve the task ID associated with a given job ID.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - job_id (int): The job ID (slurm_job_id) to look up.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        - UUID: The task ID associated with the job ID, or None if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">task_id</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">JobView</span><span class="o">.</span><span class="n">task_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">JobView</span><span class="o">.</span><span class="n">slurm_job_id</span> <span class="o">==</span> <span class="n">job_id</span><span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Retrieved task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">task_id</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="kc">None</span><span class="si">}</span><span class="s2"> for job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">task_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">task_id</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to retrieve task_id for job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span></div></div>
+            
+            
+<div class="viewcode-block" id="WorkflowProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowProgress</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># State tracking: {workflow_id: {&quot;status&quot;: status, &quot;progress&quot;: progress, &quot;user&quot;: user, &quot;group&quot;: group}}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  
+        <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {task_id: {&quot;workflow_id&quot;: wf_id, &quot;task_name&quot;: task_name}}</span>
+
+<div class="viewcode-block" id="WorkflowProgress.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Default policy&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">WorkflowInitiated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle WorkflowInitiated event&quot;&quot;&quot;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">user</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">group</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
+
+        <span class="c1"># Track workflow with user, group, and INITIATED status</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">wfs</span><span class="o">.</span><span class="n">INITIALIZING</span><span class="p">,</span> 
+                                       <span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="s2">&quot;0%&quot;</span><span class="p">,</span> 
+                                       <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span> 
+                                       <span class="s2">&quot;group&quot;</span><span class="p">:</span> <span class="n">group</span><span class="p">,</span>
+                                       <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                                       <span class="s2">&quot;task&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                                       <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="n">start_time</span><span class="p">}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Workflow initiated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">wfs</span><span class="o">.</span><span class="n">INITIALIZING</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">WorkflowCompleted</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">DONE</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;100%&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Status updated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">wfs</span><span class="o">.</span><span class="n">DONE</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">WorkflowFailed</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">error_message</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">FAILED</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Status updated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">wfs</span><span class="o">.</span><span class="n">FAILED</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">TaskAdded</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle TaskAdded event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_id</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+
+        <span class="c1"># Track task to workflow mapping</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;workflow_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
+            <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;task&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;task_name&quot;</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Task added: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskCreated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">task_name</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_name</span>
+        
+        <span class="c1"># store task name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
+            <span class="s2">&quot;workflow_id&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> 
+            <span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="kc">None</span> 
+            <span class="p">}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Task created: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">StatusUpdated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle Task StatusUpdated event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">status</span>
+
+        <span class="c1"># Get the workflow ID and task name associated with this task</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">&quot;workflow_id&quot;</span><span class="p">]</span>
+            <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">&quot;task_name&quot;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+                <span class="c1"># Determine status based on task_name</span>
+                <span class="k">if</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;_SLURM_Image_Transfer.py&#39;</span><span class="p">:</span>
+                    <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">TRANSFERRING</span>
+                    <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;5%&quot;</span>
+                <span class="k">elif</span> <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;convert_&#39;</span><span class="p">):</span>
+                    <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">CONVERTING</span>
+                    <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;25%&quot;</span>
+                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;SLURM_Get_Results.py&#39;</span><span class="p">:</span>
+                    <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RETRIEVING</span>
+                    <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;90%&quot;</span>
+                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;SLURM_Run_Workflow.py&#39;</span><span class="p">:</span>
+                    <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RUNNING</span>
+                    <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;50%&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Default to JOB_STATUS prefix for unknown task types</span>
+                    <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">JOB_STATUS</span> <span class="o">+</span> <span class="n">status</span>
+                    <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;50%&quot;</span>
+                    <span class="k">if</span> <span class="s2">&quot;task_progress&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]:</span>
+                        <span class="n">task_prog</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;task_progress&quot;</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">task_prog</span><span class="p">:</span>
+                            <span class="c1"># Initial string and baseline</span>
+                            <span class="n">upper_limit_str</span> <span class="o">=</span> <span class="s2">&quot;90%&quot;</span>  <span class="c1"># Upper limit string</span>
+                            <span class="c1"># Step 1: Extract integers from the strings</span>
+                            <span class="n">current_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">task_prog</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">))</span>
+                            <span class="n">baseline_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">workflow_prog</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">))</span>
+                            <span class="n">upper_limit_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">upper_limit_str</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">))</span>
+
+                            <span class="c1"># Step 2: Interpolation logic</span>
+                            <span class="c1"># Map the current_val (43) between the range 50 and 90</span>
+                            <span class="c1"># Formula for linear interpolation: new_val = baseline + (current_val / 100) * (upper_limit - baseline)</span>
+                            <span class="n">interpolated_val</span> <span class="o">=</span> <span class="n">baseline_val</span> <span class="o">+</span> <span class="p">((</span><span class="n">current_val</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">upper_limit_val</span> <span class="o">-</span> <span class="n">baseline_val</span><span class="p">))</span>
+                            <span class="n">workflow_prog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">interpolated_val</span><span class="si">}</span><span class="s2">%&quot;</span>
+                    
+
+                <span class="c1"># Update the workflow status</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_status</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_prog</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Status updated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">workflow_status</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">ProgressUpdated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle ProgressUpdated event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">progress</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">progress</span>
+        
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
+            <span class="n">wf_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;workflow_id&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;task_progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] (Task) Progress updated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, progress=</span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>   
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span> 
+    
+<div class="viewcode-block" id="WorkflowProgress.update_view_table"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.update_view_table">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_view_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the view table with new workflow status, progress, user, and group.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>                
+                <span class="n">new_workflow_progress</span> <span class="o">=</span> <span class="n">WorkflowProgressView</span><span class="p">(</span>
+                    <span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">,</span>
+                    <span class="n">status</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">],</span>
+                    <span class="n">progress</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;progress&quot;</span><span class="p">],</span>
+                    <span class="n">user</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">],</span>
+                    <span class="n">group</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">],</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="n">task</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">],</span>
+                    <span class="n">start_time</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;start_time&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">new_workflow_progress</span><span class="p">)</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Inserted wf progress in view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">IntegrityError</span><span class="p">:</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Failed to insert/update wf progress in view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="JobProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobProgress</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">ProcessApplication</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># State tracking</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_to_job</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {task_id: job_id}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span> <span class="o">=</span> <span class="p">{}</span>   <span class="c1"># {job_id: {&quot;status&quot;: status, &quot;progress&quot;: progress}}</span>
+    
+<div class="viewcode-block" id="JobProgress.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobProgress.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Default policy&quot;&quot;&quot;</span></div>
+    
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">JobIdAdded</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle JobIdAdded event&quot;&quot;&quot;</span>
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        
+        <span class="c1"># Track task to job mapping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_to_job</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[JP] JobId added: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">StatusUpdated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle StatusUpdated event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">status</span>
+        
+        <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_to_job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">status</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span> <span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+            
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[JP] Status updated: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Update view table</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">ProgressUpdated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle ProgressUpdated event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">progress</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">progress</span>
+        
+        <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_to_job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">&quot;progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;UNKNOWN&quot;</span><span class="p">,</span> <span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="n">progress</span><span class="p">}</span>
+            
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[JP] Progress updated: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, progress=</span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Update view table</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+<div class="viewcode-block" id="JobProgress.update_view_table"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobProgress.update_view_table">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_view_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the view table with new job status and progress information.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span>
+                <span class="n">new_job_progress</span> <span class="o">=</span> <span class="n">JobProgressView</span><span class="p">(</span>
+                    <span class="n">slurm_job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
+                    <span class="n">status</span><span class="o">=</span><span class="n">job_info</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">],</span>
+                    <span class="n">progress</span><span class="o">=</span><span class="n">job_info</span><span class="p">[</span><span class="s2">&quot;progress&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">new_job_progress</span><span class="p">)</span>  <span class="c1"># Use merge to insert or update</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[JP] Inserted/Updated job progress in view table: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">job_info</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">, progress=</span><span class="si">{</span><span class="n">job_info</span><span class="p">[</span><span class="s1">&#39;progress&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">IntegrityError</span><span class="p">:</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[JP] Failed to insert/update job progress in view table: job_id=</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># @event.listens_for(Engine, &quot;before_cursor_execute&quot;)</span>
+<span class="c1"># def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):</span>
+<span class="c1">#     logger.debug(f&quot;SQL: {statement}&quot;)</span>
+<span class="c1">#     logger.debug(f&quot;Parameters: {parameters}&quot;)</span>
+
+
+<div class="viewcode-block" id="WorkflowAnalytics"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowAnalytics</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">ProcessApplication</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># State tracking for workflows and tasks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {wf_id: {&quot;user&quot;: user, &quot;group&quot;: group}}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{}</span>      <span class="c1"># {task_id: {&quot;wf_id&quot;: wf_id, &quot;task_name&quot;: task_name, &quot;task_version&quot;: task_version, &quot;start_time&quot;: timestamp, &quot;status&quot;: status, &quot;end_time&quot;: timestamp, &quot;error_type&quot;: error_type}}</span>
+
+<div class="viewcode-block" id="WorkflowAnalytics.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Default policy&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">WorkflowInitiated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle WorkflowInitiated event&quot;&quot;&quot;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">user</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">group</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+
+        <span class="c1"># Track workflow</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span> <span class="s2">&quot;group&quot;</span><span class="p">:</span> <span class="n">group</span><span class="p">}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Workflow initiated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">WorkflowRun</span><span class="o">.</span><span class="n">TaskAdded</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle TaskAdded event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_id</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+
+        <span class="c1"># Add workflow ID to the existing task information</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;wf_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># In case TaskAdded arrives before TaskCreated (unlikely but possible)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;wf_id&quot;</span><span class="p">:</span> <span class="n">wf_id</span><span class="p">}</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Task added: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskCreated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle TaskCreated event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">task_name</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_name</span>
+        <span class="n">task_version</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_version</span>
+        <span class="n">timestamp_created</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
+
+        <span class="c1"># Track task creation details</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
+                <span class="s2">&quot;task_version&quot;</span><span class="p">:</span> <span class="n">task_version</span><span class="p">,</span>
+                <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="n">timestamp_created</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;CREATED&quot;</span>
+            <span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Initialize task tracking if TaskAdded hasn&#39;t been processed yet</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
+                <span class="s2">&quot;task_version&quot;</span><span class="p">:</span> <span class="n">task_version</span><span class="p">,</span>
+                <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="n">timestamp_created</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;CREATED&quot;</span>
+            <span class="p">}</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Task created: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">, timestamp=</span><span class="si">{</span><span class="n">timestamp_created</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">StatusUpdated</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle StatusUpdated event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">status</span>
+
+        <span class="c1"># Update task with status</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">status</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Task status updated: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskCompleted</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle TaskCompleted event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">timestamp_completed</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
+
+        <span class="c1"># Update task with end time</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;end_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp_completed</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Task completed: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, end_time=</span><span class="si">{</span><span class="n">timestamp_completed</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskFailed</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle TaskFailed event&quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">timestamp_failed</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
+        <span class="n">error_message</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">error_message</span>
+
+        <span class="c1"># Update task with end time and error message</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;end_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp_failed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">&quot;error_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">error_message</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Task failed: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, end_time=</span><span class="si">{</span><span class="n">timestamp_failed</span><span class="si">}</span><span class="s2">, error=</span><span class="si">{</span><span class="n">error_message</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+<div class="viewcode-block" id="WorkflowAnalytics.update_view_table"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.update_view_table">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_view_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the view table with new task execution information.&quot;&quot;&quot;</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="k">return</span>  <span class="c1"># Skip if task information is incomplete</span>
+
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wf_id&quot;</span><span class="p">)</span>
+        <span class="n">user_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">group_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Retrieve user and group from workflow</span>
+        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+            <span class="n">user_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;user&quot;</span><span class="p">]</span>
+            <span class="n">group_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">&quot;group&quot;</span><span class="p">]</span>
+
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">existing_task</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">TaskExecution</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Existing: </span><span class="si">{</span><span class="n">existing_task</span><span class="si">}</span><span class="s2">. vs info </span><span class="si">{</span><span class="n">task_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">existing_task</span><span class="p">:</span>
+                    <span class="c1"># Update existing task execution record</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_name&quot;</span><span class="p">,</span> <span class="n">existing_task</span><span class="o">.</span><span class="n">task_name</span><span class="p">)</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">task_version</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_version&quot;</span><span class="p">,</span> <span class="n">existing_task</span><span class="o">.</span><span class="n">task_version</span><span class="p">)</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">user_id</span> <span class="o">=</span> <span class="n">user_id</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">group_id</span> <span class="o">=</span> <span class="n">group_id</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="n">existing_task</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;start_time&quot;</span><span class="p">,</span> <span class="n">existing_task</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;end_time&quot;</span><span class="p">,</span> <span class="n">existing_task</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span>
+                    <span class="n">existing_task</span><span class="o">.</span><span class="n">error_type</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;error_type&quot;</span><span class="p">,</span> <span class="n">existing_task</span><span class="o">.</span><span class="n">error_type</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Create a new task execution record</span>
+                    <span class="n">new_task_execution</span> <span class="o">=</span> <span class="n">TaskExecution</span><span class="p">(</span>
+                        <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">,</span>
+                        <span class="n">task_name</span><span class="o">=</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_name&quot;</span><span class="p">),</span>
+                        <span class="n">task_version</span><span class="o">=</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_version&quot;</span><span class="p">),</span>
+                        <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+                        <span class="n">group_id</span><span class="o">=</span><span class="n">group_id</span><span class="p">,</span>
+                        <span class="n">status</span><span class="o">=</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">),</span>
+                        <span class="n">start_time</span><span class="o">=</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;start_time&quot;</span><span class="p">),</span>
+                        <span class="n">end_time</span><span class="o">=</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;end_time&quot;</span><span class="p">),</span>
+                        <span class="n">error_type</span><span class="o">=</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;error_type&quot;</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_task_execution</span><span class="p">)</span>
+                
+                <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Updated/Inserted task execution into view table: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;task_name&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Failed to insert/update task execution into view table: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, error=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Task info: </span><span class="si">{</span><span class="n">task_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkflowAnalytics.get_task_counts"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.get_task_counts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_task_counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve task execution counts grouped by task name and version.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        - user (int, optional): The user ID to filter by.</span>
+<span class="sd">        - group (int, optional): The group ID to filter by.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">        - Dictionary of task names and versions to counts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span>
+                <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_version</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group_id</span><span class="o">=</span><span class="n">group</span><span class="p">)</span>
+            
+            <span class="n">task_counts</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">):</span> <span class="n">count</span>
+                <span class="k">for</span> <span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">task_counts</span>
+            <span class="p">}</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Retrieved task counts: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="WorkflowAnalytics.get_average_task_duration"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.get_average_task_duration">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_average_task_duration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve the average task duration grouped by task name and version.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        - user (int, optional): The user ID to filter by.</span>
+<span class="sd">        - group (int, optional): The group ID to filter by.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">        - Dictionary of task names and versions to average duration (in seconds).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span>
+                <span class="n">func</span><span class="o">.</span><span class="n">avg</span><span class="p">(</span>
+                    <span class="n">func</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s1">&#39;epoch&#39;</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span> <span class="o">-</span> <span class="n">func</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s1">&#39;epoch&#39;</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;avg_duration&#39;</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">end_time</span><span class="o">.</span><span class="n">isnot</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>  <span class="c1"># Only include completed tasks</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_version</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group_id</span><span class="o">=</span><span class="n">group</span><span class="p">)</span>
+            
+            <span class="n">task_durations</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">):</span> <span class="n">avg_duration</span>
+                <span class="k">for</span> <span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">,</span> <span class="n">avg_duration</span> <span class="ow">in</span> <span class="n">task_durations</span>
+            <span class="p">}</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Retrieved average task durations: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="WorkflowAnalytics.get_task_failures"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.get_task_failures">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_task_failures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve tasks that failed, grouped by task name and version.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        - user (int, optional): The user ID to filter by.</span>
+<span class="sd">        - group (int, optional): The group ID to filter by.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">        - Dictionary of task names and versions to lists of failure reasons.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span>
+                <span class="n">TaskExecution</span><span class="o">.</span><span class="n">error_type</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">error_type</span><span class="o">.</span><span class="n">isnot</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>  <span class="c1"># Only include failed tasks</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="o">.</span><span class="n">error_type</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group_id</span><span class="o">=</span><span class="n">group</span><span class="p">)</span>
+            
+            <span class="n">task_failures</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">,</span> <span class="n">error_type</span> <span class="ow">in</span> <span class="n">task_failures</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+                    <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">error_type</span><span class="p">)</span>
+            
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Retrieved task failures: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="WorkflowAnalytics.get_task_usage_over_time"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.get_task_usage_over_time">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_task_usage_over_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_name</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve task usage over time for a specific task.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        - task_name (str): The name of the task to filter by.</span>
+<span class="sd">        - user (int, optional): The user ID to filter by.</span>
+<span class="sd">        - group (int, optional): The group ID to filter by.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">        - Dictionary mapping date to the count of task executions on that date.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="n">func</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">start_time</span><span class="p">),</span>
+                <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">task_name</span> <span class="o">==</span> <span class="n">task_name</span><span class="p">)</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">start_time</span><span class="p">))</span>
+            
+            <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group_id</span><span class="o">=</span><span class="n">group</span><span class="p">)</span>
+            
+            <span class="n">usage_over_time</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">date</span><span class="p">:</span> <span class="n">count</span>
+                <span class="k">for</span> <span class="n">date</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">usage_over_time</span>
+            <span class="p">}</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFA] Retrieved task usage over time for </span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

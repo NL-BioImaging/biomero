@@ -38,6 +38,16 @@ Welcome to BIOMERO's documentation!
 
    modules
 
+.. Developer
+
+***********************
+
+.. toctree::
+   :caption: Developer
+   :maxdepth: 2
+
+   developer/eventsourcing
+
 Indices and tables
 ==================
 

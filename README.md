@@ -17,7 +17,7 @@ _WARNING_: Please note that default settings are for short/medium jobs. If you r
 
 Get ready for an enhanced BIOMERO! 
 
-In 2.0, we add full workflow tracking via a database and dashboard, with a plugin available for a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.
+In 2.0, we add full workflow tracking via a database and dashboard, with the [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) plugin providing a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.
 
 All in all, BIOMERO 2.0 greatly enhances both the user interaction for BIOMERO and the FAIR metadata of all these resulting assets in OMERO. 
 
@@ -29,6 +29,15 @@ BIOMERO consists of this Python library (`biomero`) and the integrations within 
 
 ![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
 
+
+
+## Deploy with NL-BIOMERO
+
+For the easiest deployment and integration with other FAIR infrastructure, use the NL-BIOMERO stack:
+
+- NL-BIOMERO deployment repo: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO
+- OMERO.biomero OMERO.web plugin: https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero
+- Prebuilt BIOMERO processor container: https://hub.docker.com/r/cellularimagingcf/biomero
 
 
 # Quickstart

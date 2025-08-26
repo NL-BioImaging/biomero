@@ -1,4 +1,6 @@
-furo==2021.11.16
+# Compatible set: Sphinx 6.x, myst-parser 1.0.x, furo >=2023
+Sphinx==6.2.1
 myst-parser==1.0.0
+furo==2023.08.17
 sphinx-rtd-theme==1.2.0
 .

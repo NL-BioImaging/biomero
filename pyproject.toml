@@ -32,11 +32,19 @@ dependencies = [
     "eventsourcing==9.3",
     "sqlalchemy==2.0.32",
     "psycopg2==2.9.9",
-    "eventsourcing_sqlalchemy==0.9"
+    "eventsourcing_sqlalchemy==0.9",
+    "alembic>=1.12"
 ]
 
 [tool.setuptools.packages]
 find = {}  # Scan the project directory with the default parameters
+[tool.setuptools.package-data]
+biomero = [
+    "migrations/alembic.ini",
+    "migrations/script.py.mako",
+    "migrations/versions/*.py",
+]
+
 
 [tool.setuptools_scm]
 

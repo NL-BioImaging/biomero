@@ -188,6 +188,18 @@ Note2: We will also update these containers with our own desired changes, so the
 # See the tutorials
 I have also provided tutorials on connecting to a Local or Cloud Slurm, and tutorials on how to add your FAIR workflows to this setup. Those can give some more insights as well.
 
+# Developer: Eventsourcing and Views
+
+BIOMERO tracks workflow execution with eventsourcing and maintains denormalized SQL views for fast queries.
+
+- Event side: aggregates in `biomero.eventsourcing` (`WorkflowRun`, `Task`) emit immutable events and are persisted by `eventsourcing_sqlalchemy`. These tables are library-managed; do not add Alembic migrations for them.
+- View side: `biomero.views` processes events and updates SQLAlchemy models in `biomero.database`:
+    - `biomero_job_view`, `biomero_job_progress_view`, `biomero_workflow_progress_view`, `biomero_task_execution`.
+- Migrations: only BIOMERO view tables are migrated via Alembic (`biomero/migrations`, version table `alembic_version_biomero`). A startup runner upgrades on boot and uses a Postgres advisory lock. To adopt existing schemas once, set `BIOMERO_ALLOW_AUTO_STAMP=1`.
+- Changing aggregates: keep backward compatibility by adding upcasters (see comments in `biomero.eventsourcing`). Rebuild views by reprocessing events if shapes change.
+
+See the full developer guide in the Sphinx docs under “Developer → Eventsourcing and Views”.
+
 # SSH
 Note: this library is built for **SSH-based connections**. If you could, it would be a lot easier to just have the OMERO `processor` server and the `slurm` client server be (on) the same machine: then you can just directly call `sbatch` and other `slurm` commands from OMERO scripts and Slurm would have better access to your data. 
 

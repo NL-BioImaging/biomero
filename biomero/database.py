@@ -14,7 +14,14 @@
 # limitations under the License.
 from eventsourcing.utils import get_topic, clear_topic_cache
 import logging
-from sqlalchemy import create_engine, text, Column, Integer, String, URL, DateTime, Float
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    DateTime,
+    event,
+)
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 import os
@@ -25,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 # Base class for declarative class definitions
 Base = declarative_base()
+
+# Set to True when Base.metadata.create_all created any tables in this process
+CREATED_ANY_TABLES = False
 
 
 class JobView(Base):
@@ -66,7 +76,8 @@ class WorkflowProgressView(Base):
     SQLAlchemy model for the 'workflow_progress_view' table.
 
     Attributes:
-        workflow_id (PGUUID): The unique identifier for the workflow (primary key).
+        workflow_id (PGUUID): The unique identifier for the workflow
+            (primary key).
         status (String, optional): The current status of the workflow.
         progress (String, optional): The progress status of the workflow.
         user (String, optional): The user who initiated the workflow.
@@ -98,7 +109,8 @@ class TaskExecution(Base):
         status (String): The current status of the task.
         start_time (DateTime): The time when the task started.
         end_time (DateTime, optional): The time when the task ended.
-        error_type (String, optional): Type of error encountered during execution, if any.
+        error_type (String, optional): Type of error encountered during
+            execution, if any.
     """
     __tablename__ = 'biomero_task_execution'
 
@@ -111,6 +123,14 @@ class TaskExecution(Base):
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=True)
     error_type = Column(String, nullable=True)
+    
+
+# Listen for SQLAlchemy actually creating one or more tables via create_all
+@event.listens_for(Base.metadata, "after_create")
+def _receive_after_create(target, connection, tables, **kw):
+    global CREATED_ANY_TABLES
+    if tables:
+        CREATED_ANY_TABLES = True
     
 
 class EngineManager:
@@ -129,36 +149,53 @@ class EngineManager:
     @classmethod
     def create_scoped_session(cls, sqlalchemy_url: str = None):
         """
-        Creates and returns a scoped session for interacting with the database.
+        Creates and returns a scoped session for interacting with the
+        database.
 
-        If the engine doesn't already exist, it initializes the SQLAlchemy engine 
-        and sets up the scoped session.
+        If the engine doesn't already exist, it initializes the SQLAlchemy
+        engine and sets up the scoped session.
 
         Args:
-            sqlalchemy_url (str, optional): The SQLAlchemy database URL. If not provided, 
-                the method will retrieve the value from the 'SQLALCHEMY_URL' environment variable.
+            sqlalchemy_url (str, optional): The SQLAlchemy database URL. If
+                not provided, the method will retrieve the value from the
+                'SQLALCHEMY_URL' environment variable.
 
         Returns:
             str: The topic of the scoped session adapter class.
         """
-        if cls._engine is None:      
+        if cls._engine is None:
             # Note, we only allow sqlalchemy eventsourcing module
             if not sqlalchemy_url:
                 sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
             cls._engine = create_engine(sqlalchemy_url)
-            
-            # setup tables if they don't exist yet
+            # Setup tables if they don't exist yet, and detect fresh installs
             Base.metadata.create_all(cls._engine)
-            
+
+            # Run Alembic migrations for BIOMERO on startup if enabled.
+            # If tables were created just now, signal migrator to auto-stamp.
+            try:
+                if CREATED_ANY_TABLES:
+                    os.environ["BIOMERO_CREATED_ANY_TABLES"] = "1"
+                from .db_migrate import run_migrations_on_startup
+                run_migrations_on_startup()
+            except Exception:
+                logger.error(
+                    "Failed to run BIOMERO migrations", exc_info=True
+                )
+
             # Create a scoped_session object.
             cls._session = scoped_session(
-                sessionmaker(autocommit=False, autoflush=True, bind=cls._engine)
+                sessionmaker(
+                    autocommit=False,
+                    autoflush=True,
+                    bind=cls._engine,
+                )
             )
-            
+
             class MyScopedSessionAdapter:
                 def __getattribute__(self, item: str) -> None:
                     return getattr(cls._session, item)
-                
+
             # Produce the topic of the scoped session adapter class.
             cls._scoped_session_topic = get_topic(MyScopedSessionAdapter)
 
@@ -186,13 +223,13 @@ class EngineManager:
         """
         Closes the database engine and cleans up the session.
 
-        This method disposes of the SQLAlchemy engine, removes the session, 
+    This method disposes of the SQLAlchemy engine, removes the session,
         and resets all associated class attributes to `None`.
         """
         if cls._engine is not None:
             cls._session.remove()
             cls._engine.dispose()
             cls._engine = None
-            cls._session = None  
+            cls._session = None
             cls._scoped_session_topic = None
             clear_topic_cache()

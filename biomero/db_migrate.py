@@ -1,11 +1,29 @@
 import os
 import pathlib
+import logging
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 
 MIGRATIONS_DIR = str(pathlib.Path(__file__).with_name("migrations"))
 VERSION_TABLE = "alembic_version_biomero"
+
+
+def _mask_url(url: str) -> str:
+    """Mask password in a SQLAlchemy URL for safe logging."""
+    try:
+        if not url or '://' not in url:
+            return url
+        scheme, rest = url.split('://', 1)
+        if '@' not in rest:
+            return url
+        creds, tail = rest.split('@', 1)
+        if ':' not in creds:
+            return url
+        user, _ = creds.split(':', 1)
+        return f"{scheme}://{user}:******@{tail}"
+    except Exception:
+        return url
 
 
 def run_migrations_on_startup():
@@ -20,9 +38,28 @@ def run_migrations_on_startup():
     if os.getenv("BIOMERO_RUN_MIGRATIONS", "1") != "1":
         return
 
-    db_url = os.getenv("SQLALCHEMY_URL")
+    logger = logging.getLogger(__name__)
+
+    # Prefer the DB URL from EngineManager (engine already created).
+    db_url = None
+    try:
+        from .database import EngineManager
+        if getattr(EngineManager, "_engine", None):
+            # Stringify without exposing password
+            db_url = str(EngineManager._engine.url)
+    except Exception:
+        pass
+
+    # Fallback to env var if needed
     if not db_url:
-        return  # No DB configured, nothing to do
+        db_url = os.getenv("SQLALCHEMY_URL")
+    if not db_url:
+        raise RuntimeError(
+            "BIOMERO migrations: No DB URL. Ensure EngineManager is "
+            "initialized or set SQLALCHEMY_URL."
+        )
+
+    logger.info(f"BIOMERO Alembic DB: {_mask_url(db_url)}")
 
     engine = create_engine(db_url)
 

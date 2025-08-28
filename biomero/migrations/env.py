@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import logging
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -8,18 +9,44 @@ from alembic import context
 # Import BIOMERO Base models
 from biomero.database import Base as BIOMEROBase
 
+
+def _mask_url(url: str) -> str:
+    try:
+        if not url or '://' not in url:
+            return url
+        scheme, rest = url.split('://', 1)
+        if '@' not in rest:
+            return url
+        creds, tail = rest.split('@', 1)
+        if ':' not in creds:
+            return url
+        user, _ = creds.split(':', 1)
+        return f"{scheme}://{user}:******@{tail}"
+    except Exception:
+        return url
+
+
 config = context.config
 
-# Configure URL from env
-db_url = os.getenv("SQLALCHEMY_URL")
+# Ensure URL is provided either programmatically or via env; no fallbacks
+existing_url = config.get_main_option("sqlalchemy.url")
+env_url = os.getenv("SQLALCHEMY_URL")
+db_url = existing_url or env_url
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
+else:
+    raise RuntimeError(
+        "BIOMERO Alembic: No sqlalchemy.url configured and SQLALCHEMY_URL "
+        "not set."
+    )
 
 # Use a per-project version table in the same schema
 config.set_main_option("version_table", "alembic_version_biomero")
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+logger = logging.getLogger(__name__)
 
 target_metadata = BIOMEROBase.metadata
 
@@ -35,6 +62,7 @@ def include_object(object, name, type_, reflected, compare_to):
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
+    logger.info("Alembic (offline) URL: %s", _mask_url(url))
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -53,6 +81,11 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+    )
+    logger.info(
+        "Alembic backend: %s, URL: %s",
+        connectable.dialect.name,
+        _mask_url(str(connectable.url)),
     )
     with connectable.connect() as connection:
         context.configure(

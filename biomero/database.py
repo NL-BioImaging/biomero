@@ -47,33 +47,9 @@ class JobView(Base):
         group (Integer): The group ID associated with the job.
         task_id (UUID): The unique identifier for the biomero task
 
-        Migration warning:
-            Any schema change (columns, types, constraints, indexes)
-            must be captured in a new Alembic revision and applied to
-            the DB.
-
-                PowerShell (Windows):
-                        $env:SQLALCHEMY_URL = \
-                            'postgresql+psycopg2://USER:PASS@HOST:5432/DB'
-                        cd biomero/biomero
-                        alembic -c migrations/alembic.ini revision \
-                            --autogenerate -m "explain change"
-
-                        Bash (Linux/macOS):
-                                export SQLALCHEMY_URL= \
-                                    postgresql+psycopg2://USER:PASS@HOST:5432/DB
-                        cd biomero/biomero
-                        alembic -c migrations/alembic.ini revision \
-                            --autogenerate -m "explain change"
-
-                When packaged, migrations are included and run on startup.
-                Alternatively run:
-                        alembic -c migrations/alembic.ini upgrade head
-
-                        Notes:
-                                - Version table: alembic_version_biomero
-                                - Only BIOMERO tables are included via env.py
-                                    include_object
+    Note: Schema changes are handled via event sourcing system rebuild.
+    Use SlurmClient.initialize_analytics_system(reset_tables=True) to
+    apply changes.
     """
     __tablename__ = 'biomero_job_view'
 
@@ -92,32 +68,9 @@ class JobProgressView(Base):
         status (String): The current status of the Slurm job.
         progress (String, optional): The progress status of the Slurm job.
 
-        Migration warning:
-            Any schema change (columns, types, constraints, indexes)
-            must be captured in a new Alembic revision and applied to
-            the DB.
-
-                PowerShell (Windows):
-                        $env:SQLALCHEMY_URL = \
-                            'postgresql+psycopg2://USER:PASS@HOST:5432/DB'
-                        cd biomero/biomero
-                        alembic -c migrations/alembic.ini revision \
-                            --autogenerate -m "explain change"
-
-                        Bash (Linux/macOS):
-                                export SQLALCHEMY_URL= \
-                                    postgresql+psycopg2://USER:PASS@HOST:5432/DB
-                        cd biomero/biomero
-                        alembic -c migrations/alembic.ini revision \
-                            --autogenerate -m "explain change"
-
-                Alternatively run upgrade:
-                        alembic -c migrations/alembic.ini upgrade head
-
-                        Notes:
-                                - Version table: alembic_version_biomero
-                                - Only BIOMERO tables are included via env.py
-                                    include_object
+    Note: Schema changes are handled via event sourcing system rebuild.
+    Use SlurmClient.initialize_analytics_system(reset_tables=True) to
+    apply changes.
     """
     __tablename__ = 'biomero_job_progress_view'
 
@@ -142,32 +95,9 @@ class WorkflowProgressView(Base):
         main_task_name (String, optional): The main user-facing workflow task
             (e.g., "cellexpansion" instead of "SLURM_Get_Results.py")
 
-        Migration warning:
-            Any schema change (columns, types, constraints, indexes)
-            must be captured in a new Alembic revision and applied to
-            the DB.
-
-                PowerShell (Windows):
-                        $env:SQLALCHEMY_URL = \
-                            'postgresql+psycopg2://USER:PASS@HOST:5432/DB'
-                        cd biomero/biomero
-                        alembic -c migrations/alembic.ini revision \
-                            --autogenerate -m "explain change"
-
-                        Bash (Linux/macOS):
-                                export SQLALCHEMY_URL= \
-                                    postgresql+psycopg2://USER:PASS@HOST:5432/DB
-                        cd biomero/biomero
-                        alembic -c migrations/alembic.ini revision \
-                            --autogenerate -m "explain change"
-
-                Alternatively run upgrade:
-                        alembic -c migrations/alembic.ini upgrade head
-
-                        Notes:
-                                - Version table: alembic_version_biomero
-                                - Only BIOMERO tables are included via env.py
-                                    include_object
+    Note: Schema changes are handled via event sourcing system rebuild.
+    Use SlurmClient.initialize_analytics_system(reset_tables=True) to
+    apply changes.
     """
     __tablename__ = 'biomero_workflow_progress_view'
 
@@ -283,18 +213,6 @@ class EngineManager:
             cls._engine = create_engine(sqlalchemy_url)
             # Setup tables if they don't exist yet, and detect fresh installs
             Base.metadata.create_all(cls._engine)
-
-            # Run Alembic migrations for BIOMERO on startup if enabled.
-            # If tables were created just now, signal migrator to auto-stamp.
-            try:
-                if CREATED_ANY_TABLES:
-                    os.environ["BIOMERO_CREATED_ANY_TABLES"] = "1"
-                from .db_migrate import run_migrations_on_startup
-                run_migrations_on_startup()
-            except Exception:
-                logger.error(
-                    "Failed to run BIOMERO migrations", exc_info=True
-                )
 
             # Create a scoped_session object.
             cls._session = scoped_session(

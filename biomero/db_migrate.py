@@ -1,6 +1,6 @@
 import os
-import pathlib
 import logging
+import pathlib
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
@@ -10,58 +10,54 @@ VERSION_TABLE = "alembic_version_biomero"
 
 
 def _mask_url(url: str) -> str:
-    """Mask password in a SQLAlchemy URL for safe logging."""
     try:
-        if not url or '://' not in url:
-            return url
-        scheme, rest = url.split('://', 1)
-        if '@' not in rest:
-            return url
-        creds, tail = rest.split('@', 1)
-        if ':' not in creds:
-            return url
-        user, _ = creds.split(':', 1)
-        return f"{scheme}://{user}:******@{tail}"
+        # Basic masking: replace password between ://user:pass@ with ******
+        if '://' in url and '@' in url and ':' in url.split('://', 1)[1]:
+            scheme, rest = url.split('://', 1)
+            creds, tail = rest.split('@', 1)
+            if ':' in creds:
+                user, _ = creds.split(':', 1)
+                return f"{scheme}://{user}:******@{tail}"
     except Exception:
-        return url
+        pass
+    return url
 
 
 def run_migrations_on_startup():
-    """
-    Programmatic migration runner for BIOMERO.
-
-    Controlled by env:
-      - BIOMERO_RUN_MIGRATIONS=1 to enable (default 1)
-      - SQLALCHEMY_URL for DB connection string
-      - BIOMERO_ALLOW_AUTO_STAMP=1 to adopt existing schema by stamping head
-    """
     if os.getenv("BIOMERO_RUN_MIGRATIONS", "1") != "1":
         return
-
-    logger = logging.getLogger(__name__)
 
     # Prefer the DB URL from EngineManager (engine already created).
     db_url = None
     try:
         from .database import EngineManager
         if getattr(EngineManager, "_engine", None):
-            # Stringify without exposing password
             db_url = str(EngineManager._engine.url)
     except Exception:
         pass
-
-    # Fallback to env var if needed
+    # Fallback to env vars if tracker not available
     if not db_url:
         db_url = os.getenv("SQLALCHEMY_URL")
     if not db_url:
         raise RuntimeError(
-            "BIOMERO migrations: No DB URL. Ensure EngineManager is "
+            "BIOMERO migrations: No DB URL found. Ensure EngineManager is "
             "initialized or set SQLALCHEMY_URL."
         )
 
+    logger = logging.getLogger(__name__)
     logger.info(f"BIOMERO Alembic DB: {_mask_url(db_url)}")
-
-    engine = create_engine(db_url)
+    
+    # Try to reuse existing engine if available to avoid connection issues
+    engine = None
+    try:
+        from .database import EngineManager
+        if getattr(EngineManager, "_engine", None):
+            engine = EngineManager._engine
+    except Exception:
+        pass
+    
+    if engine is None:
+        engine = create_engine(db_url)
 
     cfg = Config()
     cfg.set_main_option("script_location", MIGRATIONS_DIR)
@@ -70,9 +66,17 @@ def run_migrations_on_startup():
 
     insp = inspect(engine)
     has_version_table = insp.has_table(VERSION_TABLE)
+    # Allow auto-stamp if explicitly enabled OR if tables were just created
+    # in this process (fresh install detected by Base.metadata.after_create).
     allow_stamp = os.getenv("BIOMERO_ALLOW_AUTO_STAMP", "0") == "1"
-    created_any_tables = os.getenv("BIOMERO_CREATED_ANY_TABLES", "0") == "1"
+    try:
+        from .database import CREATED_ANY_TABLES
+        allow_stamp = allow_stamp or CREATED_ANY_TABLES
+    except Exception:
+        pass
 
+    # Postgres advisory lock to prevent concurrent migrations
+    # from multiple replicas
     is_pg = engine.dialect.name == "postgresql"
 
     with engine.begin() as conn:
@@ -84,23 +88,16 @@ def run_migrations_on_startup():
                 )
             )
         try:
-            # Auto-stamp scenarios:
-            # 1) Fresh install: our process just created tables ->
-            #    stamp unconditionally.
-            # 2) Adoption: admin allowed stamping and existing known tables
-            #    are present.
-            if not has_version_table:
-                if created_any_tables:
-                    command.stamp(cfg, "head")
-                elif allow_stamp:
-                    known_tables = {
-                        "biomero_job_view",
-                        "biomero_job_progress_view",
-                        "biomero_workflow_progress_view",
-                        "biomero_task_execution",
-                    }
-                    if any(insp.has_table(t) for t in known_tables):
-                        command.stamp(cfg, "head")
+            if allow_stamp and not has_version_table:
+                # Check if any BIOMERO table already exists (reliable table name)
+                known_tables = {
+                    "biomero_job_view",
+                    "biomero_job_progress_view", 
+                    "biomero_workflow_progress_view",
+                    "biomero_task_execution"
+                }
+                if any(insp.has_table(t) for t in known_tables):
+                    command.stamp(cfg, "head")  # baseline existing DB
             command.upgrade(cfg, "head")
         finally:
             if is_pg:

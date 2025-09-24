@@ -38,6 +38,7 @@ jobs:
       run: |
         python -m pytest --cov=biomero --cov-report=xml
     - name: Coveralls GitHub Action
+      if: matrix.python-version == '3.11'
       uses: coverallsapp/github-action@v2.3.0
 
             

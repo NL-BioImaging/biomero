@@ -23,6 +23,17 @@ def _mask_url(url: str) -> str:
     return url
 
 
+def _has_version_stamp(engine) -> bool:
+    """Check if the version table has any stamps"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT COUNT(*) FROM {VERSION_TABLE}"))
+            count = result.scalar()
+            return count > 0
+    except Exception:
+        return False
+
+
 def run_migrations_on_startup():
     if os.getenv("BIOMERO_RUN_MIGRATIONS", "1") != "1":
         return
@@ -59,17 +70,18 @@ def run_migrations_on_startup():
     if engine is None:
         engine = create_engine(db_url)
 
-    # Check if there are any migration files first
-    versions_dir = pathlib.Path(MIGRATIONS_DIR) / "versions"
-    migration_files = []
-    if versions_dir.exists():
-        migration_files = [f for f in versions_dir.glob("*.py") 
-                          if not f.name.startswith("__")]
+    # Setup Alembic configuration
+    cfg = Config()
+    cfg.set_main_option("script_location", MIGRATIONS_DIR)
+    # Don't set sqlalchemy.url in config - let env.py use environment variable
+    cfg.set_main_option("version_table", VERSION_TABLE)
+
+    insp = inspect(engine)
+    has_version_table = insp.has_table(VERSION_TABLE)
     
-    if not migration_files:
-        logger.info("No migration files found. Auto-stamping existing schema as head.")
-        # Just stamp the current schema as head if tables exist
-        insp = inspect(engine)
+    # If no version table or it's empty, and we have BIOMERO tables,
+    # stamp to head to establish baseline
+    if not has_version_table or not _has_version_stamp(engine):
         known_tables = {
             "biomero_job_view",
             "biomero_job_progress_view", 
@@ -77,17 +89,10 @@ def run_migrations_on_startup():
             "biomero_task_execution"
         }
         if any(insp.has_table(t) for t in known_tables):
-            cfg = Config()
-            cfg.set_main_option("script_location", MIGRATIONS_DIR)
-            # Don't set sqlalchemy.url in config - let env.py use environment variable
-            cfg.set_main_option("version_table", VERSION_TABLE)
-            
-            # Just stamp to head - no actual migration needed
+            logger.info("Stamping existing BIOMERO schema to head")
             command.stamp(cfg, "head")
-            logger.info("Stamped database to head revision (no migration files exist)")
         else:
             logger.info("No BIOMERO tables found, skipping stamp")
-        return
 
     cfg = Config()
     cfg.set_main_option("script_location", MIGRATIONS_DIR)

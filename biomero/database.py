@@ -137,7 +137,10 @@ class WorkflowProgressView(Base):
         progress (String, optional): The progress status of the workflow.
         user (String, optional): The user who initiated the workflow.
         group (String, optional): The group associated with the workflow.
-                name (String, optional): The name of the workflow
+        name (String, optional): The name of the workflow
+        task (String, optional): The current task being executed
+        main_task_name (String, optional): The main user-facing workflow task
+            (e.g., "cellexpansion" instead of "SLURM_Get_Results.py")
 
         Migration warning:
             Any schema change (columns, types, constraints, indexes)
@@ -175,6 +178,7 @@ class WorkflowProgressView(Base):
     group = Column(Integer, nullable=True)
     name = Column(String, nullable=True)
     task = Column(String, nullable=True)
+    main_task_name = Column(String, nullable=True)
     start_time = Column(DateTime, nullable=False)
     
     

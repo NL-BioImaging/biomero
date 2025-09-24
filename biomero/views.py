@@ -324,6 +324,10 @@ class WorkflowProgress(ProcessApplication):
         """Update the view table with new workflow status, progress, user, and group."""
         with EngineManager.get_session() as session:
             workflow_info = self.workflows[wf_id]
+            
+            # Determine the main user-facing task name
+            main_task_name = self._determine_main_task_name(wf_id)
+            
             try:                
                 new_workflow_progress = WorkflowProgressView(
                     workflow_id=wf_id,
@@ -333,6 +337,7 @@ class WorkflowProgress(ProcessApplication):
                     group=workflow_info["group"],
                     name=workflow_info["name"],
                     task=workflow_info["task"],
+                    main_task_name=main_task_name,
                     start_time=workflow_info["start_time"]
                 )
                 session.merge(new_workflow_progress)
@@ -341,6 +346,27 @@ class WorkflowProgress(ProcessApplication):
             except IntegrityError:
                 session.rollback()
                 logger.error(f"[WFP] Failed to insert/update wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
+                
+    def _determine_main_task_name(self, wf_id):
+        """Determine the main user-facing task name for a workflow."""
+        # Look through all tasks for this workflow to find the main one
+        main_tasks = []
+        for task_id, task_info in self.tasks.items():
+            if task_info.get("workflow_id") == wf_id:
+                task_name = task_info.get("task_name", "")
+                # Skip infrastructure tasks, keep the actual workflow tasks
+                if not (task_name.startswith("_SLURM_") or 
+                        task_name.startswith("SLURM_") or 
+                        task_name.startswith("convert_") or
+                        task_name.startswith("CONVERT_")):
+                    main_tasks.append(task_name)
+        
+        # Return the first non-infrastructure task, or fallback to current task
+        if main_tasks:
+            return main_tasks[0]  # e.g., "cellexpansion"
+        
+        # Fallback to current task if no main task found
+        return self.workflows[wf_id].get("task", "unknown")
 
 
 class JobProgress(ProcessApplication):

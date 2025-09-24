@@ -429,6 +429,10 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the view table with new workflow status, progress, user, and group.&quot;&quot;&quot;</span>
         <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
             <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span>
+            
+            <span class="c1"># Determine the main user-facing task name</span>
+            <span class="n">main_task_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_determine_main_task_name</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            
             <span class="k">try</span><span class="p">:</span>                
                 <span class="n">new_workflow_progress</span> <span class="o">=</span> <span class="n">WorkflowProgressView</span><span class="p">(</span>
                     <span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">,</span>
@@ -438,6 +442,7 @@
                     <span class="n">group</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">],</span>
                     <span class="n">name</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
                     <span class="n">task</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">],</span>
+                    <span class="n">main_task_name</span><span class="o">=</span><span class="n">main_task_name</span><span class="p">,</span>
                     <span class="n">start_time</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">&quot;start_time&quot;</span><span class="p">]</span>
                 <span class="p">)</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">new_workflow_progress</span><span class="p">)</span>
@@ -445,7 +450,28 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Inserted wf progress in view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">IntegrityError</span><span class="p">:</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Failed to insert/update wf progress in view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div></div>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFP] Failed to insert/update wf progress in view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+                
+    <span class="k">def</span><span class="w"> </span><span class="nf">_determine_main_task_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Determine the main user-facing task name for a workflow.&quot;&quot;&quot;</span>
+        <span class="c1"># Look through all tasks for this workflow to find the main one</span>
+        <span class="n">main_tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">task_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;workflow_id&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">wf_id</span><span class="p">:</span>
+                <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="c1"># Skip infrastructure tasks, keep the actual workflow tasks</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_SLURM_&quot;</span><span class="p">)</span> <span class="ow">or</span> 
+                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;SLURM_&quot;</span><span class="p">)</span> <span class="ow">or</span> 
+                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;convert_&quot;</span><span class="p">)</span> <span class="ow">or</span>
+                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;CONVERT_&quot;</span><span class="p">)):</span>
+                    <span class="n">main_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_name</span><span class="p">)</span>
+        
+        <span class="c1"># Return the first non-infrastructure task, or fallback to current task</span>
+        <span class="k">if</span> <span class="n">main_tasks</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">main_tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># e.g., &quot;cellexpansion&quot;</span>
+        
+        <span class="c1"># Fallback to current task if no main task found</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="JobProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobProgress</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>

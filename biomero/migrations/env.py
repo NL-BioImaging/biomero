@@ -28,17 +28,15 @@ def _mask_url(url: str) -> str:
 
 config = context.config
 
-# Ensure URL is provided either programmatically or via env; no fallbacks
-existing_url = config.get_main_option("sqlalchemy.url")
-env_url = os.getenv("SQLALCHEMY_URL")
-db_url = existing_url or env_url
-if db_url:
+# Prefer URL from environment, fallback to config
+if not config.get_main_option("sqlalchemy.url"):
+    db_url = os.getenv("SQLALCHEMY_URL")
+    if not db_url:
+        raise RuntimeError(
+            "BIOMERO Alembic: No sqlalchemy.url configured and SQLALCHEMY_URL "
+            "not set."
+        )
     config.set_main_option("sqlalchemy.url", db_url)
-else:
-    raise RuntimeError(
-        "BIOMERO Alembic: No sqlalchemy.url configured and SQLALCHEMY_URL "
-        "not set."
-    )
 
 # Use a per-project version table in the same schema
 config.set_main_option("version_table", "alembic_version_biomero")
@@ -77,16 +75,32 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section) or {},
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-    logger.info(
-        "Alembic backend: %s, URL: %s",
-        connectable.dialect.name,
-        _mask_url(str(connectable.url)),
-    )
+    # Try to reuse existing BIOMERO engine to avoid connection issues
+    connectable = None
+    try:
+        from biomero.database import EngineManager
+        if getattr(EngineManager, "_engine", None):
+            connectable = EngineManager._engine
+            logger.info(
+                "Alembic reusing existing engine: %s, URL: %s",
+                connectable.dialect.name,
+                _mask_url(str(connectable.url)),
+            )
+    except Exception:
+        pass
+    
+    if connectable is None:
+        connectable = engine_from_config(
+            config.get_section(config.config_ini_section) or {},
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
+        logger.info(
+            "Alembic created new engine: %s, URL: %s",
+            connectable.dialect.name,
+            _mask_url(str(connectable.url)),
+        )
+    
     with connectable.connect() as connection:
         context.configure(
             connection=connection,

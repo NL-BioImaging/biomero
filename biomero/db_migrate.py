@@ -59,9 +59,39 @@ def run_migrations_on_startup():
     if engine is None:
         engine = create_engine(db_url)
 
+    # Check if there are any migration files first
+    versions_dir = pathlib.Path(MIGRATIONS_DIR) / "versions"
+    migration_files = []
+    if versions_dir.exists():
+        migration_files = [f for f in versions_dir.glob("*.py") 
+                          if not f.name.startswith("__")]
+    
+    if not migration_files:
+        logger.info("No migration files found. Auto-stamping existing schema as head.")
+        # Just stamp the current schema as head if tables exist
+        insp = inspect(engine)
+        known_tables = {
+            "biomero_job_view",
+            "biomero_job_progress_view", 
+            "biomero_workflow_progress_view",
+            "biomero_task_execution"
+        }
+        if any(insp.has_table(t) for t in known_tables):
+            cfg = Config()
+            cfg.set_main_option("script_location", MIGRATIONS_DIR)
+            # Don't set sqlalchemy.url in config - let env.py use environment variable
+            cfg.set_main_option("version_table", VERSION_TABLE)
+            
+            # Just stamp to head - no actual migration needed
+            command.stamp(cfg, "head")
+            logger.info("Stamped database to head revision (no migration files exist)")
+        else:
+            logger.info("No BIOMERO tables found, skipping stamp")
+        return
+
     cfg = Config()
     cfg.set_main_option("script_location", MIGRATIONS_DIR)
-    cfg.set_main_option("sqlalchemy.url", db_url)
+    # Don't set sqlalchemy.url in config - let env.py use environment variable  
     cfg.set_main_option("version_table", VERSION_TABLE)
 
     insp = inspect(engine)

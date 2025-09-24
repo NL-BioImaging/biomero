@@ -88,7 +88,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#rebuilding-views-reprojection">Rebuilding views (reprojection)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#schema-changes-and-migrations-views-only">Schema changes and migrations (views only)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schema-changes-views-only">Schema changes (views only)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gotchas">Gotchas</a></li>
 </ul>
 </li>
@@ -135,7 +135,7 @@
 - <code class="docutils literal notranslate"><span class="pre">WorkflowRun</span></code> (create/start/complete/fail; holds list of task IDs)
 - <code class="docutils literal notranslate"><span class="pre">Task</span></code> (create/start/complete/fail; adds Slurm job IDs; status/progress; results)</p></li>
 <li><p>Application service: <code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code> orchestrates aggregate lifecycle methods and commits using <code class="docutils literal notranslate"><span class="pre">EngineManager</span></code>.</p></li>
-<li><p>Persistence: the event store is managed by the eventsourcing library. Do not write Alembic migrations for its tables.</p></li>
+<li><p>Persistence: the event store is managed by the eventsourcing library.</p></li>
 </ul>
 <section id="environment">
 <h3>Environment<a class="headerlink" href="#environment" title="Permalink to this heading"></a></h3>
@@ -165,7 +165,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.WorkflowProgress</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_workflow_progress_view</span></code> (status/progress/name/user/group/task)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.WorkflowAnalytics</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_task_execution</span></code> (per-task analytics, timings, failures)</p></li>
 </ul>
-<p>These are standard SQLAlchemy models defined in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code>. They are the only BIOMERO tables covered by Alembic migrations.</p>
+<p>These are standard SQLAlchemy models defined in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code>. Schema changes are applied via event sourcing system rebuild.</p>
 <section id="rebuilding-views-reprojection">
 <h3>Rebuilding views (reprojection)<a class="headerlink" href="#rebuilding-views-reprojection" title="Permalink to this heading"></a></h3>
 <p>Views are derived data and can be safely rebuilt from the event log:</p>
@@ -193,41 +193,28 @@
 - If you change primary keys or uniqueness, do a one-off cleanup before reprojecting.</p>
 </section>
 </section>
-<section id="schema-changes-and-migrations-views-only">
-<h2>Schema changes and migrations (views only)<a class="headerlink" href="#schema-changes-and-migrations-views-only" title="Permalink to this heading"></a></h2>
-<p>BIOMERO ships with an Alembic track scoped to its own tables. The event store tables are excluded and managed by the library.</p>
-<ul>
-<li><p>Config: <code class="docutils literal notranslate"><span class="pre">biomero/migrations</span></code> (version table: <code class="docutils literal notranslate"><span class="pre">alembic_version_biomero</span></code>)</p></li>
-<li><p>Startup migrator: <code class="docutils literal notranslate"><span class="pre">biomero.db_migrate.run_migrations_on_startup()</span></code>
-- Controlled by env:</p>
-<blockquote>
-<div><ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_RUN_MIGRATIONS=1</span></code> (default) to auto-upgrade on start</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ALLOW_AUTO_STAMP=1</span></code> to adopt an existing schema (stamps head once if BIOMERO tables already exist)</p></li>
-</ul>
-</div></blockquote>
-</li>
-</ul>
-<p>Typical workflow (autogenerate a revision for view changes):</p>
+<section id="schema-changes-views-only">
+<h2>Schema changes (views only)<a class="headerlink" href="#schema-changes-views-only" title="Permalink to this heading"></a></h2>
+<p>BIOMERO view tables are managed via the event sourcing system rebuild mechanism.
+The event store tables are managed by the eventsourcing library.</p>
+<p>Typical workflow for view schema changes:</p>
 <ol class="arabic simple">
 <li><p>Edit SQLAlchemy models in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code> (BIOMERO view tables only).</p></li>
-<li><p>Generate a migration:</p></li>
+<li><p>Use the event sourcing rebuild to apply changes:</p></li>
 </ol>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ensure SQLALCHEMY_URL points to a dev DB that is up-to-date</span>
-<span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">alembic</span> <span class="o">-</span><span class="n">c</span> <span class="n">biomero</span><span class="o">/</span><span class="n">migrations</span><span class="o">/</span><span class="n">alembic</span><span class="o">.</span><span class="n">ini</span> <span class="n">revision</span> <span class="o">--</span><span class="n">autogenerate</span> <span class="o">-</span><span class="n">m</span> <span class="s2">&quot;view change&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># In Python code or SLURM Init script:</span>
+<span class="n">client</span><span class="o">.</span><span class="n">initialize_analytics_system</span><span class="p">(</span><span class="n">reset_tables</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<ol class="arabic simple" start="3">
-<li><p>Commit the migration version file to Git to be packaged with the release</p></li>
-</ol>
+<p>This will drop and recreate all view tables with the new schema, then replay
+all events to repopulate them with the updated structure.</p>
 </section>
 <section id="gotchas">
 <h2>Gotchas<a class="headerlink" href="#gotchas" title="Permalink to this heading"></a></h2>
 <ul class="simple">
-<li><p>Do not include eventsourcing tables in Alembic. Our env.py filters to BIOMERO view tables only.</p></li>
 <li><p>When changing aggregates, add upcasters so old events can still be rehydrated.</p></li>
-<li><p>Rebuilding views is safe; prefer that over complex data migrations.</p></li>
-<li><p>In production, the startup migrator uses a Postgres advisory lock to avoid concurrent upgrades.</p></li>
+<li><p>Rebuilding views is safe and preferred over complex data migrations.</p></li>
+<li><p>The rebuild process drops tables, so there will be brief downtime during the operation.</p></li>
 </ul>
 </section>
 </section>

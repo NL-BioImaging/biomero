@@ -18,7 +18,7 @@ Event side
   - ``WorkflowRun`` (create/start/complete/fail; holds list of task IDs)
   - ``Task`` (create/start/complete/fail; adds Slurm job IDs; status/progress; results)
 - Application service: ``WorkflowTracker`` orchestrates aggregate lifecycle methods and commits using ``EngineManager``.
-- Persistence: the event store is managed by the eventsourcing library. Do not write Alembic migrations for its tables.
+- Persistence: the event store is managed by the eventsourcing library.
 
 Environment
 ~~~~~~~~~~~
@@ -48,7 +48,7 @@ Views are updated by ProcessApplications that consume events and persist into BI
 - ``biomero.views.WorkflowProgress`` -> ``biomero_workflow_progress_view`` (status/progress/name/user/group/task)
 - ``biomero.views.WorkflowAnalytics`` -> ``biomero_task_execution`` (per-task analytics, timings, failures)
 
-These are standard SQLAlchemy models defined in ``biomero.database``. They are the only BIOMERO tables covered by Alembic migrations.
+These are standard SQLAlchemy models defined in ``biomero.database``. Schema changes are applied via event sourcing system rebuild.
 
 Rebuilding views (reprojection)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,33 +78,28 @@ Notes:
 - View upserts use ``session.merge(...)`` or primary keys to stay idempotent.
 - If you change primary keys or uniqueness, do a one-off cleanup before reprojecting.
 
-Schema changes and migrations (views only)
------------------------------------------
+Schema changes (views only)
+---------------------------
 
-BIOMERO ships with an Alembic track scoped to its own tables. The event store tables are excluded and managed by the library.
+BIOMERO view tables are managed via the event sourcing system rebuild mechanism.
+The event store tables are managed by the eventsourcing library.
 
-- Config: ``biomero/migrations`` (version table: ``alembic_version_biomero``)
-- Startup migrator: ``biomero.db_migrate.run_migrations_on_startup()``
-  - Controlled by env:
-    - ``BIOMERO_RUN_MIGRATIONS=1`` (default) to auto-upgrade on start
-    - ``BIOMERO_ALLOW_AUTO_STAMP=1`` to adopt an existing schema (stamps head once if BIOMERO tables already exist)
-
-Typical workflow (autogenerate a revision for view changes):
+Typical workflow for view schema changes:
 
 1) Edit SQLAlchemy models in ``biomero.database`` (BIOMERO view tables only).
-2) Generate a migration:
+2) Use the event sourcing rebuild to apply changes:
 
 ::
 
-    # Ensure SQLALCHEMY_URL points to a dev DB that is up-to-date
-    python -m alembic -c biomero/migrations/alembic.ini revision --autogenerate -m "view change"
+    # In Python code or SLURM Init script:
+    client.initialize_analytics_system(reset_tables=True)
 
-3) Commit the migration version file to Git to be packaged with the release
+This will drop and recreate all view tables with the new schema, then replay
+all events to repopulate them with the updated structure.
 
 Gotchas
 -------
 
-- Do not include eventsourcing tables in Alembic. Our env.py filters to BIOMERO view tables only.
 - When changing aggregates, add upcasters so old events can still be rehydrated.
-- Rebuilding views is safe; prefer that over complex data migrations.
-- In production, the startup migrator uses a Postgres advisory lock to avoid concurrent upgrades.
+- Rebuilding views is safe and preferred over complex data migrations.
+- The rebuild process drops tables, so there will be brief downtime during the operation.

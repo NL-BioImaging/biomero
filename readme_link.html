@@ -58,8 +58,21 @@
 <li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO scripts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#biomero-web-interface">BIOMERO Web Interface</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#recommended-use-nl-biomero-stack">Recommended: Use NL-BIOMERO Stack</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#manual-installation-advanced">Manual Installation (Advanced)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#installation-steps">Installation Steps</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-components">Optional Components</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data-importer-adi-a-k-a-biomero-importer">Data Importer (ADI) a.k.a. BIOMERO.importer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#metabase-analytics">Metabase Analytics</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#database-integration">Database Integration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#comparison-with-biomero-scripts">Comparison with BIOMERO Scripts</a></li>
 </ul>
@@ -341,19 +354,75 @@
 <li><p><strong>Enhanced Parameter Configuration</strong>: Configure workflow parameters through an intuitive form interface</p></li>
 <li><p><strong>Data Import/Export</strong>: Streamlined data transfer to and from the HPC cluster</p></li>
 <li><p><strong>Dashboard Overview</strong>: Get an overview of all your workflows and their status at a glance</p></li>
+<li><p><strong>Integrated File Browser</strong>: Browse and import data with built-in file management capabilities</p></li>
+<li><p><strong>Metabase Analytics</strong>: View workflow analytics and performance metrics through integrated dashboards</p></li>
 </ul>
 </section>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
-<p>The OMERO.biomero plugin is included in the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO">NL-BIOMERO</a> deployment stack and comes pre-configured in our Docker containers.</p>
-<p>For manual installation:</p>
+<section id="recommended-use-nl-biomero-stack">
+<h3>Recommended: Use NL-BIOMERO Stack<a class="headerlink" href="#recommended-use-nl-biomero-stack" title="Permalink to this heading"></a></h3>
+<p><strong>For most users, we strongly recommend using the pre-built NL-BIOMERO deployment stack</strong> which includes OMERO.biomero and all required dependencies pre-configured:</p>
+<ul class="simple">
+<li><p><strong>NL-BIOMERO deployment repo</strong>: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO</p></li>
+<li><p><strong>Pre-built containers</strong>: Available at <a class="reference external" href="https://hub.docker.com/u/cellularimagingcf">cellularimagingcf</a></p></li>
+<li><p><strong>Full documentation</strong>: https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/</p></li>
+</ul>
+<p>The NL-BIOMERO stack provides Docker Compose configurations that automatically set up:</p>
+<ul class="simple">
+<li><p>OMERO.web with OMERO.biomero plugin</p></li>
+<li><p>PostgreSQL databases (OMERO + BIOMERO tracking)</p></li>
+<li><p>Metabase analytics dashboard</p></li>
+<li><p>OMERO Auto Data Importer (ADI) service for the importer part</p></li>
+<li><p>All necessary configuration and networking</p></li>
+</ul>
+</section>
+<section id="manual-installation-advanced">
+<h3>Manual Installation (Advanced)<a class="headerlink" href="#manual-installation-advanced" title="Permalink to this heading"></a></h3>
+<p>If you need a custom setup, OMERO.biomero can be installed manually, but requires several components:</p>
+<section id="prerequisites">
+<h4>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading"></a></h4>
+<p>OMERO.biomero requires:</p>
+<ul class="simple">
+<li><p><strong>PostgreSQL database</strong>: For eventsourcing and workflow tracking (<code class="docutils literal notranslate"><span class="pre">database-biomero</span></code> service)</p></li>
+<li><p><strong>Metabase instance</strong>: For analytics dashboards and reporting</p></li>
+<li><p><strong>OMERO Auto Data Importer (ADI)</strong>: For automated data import capabilities (optional - can be disabled)</p></li>
+</ul>
+</section>
+<section id="installation-steps">
+<h4>Installation Steps<a class="headerlink" href="#installation-steps" title="Permalink to this heading"></a></h4>
+<ol class="arabic simple">
+<li><p><strong>Install the plugin in OMERO.web</strong>:</p></li>
+</ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>omero-biomero
 </pre></div>
 </div>
-<p>Then add <code class="docutils literal notranslate"><span class="pre">omero_biomero</span></code> to your OMERO.web apps configuration:</p>
+<ol class="arabic simple" start="2">
+<li><p><strong>Configure OMERO.web</strong>:</p></li>
+</ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>omero<span class="w"> </span>config<span class="w"> </span>append<span class="w"> </span>omero.web.apps<span class="w"> </span><span class="s1">&#39;&quot;omero_biomero&quot;&#39;</span>
 </pre></div>
 </div>
+<ol class="arabic simple" start="3">
+<li><p><strong>Set up databases</strong>: Configure both OMERO database and a new BIOMERO tracking database (because it is recommended to keep sub applications like BIOMERO separated from the main OMERO tables)</p></li>
+<li><p><strong>Configure environment variables on the BIOMERO server</strong>:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Required</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">INGEST_TRACKING_DB_URL</span><span class="o">=</span>postgresql+psycopg2://user:pass@host:5432/biomero_db
+<span class="nb">export</span><span class="w"> </span><span class="nv">METABASE_SITE_URL</span><span class="o">=</span>http://your-metabase:3000
+<span class="nb">export</span><span class="w"> </span><span class="nv">METABASE_SECRET_KEY</span><span class="o">=</span>your-secret-key
+
+<span class="c1"># Optional - disable components</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">IMPORTER_ENABLED</span><span class="o">=</span><span class="nb">false</span><span class="w">  </span><span class="c1"># Disables ADI requirement</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">ANALYZER_ENABLED</span><span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># Enable workflow analysis features</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="5">
+<li><p><strong>Set up Metabase dashboards</strong>: Configure dashboard IDs for imports and workflows tracking</p></li>
+</ol>
+<p>For detailed installation instructions, see the <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/">NL-BIOMERO sysadmin documentation</a> and <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/developer/containers/metabase.html">here</a></p>
+</section>
+</section>
 </section>
 <section id="usage">
 <h2>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h2>
@@ -366,6 +435,24 @@
 <li><p><strong>Retrieve Results</strong>: Import results back into OMERO when the workflow completes</p></li>
 </ol>
 </section>
+<section id="optional-components">
+<h2>Optional Components<a class="headerlink" href="#optional-components" title="Permalink to this heading"></a></h2>
+<section id="data-importer-adi-a-k-a-biomero-importer">
+<h3>Data Importer (ADI) a.k.a. BIOMERO.importer<a class="headerlink" href="#data-importer-adi-a-k-a-biomero-importer" title="Permalink to this heading"></a></h3>
+<p>The Auto Data Importer service enables automated file system monitoring and import. This component can be disabled by setting <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=false</span></code> if not needed, which removes the requirement for the ADI service.</p>
+</section>
+<section id="metabase-analytics">
+<h3>Metabase Analytics<a class="headerlink" href="#metabase-analytics" title="Permalink to this heading"></a></h3>
+<p>Integrated Metabase dashboards provide insights into workflow performance, import statistics, and system usage. Configure dashboard IDs via:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID</span></code></p></li>
+</ul>
+<p>We have a Metabase instance available at the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO/tree/master/metabase/metabase.db">NL-BIOMERO</a> repository with nice dashboards 2 and 6.</p>
+<p>Be sure to change the passwords and embedding tokens!</p>
+<p>See more documentation on this Metabase <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/developer/containers/metabase.html">here</a>.</p>
+</section>
+</section>
 <section id="database-integration">
 <h2>Database Integration<a class="headerlink" href="#database-integration" title="Permalink to this heading"></a></h2>
 <p>The web plugin integrates with BIOMERO’s eventsourcing database to provide:</p>
@@ -374,8 +461,8 @@
 <li><p>Detailed execution logs and metadata</p></li>
 <li><p>Job progress visualization</p></li>
 <li><p>Historical workflow analysis</p></li>
+<li><p>FAIR metadata linking results to source data and parameters</p></li>
 </ul>
-<p>This integration ensures that all workflow executions are properly tracked and that results remain linked to their source data and parameters, enhancing the FAIR principles of your research data.</p>
 </section>
 <section id="comparison-with-biomero-scripts">
 <h2>Comparison with BIOMERO Scripts<a class="headerlink" href="#comparison-with-biomero-scripts" title="Permalink to this heading"></a></h2>
@@ -412,9 +499,13 @@
 <td><p>Supported via script</p></td>
 <td><p>Not supported (yet)</p></td>
 </tr>
+<tr class="row-even"><td><p><strong>Analytics</strong></p></td>
+<td><p>None</p></td>
+<td><p>Metabase dashboards</p></td>
+</tr>
 </tbody>
 </table>
-<p>For new users, we recommend starting with the web interface for its enhanced usability and features. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts.</p>
+<p>For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts alongside the web interface.</p>
 <p>For more information about the new Admin interfaces, see <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html">NL-BIOMERO documentation</a></p>
 </section>
 </section>

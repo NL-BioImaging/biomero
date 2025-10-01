@@ -181,22 +181,66 @@ The OMERO.biomero plugin offers:
 - **Enhanced Parameter Configuration**: Configure workflow parameters through an intuitive form interface
 - **Data Import/Export**: Streamlined data transfer to and from the HPC cluster
 - **Dashboard Overview**: Get an overview of all your workflows and their status at a glance
+- **Integrated File Browser**: Browse and import data with built-in file management capabilities
+- **Metabase Analytics**: View workflow analytics and performance metrics through integrated dashboards
 
 ## Installation
 
-The OMERO.biomero plugin is included in the [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO) deployment stack and comes pre-configured in our Docker containers.
+### Recommended: Use NL-BIOMERO Stack
 
-For manual installation:
+**For most users, we strongly recommend using the pre-built NL-BIOMERO deployment stack** which includes OMERO.biomero and all required dependencies pre-configured:
 
+- **NL-BIOMERO deployment repo**: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO
+- **Pre-built containers**: Available at [cellularimagingcf](https://hub.docker.com/u/cellularimagingcf)
+- **Full documentation**: https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/
+
+The NL-BIOMERO stack provides Docker Compose configurations that automatically set up:
+- OMERO.web with OMERO.biomero plugin
+- PostgreSQL databases (OMERO + BIOMERO tracking)
+- Metabase analytics dashboard
+- OMERO Auto Data Importer (ADI) service for the importer part
+- All necessary configuration and networking
+
+### Manual Installation (Advanced)
+
+If you need a custom setup, OMERO.biomero can be installed manually, but requires several components:
+
+#### Prerequisites
+
+OMERO.biomero requires:
+- **PostgreSQL database**: For eventsourcing and workflow tracking (`database-biomero` service)
+- **Metabase instance**: For analytics dashboards and reporting
+- **OMERO Auto Data Importer (ADI)**: For automated data import capabilities (optional - can be disabled)
+
+#### Installation Steps
+
+1. **Install the plugin in OMERO.web**:
 ```bash
 pip install omero-biomero
 ```
 
-Then add `omero_biomero` to your OMERO.web apps configuration:
-
+2. **Configure OMERO.web**:
 ```bash
 omero config append omero.web.apps '"omero_biomero"'
 ```
+
+3. **Set up databases**: Configure both OMERO database and a new BIOMERO tracking database (because it is recommended to keep sub applications like BIOMERO separated from the main OMERO tables)
+
+4. **Configure environment variables on the BIOMERO server**:
+```bash
+# Required
+export INGEST_TRACKING_DB_URL=postgresql+psycopg2://user:pass@host:5432/biomero_db
+export METABASE_SITE_URL=http://your-metabase:3000
+export METABASE_SECRET_KEY=your-secret-key
+
+# Optional - disable components
+export IMPORTER_ENABLED=false  # Disables ADI requirement
+export ANALYZER_ENABLED=true   # Enable workflow analysis features
+```
+
+5. **Set up Metabase dashboards**: Configure dashboard IDs for imports and workflows tracking
+
+For detailed installation instructions, see the [NL-BIOMERO sysadmin documentation](https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/) and [here](https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/developer/containers/metabase.html)
 
 ## Usage
 
@@ -207,6 +251,22 @@ omero config append omero.web.apps '"omero_biomero"'
 5. **Monitor Progress**: Track your job status in real-time through the dashboard
 6. **Retrieve Results**: Import results back into OMERO when the workflow completes
 
+## Optional Components
+
+### Data Importer (ADI) a.k.a. BIOMERO.importer
+The Auto Data Importer service enables automated file system monitoring and import. This component can be disabled by setting `IMPORTER_ENABLED=false` if not needed, which removes the requirement for the ADI service.
+
+### Metabase Analytics
+Integrated Metabase dashboards provide insights into workflow performance, import statistics, and system usage. Configure dashboard IDs via:
+- `METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID`
+- `METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID`
+
+We have a Metabase instance available at the [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO/tree/master/metabase/metabase.db) repository with nice dashboards 2 and 6. 
+
+Be sure to change the passwords and embedding tokens!
+
+See more documentation on this Metabase [here](https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/developer/containers/metabase.html).
+
 ## Database Integration
 
 The web plugin integrates with BIOMERO's eventsourcing database to provide:
@@ -215,8 +275,7 @@ The web plugin integrates with BIOMERO's eventsourcing database to provide:
 - Detailed execution logs and metadata
 - Job progress visualization
 - Historical workflow analysis
-
-This integration ensures that all workflow executions are properly tracked and that results remain linked to their source data and parameters, enhancing the FAIR principles of your research data.
+- FAIR metadata linking results to source data and parameters
 
 ## Comparison with BIOMERO Scripts
 
@@ -230,8 +289,9 @@ While the traditional [BIOMERO scripts](#biomero-scripts) remain available and f
 | **Parameter Configuration** | Basic script forms | Rich web forms |
 | **Job Management** | Single job focus | Dashboard overview |
 | **Batching** | Supported via script | Not supported (yet) |
+| **Analytics** | None | Metabase dashboards |
 
-For new users, we recommend starting with the web interface for its enhanced usability and features. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts.
+For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts alongside the web interface.
 
 For more information about the new Admin interfaces, see [NL-BIOMERO documentation](https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html)
 

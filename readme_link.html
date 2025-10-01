@@ -56,6 +56,14 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#biomero-web-interface">BIOMERO Web Interface</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#database-integration">Database Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#comparison-with-biomero-scripts">Comparison with BIOMERO Scripts</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="#docker-containers">(Docker) containers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#see-the-tutorials">See the tutorials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
@@ -286,9 +294,9 @@
 <li><p>the <a class="reference external" href="https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip">bioformats2raw-0.7.0</a>, e.g. <code class="docutils literal notranslate"><span class="pre">unzip</span> <span class="pre">-d</span> <span class="pre">/opt</span> <span class="pre">bioformats2raw-0.7.0.zip</span> <span class="pre">&amp;&amp;</span> <span class="pre">export</span> <span class="pre">PATH=&quot;$PATH:/opt/bioformats2raw-0.7.0/bin&quot;</span></code></p></li>
 </ul>
 </li>
-<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in a OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/init/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
+<li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in an OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
 <ul class="simple">
-<li><p>Provide the configfile location explicitly if it is not a default one defined earlier, otherwise you can omit that field.</p></li>
+<li><p>You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field.</p></li>
 <li><p>Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).</p></li>
 <li><p>This operation will make it create the directories you provided in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:</p></li>
 </ul>
@@ -304,43 +312,139 @@
 </section>
 <section id="biomero-scripts">
 <h1>BIOMERO scripts<a class="headerlink" href="#biomero-scripts" title="Permalink to this heading"></a></h1>
-<p>The easiest interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.</p>
-<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
+<p>The basic interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.</p>
+<p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>. I have removed it from the latest releases, just to be clear.</p>
 <p>We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step).</p>
-<p>For example, <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow.py">workflows/Slurm Run Workflow</a> should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like</p>
+<p>For example, <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_Run_Workflow.py">workflows/Slurm Run Workflow</a> should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/_SLURM_Image_Transfer.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code></a>: to export your selected images / dataset / screen as TIFF files to a Slurm dir.</p></li>
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Results.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code></a>: to import your Slurm job results back into OMERO as a zip, dataset or attachment.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/_SLURM_Image_Transfer.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code></a>: to export your selected images / dataset / screen as TIFF files to a Slurm dir.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/SLURM_Get_Results.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code></a>: to import your Slurm job results back into OMERO as a zip, dataset or attachment.</p></li>
 </ul>
 <p>Other example OMERO scripts are:</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Update.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code></a>: to run while you are waiting on a job to finish on Slurm; it will try to get a <code class="docutils literal notranslate"><span class="pre">%</span></code> progress from your job’s logfile. Depends on your job/workflow logging a <code class="docutils literal notranslate"><span class="pre">%</span></code> of course.</p></li>
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code></a>: This will allow you to run several <code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code> in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.</p></li>
-<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">CellPose</span> <span class="pre">Segmentation</span></code></a>: This is a more primitive script that only runs the actual workflow <code class="docutils literal notranslate"><span class="pre">CellPose</span></code> (if correctly configured). You will need to manually transfer data first (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code>) and manually retrieve data afterward (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code>).</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/SLURM_Get_Update.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Get</span> <span class="pre">Update</span></code></a>: to run while you are waiting on a job to finish on Slurm; it will try to get a <code class="docutils literal notranslate"><span class="pre">%</span></code> progress from your job’s logfile. Depends on your job/workflow logging a <code class="docutils literal notranslate"><span class="pre">%</span></code> of course.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_Run_Workflow_Batched.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span> <span class="pre">Batched</span></code></a>: This will allow you to run several <code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">Run</span> <span class="pre">Workflow</span></code> in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.</p></li>
+<li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_CellPose_Segmentation.py"><code class="docutils literal notranslate"><span class="pre">workflows/Slurm</span> <span class="pre">CellPose</span> <span class="pre">Segmentation</span></code></a>: This is a more primitive script that only runs the actual workflow <code class="docutils literal notranslate"><span class="pre">CellPose</span></code> (if correctly configured). You will need to manually transfer data first (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code>) and manually retrieve data afterward (with <code class="docutils literal notranslate"><span class="pre">Slurm</span> <span class="pre">Get</span> <span class="pre">Results</span></code>).</p></li>
 </ul>
 <p>You are encouraged to create your own custom scripts. Do note the copy-left license enforced by OME.</p>
 </section>
+<section id="biomero-web-interface">
+<h1>BIOMERO Web Interface<a class="headerlink" href="#biomero-web-interface" title="Permalink to this heading"></a></h1>
+<p>In addition to the BIOMERO scripts, BIOMERO 2.0 introduces a modern web-based user interface through the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.</p>
+<section id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this heading"></a></h2>
+<p>The OMERO.biomero plugin offers:</p>
+<ul class="simple">
+<li><p><strong>Interactive Workflow Management</strong>: Browse and launch available workflows with a modern web interface</p></li>
+<li><p><strong>Real-time Progress Tracking</strong>: Monitor job progress with live updates and detailed status information</p></li>
+<li><p><strong>Workflow History</strong>: View past workflow executions with full tracking and metadata</p></li>
+<li><p><strong>Enhanced Parameter Configuration</strong>: Configure workflow parameters through an intuitive form interface</p></li>
+<li><p><strong>Data Import/Export</strong>: Streamlined data transfer to and from the HPC cluster</p></li>
+<li><p><strong>Dashboard Overview</strong>: Get an overview of all your workflows and their status at a glance</p></li>
+</ul>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
+<p>The OMERO.biomero plugin is included in the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO">NL-BIOMERO</a> deployment stack and comes pre-configured in our Docker containers.</p>
+<p>For manual installation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>omero-biomero
+</pre></div>
+</div>
+<p>Then add <code class="docutils literal notranslate"><span class="pre">omero_biomero</span></code> to your OMERO.web apps configuration:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>omero<span class="w"> </span>config<span class="w"> </span>append<span class="w"> </span>omero.web.apps<span class="w"> </span><span class="s1">&#39;&quot;omero_biomero&quot;&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Access the Interface</strong>: Navigate to the “BIOMERO” tab in OMERO.web after selecting your images or datasets</p></li>
+<li><p><strong>Choose a Workflow</strong>: Browse available workflows and select the one that fits your analysis needs</p></li>
+<li><p><strong>Configure Parameters</strong>: Set workflow parameters through the intuitive web forms</p></li>
+<li><p><strong>Launch Job</strong>: Submit your job to the HPC cluster with a single click</p></li>
+<li><p><strong>Monitor Progress</strong>: Track your job status in real-time through the dashboard</p></li>
+<li><p><strong>Retrieve Results</strong>: Import results back into OMERO when the workflow completes</p></li>
+</ol>
+</section>
+<section id="database-integration">
+<h2>Database Integration<a class="headerlink" href="#database-integration" title="Permalink to this heading"></a></h2>
+<p>The web plugin integrates with BIOMERO’s eventsourcing database to provide:</p>
+<ul class="simple">
+<li><p>Persistent workflow tracking across sessions</p></li>
+<li><p>Detailed execution logs and metadata</p></li>
+<li><p>Job progress visualization</p></li>
+<li><p>Historical workflow analysis</p></li>
+</ul>
+<p>This integration ensures that all workflow executions are properly tracked and that results remain linked to their source data and parameters, enhancing the FAIR principles of your research data.</p>
+</section>
+<section id="comparison-with-biomero-scripts">
+<h2>Comparison with BIOMERO Scripts<a class="headerlink" href="#comparison-with-biomero-scripts" title="Permalink to this heading"></a></h2>
+<p>While the traditional <a class="reference internal" href="#biomero-scripts"><span class="xref myst">BIOMERO scripts</span></a> remain available and fully supported, the web interface offers several advantages:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Feature</p></th>
+<th class="head"><p>BIOMERO Scripts</p></th>
+<th class="head"><p>OMERO.biomero Plugin</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>User Interface</strong></p></td>
+<td><p>OMERO script dialog</p></td>
+<td><p>Modern web interface</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Progress Tracking</strong></p></td>
+<td><p>Manual scripts calls needed</p></td>
+<td><p>Real-time updates</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Workflow History</strong></p></td>
+<td><p>Only in the logs</p></td>
+<td><p>Full database tracking</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Parameter Configuration</strong></p></td>
+<td><p>Basic script forms</p></td>
+<td><p>Rich web forms</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Job Management</strong></p></td>
+<td><p>Single job focus</p></td>
+<td><p>Dashboard overview</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Batching</strong></p></td>
+<td><p>Supported via script</p></td>
+<td><p>Not supported (yet)</p></td>
+</tr>
+</tbody>
+</table>
+<p>For new users, we recommend starting with the web interface for its enhanced usability and features. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts.</p>
+<p>For more information about the new Admin interfaces, see <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html">NL-BIOMERO documentation</a></p>
+</section>
+</section>
 <section id="docker-containers">
 <h1>(Docker) containers<a class="headerlink" href="#docker-containers" title="Permalink to this heading"></a></h1>
-<p>We host BIOMERO container dockerfiles at <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO">NL-BIOMERO</a>, which publishes container images to our public dockerhub <a class="reference external" href="https://hub.docker.com/repositories/cellularimagingcf">cellularimagingcf</a>. Specifically the <a class="reference external" href="https://hub.docker.com/repository/docker/cellularimagingcf/biomero/general">cellularimagingcf/biomero</a> image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging).</p>
+<p>We host BIOMERO container dockerfiles at <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO">NL-BIOMERO</a>, which publishes container images to our public dockerhub <a class="reference external" href="https://hub.docker.com/u/cellularimagingcf">cellularimagingcf</a>. Specifically the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/biomero">cellularimagingcf/biomero</a> image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging in Amsterdam).</p>
 <p>You can mount your specific configurations over those in the container, for example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run the biomero container</span>
-<span class="n">echo</span> <span class="s2">&quot;Starting BIOMERO...&quot;</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">-</span><span class="n">d</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">name</span> <span class="n">biomero</span> \
-  <span class="o">-</span><span class="n">e</span> <span class="n">CONFIG_omero_master_host</span><span class="o">=</span><span class="n">omeroserver</span> \
-  <span class="o">-</span><span class="n">e</span> <span class="n">OMERO_WORKER_NAME</span><span class="o">=</span><span class="n">biomero</span> \
-  <span class="o">-</span><span class="n">e</span> <span class="n">CONFIG_omero_logging_level</span><span class="o">=</span><span class="mi">10</span> \
-  <span class="o">--</span><span class="n">network</span> <span class="n">omero</span> \
-  <span class="o">--</span><span class="n">volume</span> <span class="o">/</span><span class="n">mnt</span><span class="o">/</span><span class="n">datadisk</span><span class="o">/</span><span class="n">omero</span><span class="p">:</span><span class="o">/</span><span class="n">OMERO</span> \
-  <span class="o">--</span><span class="n">volume</span> <span class="o">/</span><span class="n">mnt</span><span class="o">/</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> \
-  <span class="o">--</span><span class="n">volume</span> <span class="o">/</span><span class="n">my</span><span class="o">/</span><span class="n">slurm</span><span class="o">-</span><span class="n">config</span><span class="o">.</span><span class="n">ini</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">slurm</span><span class="o">-</span><span class="n">config</span><span class="o">.</span><span class="n">ini</span> \
-  <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">config</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">config</span> <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">key</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">id_rsa</span> <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">pubkey</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">id_rsa</span><span class="o">.</span><span class="n">pub</span>  <span class="o">--</span><span class="n">secret</span> <span class="n">ssh</span><span class="o">-</span><span class="n">known_hosts</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">known_hosts</span> \
-  <span class="o">--</span><span class="n">userns</span><span class="o">=</span><span class="n">keep</span><span class="o">-</span><span class="nb">id</span><span class="p">:</span><span class="n">uid</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span><span class="n">gid</span><span class="o">=</span><span class="mi">997</span> \
-  <span class="n">cellularimagingcf</span><span class="o">/</span><span class="n">biomero</span><span class="p">:</span><span class="mf">0.2.3</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span># Run the biomero container
+echo &quot;Starting BIOMERO...&quot;
+podman run -d --rm --name ${CONTAINER_BIOMERO} \
+  -e CONFIG_omero_master_host=&quot;${CONFIG_OMERO_MASTER_HOST}&quot; \
+  -e OMERO_WORKER_NAME=&quot;${CONTAINER_BIOMERO}&quot; \
+  -e CONFIG_omero_logging_level=&quot;${CONFIG_OMERO_LOGGING_LEVEL}&quot; \
+  -e CONFIG_omero_upgrades_url=&quot;${CONFIG_OMERO_UPGRADES_URL}&quot; \
+  -e CONFIG_omero_scripts_timeout=&quot;${CONFIG_OMERO_SCRIPTS_TIMEOUT}&quot; \
+  -e PERSISTENCE_MODULE=&quot;${PERSISTENCE_MODULE}&quot; \
+  -e SQLALCHEMY_URL=&quot;${BIOMERO_SQLALCHEMY_URL}&quot; \
+  --network ${OMERO_NETWORK_NAME} \
+  --volume &quot;${OMERO_DATA_PATH}&quot;:/OMERO:z \
+  --volume &quot;${IMPORT_DATA_PATH}&quot;:/data \
+  --volume /opt/omero/slurm-config.ini:/etc/slurm-config.ini:Z \
+  --volume &quot;${BIOMERO_SHARED_CONFIG_FILE}&quot;:/opt/omero/server/slurm-config.ini:z \
+  --volume &quot;$(pwd)/logs/${CONTAINER_BIOMERO}:/opt/omero/server/OMERO.server/var/log:Z&quot; \
+  --secret ssh-config,target=/tmp/.ssh/config --secret ssh-key,target=/tmp/.ssh/id_rsa --secret ssh-pubkey,target=/tmp/.ssh/id_rsa.pub  --secret ssh-known_hosts,target=/tmp/.ssh/known_hosts \
+  --userns=keep-id:uid=${OMERO_SERVER_UID},gid=${OMERO_SERVER_GID} \
+  cellularimagingcf/biomero:&quot;$NL_BIOMERO_VERSION&quot;
 </pre></div>
 </div>
 <p>This will spin up the docker container (in Podman) with omero config (<code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">CONFIG_omero_..</span></code>), mounting the required data drives (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/mnt/...</span></code>) and adding a new slurm config (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/my/slurm-config.ini:/etc/slurm-config.ini</span></code>) and the required SSH settings (<code class="docutils literal notranslate"><span class="pre">--secret</span> <span class="pre">...,target=/tmp/.ssh/...</span></code>) to access the remote HPC.</p>
-<p>Note: the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> are installed on the <a class="reference external" href="https://hub.docker.com/repository/docker/cellularimagingcf/omeroserver/general">main server</a>, not on the BIOMERO processor.</p>
+<p>Note: the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> are installed on the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/omeroserver">main server</a>, not on the BIOMERO processor.</p>
 <p>Note2: We will also update these containers with our own desired changes, so they will likely not be 1:1 copy with basic omero containers. Especially when we start making a nicer UI for BIOMERO. We will keep up-to-date with the OMERO releases when possible.</p>
 </section>
 <section id="see-the-tutorials">

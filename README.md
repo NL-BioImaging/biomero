@@ -132,8 +132,8 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
     `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
     - the [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip), e.g. `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
 
-6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in a OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/init/SLURM_Init_environment.py) , which you just installed in previous step.
-    - Provide the configfile location explicitly if it is not a default one defined earlier, otherwise you can omit that field. 
+6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.
+    - You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field. 
     - Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).
     - This operation will make it create the directories you provided in the `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:
 
@@ -147,50 +147,124 @@ With the configuration files in place, you can utilize the `SlurmClient` class f
 
 # BIOMERO scripts
 
-The easiest interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.
+The basic interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.
 
-!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
+!!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. I have removed it from the latest releases, just to be clear.
 
 We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step). 
 
-For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
+For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
 
--  [`data/Slurm Image Transfer`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/_SLURM_Image_Transfer.py): to export your selected images / dataset / screen as TIFF files to a Slurm dir.
-- [`data/Slurm Get Results`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Results.py): to import your Slurm job results back into OMERO as a zip, dataset or attachment.
+-  [`data/Slurm Image Transfer`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/_SLURM_Image_Transfer.py): to export your selected images / dataset / screen as TIFF files to a Slurm dir.
+- [`data/Slurm Get Results`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/SLURM_Get_Results.py): to import your Slurm job results back into OMERO as a zip, dataset or attachment.
 
 Other example OMERO scripts are:
-- [`data/Slurm Get Update`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/data/SLURM_Get_Update.py): to run while you are waiting on a job to finish on Slurm; it will try to get a `%` progress from your job's logfile. Depends on your job/workflow logging a `%` of course.
+- [`data/Slurm Get Update`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/SLURM_Get_Update.py): to run while you are waiting on a job to finish on Slurm; it will try to get a `%` progress from your job's logfile. Depends on your job/workflow logging a `%` of course.
 
-- [`workflows/Slurm Run Workflow Batched`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_Run_Workflow_Batched.py): This will allow you to run several `workflows/Slurm Run Workflow` in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.
+- [`workflows/Slurm Run Workflow Batched`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_Run_Workflow_Batched.py): This will allow you to run several `workflows/Slurm Run Workflow` in parallel, by batching your input images into smaller chunks (e.g. turn 64 images into 2 batches of 32 images each). It will then poll all these jobs.
 
-- [`workflows/Slurm CellPose Segmentation`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/workflows/SLURM_CellPose_Segmentation.py): This is a more primitive script that only runs the actual workflow `CellPose` (if correctly configured). You will need to manually transfer data first (with `Slurm Image Transfer`) and manually retrieve data afterward (with `Slurm Get Results`).
+- [`workflows/Slurm CellPose Segmentation`](https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_CellPose_Segmentation.py): This is a more primitive script that only runs the actual workflow `CellPose` (if correctly configured). You will need to manually transfer data first (with `Slurm Image Transfer`) and manually retrieve data afterward (with `Slurm Get Results`).
 
 You are encouraged to create your own custom scripts. Do note the copy-left license enforced by OME.
 
+# BIOMERO Web Interface
+
+In addition to the BIOMERO scripts, BIOMERO 2.0 introduces a modern web-based user interface through the [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.
+
+## Features
+
+The OMERO.biomero plugin offers:
+
+- **Interactive Workflow Management**: Browse and launch available workflows with a modern web interface
+- **Real-time Progress Tracking**: Monitor job progress with live updates and detailed status information
+- **Workflow History**: View past workflow executions with full tracking and metadata
+- **Enhanced Parameter Configuration**: Configure workflow parameters through an intuitive form interface
+- **Data Import/Export**: Streamlined data transfer to and from the HPC cluster
+- **Dashboard Overview**: Get an overview of all your workflows and their status at a glance
+
+## Installation
+
+The OMERO.biomero plugin is included in the [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO) deployment stack and comes pre-configured in our Docker containers.
+
+For manual installation:
+
+```bash
+pip install omero-biomero
+```
+
+Then add `omero_biomero` to your OMERO.web apps configuration:
+
+```bash
+omero config append omero.web.apps '"omero_biomero"'
+```
+
+## Usage
+
+1. **Access the Interface**: Navigate to the "BIOMERO" tab in OMERO.web after selecting your images or datasets
+2. **Choose a Workflow**: Browse available workflows and select the one that fits your analysis needs  
+3. **Configure Parameters**: Set workflow parameters through the intuitive web forms
+4. **Launch Job**: Submit your job to the HPC cluster with a single click
+5. **Monitor Progress**: Track your job status in real-time through the dashboard
+6. **Retrieve Results**: Import results back into OMERO when the workflow completes
+
+## Database Integration
+
+The web plugin integrates with BIOMERO's eventsourcing database to provide:
+
+- Persistent workflow tracking across sessions
+- Detailed execution logs and metadata
+- Job progress visualization
+- Historical workflow analysis
+
+This integration ensures that all workflow executions are properly tracked and that results remain linked to their source data and parameters, enhancing the FAIR principles of your research data.
+
+## Comparison with BIOMERO Scripts
+
+While the traditional [BIOMERO scripts](#biomero-scripts) remain available and fully supported, the web interface offers several advantages:
+
+| Feature | BIOMERO Scripts | OMERO.biomero Plugin |
+|---------|----------------|---------------------|
+| **User Interface** | OMERO script dialog | Modern web interface |
+| **Progress Tracking** | Manual scripts calls needed | Real-time updates |
+| **Workflow History** | Only in the logs | Full database tracking |
+| **Parameter Configuration** | Basic script forms | Rich web forms |
+| **Job Management** | Single job focus | Dashboard overview |
+| **Batching** | Supported via script | Not supported (yet) |
+
+For new users, we recommend starting with the web interface for its enhanced usability and features. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts.
+
+For more information about the new Admin interfaces, see [NL-BIOMERO documentation](https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html)
+
 # (Docker) containers
-We host BIOMERO container dockerfiles at [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO), which publishes container images to our public dockerhub [cellularimagingcf](https://hub.docker.com/repositories/cellularimagingcf). Specifically the [cellularimagingcf/biomero](https://hub.docker.com/repository/docker/cellularimagingcf/biomero/general) image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging).
+We host BIOMERO container dockerfiles at [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO), which publishes container images to our public dockerhub [cellularimagingcf](https://hub.docker.com/u/cellularimagingcf). Specifically the [cellularimagingcf/biomero](https://hub.docker.com/r/cellularimagingcf/biomero) image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging in Amsterdam).
 
 You can mount your specific configurations over those in the container, for example:
 
 ```
 # Run the biomero container
 echo "Starting BIOMERO..."
-podman run -d --rm --name biomero \
-  -e CONFIG_omero_master_host=omeroserver \
-  -e OMERO_WORKER_NAME=biomero \
-  -e CONFIG_omero_logging_level=10 \
-  --network omero \
-  --volume /mnt/datadisk/omero:/OMERO \
-  --volume /mnt/data:/data \
-  --volume /my/slurm-config.ini:/etc/slurm-config.ini \
+podman run -d --rm --name ${CONTAINER_BIOMERO} \
+  -e CONFIG_omero_master_host="${CONFIG_OMERO_MASTER_HOST}" \
+  -e OMERO_WORKER_NAME="${CONTAINER_BIOMERO}" \
+  -e CONFIG_omero_logging_level="${CONFIG_OMERO_LOGGING_LEVEL}" \
+  -e CONFIG_omero_upgrades_url="${CONFIG_OMERO_UPGRADES_URL}" \
+  -e CONFIG_omero_scripts_timeout="${CONFIG_OMERO_SCRIPTS_TIMEOUT}" \
+  -e PERSISTENCE_MODULE="${PERSISTENCE_MODULE}" \
+  -e SQLALCHEMY_URL="${BIOMERO_SQLALCHEMY_URL}" \
+  --network ${OMERO_NETWORK_NAME} \
+  --volume "${OMERO_DATA_PATH}":/OMERO:z \
+  --volume "${IMPORT_DATA_PATH}":/data \
+  --volume /opt/omero/slurm-config.ini:/etc/slurm-config.ini:Z \
+  --volume "${BIOMERO_SHARED_CONFIG_FILE}":/opt/omero/server/slurm-config.ini:z \
+  --volume "$(pwd)/logs/${CONTAINER_BIOMERO}:/opt/omero/server/OMERO.server/var/log:Z" \
   --secret ssh-config,target=/tmp/.ssh/config --secret ssh-key,target=/tmp/.ssh/id_rsa --secret ssh-pubkey,target=/tmp/.ssh/id_rsa.pub  --secret ssh-known_hosts,target=/tmp/.ssh/known_hosts \
-  --userns=keep-id:uid=1000,gid=997 \
-  cellularimagingcf/biomero:0.2.3
+  --userns=keep-id:uid=${OMERO_SERVER_UID},gid=${OMERO_SERVER_GID} \
+  cellularimagingcf/biomero:"$NL_BIOMERO_VERSION"
 ```
 
 This will spin up the docker container (in Podman) with omero config (`-e CONFIG_omero_..`), mounting the required data drives (`--volume /mnt/...`) and adding a new slurm config (`--volume /my/slurm-config.ini:/etc/slurm-config.ini`) and the required SSH settings (`--secret ...,target=/tmp/.ssh/...`) to access the remote HPC.
 
-Note: the [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts) are installed on the [main server](https://hub.docker.com/repository/docker/cellularimagingcf/omeroserver/general), not on the BIOMERO processor. 
+Note: the [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts) are installed on the [main server](https://hub.docker.com/r/cellularimagingcf/omeroserver), not on the BIOMERO processor. 
 
 Note2: We will also update these containers with our own desired changes, so they will likely not be 1:1 copy with basic omero containers. Especially when we start making a nicer UI for BIOMERO. We will keep up-to-date with the OMERO releases when possible.
 

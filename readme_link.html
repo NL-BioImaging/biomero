@@ -55,7 +55,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO.scripts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#biomero-web-interface">BIOMERO Web Interface</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
@@ -69,12 +69,12 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#optional-components">Optional Components</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#data-importer-adi-a-k-a-biomero-importer">Data Importer (ADI) a.k.a. BIOMERO.importer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#biomero-importer">BIOMERO.importer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#metabase-analytics">Metabase Analytics</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#database-integration">Database Integration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#comparison-with-biomero-scripts">Comparison with BIOMERO Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#comparison-with-biomero-scripts">Comparison with BIOMERO.scripts</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#docker-containers">(Docker) containers</a></li>
@@ -159,25 +159,32 @@
 <h1>BIOMERO - BioImage analysis in OMERO<a class="headerlink" href="#biomero-bioimage-analysis-in-omero" title="Permalink to this heading"></a></h1>
 <p><a class="reference external" href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" /></a> <a class="reference external" href="https://zenodo.org/badge/latestdoi/638954891"><img alt="DOI" src="https://zenodo.org/badge/638954891.svg" /></a> <a class="reference external" href="https://pypi.org/project/biomero/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/biomero" /></a> <a class="reference external" href="https://pypi.org/project/biomero/"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/biomero" /></a> <img alt="Slurm" src="https://img.shields.io/badge/Slurm-21.08.6-blue.svg" /> <img alt="OMERO" src="https://img.shields.io/badge/OMERO-5.6.8-blue.svg" /> <a class="reference external" href="https://fair-software.eu"><img alt="fair-software.eu" src="https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green" /></a> <a class="reference external" href="https://bestpractices.coreinfrastructure.org/projects/7530"><img alt="OpenSSF Best Practices" src="https://bestpractices.coreinfrastructure.org/projects/7530/badge" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml"><img alt="Sphinx build" src="https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment"><img alt="pages-build-deployment" src="https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml"><img alt="python-package build" src="https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml/badge.svg" /></a> <a class="reference external" href="https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml"><img alt="python-publish build" src="https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml/badge.svg?branch=main" /></a> <a class="reference external" href="https://coveralls.io/github/NL-BioImaging/biomero?branch=main"><img alt="Coverage Status" src="https://coveralls.io/repos/github/NL-BioImaging/biomero/badge.svg?branch=main" /></a></p>
 <p>The <strong>BIOMERO</strong> framework, for <strong>B</strong>io<strong>I</strong>mage analysis in <strong>OMERO</strong>, allows you to run (FAIR) bioimage analysis workflows directly from OMERO on a high-performance compute (HPC) cluster, remotely through SSH.</p>
-<p>The BIOMERO framework consists of this Python library <code class="docutils literal notranslate"><span class="pre">biomero</span></code>, together with the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> that can be run directly from the OMERO web interface.</p>
+<p>The BIOMERO framework consists of this Python library <code class="docutils literal notranslate"><span class="pre">biomero</span></code> (also known as <strong>BIOMERO.analyzer</strong>), together with the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO.scripts</a> that can be run directly from the OMERO web interface.</p>
 <p>The package includes the <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> class, which provides <strong>SSH-based connectivity</strong> and interaction with a <a class="reference external" href="https://slurm.schedmd.com/quickstart.html">Slurm</a> (high-performance compute) cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images (think Docker containers…), as well as specific FAIR image analysis workflows and their associated repositories.</p>
 <p>Overall, the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.</p>
 <p><em>WARNING</em>: Please note that default settings are for short/medium jobs. If you run long workflows (&gt;45min), you will run into 2 lethal issues:</p>
 <ul class="simple">
 <li><p>Your Slurm job will timeout after <strong>45 minutes</strong>! See <a class="reference internal" href="#time-limit-on-slurm"><span class="xref myst">Time Limit on Slurm</span></a> on what configs to change.</p></li>
-<li><p>Your OMERO script (incl <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">biomero-scripts</a>) will timeout after <strong>60 minutes</strong>! Change <a class="reference external" href="https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout">omero script timeout</a> settings if you expect longer workflows.</p></li>
+<li><p>Your OMERO script (incl <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO.scripts</a>) will timeout after <strong>60 minutes</strong>! Change <a class="reference external" href="https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout">omero script timeout</a> settings if you expect longer workflows.</p></li>
 </ul>
 </section>
 <section id="biomero-2-0">
 <h1>BIOMERO 2.0<a class="headerlink" href="#biomero-2-0" title="Permalink to this heading"></a></h1>
 <p>Get ready for an enhanced BIOMERO!</p>
+<p>BIOMERO 2.0 is a complete ecosystem that includes:</p>
+<ul class="simple">
+<li><p><strong>BIOMERO.analyzer</strong> (this Python library) - The core analysis engine</p></li>
+<li><p><strong>BIOMERO.scripts</strong> - OMERO scripts for HPC integration</p></li>
+<li><p><strong>BIOMERO.importer</strong> - Automated data import service</p></li>
+<li><p><strong>OMERO.biomero</strong> - Modern web interface plugin</p></li>
+</ul>
 <p>In 2.0, we add full workflow tracking via a database and dashboard, with the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> plugin providing a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.</p>
 <p>All in all, BIOMERO 2.0 greatly enhances both the user interaction for BIOMERO and the FAIR metadata of all these resulting assets in OMERO.</p>
 </section>
 <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Permalink to this heading"></a></h1>
 <p>In the figure below we show our <strong>BIOMERO</strong> framework, for <strong>B</strong>io<strong>I</strong>mage analysis in <strong>OMERO</strong>.</p>
-<p>BIOMERO consists of this Python library (<code class="docutils literal notranslate"><span class="pre">biomero</span></code>) and the integrations within OMERO, currently through our <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a>.</p>
+<p>BIOMERO consists of this Python library (<code class="docutils literal notranslate"><span class="pre">biomero</span></code>) and the integrations within OMERO, currently through our <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO.scripts</a>.</p>
 <p><img alt="OMERO-Figure1_Overview_v5" src="https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981" /></p>
 <section id="deploy-with-nl-biomero">
 <h2>Deploy with NL-BIOMERO<a class="headerlink" href="#deploy-with-nl-biomero" title="Permalink to this heading"></a></h2>
@@ -299,7 +306,7 @@
 </ol>
 <p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
 <ol class="arabic simple" start="5">
-<li><p>Install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/">BIOMERO Scripts</a> requirements, e.g.</p>
+<li><p>Install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/">BIOMERO.scripts</a> requirements, e.g.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code></p></li>
 <li><p>the <a class="reference external" href="https://github.com/ome/omero-cli-zarr">OMERO CLI Zarr plugin</a>, e.g.
@@ -324,10 +331,10 @@
 </section>
 </section>
 <section id="biomero-scripts">
-<h1>BIOMERO scripts<a class="headerlink" href="#biomero-scripts" title="Permalink to this heading"></a></h1>
-<p>The basic interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.</p>
+<h1>BIOMERO.scripts<a class="headerlink" href="#biomero-scripts" title="Permalink to this heading"></a></h1>
+<p>The basic interaction from OMERO with this library currently is through our BIOMERO.scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.</p>
 <p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>. I have removed it from the latest releases, just to be clear.</p>
-<p>We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step).</p>
+<p>We have provided the BIOMERO.scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step).</p>
 <p>For example, <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_Run_Workflow.py">workflows/Slurm Run Workflow</a> should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/_data/_SLURM_Image_Transfer.py"><code class="docutils literal notranslate"><span class="pre">data/Slurm</span> <span class="pre">Image</span> <span class="pre">Transfer</span></code></a>: to export your selected images / dataset / screen as TIFF files to a Slurm dir.</p></li>
@@ -343,7 +350,7 @@
 </section>
 <section id="biomero-web-interface">
 <h1>BIOMERO Web Interface<a class="headerlink" href="#biomero-web-interface" title="Permalink to this heading"></a></h1>
-<p>In addition to the BIOMERO scripts, BIOMERO 2.0 introduces a modern web-based user interface through the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.</p>
+<p>In addition to the BIOMERO.scripts, BIOMERO 2.0 introduces a modern web-based user interface through the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.</p>
 <section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this heading"></a></h2>
 <p>The OMERO.biomero plugin offers:</p>
@@ -373,7 +380,7 @@
 <li><p>OMERO.web with OMERO.biomero plugin</p></li>
 <li><p>PostgreSQL databases (OMERO + BIOMERO tracking)</p></li>
 <li><p>Metabase analytics dashboard</p></li>
-<li><p>OMERO Auto Data Importer (ADI) service for the importer part</p></li>
+<li><p>BIOMERO.importer service for the importer part</p></li>
 <li><p>All necessary configuration and networking</p></li>
 </ul>
 </section>
@@ -386,7 +393,7 @@
 <ul class="simple">
 <li><p><strong>PostgreSQL database</strong>: For eventsourcing and workflow tracking (<code class="docutils literal notranslate"><span class="pre">database-biomero</span></code> service)</p></li>
 <li><p><strong>Metabase instance</strong>: For analytics dashboards and reporting</p></li>
-<li><p><strong>OMERO Auto Data Importer (ADI)</strong>: For automated data import capabilities (optional - can be disabled)</p></li>
+<li><p><strong>BIOMERO.importer</strong>: For automated data import capabilities (optional - can be disabled)</p></li>
 </ul>
 </section>
 <section id="installation-steps">
@@ -413,7 +420,7 @@
 <span class="nb">export</span><span class="w"> </span><span class="nv">METABASE_SECRET_KEY</span><span class="o">=</span>your-secret-key
 
 <span class="c1"># Optional - disable components</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">IMPORTER_ENABLED</span><span class="o">=</span><span class="nb">false</span><span class="w">  </span><span class="c1"># Disables ADI requirement</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">IMPORTER_ENABLED</span><span class="o">=</span><span class="nb">false</span><span class="w">  </span><span class="c1"># Disables BIOMERO.importer requirement</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">ANALYZER_ENABLED</span><span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># Enable workflow analysis features</span>
 </pre></div>
 </div>
@@ -437,9 +444,9 @@
 </section>
 <section id="optional-components">
 <h2>Optional Components<a class="headerlink" href="#optional-components" title="Permalink to this heading"></a></h2>
-<section id="data-importer-adi-a-k-a-biomero-importer">
-<h3>Data Importer (ADI) a.k.a. BIOMERO.importer<a class="headerlink" href="#data-importer-adi-a-k-a-biomero-importer" title="Permalink to this heading"></a></h3>
-<p>The Auto Data Importer service enables automated file system monitoring and import. This component can be disabled by setting <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=false</span></code> if not needed, which removes the requirement for the ADI service.</p>
+<section id="biomero-importer">
+<h3>BIOMERO.importer<a class="headerlink" href="#biomero-importer" title="Permalink to this heading"></a></h3>
+<p>The BIOMERO.importer service enables automated file system monitoring and import. This component can be disabled by setting <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=false</span></code> if not needed, which removes the requirement for the BIOMERO.importer service.</p>
 </section>
 <section id="metabase-analytics">
 <h3>Metabase Analytics<a class="headerlink" href="#metabase-analytics" title="Permalink to this heading"></a></h3>
@@ -465,12 +472,12 @@
 </ul>
 </section>
 <section id="comparison-with-biomero-scripts">
-<h2>Comparison with BIOMERO Scripts<a class="headerlink" href="#comparison-with-biomero-scripts" title="Permalink to this heading"></a></h2>
-<p>While the traditional <a class="reference internal" href="#biomero-scripts"><span class="xref myst">BIOMERO scripts</span></a> remain available and fully supported, the web interface offers several advantages:</p>
+<h2>Comparison with BIOMERO.scripts<a class="headerlink" href="#comparison-with-biomero-scripts" title="Permalink to this heading"></a></h2>
+<p>While the traditional <a class="reference internal" href="#biomeroscripts"><span class="xref myst">BIOMERO.scripts</span></a> remain available and fully supported, the web interface offers several advantages:</p>
 <table class="docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>Feature</p></th>
-<th class="head"><p>BIOMERO Scripts</p></th>
+<th class="head"><p>BIOMERO.scripts</p></th>
 <th class="head"><p>OMERO.biomero Plugin</p></th>
 </tr>
 </thead>
@@ -505,7 +512,7 @@
 </tr>
 </tbody>
 </table>
-<p>For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts alongside the web interface.</p>
+<p>For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO.scripts alongside the web interface.</p>
 <p>For more information about the new Admin interfaces, see <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html">NL-BIOMERO documentation</a></p>
 </section>
 </section>
@@ -535,7 +542,7 @@ podman run -d --rm --name ${CONTAINER_BIOMERO} \
 </pre></div>
 </div>
 <p>This will spin up the docker container (in Podman) with omero config (<code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">CONFIG_omero_..</span></code>), mounting the required data drives (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/mnt/...</span></code>) and adding a new slurm config (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/my/slurm-config.ini:/etc/slurm-config.ini</span></code>) and the required SSH settings (<code class="docutils literal notranslate"><span class="pre">--secret</span> <span class="pre">...,target=/tmp/.ssh/...</span></code>) to access the remote HPC.</p>
-<p>Note: the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO scripts</a> are installed on the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/omeroserver">main server</a>, not on the BIOMERO processor.</p>
+<p>Note: the <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">BIOMERO.scripts</a> are installed on the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/omeroserver">main server</a>, not on the BIOMERO processor.</p>
 <p>Note2: We will also update these containers with our own desired changes, so they will likely not be 1:1 copy with basic omero containers. Especially when we start making a nicer UI for BIOMERO. We will keep up-to-date with the OMERO releases when possible.</p>
 </section>
 <section id="see-the-tutorials">
@@ -780,7 +787,7 @@ Say you have a script in Python and you want to make it available on OMERO and S
 <ol class="arabic simple">
 <li><p>Rewrite your script to be headless / to be executable on the commandline. This requires handling of commandline parameters as input.</p>
 <ul class="simple">
-<li><p>Make sure the I/O matches the Slurm job, see <a class="reference external" href="https://docs.python.org/3/library/io.html#module-io" title="Python 3.13"><span class="xref myst">previous chapter</span></a>.</p></li>
+<li><p>Make sure the I/O matches the Slurm job, see <a class="reference external" href="https://docs.python.org/3/library/io.html#module-io" title="Python 3.14"><span class="xref myst">previous chapter</span></a>.</p></li>
 </ul>
 </li>
 <li><p>Describe these commandline parameters in a <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> (see previous <a class="reference internal" href="#workflow-metadata-via-descriptorjson"><span class="xref myst">chapter</span></a>). E.g. <a class="reference external" href="https://doc.uliege.cytomine.org/dev-guide/algorithms/write-app#create-the-json-descriptor">like this</a>.</p></li>

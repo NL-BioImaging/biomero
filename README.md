@@ -3,7 +3,7 @@
 
 The **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**, allows you to run (FAIR) bioimage analysis workflows directly from OMERO on a high-performance compute (HPC) cluster, remotely through SSH.
 
-The BIOMERO framework consists of this Python library `biomero`, together with the [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts) that can be run directly from the OMERO web interface.
+The BIOMERO framework consists of this Python library `biomero` (also known as **BIOMERO.analyzer**), together with the [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts) that can be run directly from the OMERO web interface.
 
 The package includes the `SlurmClient` class, which provides **SSH-based connectivity** and interaction with a [Slurm](https://slurm.schedmd.com/quickstart.html) (high-performance compute) cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images (think Docker containers...), as well as specific FAIR image analysis workflows and their associated repositories. 
 
@@ -11,11 +11,17 @@ Overall, the `biomero` package simplifies the integration of HPC functionality w
 
 _WARNING_: Please note that default settings are for short/medium jobs. If you run long workflows (>45min), you will run into 2 lethal issues:
 - Your Slurm job will timeout after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) on what configs to change.
-- Your OMERO script (incl [biomero-scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
+- Your OMERO script (incl [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
 
 # BIOMERO 2.0
 
 Get ready for an enhanced BIOMERO! 
+
+BIOMERO 2.0 is a complete ecosystem that includes:
+- **BIOMERO.analyzer** (this Python library) - The core analysis engine
+- **BIOMERO.scripts** - OMERO scripts for HPC integration 
+- **BIOMERO.importer** - Automated data import service
+- **OMERO.biomero** - Modern web interface plugin
 
 In 2.0, we add full workflow tracking via a database and dashboard, with the [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) plugin providing a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.
 
@@ -25,7 +31,7 @@ All in all, BIOMERO 2.0 greatly enhances both the user interaction for BIOMERO a
 
 In the figure below we show our **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**. 
 
-BIOMERO consists of this Python library (`biomero`) and the integrations within OMERO, currently through our [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts).
+BIOMERO consists of this Python library (`biomero`) and the integrations within OMERO, currently through our [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts).
 
 ![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
 
@@ -126,7 +132,7 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
-5. Install [BIOMERO Scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements, e.g.
+5. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements, e.g.
     - `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` 
     - the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr), e.g. 
     `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
@@ -145,13 +151,13 @@ with SlurmClient.from_config(configfile=configfile,
 
 With the configuration files in place, you can utilize the `SlurmClient` class from the `biomero` library to connect to the Slurm cluster over SSH, enabling the submission and management of Slurm jobs from an OMERO processor. 
 
-# BIOMERO scripts
+# BIOMERO.scripts
 
-The basic interaction from OMERO with this library currently is through our BIOMERO scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.
+The basic interaction from OMERO with this library currently is through our BIOMERO.scripts, which are just a set of OMERO scripts using this library for all the steps one needs to run a image analysis workflow from OMERO on Slurm and retrieve the results back into OMERO.
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. I have removed it from the latest releases, just to be clear.
 
-We have provided the BIOMERO scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step). 
+We have provided the BIOMERO.scripts at https://github.com/NL-BioImaging/biomero-scripts (hopefully installed in a previous step). 
 
 For example, [workflows/Slurm Run Workflow](https://github.com/NL-BioImaging/biomero-scripts/blob/master/__workflows/SLURM_Run_Workflow.py) should provide an easy way to send data to Slurm, run the configured and chosen workflow, poll Slurm until jobs are done (or errors) and retrieve the results when the job is done. This workflow script uses some of the other scripts, like
 
@@ -169,7 +175,7 @@ You are encouraged to create your own custom scripts. Do note the copy-left lice
 
 # BIOMERO Web Interface
 
-In addition to the BIOMERO scripts, BIOMERO 2.0 introduces a modern web-based user interface through the [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.
+In addition to the BIOMERO.scripts, BIOMERO 2.0 introduces a modern web-based user interface through the [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.
 
 ## Features
 
@@ -198,7 +204,7 @@ The NL-BIOMERO stack provides Docker Compose configurations that automatically s
 - OMERO.web with OMERO.biomero plugin
 - PostgreSQL databases (OMERO + BIOMERO tracking)
 - Metabase analytics dashboard
-- OMERO Auto Data Importer (ADI) service for the importer part
+- BIOMERO.importer service for the importer part
 - All necessary configuration and networking
 
 ### Manual Installation (Advanced)
@@ -210,7 +216,7 @@ If you need a custom setup, OMERO.biomero can be installed manually, but require
 OMERO.biomero requires:
 - **PostgreSQL database**: For eventsourcing and workflow tracking (`database-biomero` service)
 - **Metabase instance**: For analytics dashboards and reporting
-- **OMERO Auto Data Importer (ADI)**: For automated data import capabilities (optional - can be disabled)
+- **BIOMERO.importer**: For automated data import capabilities (optional - can be disabled)
 
 #### Installation Steps
 
@@ -234,7 +240,7 @@ export METABASE_SITE_URL=http://your-metabase:3000
 export METABASE_SECRET_KEY=your-secret-key
 
 # Optional - disable components
-export IMPORTER_ENABLED=false  # Disables ADI requirement
+export IMPORTER_ENABLED=false  # Disables BIOMERO.importer requirement
 export ANALYZER_ENABLED=true   # Enable workflow analysis features
 ```
 
@@ -253,8 +259,8 @@ For detailed installation instructions, see the [NL-BIOMERO sysadmin documentati
 
 ## Optional Components
 
-### Data Importer (ADI) a.k.a. BIOMERO.importer
-The Auto Data Importer service enables automated file system monitoring and import. This component can be disabled by setting `IMPORTER_ENABLED=false` if not needed, which removes the requirement for the ADI service.
+### BIOMERO.importer
+The BIOMERO.importer service enables automated file system monitoring and import. This component can be disabled by setting `IMPORTER_ENABLED=false` if not needed, which removes the requirement for the BIOMERO.importer service.
 
 ### Metabase Analytics
 Integrated Metabase dashboards provide insights into workflow performance, import statistics, and system usage. Configure dashboard IDs via:
@@ -277,11 +283,11 @@ The web plugin integrates with BIOMERO's eventsourcing database to provide:
 - Historical workflow analysis
 - FAIR metadata linking results to source data and parameters
 
-## Comparison with BIOMERO Scripts
+## Comparison with BIOMERO.scripts
 
-While the traditional [BIOMERO scripts](#biomero-scripts) remain available and fully supported, the web interface offers several advantages:
+While the traditional [BIOMERO.scripts](#biomeroscripts) remain available and fully supported, the web interface offers several advantages:
 
-| Feature | BIOMERO Scripts | OMERO.biomero Plugin |
+| Feature | BIOMERO.scripts | OMERO.biomero Plugin |
 |---------|----------------|---------------------|
 | **User Interface** | OMERO script dialog | Modern web interface |
 | **Progress Tracking** | Manual scripts calls needed | Real-time updates |
@@ -291,7 +297,7 @@ While the traditional [BIOMERO scripts](#biomero-scripts) remain available and f
 | **Batching** | Supported via script | Not supported (yet) |
 | **Analytics** | None | Metabase dashboards |
 
-For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO scripts alongside the web interface.
+For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO.scripts alongside the web interface.
 
 For more information about the new Admin interfaces, see [NL-BIOMERO documentation](https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html)
 
@@ -324,7 +330,7 @@ podman run -d --rm --name ${CONTAINER_BIOMERO} \
 
 This will spin up the docker container (in Podman) with omero config (`-e CONFIG_omero_..`), mounting the required data drives (`--volume /mnt/...`) and adding a new slurm config (`--volume /my/slurm-config.ini:/etc/slurm-config.ini`) and the required SSH settings (`--secret ...,target=/tmp/.ssh/...`) to access the remote HPC.
 
-Note: the [BIOMERO scripts](https://github.com/NL-BioImaging/biomero-scripts) are installed on the [main server](https://hub.docker.com/r/cellularimagingcf/omeroserver), not on the BIOMERO processor. 
+Note: the [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts) are installed on the [main server](https://hub.docker.com/r/cellularimagingcf/omeroserver), not on the BIOMERO processor. 
 
 Note2: We will also update these containers with our own desired changes, so they will likely not be 1:1 copy with basic omero containers. Especially when we start making a nicer UI for BIOMERO. We will keep up-to-date with the OMERO releases when possible.
 

@@ -399,6 +399,18 @@ class SlurmClient(Connection):
                 `SQLALCHEMY_URL` environment variable. Note that it will
                 always be overridden with the environment variable 
                 `SQLALCHEMY_URL`, if that is set.
+            config_only (bool, optional): Whether to setup the client for 
+                configuration purposes only, skipping validation and analytics 
+                initialization. Defaults to False.
+            slurm_data_bind_path (str, optional): Path to bind to Singularity/
+                Apptainer containers via the APPTAINER_BINDPATH environment 
+                variable. Required when the default data folder is not bound 
+                to the container. If your HPC administrator tells you to set 
+                APPTAINER_BINDPATH, configure this parameter. 
+                Defaults to None (no explicit binding).
+            slurm_conversion_partition (str, optional): SLURM partition to use 
+                for conversion jobs when no default partition is configured on 
+                your HPC. Defaults to None (use system default partition).
         """
 
         super(SlurmClient, self).__init__(host,

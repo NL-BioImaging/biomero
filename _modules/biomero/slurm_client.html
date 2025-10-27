@@ -70,6 +70,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html#faq">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html#further-reading">Further Reading</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
@@ -505,6 +512,18 @@
 <span class="sd">                `SQLALCHEMY_URL` environment variable. Note that it will</span>
 <span class="sd">                always be overridden with the environment variable </span>
 <span class="sd">                `SQLALCHEMY_URL`, if that is set.</span>
+<span class="sd">            config_only (bool, optional): Whether to setup the client for </span>
+<span class="sd">                configuration purposes only, skipping validation and analytics </span>
+<span class="sd">                initialization. Defaults to False.</span>
+<span class="sd">            slurm_data_bind_path (str, optional): Path to bind to Singularity/</span>
+<span class="sd">                Apptainer containers via the APPTAINER_BINDPATH environment </span>
+<span class="sd">                variable. Required when the default data folder is not bound </span>
+<span class="sd">                to the container. If your HPC administrator tells you to set </span>
+<span class="sd">                APPTAINER_BINDPATH, configure this parameter. </span>
+<span class="sd">                Defaults to None (no explicit binding).</span>
+<span class="sd">            slurm_conversion_partition (str, optional): SLURM partition to use </span>
+<span class="sd">                for conversion jobs when no default partition is configured on </span>
+<span class="sd">                your HPC. Defaults to None (use system default partition).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="nb">super</span><span class="p">(</span><span class="n">SlurmClient</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">host</span><span class="p">,</span>

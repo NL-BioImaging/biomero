@@ -27,6 +27,15 @@ Welcome to BIOMERO's documentation!
 
    tutorial_link
 
+.. Configuration
+
+***********************
+
+.. toctree::
+   :caption: Configuration
+   :maxdepth: 2
+
+   slurm-configuration
 
 .. Package
 

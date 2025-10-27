@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLURM Configuration Guide &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="biomero" href="modules.html" />
+    <link rel="prev" title="Cellprofiler tutorial" href="tutorial_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">BIOMERO - BioImage analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-2-0">BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#logging">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SLURM Configuration Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-file-overview">Configuration File Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-configuration">Basic Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ssh-section">SSH Section</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#slurm-paths-section">SLURM Paths Section</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#environment-variables-and-container-binding">Environment Variables and Container Binding</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#singularity-apptainer-bind-paths">Singularity/Apptainer Bind Paths</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#partition-configuration">Partition Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-configuration">Workflow Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#common-issues-and-solutions">Common Issues and Solutions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#container-access-errors">Container Access Errors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ssh-connection-issues">SSH Connection Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#job-submission-failures">Job Submission Failures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#path-configuration-issues">Path Configuration Issues</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#faq">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#further-reading">Further Reading</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">SLURM Configuration Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/slurm-configuration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="slurm-configuration-guide">
+<h1>SLURM Configuration Guide<a class="headerlink" href="#slurm-configuration-guide" title="Permalink to this heading"></a></h1>
+<p>This guide covers configuring BIOMERO for High-Performance Computing (HPC) clusters using SLURM.</p>
+<section id="configuration-file-overview">
+<h2>Configuration File Overview<a class="headerlink" href="#configuration-file-overview" title="Permalink to this heading"></a></h2>
+<p>BIOMERO uses a <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file to configure connection and execution parameters for SLURM clusters. The configuration file contains several sections:</p>
+<ul class="simple">
+<li><p><strong>SSH</strong>: Connection settings for the SLURM cluster</p></li>
+<li><p><strong>SLURM</strong>: Paths and execution settings</p></li>
+<li><p><strong>CONVERTERS</strong>: File format conversion settings</p></li>
+<li><p><strong>MODELS</strong>: Workflow and container definitions</p></li>
+</ul>
+</section>
+<section id="basic-configuration">
+<h2>Basic Configuration<a class="headerlink" href="#basic-configuration" title="Permalink to this heading"></a></h2>
+<section id="ssh-section">
+<h3>SSH Section<a class="headerlink" href="#ssh-section" title="Permalink to this heading"></a></h3>
+<p>Configure the SSH connection to your SLURM cluster:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
+<span class="c1"># The alias for the SLURM SSH connection</span>
+<span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
+<span class="c1"># Configure additional SSH settings in your SSH config file</span>
+</pre></div>
+</div>
+</section>
+<section id="slurm-paths-section">
+<h3>SLURM Paths Section<a class="headerlink" href="#slurm-paths-section" title="Permalink to this heading"></a></h3>
+<p>Configure paths on the SLURM cluster:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
+<span class="c1"># Data storage path (relative to user home or absolute)</span>
+<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">my-scratch/data</span>
+
+<span class="c1"># Container images path</span>
+<span class="na">slurm_images_path</span><span class="o">=</span><span class="s">my-scratch/singularity_images/workflows</span>
+
+<span class="c1"># Converter images path</span>
+<span class="na">slurm_converters_path</span><span class="o">=</span><span class="s">my-scratch/singularity_images/converters</span>
+
+<span class="c1"># Job scripts path</span>
+<span class="na">slurm_script_path</span><span class="o">=</span><span class="s">my-scratch/slurm-scripts</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="environment-variables-and-container-binding">
+<h2>Environment Variables and Container Binding<a class="headerlink" href="#environment-variables-and-container-binding" title="Permalink to this heading"></a></h2>
+<section id="singularity-apptainer-bind-paths">
+<h3>Singularity/Apptainer Bind Paths<a class="headerlink" href="#singularity-apptainer-bind-paths" title="Permalink to this heading"></a></h3>
+<p>Some HPC environments require explicit directory binding for containers. If your HPC administrator instructs you to set the <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code> environment variable, configure:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
+<span class="c1"># Path to bind to containers via APPTAINER_BINDPATH</span>
+<span class="c1"># Required when default data folder is not bound to container</span>
+<span class="na">slurm_data_bind_path</span><span class="o">=</span><span class="s">/path/to/your/data</span>
+</pre></div>
+</div>
+<p><strong>When to use this setting:</strong></p>
+<ul class="simple">
+<li><p>Your containers cannot access data files</p></li>
+<li><p>HPC documentation mentions setting <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code></p></li>
+<li><p>You receive “file not found” errors during workflow execution</p></li>
+<li><p>Your system administrator recommends explicit path binding</p></li>
+</ul>
+<p><strong>Leave empty (default) when:</strong></p>
+<ul class="simple">
+<li><p>Your HPC automatically binds common directories like <code class="docutils literal notranslate"><span class="pre">/home</span></code>, <code class="docutils literal notranslate"><span class="pre">/tmp</span></code></p></li>
+<li><p>Containers can access data without issues</p></li>
+<li><p>No explicit binding configuration is required</p></li>
+</ul>
+</section>
+<section id="partition-configuration">
+<h3>Partition Configuration<a class="headerlink" href="#partition-configuration" title="Permalink to this heading"></a></h3>
+<p>Specify a SLURM partition for conversion jobs:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
+<span class="c1"># Partition for conversion jobs (optional)</span>
+<span class="na">slurm_conversion_partition</span><span class="o">=</span><span class="s">cpu-short</span>
+</pre></div>
+</div>
+<p>Leave empty to use the system default partition.</p>
+</section>
+</section>
+<section id="workflow-configuration">
+<h2>Workflow Configuration<a class="headerlink" href="#workflow-configuration" title="Permalink to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> section defines available workflows:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[MODELS]</span>
+<span class="c1"># Workflow name and settings</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/example/W_NucleiSegmentation-Cellpose/tree/v1.4.0</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+
+<span class="c1"># Override job parameters (optional)</span>
+<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">4GB</span>
+<span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="troubleshooting">
+<h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this heading"></a></h1>
+<section id="common-issues-and-solutions">
+<h2>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Permalink to this heading"></a></h2>
+<section id="container-access-errors">
+<h3>Container Access Errors<a class="headerlink" href="#container-access-errors" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> Workflows fail with “file not found” or permission errors.</p>
+<p><strong>Solutions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Check bind paths:</strong> Configure <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code> if required</p></li>
+<li><p><strong>Verify permissions:</strong> Ensure SLURM user can access data directories</p></li>
+<li><p><strong>Check container binding:</strong> Verify Singularity/Apptainer can access required paths</p></li>
+</ol>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add explicit binding if needed</span>
+<span class="na">slurm_data_bind_path</span><span class="o">=</span><span class="s">/data/your-scratch/data</span>
+</pre></div>
+</div>
+</section>
+<section id="ssh-connection-issues">
+<h3>SSH Connection Issues<a class="headerlink" href="#ssh-connection-issues" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> Cannot connect to SLURM cluster.</p>
+<p><strong>Solutions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>SSH config:</strong> Verify SSH configuration for the host alias</p></li>
+<li><p><strong>Authentication:</strong> Check SSH keys and authentication methods</p></li>
+<li><p><strong>Network:</strong> Confirm network connectivity to the cluster</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Test SSH connection manually</span>
+ssh<span class="w"> </span>your-slurm-host
+
+<span class="c1"># Check SSH config</span>
+ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w"> </span>your-slurm-host
+</pre></div>
+</div>
+</section>
+<section id="job-submission-failures">
+<h3>Job Submission Failures<a class="headerlink" href="#job-submission-failures" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> Jobs fail to submit or execute.</p>
+<p><strong>Solutions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Partition access:</strong> Check if specified partition is available</p></li>
+<li><p><strong>Resource limits:</strong> Verify memory/CPU/GPU requests are within limits</p></li>
+<li><p><strong>Queue policies:</strong> Check SLURM queue policies and restrictions</p></li>
+</ol>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use appropriate partition</span>
+<span class="na">cellpose_job_partition</span><span class="o">=</span><span class="s">gpu-partition</span>
+
+<span class="c1"># Adjust resource requests</span>
+<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">8GB</span>
+<span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1</span>
+</pre></div>
+</div>
+</section>
+<section id="path-configuration-issues">
+<h3>Path Configuration Issues<a class="headerlink" href="#path-configuration-issues" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> Containers or scripts not found.</p>
+<p><strong>Solutions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Absolute vs relative paths:</strong> Use appropriate path format for your setup</p></li>
+<li><p><strong>Directory existence:</strong> Verify directories exist on SLURM cluster</p></li>
+<li><p><strong>Path permissions:</strong> Check read/write permissions</p></li>
+</ol>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># Relative to home directory</span>
+<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">my-scratch/data</span>
+
+<span class="c1"># Or absolute path</span>
+<span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/users/username/my-scratch/data</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="faq">
+<h1>FAQ<a class="headerlink" href="#faq" title="Permalink to this heading"></a></h1>
+<p><strong>Q: Should I use relative or absolute paths?</strong></p>
+<p>A: Use relative paths if your SLURM setup expects paths relative to the user home directory. Use absolute paths if you need to specify exact filesystem locations.</p>
+<p><strong>Q: When do I need to set slurm_data_bind_path?</strong></p>
+<p>A: Set this when your HPC administrator tells you to configure <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code>, or when containers cannot access your data directories.</p>
+<p><strong>Q: How do I know which partition to use?</strong></p>
+<p>A: Check with your HPC documentation or administrator. Common partitions include <code class="docutils literal notranslate"><span class="pre">cpu</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu</span></code>, <code class="docutils literal notranslate"><span class="pre">short</span></code>, <code class="docutils literal notranslate"><span class="pre">long</span></code>. Leave empty to use the default.</p>
+<p><strong>Q: Can I override job parameters for specific workflows?</strong></p>
+<p>A: Yes, add <code class="docutils literal notranslate"><span class="pre">workflowname_job_parameter=value</span></code> entries in the <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> section to override default SLURM job parameters.</p>
+<p><strong>Q: How do I debug workflow execution issues?</strong></p>
+<p>A: Check SLURM job logs, verify container access to data, and ensure all required directories exist with proper permissions.</p>
+</section>
+<section id="further-reading">
+<h1>Further Reading<a class="headerlink" href="#further-reading" title="Permalink to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference external" href="https://slurm.schedmd.com/documentation.html">SLURM Documentation</a></p></li>
+<li><p><a class="reference external" href="https://docs.sylabs.io/guides/latest/user-guide/">Singularity User Guide</a></p></li>
+<li><p><a class="reference external" href="https://apptainer.org/docs/">Apptainer Documentation</a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tutorial_link.html" class="btn btn-neutral float-left" title="Cellprofiler tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="biomero" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

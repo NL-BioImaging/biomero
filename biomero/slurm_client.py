@@ -31,8 +31,12 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
-from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
-from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
+from biomero.views import (JobAccounting, JobProgress, WorkflowAnalytics,
+                           WorkflowProgress)
+from biomero.database import (EngineManager, JobProgressView, JobView,
+                              TaskExecution, WorkflowProgressView)
+from biomero.schema_parsers import (DescriptorParserFactory,
+                                    ParsedWorkflowDescriptor)
 from eventsourcing.system import System, SingleThreadedRunner
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
@@ -1800,7 +1804,7 @@ class SlurmClient(Connection):
     def get_workflow_parameters(self,
                                 workflow: str) -> Dict[str, Dict[str, Any]]:
         """
-        Retrieve the parameters of a workflow.
+        Retrieve the parameters of a workflow using the new schema parser.
 
         Args:
             workflow (str): The workflow for which to retrieve the parameters.
@@ -1813,8 +1817,42 @@ class SlurmClient(Connection):
             ValueError: If an error occurs while retrieving the workflow
                 parameters.
         """
+        # Get raw descriptor from GitHub
         json_descriptor = self.pull_descriptor_from_github(workflow)
-        # convert to omero types
+        
+        # Parse with new schema system
+        try:
+            parsed_descriptor = DescriptorParserFactory.parse_descriptor(
+                json_descriptor)
+        except Exception as e:
+            logger.error(f"Failed to parse workflow descriptor for "
+                         f"{workflow}: {e}")
+            # Fallback to legacy parsing for backward compatibility
+            return self._legacy_get_workflow_parameters(json_descriptor)
+        
+        # Convert to legacy format for backward compatibility
+        workflow_dict = {}
+        for param in parsed_descriptor.parameters:
+            workflow_params = {
+                'name': param.id,
+                'default': param.default_value,
+                'cytype': param.param_type,
+                'optional': param.optional,
+                'cmd_flag': param.command_flag,
+                'description': param.description
+            }
+            workflow_dict[param.id] = workflow_params
+        
+        return workflow_dict
+
+    def _legacy_get_workflow_parameters(
+            self, json_descriptor: Dict) -> Dict[str, Dict[str, Any]]:
+        """
+        Legacy parameter extraction for backward compatibility.
+        
+        This method preserves the original logic for workflows that
+        don't work with the new schema parser.
+        """
         logger.debug(json_descriptor)
         workflow_dict = {}
         for input in json_descriptor['inputs']:
@@ -1831,6 +1869,57 @@ class SlurmClient(Connection):
                 workflow_params['description'] = input['description']
                 workflow_dict[input['id']] = workflow_params
         return workflow_dict
+
+    def get_parsed_workflow_descriptor(
+            self, workflow: str) -> ParsedWorkflowDescriptor:
+        """
+        Get the fully parsed workflow descriptor with rich metadata.
+        
+        This method provides access to the complete workflow descriptor
+        including resource requirements, output parameters, and extended
+        metadata for new schema formats.
+        
+        Args:
+            workflow (str): The workflow name
+            
+        Returns:
+            ParsedWorkflowDescriptor: Parsed descriptor with full metadata
+        """
+        json_descriptor = self.pull_descriptor_from_github(workflow)
+        return DescriptorParserFactory.parse_descriptor(json_descriptor)
+
+    def get_resource_requirements(
+            self, workflow: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract resource requirements from workflow descriptor.
+        
+        This is useful for configuring SLURM job parameters based on
+        workflow requirements (RAM, CPU cores, GPU, etc.).
+        
+        Args:
+            workflow (str): The workflow name
+            
+        Returns:
+            Dict with resource requirements or None if not specified
+        """
+        try:
+            parsed_descriptor = self.get_parsed_workflow_descriptor(workflow)
+            if parsed_descriptor.resource_requirements:
+                reqs = parsed_descriptor.resource_requirements
+                return {
+                    'networking': reqs.networking,
+                    'ram_min_mb': reqs.ram_min,
+                    'cores_min': reqs.cores_min,
+                    'gpu': reqs.gpu,
+                    'cuda_requirements': reqs.cuda_requirements,
+                    'cpu_avx': reqs.cpu_avx,
+                    'cpu_avx2': reqs.cpu_avx2,
+                }
+            return None
+        except Exception as e:
+            logger.warning(f"Could not extract resource requirements "
+                           f"for {workflow}: {e}")
+            return None
 
     def convert_cytype_to_omtype(self,
                                  cytype: str, _default, *args, **kwargs
@@ -1867,6 +1956,14 @@ class SlurmClient(Connection):
             else:
                 return self.str_to_class("omero.scripts", "Int",
                                          *args, **kwargs)
+        elif cytype == 'integer':
+            # New biomero-schema integer type
+            return self.str_to_class("omero.scripts", "Int",
+                                     *args, **kwargs)
+        elif cytype == 'float':
+            # New biomero-schema float type
+            return self.str_to_class("omero.scripts", "Float",
+                                     *args, **kwargs)
         elif cytype == 'Boolean':
             return self.str_to_class("omero.scripts", "Bool",
                                      *args, **kwargs)

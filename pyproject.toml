@@ -26,15 +26,16 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "requests==2.32.4",
+    "requests>=2.32.0",
     "requests-cache==1.1.1",
     "fabric==3.1.0",
     "paramiko==3.4.0",
     "importlib_resources>=5.4.0",
     "eventsourcing==9.3",
     "sqlalchemy==2.0.32",
-    "psycopg2==2.9.9",
     "eventsourcing_sqlalchemy==0.9"
+    # biomero-schema will be added via pixi once it's on PyPI
+    # psycopg2, omero-py, zeroc-ice via conda in pixi
 ]
 
 [tool.setuptools.packages]
@@ -49,10 +50,46 @@ biomero = []
 test = [
     "pytest",
     "pytest-cov",
-    "mock",
-    "psycopg2-binary"
+    "mock"
+]
+full = [
+    "ezomero>=1.1.1",
+    "tifffile>=2020.9.3",
+    "omero-metadata>=0.12.0"
+    # psycopg2, omero-py, zeroc-ice via conda in pixi
+    # biomero-schema will be added once it's on PyPI
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/NL-BioImaging/biomero"
 "Documentation" = "https://nl-bioimaging.github.io/biomero/"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+
+[tool.pixi.dependencies]
+python = ">=3.8,<3.13"
+zeroc-ice = "<3.7"
+omero-py = "*"
+psycopg2 = "*"
+
+[tool.pixi.pypi-dependencies]
+biomero = { path = ".", editable = true, extras = ["full"] }
+biomero-schema = { path = "../biomero-schema", editable = true }
+
+[tool.pixi.feature.test.pypi-dependencies]
+pytest = "*"
+pytest-cov = "*"
+mock = "*"
+flake8 = "*"
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+
+[tool.pixi.tasks]
+test = "pytest tests/unit/"
+test-cov = "pytest tests/unit/ --cov=biomero --cov-report=term-missing"
+lint = "flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics"
+lint-full = "flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics"

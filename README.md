@@ -71,6 +71,59 @@ For a quick overview of what this library can do for you, we can install an exam
 
 # Prerequisites & Getting Started with BIOMERO
 
+## Installation
+
+### Recommended: Using Pixi (Cross-platform)
+
+BIOMERO now uses [pixi](https://pixi.sh/) for dependency management, which handles both conda and PyPI packages seamlessly:
+
+1. **Install pixi**: Follow the [pixi installation guide](https://pixi.sh/latest/#installation)
+
+2. **Clone and setup BIOMERO**:
+   ```bash
+   git clone https://github.com/NL-BioImaging/biomero.git
+   cd biomero
+   pixi install
+   ```
+
+3. **Run tests to verify installation**:
+   ```bash
+   pixi run -e test pytest tests/unit/ --cov=biomero
+   ```
+
+4. **Activate the environment for development**:
+   ```bash
+   pixi shell
+   # or run specific commands:
+   pixi run python your_script.py
+   ```
+
+### Alternative: Using pip (Python-only)
+
+**Note**: The pip installation method has limitations with complex dependencies like `zeroc-ice` and `omero-py` which require system libraries. For the best experience, use pixi.
+
+```bash
+# Latest stable release
+python3 -m pip install biomero
+
+# Latest development version
+python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'
+
+# With test dependencies
+python3 -m pip install biomero[test]
+```
+
+### Alternative: Using conda/mamba
+
+You can also use conda/mamba directly with our environment file:
+
+```bash
+# Export pixi environment to conda environment.yml
+pixi project export conda-environment.yml
+conda env create -f conda-environment.yml
+conda activate biomero
+```
+
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
 
@@ -87,12 +140,13 @@ Your Slurm cluster/login node needs to have:
 Your OMERO _processing_ node needs to have:
 1. SSH client and access to the Slurm cluster (w/ private key / headless)
 2. SCP access to the Slurm cluster
-3. Python3.8+
-4. This library installed 
-    - Latest release on PyPI `python3 -m pip install biomero`
-    - or latest Github version `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'`
-5. Configuration setup at `/etc/slurm-.ini`
-6. Requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` and the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr).
+3. Python3.10+
+4. This library installed:
+    - **Recommended**: Using pixi: `git clone <repo> && cd biomero && pixi install`
+    - Or latest release on PyPI: `python3 -m pip install biomero`
+    - Or latest Github version: `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'`
+5. Configuration setup at `/etc/slurm-config.ini`
+6. Requirements for some scripts: These are automatically handled by pixi, or manually install: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` and the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr).
 
 Your OMERO _server_ node needs to have:
 1. Some OMERO example scripts installed to interact with this library:
@@ -132,11 +186,12 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
-5. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements, e.g.
-    - `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` 
-    - the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr), e.g. 
-    `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
-    - the [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip), e.g. `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
+5. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements:
+    - **With pixi**: These dependencies are automatically handled when using `pixi install`
+    - **Manual installation**: 
+      - `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` 
+      - the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr): `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
+      - the [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip): `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
 
 6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.
     - You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field. 
@@ -720,16 +775,80 @@ We have added methods to this library to help with transferring data to the `Slu
 And more; see the docstring of `SlurmClient` and example OMERO scripts.
 
 # Testing the Python code
-You can test the library by installing the extra test dependencies:
+You can test the library using pixi (recommended) or pip:
+
+## Using pixi (recommended):
+
+1. **Install pixi and setup the project**:
+   ```bash
+   # Follow https://pixi.sh/ to install pixi
+   git clone https://github.com/NL-BioImaging/biomero.git
+   cd biomero
+   pixi install
+   ```
+
+2. **Run tests with coverage**:
+   ```bash
+   pixi run -e test pytest tests/unit/ --cov=biomero --cov-report=term-missing
+   ```
+
+3. **Run specific test files**:
+   ```bash
+   pixi run -e test pytest tests/unit/test_schema_parsers.py -v
+   ```
+
+4. **Run with different Python versions** (if configured):
+   ```bash
+   # List available environments
+   pixi info
+   # Run tests in specific environment
+   pixi run -e test pytest
+   ```
+
+## Using pip (fallback method):
 
 1. Create a venv to isolate the python install:
-`python -m venv venvTest`
+   ```bash
+   python -m venv venvTest
+   ```
 
-2. Install OSC with test dependencies:
-`venvTest/Scripts/python -m pip install .[test]`
+2. Install BIOMERO with test dependencies:
+   ```bash
+   venvTest/Scripts/python -m pip install .[test]
+   ```
 
 3. Run pytest from this venv:
-`venvTest/Scripts/pytest`
+   ```bash
+   venvTest/Scripts/pytest
+   ```
+
+**Note**: The pip method may have issues with complex dependencies like `zeroc-ice` and `omero-py`. Use pixi for the best testing experience.
+
+## Development with pixi
+
+For developers working on BIOMERO, pixi provides convenient tasks:
+
+```bash
+# Install development dependencies
+pixi install -e test
+
+# Run tests
+pixi run -e test test
+
+# Run tests with coverage
+pixi run -e test test-cov
+
+# Run basic linting (critical errors only)
+pixi run -e test lint
+
+# Run full linting with style checks
+pixi run -e test lint-full
+
+# Activate shell for interactive development
+pixi shell -e test
+```
+
+The test environment includes all necessary dependencies like `pytest`, `pytest-cov`, `flake8`, and complex packages like `zeroc-ice` and `omero-py`.
 
 # Logging
 Debug logging can be enabled with the standard python logging module, for example with logging.basicConfig():

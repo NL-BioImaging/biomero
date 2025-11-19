@@ -1,4 +1,4 @@
-# This workflow will install dependencies with pixi, run tests and lint
+# This workflow will install dependencies with pixi, run tests and lint with a variety of Python versions
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python package
@@ -30,15 +30,15 @@ jobs:
         pixi install -e ${{ matrix.environment }}
     - name: Lint with flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        pixi run -e ${{ matrix.environment }} flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        pixi run -e ${{ matrix.environment }} flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        pixi run -e ${{ matrix.environment }} lint
+        pixi run -e ${{ matrix.environment }} lint-full
     - name: Test with pytest
       run: |
-        pixi run -e ${{ matrix.environment }} pytest tests/unit/ --cov=biomero --cov-report=xml
+        pixi run -e ${{ matrix.environment }} test
     - name: Coveralls GitHub Action
       if: matrix.environment == 'py311' && matrix.os == 'ubuntu-latest'
       uses: coverallsapp/github-action@v2.3.0
+      with:
+        file: coverage.xml
 
             

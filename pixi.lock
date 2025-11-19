@@ -2915,8 +2915,8 @@ packages:
   requires_python: '>=3.8'
 - pypi: ./
   name: biomero
-  version: 2.0.0a11.dev1+g9ea1a5dad.d20251119
-  sha256: 6d09a9c8e9dc5e61e0a3118d472f5913613ec1caec93c2c5830f53a9e79a93e6
+  version: 2.0.0a11.dev2+g41f95ee55.d20251119
+  sha256: 30c04b981ea32f71a98c4165de3f0d7183f18c823af8dff72589285487b9b0d4
   requires_dist:
   - requests>=2.32.4
   - requests-cache==1.1.1

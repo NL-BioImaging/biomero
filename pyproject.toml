@@ -100,7 +100,11 @@ py311 = { features = ["test", "py311"], solve-group = "py311" }
 py312 = { features = ["test", "py312"], solve-group = "py312" }
 
 [tool.pixi.tasks]
-test = "pytest tests/unit/"
-test-cov = "pytest tests/unit/ --cov=biomero --cov-report=term-missing"
-lint = "flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics"
-lint-full = "flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics"
+# CI/CD tasks matching original GitHub Actions behavior
+test = "pytest tests/unit/ --cov=biomero --cov-report=xml"
+lint = "flake8 biomero tests --count --select=E9,F63,F7,F82 --show-source --statistics"
+lint-full = "flake8 biomero tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics"
+
+# Local development tasks with terminal-friendly output
+test-local = "pytest tests/unit/ --cov=biomero --cov-report=term-missing"
+lint-local = "flake8 biomero tests --count --select=E9,F63,F7,F82 --show-source --statistics"

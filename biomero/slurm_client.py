@@ -1967,7 +1967,15 @@ class SlurmClient(Connection):
         elif cytype == 'Boolean':
             return self.str_to_class("omero.scripts", "Bool",
                                      *args, **kwargs)
+        elif cytype == 'boolean':
+            # New biomero-schema boolean type (lowercase)
+            return self.str_to_class("omero.scripts", "Bool",
+                                     *args, **kwargs)
         elif cytype == 'String':
+            return self.str_to_class("omero.scripts", "String",
+                                     *args, **kwargs)
+        elif cytype == 'string':
+            # New biomero-schema string type (lowercase)
             return self.str_to_class("omero.scripts", "String",
                                      *args, **kwargs)
 

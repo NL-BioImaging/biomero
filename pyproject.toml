@@ -56,7 +56,8 @@ test = [
 full = [
     "ezomero>=1.1.1",
     "tifffile>=2020.9.3",
-    "omero-metadata>=0.12.0"
+    "omero-metadata>=0.12.0",
+    "omero-cli-zarr>=0.5.5"
 ]
 
 [project.urls]

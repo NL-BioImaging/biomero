@@ -11,33 +11,34 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        os: [ubuntu-latest, windows-latest]
+        environment: [py310, py311, py312]
 
     steps:
     - uses: actions/checkout@v4
     - name: Set up pixi
-      uses: prefix-dev/setup-pixi@v0.8.1
+      uses: prefix-dev/setup-pixi@v0.9.3
       with:
         pixi-version: latest
-        environments: test
+        environments: ${{ matrix.environment }}
     - name: Install dependencies
       run: |
-        pixi install -e test
+        pixi install -e ${{ matrix.environment }}
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        pixi run -e test flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        pixi run -e ${{ matrix.environment }} flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        pixi run -e test flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        pixi run -e ${{ matrix.environment }} flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pixi run -e test pytest tests/unit/ --cov=biomero --cov-report=xml
+        pixi run -e ${{ matrix.environment }} pytest tests/unit/ --cov=biomero --cov-report=xml
     - name: Coveralls GitHub Action
-      if: matrix.python-version == '3.11'
+      if: matrix.environment == 'py311' && matrix.os == 'ubuntu-latest'
       uses: coverallsapp/github-action@v2.3.0
 
             

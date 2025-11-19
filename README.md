@@ -97,20 +97,11 @@ python3 -m pip install biomero[test,full]
 **Dependency sets explained:**
 - **Default (no extras)**: Core BIOMERO library for basic functionality
 - **`[test]`**: Adds pytest, coverage tools for local testing and development
-- **`[full]`**: Adds BIOMERO.scripts requirements (`ezomero`, `tifffile`, `omero-metadata`) which require complex dependencies like `zeroc-ice` and `omero-py`
+- **`[full]`**: Adds BIOMERO.scripts requirements (`ezomero`, `tifffile`, `omero-metadata`, `omero-cli-zarr`) which require complex dependencies like `zeroc-ice` and `omero-py`
 
 **Note**: The `[full]` dependencies require complex packages like `zeroc-ice` and `omero-py` that need system libraries. For OMERO integration, you may need to install these separately or use conda.
 
-### Alternative: Using conda/mamba
 
-For OMERO integration where complex dependencies are challenging with pip:
-
-```bash
-# Install complex conda dependencies first
-conda install -c conda-forge zeroc-ice omero-py psycopg2
-# Then install biomero with OMERO integration
-pip install biomero[full]
-```
 
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
@@ -134,7 +125,7 @@ Your OMERO _processing_ node needs to have:
     - **With BIOMERO.scripts**: `python3 -m pip install biomero[full]`
     - **Latest development**: `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero[full]'`
 5. Configuration setup at `/etc/slurm-config.ini`
-6. Requirements for some scripts: These are automatically handled by pixi, or manually install: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` and the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr).
+6. Requirements for some scripts: Install BIOMERO with `[full]` extras to get all dependencies automatically: `python3 -m pip install biomero[full]`
 
 Your OMERO _server_ node needs to have:
 1. Some OMERO example scripts installed to interact with this library:
@@ -175,10 +166,10 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
 4. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements:
-    - **If you installed `biomero[full]`**: Dependencies are already included
-    - **Manual installation**: 
-      - `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3 omero-metadata>=0.12.0` 
-      - Install [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr): `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
+    - **If you installed `biomero[full]`**: All required dependencies (`ezomero`, `tifffile`, `omero-metadata`, `omero-cli-zarr`) are already included
+    - **Manual installation** (if using basic `biomero` without `[full]` extras): 
+      - `python3 -m pip install ezomero>=1.1.1 tifffile>=2020.9.3 omero-metadata>=0.12.0 omero-cli-zarr>=0.5.5` 
+      - Additional system dependencies may be required: `yum install -y blosc-devel`
       - Install [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip): `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
 
 6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.

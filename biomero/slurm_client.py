@@ -1832,13 +1832,13 @@ class SlurmClient(Connection):
         
         # Convert to legacy format for backward compatibility
         workflow_dict = {}
-        for param in parsed_descriptor.parameters:
+        for param in parsed_descriptor.inputs:
             workflow_params = {
                 'name': param.id,
                 'default': param.default_value,
-                'cytype': param.param_type,
+                'cytype': param.type,
                 'optional': param.optional,
-                'cmd_flag': param.command_flag,
+                'cmd_flag': param.command_line_flag,
                 'description': param.description
             }
             workflow_dict[param.id] = workflow_params

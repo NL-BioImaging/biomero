@@ -97,17 +97,21 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
             cmd_flag = cmd_flag.replace("@id", param_id)
             value_key = input_param.get("value-key", f"@{param_id.upper()}")
 
-            input_param_obj = Parameter(
-                id=param_id,
-                name=input_param.get("name") or param_id,
-                description=input_param.get("description", ""),
-                type=param_type,
-                default_value=input_param.get("default-value"),
-                optional=input_param.get("optional", False),
-                set_by_server=input_param.get("set-by-server", False),
-                command_line_flag=cmd_flag,
-                value_key=value_key
-            )
+            # Build the parameter data with alias names for Pydantic validation
+            param_data = {
+                "id": param_id,
+                "type": param_type,
+                "name": input_param.get("name") or param_id,
+                "description": input_param.get("description", ""),
+                "value-key": value_key,  # Use alias name
+                "command-line-flag": cmd_flag,  # Use alias name
+                "default-value": input_param.get("default-value"),  # Use alias name
+                "optional": input_param.get("optional", False),
+                "set-by-server": input_param.get("set-by-server", False),
+            }
+            
+            # Create Parameter using model_validate with alias names
+            input_param_obj = Parameter.model_validate(param_data)
             inputs.append(input_param_obj)
 
         # BIAFLOWS doesn't have explicit outputs, create empty list

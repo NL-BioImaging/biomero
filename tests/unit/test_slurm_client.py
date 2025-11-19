@@ -633,6 +633,78 @@ def test_get_workflow_parameters(mock_pull_descriptor,
     assert workflow_params == expected_workflow_params
 
 
+@patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github')
+def test_get_workflow_parameters_with_schema_parser_integration(
+        mock_pull_descriptor, slurm_client):
+    """Test get_workflow_parameters integrates with schema parser."""
+    # GIVEN - A raw BIAFLOWS descriptor that needs parsing
+    raw_biaflows_descriptor = {
+        "name": "Test Workflow",
+        "description": "Test workflow for integration testing",
+        "schema-version": "cytomine-0.1",
+        "command-line": "python wrapper.py",
+        "container-image": {
+            "image": "test/image:latest",
+            "type": "singularity"
+        },
+        "inputs": [
+            {
+                "id": "input1",
+                "value-key": "@ID1",
+                "default-value": "default_value1",
+                "type": "String",
+                "optional": False,
+                "command-line-flag": "--flag1",
+                "description": "Test input parameter",
+            },
+            {
+                "id": "input2",
+                "value-key": "@ID2",
+                "default-value": 42,
+                "type": "Number",
+                "optional": True,
+                "command-line-flag": "--flag2",
+                "description": "Test numeric parameter",
+            },
+            {
+                "id": "cytomine_skip",  # Should be filtered out
+                "type": "String",
+                "default-value": "skip me"
+            }
+        ]
+    }
+    mock_pull_descriptor.return_value = raw_biaflows_descriptor
+
+    # WHEN
+    workflow_params = slurm_client.get_workflow_parameters("test_workflow")
+
+    # THEN - Should parse and convert attribute names correctly
+    expected_workflow_params = {
+        'input1': {
+            'name': 'input1',
+            'default': 'default_value1',
+            'cytype': 'string',  # BIAFLOWS "String" -> "string"
+            'optional': False,
+            'cmd_flag': '--flag1',
+            'description': 'Test input parameter',
+        },
+        'input2': {
+            'name': 'input2',
+            'default': 42,
+            'cytype': 'float',  # BIAFLOWS "Number" -> "float"
+            'optional': True,
+            'cmd_flag': '--flag2',
+            'description': 'Test numeric parameter',
+        },
+        # cytomine_skip should be filtered out
+    }
+
+    assert workflow_params == expected_workflow_params
+    # Verify schema parser was used by checking transformed types
+    assert workflow_params['input1']['cytype'] == 'string'
+    assert workflow_params['input2']['cytype'] == 'float'
+
+
 @patch('biomero.slurm_client.SlurmClient.run_commands')
 def test_extract_data_location_from_log_exc(mock_run_commands,
                                             slurm_client):

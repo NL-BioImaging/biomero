@@ -26,7 +26,7 @@ import logging
 
 # biomero-schema is our internal representation
 from biomero_schema.models import (
-    WorkflowSchema, Parameter, ContainerImage, Author, Citation
+    WorkflowSchema, Parameter, ContainerImage, Author, Institution, Citation
 )
 
 logger = logging.getLogger(__name__)
@@ -336,6 +336,16 @@ def convert_schema_type_to_omero(
         return create_class_instance(
             "omero.scripts", "String", *args, **kwargs)
     elif schema_type == 'string':
+        return create_class_instance(
+            "omero.scripts", "String", *args, **kwargs)
+    elif schema_type == 'image':
+        # Image type - for OMERO, this is typically a String parameter
+        # that accepts image IDs or paths
+        return create_class_instance(
+            "omero.scripts", "String", *args, **kwargs)
+    elif schema_type == 'file':
+        # File type - for OMERO, this is typically a String parameter
+        # that accepts file paths
         return create_class_instance(
             "omero.scripts", "String", *args, **kwargs)
     else:

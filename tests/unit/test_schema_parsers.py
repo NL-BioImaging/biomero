@@ -249,6 +249,38 @@ class TestTypeConversion:
         # THEN
         mock_create_class.assert_called_once_with(
             "omero.scripts", "String", *args, **kwargs)
+
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_image(self, mock_create_class):
+        """Test image type converts to String."""
+        # GIVEN
+        schema_type = 'image'
+        default_value = None
+        args = (1, 2, 3)
+        kwargs = {'key': 'value'}
+
+        # WHEN
+        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        
+        # THEN
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "String", *args, **kwargs)
+
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_file(self, mock_create_class):
+        """Test file type converts to String."""
+        # GIVEN
+        schema_type = 'file'
+        default_value = None
+        args = (1, 2, 3)
+        kwargs = {'key': 'value'}
+
+        # WHEN
+        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        
+        # THEN
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "String", *args, **kwargs)
     
     @patch('biomero.schema_parsers.create_class_instance')
     def test_convert_schema_type_to_omero_string_lowercase(

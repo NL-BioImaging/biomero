@@ -23,7 +23,6 @@ import re
 import requests_cache
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
-import importlib
 import logging
 import time as timesleep
 from string import Template
@@ -31,8 +30,12 @@ from importlib_resources import files
 import io
 import os
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
-from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
-from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
+from biomero.views import (JobAccounting, JobProgress, WorkflowAnalytics,
+                           WorkflowProgress)
+from biomero.database import (EngineManager, JobProgressView, JobView,
+                              TaskExecution, WorkflowProgressView)
+from biomero.schema_parsers import (DescriptorParserFactory,
+                                    ParsedWorkflowDescriptor)
 from eventsourcing.system import System, SingleThreadedRunner
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
@@ -1197,30 +1200,6 @@ class SlurmClient(Connection):
                 'utf-8', 'ignore').decode('utf-8')
         return result
 
-    def str_to_class(self, module_name: str, class_name: str, *args, **kwargs):
-        """
-        Return a class instance from a string reference.
-
-        Args:
-            module_name (str): The name of the module.
-            class_name (str): The name of the class.
-            *args: Additional positional arguments for the class constructor.
-            **kwargs: Additional keyword arguments for the class constructor.
-
-        Returns:
-            object: An instance of the specified class, or None if the class or
-                module does not exist.
-        """
-        try:
-            module_ = importlib.import_module(module_name)
-            try:
-                class_ = getattr(module_, class_name)(*args, **kwargs)
-            except AttributeError:
-                logger.error('Class does not exist')
-        except ImportError:
-            logger.error('Module does not exist')
-        return class_ or None
-
     def run_commands_split_out(self,
                                cmdlist: List[str],
                                env: Optional[Dict[str, str]] = None
@@ -1606,8 +1585,19 @@ class SlurmClient(Connection):
         data_path = f"{self.slurm_data_path}/{folder_name}"
         conversion_cmd, sbatch_env, chosen_converter, version = self.get_conversion_command(
             data_path, config_file, source_format, target_format)
+        
+        # Handle both .zarr and .ome.zarr extensions for backward compatibility
+        if source_format == 'zarr':
+            find_cmd = (f"find \"{data_path}/data/in\" -name \"*.zarr\" "
+                        f"-o -name \"*.ome.zarr\" | "
+                        f"awk '{{print NR, $0}}' > \"{config_file}\"")
+        else:
+            find_cmd = (f"find \"{data_path}/data/in\" "
+                        f"-name \"*.{source_format}\" | "
+                        f"awk '{{print NR, $0}}' > \"{config_file}\"")
+        
         commands = [
-            f"find \"{data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{config_file}\"",
+            find_cmd,
             f"N=$(wc -l < \"{config_file}\")",
             f"echo \"Number of .{source_format} files: $N\"",
             conversion_cmd
@@ -1800,7 +1790,7 @@ class SlurmClient(Connection):
     def get_workflow_parameters(self,
                                 workflow: str) -> Dict[str, Dict[str, Any]]:
         """
-        Retrieve the parameters of a workflow.
+        Retrieve the parameters of a workflow using the new schema parser.
 
         Args:
             workflow (str): The workflow for which to retrieve the parameters.
@@ -1813,8 +1803,42 @@ class SlurmClient(Connection):
             ValueError: If an error occurs while retrieving the workflow
                 parameters.
         """
+        # Get raw descriptor from GitHub
         json_descriptor = self.pull_descriptor_from_github(workflow)
-        # convert to omero types
+        
+        # Parse with new schema system
+        try:
+            parsed_descriptor = DescriptorParserFactory.parse_descriptor(
+                json_descriptor)
+        except Exception as e:
+            logger.error(f"Failed to parse workflow descriptor for "
+                         f"{workflow}: {e}")
+            # Fallback to legacy parsing for backward compatibility
+            return self._legacy_get_workflow_parameters(json_descriptor)
+        
+        # Convert to legacy format for backward compatibility
+        workflow_dict = {}
+        for param in parsed_descriptor.inputs:
+            workflow_params = {
+                'name': param.id,
+                'default': param.default_value,
+                'cytype': param.type,
+                'optional': param.optional,
+                'cmd_flag': param.command_line_flag,
+                'description': param.description
+            }
+            workflow_dict[param.id] = workflow_params
+        
+        return workflow_dict
+
+    def _legacy_get_workflow_parameters(
+            self, json_descriptor: Dict) -> Dict[str, Dict[str, Any]]:
+        """
+        Legacy parameter extraction for backward compatibility.
+        
+        This method preserves the original logic for workflows that
+        don't work with the new schema parser.
+        """
         logger.debug(json_descriptor)
         workflow_dict = {}
         for input in json_descriptor['inputs']:
@@ -1832,47 +1856,56 @@ class SlurmClient(Connection):
                 workflow_dict[input['id']] = workflow_params
         return workflow_dict
 
-    def convert_cytype_to_omtype(self,
-                                 cytype: str, _default, *args, **kwargs
-                                 ) -> Any:
+    def get_parsed_workflow_descriptor(
+            self, workflow: str) -> ParsedWorkflowDescriptor:
         """
-        Convert a Cytomine type to an OMERO type and instantiates it
-        with args/kwargs.
-
-        Note that Cytomine has a Python Client, and some conversion methods
-        to python types, but nothing particularly worth depending on that
-        library for yet. Might be useful in the future perhaps.
-        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/
-        blob/master/cytomine/cytomine_job.py)
-
+        Get the fully parsed workflow descriptor with rich metadata.
+        
+        This method provides access to the complete workflow descriptor
+        including resource requirements, output parameters, and extended
+        metadata for new schema formats.
+        
         Args:
-            cytype (str): The Cytomine type to convert.
-            _default: The default value. Required to distinguish between float
-                and int.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-
+            workflow (str): The workflow name
+            
         Returns:
-            Any:
-                The converted OMERO type class instance
-                or None if errors occured.
-
+            ParsedWorkflowDescriptor: Parsed descriptor with full metadata
         """
-        # TODO make Enum ?
-        if cytype == 'Number':
-            if isinstance(_default, float):
-                # float instead
-                return self.str_to_class("omero.scripts", "Float",
-                                         *args, **kwargs)
-            else:
-                return self.str_to_class("omero.scripts", "Int",
-                                         *args, **kwargs)
-        elif cytype == 'Boolean':
-            return self.str_to_class("omero.scripts", "Bool",
-                                     *args, **kwargs)
-        elif cytype == 'String':
-            return self.str_to_class("omero.scripts", "String",
-                                     *args, **kwargs)
+        json_descriptor = self.pull_descriptor_from_github(workflow)
+        return DescriptorParserFactory.parse_descriptor(json_descriptor)
+
+    def get_resource_requirements(
+            self, workflow: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract resource requirements from workflow descriptor.
+        
+        This is useful for configuring SLURM job parameters based on
+        workflow requirements (RAM, CPU cores, GPU, etc.).
+        
+        Args:
+            workflow (str): The workflow name
+            
+        Returns:
+            Dict with resource requirements or None if not specified
+        """
+        try:
+            parsed_descriptor = self.get_parsed_workflow_descriptor(workflow)
+            if parsed_descriptor.resource_requirements:
+                reqs = parsed_descriptor.resource_requirements
+                return {
+                    'networking': reqs.networking,
+                    'ram_min_mb': reqs.ram_min,
+                    'cores_min': reqs.cores_min,
+                    'gpu': reqs.gpu,
+                    'cuda_requirements': reqs.cuda_requirements,
+                    'cpu_avx': reqs.cpu_avx,
+                    'cpu_avx2': reqs.cpu_avx2,
+                }
+            return None
+        except Exception as e:
+            logger.warning(f"Could not extract resource requirements "
+                           f"for {workflow}: {e}")
+            return None
 
     def extract_parts_from_url(self, input_url: str) -> Tuple[List[str], str]:
         """
@@ -2283,9 +2316,10 @@ class SlurmClient(Connection):
         export_file = local_tmp_storage+logfile
         return local_tmp_storage, export_file, result
 
-    def get_unzip_command(self, zipfile: str,
-                          filter_filetypes: str = "*.zarr *.tiff *.tif"
-                          ) -> str:
+    def get_unzip_command(
+            self, zipfile: str,
+            filter_filetypes: str = "*.zarr *.ome.zarr *.tiff *.tif"
+            ) -> str:
         """
         Generate a command string for unzipping a data archive and creating
         required directories for Slurm jobs.
@@ -2295,7 +2329,7 @@ class SlurmClient(Connection):
                 Without extension.
             filter_filetypes (str, optional): A space-separated string
                 containing the file extensions to extract from the zip file.
-                E.g. defaults to "*.zarr *.tiff *.tif".
+                E.g. defaults to "*.zarr *.ome.zarr *.tiff *.tif".
                 Setting this argument to `None` will omit the file
                 filter and extract all files.
 

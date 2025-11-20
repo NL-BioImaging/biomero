@@ -535,55 +535,8 @@ def test_extract_parts_from_url(slurm_client):
     assert valid_branch2 == 'master'
 
 
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_Number(mock_str_to_class,
-                                         slurm_client):
-    # GIVEN
-    cytype = 'Number'
-    _default = 42.0
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "Float", *args, **kwargs)
-
-
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_Boolean(mock_str_to_class,
-                                          slurm_client):
-    # GIVEN
-    cytype = 'Boolean'
-    _default = "false"
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "Bool", *args, **kwargs)
-
-
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_String(mock_str_to_class,
-                                         slurm_client):
-    # GIVEN
-    cytype = 'String'
-    _default = "42 is the answer"
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "String", *args, **kwargs)
+# NOTE: convert_cytype_to_omtype method has been removed in favor of
+# convert_schema_type_to_omero in schema_parsers module
 
 
 @patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github', return_value={
@@ -702,7 +655,7 @@ def test_get_workflow_parameters_with_schema_parser_integration(
         'input2': {
             'name': 'input2',
             'default': 42,
-            'cytype': 'float',  # BIAFLOWS "Number" -> "float"
+            'cytype': 'integer',  # Number with int default -> integer
             'optional': True,
             'cmd_flag': '--flag2',
             'description': 'Test numeric parameter',
@@ -713,7 +666,7 @@ def test_get_workflow_parameters_with_schema_parser_integration(
     assert workflow_params == expected_workflow_params
     # Verify schema parser was used by checking transformed types
     assert workflow_params['input1']['cytype'] == 'string'
-    assert workflow_params['input2']['cytype'] == 'float'
+    assert workflow_params['input2']['cytype'] == 'integer'
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')

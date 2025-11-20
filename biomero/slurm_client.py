@@ -23,7 +23,6 @@ import re
 import requests_cache
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
-import importlib
 import logging
 import time as timesleep
 from string import Template
@@ -1201,30 +1200,6 @@ class SlurmClient(Connection):
                 'utf-8', 'ignore').decode('utf-8')
         return result
 
-    def str_to_class(self, module_name: str, class_name: str, *args, **kwargs):
-        """
-        Return a class instance from a string reference.
-
-        Args:
-            module_name (str): The name of the module.
-            class_name (str): The name of the class.
-            *args: Additional positional arguments for the class constructor.
-            **kwargs: Additional keyword arguments for the class constructor.
-
-        Returns:
-            object: An instance of the specified class, or None if the class or
-                module does not exist.
-        """
-        try:
-            module_ = importlib.import_module(module_name)
-            try:
-                class_ = getattr(module_, class_name)(*args, **kwargs)
-            except AttributeError:
-                logger.error('Class does not exist')
-        except ImportError:
-            logger.error('Module does not exist')
-        return class_ or None
-
     def run_commands_split_out(self,
                                cmdlist: List[str],
                                env: Optional[Dict[str, str]] = None
@@ -1931,64 +1906,6 @@ class SlurmClient(Connection):
             logger.warning(f"Could not extract resource requirements "
                            f"for {workflow}: {e}")
             return None
-
-    def convert_cytype_to_omtype(self,
-                                 cytype: str, _default, *args, **kwargs
-                                 ) -> Any:
-        """
-        Convert a Cytomine type to an OMERO type and instantiates it
-        with args/kwargs.
-
-        Note that Cytomine has a Python Client, and some conversion methods
-        to python types, but nothing particularly worth depending on that
-        library for yet. Might be useful in the future perhaps.
-        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/
-        blob/master/cytomine/cytomine_job.py)
-
-        Args:
-            cytype (str): The Cytomine type to convert.
-            _default: The default value. Required to distinguish between float
-                and int.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            Any:
-                The converted OMERO type class instance
-                or None if errors occured.
-
-        """
-        # TODO make Enum ?
-        if cytype == 'Number':
-            if isinstance(_default, float):
-                # float instead
-                return self.str_to_class("omero.scripts", "Float",
-                                         *args, **kwargs)
-            else:
-                return self.str_to_class("omero.scripts", "Int",
-                                         *args, **kwargs)
-        elif cytype == 'integer':
-            # New biomero-schema integer type
-            return self.str_to_class("omero.scripts", "Int",
-                                     *args, **kwargs)
-        elif cytype == 'float':
-            # New biomero-schema float type
-            return self.str_to_class("omero.scripts", "Float",
-                                     *args, **kwargs)
-        elif cytype == 'Boolean':
-            return self.str_to_class("omero.scripts", "Bool",
-                                     *args, **kwargs)
-        elif cytype == 'boolean':
-            # New biomero-schema boolean type (lowercase)
-            return self.str_to_class("omero.scripts", "Bool",
-                                     *args, **kwargs)
-        elif cytype == 'String':
-            return self.str_to_class("omero.scripts", "String",
-                                     *args, **kwargs)
-        elif cytype == 'string':
-            # New biomero-schema string type (lowercase)
-            return self.str_to_class("omero.scripts", "String",
-                                     *args, **kwargs)
 
     def extract_parts_from_url(self, input_url: str) -> Tuple[List[str], str]:
         """

@@ -8,10 +8,13 @@ format and the new biomero-schema format using real test files.
 import json
 import pytest
 from pathlib import Path
+from unittest.mock import patch, Mock
 
 from biomero.schema_parsers import (
     DescriptorParserFactory,
-    detect_schema_format
+    detect_schema_format,
+    convert_schema_type_to_omero,
+    create_class_instance
 )
 
 
@@ -152,3 +155,165 @@ class TestDescriptorParserFactory:
             DescriptorParserFactory.parse_descriptor(
                 {'unsupported': 'format'}
             )
+
+
+class TestTypeConversion:
+    """Test cases for schema type to OMERO type conversion."""
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_number_int(self, mock_create_class):
+        """Test Number type with integer default converts to Int."""
+        # GIVEN
+        schema_type = 'Number'
+        default_value = 42
+        args = (1, 2, 3)
+        kwargs = {'key': 'value'}
+
+        # WHEN
+        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        
+        # THEN
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Int", *args, **kwargs)
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_number_float(
+            self, mock_create_class):
+        """Test Number type with float default converts to Float."""
+        # GIVEN
+        schema_type = 'Number'
+        default_value = 42.0
+        args = (1, 2, 3)
+        kwargs = {'key': 'value'}
+
+        # WHEN
+        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        
+        # THEN
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Float", *args, **kwargs)
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_integer(self, mock_create_class):
+        """Test integer type converts to Int."""
+        convert_schema_type_to_omero('integer', 10, 'test_param')
+        
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Int", 'test_param')
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_float(self, mock_create_class):
+        """Test float type converts to Float."""
+        convert_schema_type_to_omero('float', 3.14, 'test_param')
+        
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Float", 'test_param')
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_boolean(self, mock_create_class):
+        """Test Boolean type converts to Bool."""
+        # GIVEN
+        schema_type = 'Boolean'
+        default_value = "false"
+        args = (1, 2, 3)
+        kwargs = {'key': 'value'}
+
+        # WHEN
+        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        
+        # THEN
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Bool", *args, **kwargs)
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_boolean_lowercase(
+            self, mock_create_class):
+        """Test boolean type converts to Bool."""
+        convert_schema_type_to_omero('boolean', False, 'test_param')
+        
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Bool", 'test_param')
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_string(self, mock_create_class):
+        """Test String type converts to String."""
+        # GIVEN
+        schema_type = 'String'
+        default_value = "42 is the answer"
+        args = (1, 2, 3)
+        kwargs = {'key': 'value'}
+
+        # WHEN
+        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        
+        # THEN
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "String", *args, **kwargs)
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_string_lowercase(
+            self, mock_create_class):
+        """Test string type converts to String."""
+        convert_schema_type_to_omero('string', 'test', 'test_param')
+        
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "String", 'test_param')
+    
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_with_kwargs(self, mock_create_class):
+        """Test conversion with additional kwargs."""
+        convert_schema_type_to_omero(
+            'integer', 42, 'test_param',
+            description='Test description',
+            optional=True
+        )
+        
+        mock_create_class.assert_called_once_with(
+            "omero.scripts", "Int", 'test_param',
+            description='Test description', optional=True)
+    
+    def test_convert_schema_type_to_omero_unsupported_type(self):
+        """Test that unsupported types raise ValueError."""
+        with pytest.raises(ValueError,
+                           match="Unsupported schema type 'unknown'"):
+            convert_schema_type_to_omero('unknown', 'test', 'test_param')
+
+
+class TestClassInstantiation:
+    """Test cases for dynamic class instantiation."""
+    
+    def test_create_class_instance_handles_missing_omero(self):
+        """Test that missing OMERO modules are handled gracefully."""
+        # This should return None when OMERO is not available
+        result = create_class_instance('omero.scripts', 'Int', 'test_int')
+        assert result is None
+    
+    def test_create_class_instance_invalid_module(self):
+        """Test that invalid module names are handled gracefully."""
+        result = create_class_instance('invalid.module', 'SomeClass', 'test')
+        assert result is None
+    
+    def test_create_class_instance_invalid_class(self):
+        """Test that invalid class names are handled gracefully."""
+        # This will try to import a real module but invalid class
+        result = create_class_instance('json', 'InvalidClass', 'test')
+        assert result is None
+    
+    @patch('importlib.import_module')
+    def test_create_class_instance_success(self, mock_import):
+        """Test successful class instantiation when module is available."""
+        # Mock the module and class
+        mock_class = Mock()
+        mock_instance = Mock()
+        mock_class.return_value = mock_instance
+        mock_module = Mock()
+        mock_module.SomeClass = mock_class
+        mock_import.return_value = mock_module
+        
+        result = create_class_instance(
+            'some.module', 'SomeClass', 'arg1', kwarg1='value1'
+        )
+        
+        assert result == mock_instance
+        mock_import.assert_called_once_with('some.module')
+        mock_class.assert_called_once_with('arg1', kwarg1='value1')

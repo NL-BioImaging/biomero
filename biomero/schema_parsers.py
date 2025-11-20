@@ -26,7 +26,7 @@ import logging
 
 # biomero-schema is our internal representation
 from biomero_schema.models import (
-    WorkflowSchema, Parameter, ContainerImage, Author, Institution, Citation
+    WorkflowSchema, Parameter, ContainerImage, Author, Citation
 )
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,8 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
 
             # Map BIAFLOWS types to biomero-schema types
             param_type = self._map_biaflows_type(
-                input_param.get("type", "String")
+                input_param.get("type", "String"),
+                input_param.get("default-value")
             )
 
             # Build command line info
@@ -105,7 +106,7 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
                 "description": input_param.get("description", ""),
                 "value-key": value_key,  # Use alias name
                 "command-line-flag": cmd_flag,  # Use alias name
-                "default-value": input_param.get("default-value"),  # Use alias name
+                "default-value": input_param.get("default-value"),  # Alias
                 "optional": input_param.get("optional", False),
                 "set-by-server": input_param.get("set-by-server", False),
             }
@@ -144,16 +145,30 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
 
         return biomero_descriptor
 
-    def _map_biaflows_type(self, biaflows_type: str) -> str:
-        """Map BIAFLOWS parameter types to biomero-schema types."""
+    def _map_biaflows_type(
+        self, biaflows_type: str, default_value: Any = None
+    ) -> str:
+        """Map BIAFLOWS parameter types to biomero-schema types.
+        
+        BIAFLOWS Number type is converted to specific integer/float based on
+        default value type. biomero-schema should never contain Number type.
+        """
+        if biaflows_type == 'Number':
+            # Always convert Number type based on default value
+            if default_value is not None and isinstance(default_value, float):
+                return 'float'
+            else:
+                # Default to integer for Number type (most common case)
+                return 'integer'
+        
+        # Direct mapping for other types
         type_mapping = {
             'String': 'string',
-            'Number': 'float',  # BIAFLOWS Number is typically float
             'Boolean': 'boolean',
-            'Integer': 'integer',  # Explicit integer type
-            'Float': 'float',      # Explicit float type
-            'Domain': 'string',  # Treat as string for now
-            'ListDomain': 'string',  # Treat as string for now
+            'Integer': 'integer',
+            'Float': 'float',
+            'Domain': 'string',
+            'ListDomain': 'string',
         }
         return type_mapping.get(biaflows_type, 'string')
 
@@ -248,6 +263,83 @@ class WorkflowDescriptorParser:
     def register_adapter(cls, schema_format: str, adapter_class: type):
         """Register a new adapter for a schema format."""
         cls._adapters[schema_format] = adapter_class
+
+
+def create_class_instance(module_name: str, class_name: str, *args, **kwargs):
+    """
+    Create a class instance from a string reference.
+    
+    Args:
+        module_name (str): The name of the module.
+        class_name (str): The name of the class.
+        *args: Additional positional arguments for the class constructor.
+        **kwargs: Additional keyword arguments for the class constructor.
+    
+    Returns:
+        object: An instance of the specified class, or None if the class or
+            module does not exist.
+    """
+    import importlib
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        module_ = importlib.import_module(module_name)
+        try:
+            class_ = getattr(module_, class_name)(*args, **kwargs)
+        except AttributeError:
+            logger.error('Class does not exist')
+            return None
+    except ImportError:
+        logger.error('Module does not exist')
+        return None
+    return class_
+
+
+def convert_schema_type_to_omero(
+        schema_type: str, default_value, *args, **kwargs):
+    """
+    Convert a schema type (BIAFLOWS/biomero-schema) to an OMERO type.
+    
+    Args:
+        schema_type (str): The schema type to convert (Number, String,
+            Boolean, integer, float, etc.)
+        default_value: The default value. Used to distinguish between float
+            and int for Number type.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+    
+    Returns:
+        Any: The converted OMERO type class instance or None if errors
+            occurred.
+    """
+    if schema_type == 'Number':
+        if isinstance(default_value, float):
+            return create_class_instance(
+                "omero.scripts", "Float", *args, **kwargs)
+        else:
+            return create_class_instance(
+                "omero.scripts", "Int", *args, **kwargs)
+    elif schema_type == 'integer':
+        return create_class_instance(
+            "omero.scripts", "Int", *args, **kwargs)
+    elif schema_type == 'float':
+        return create_class_instance(
+            "omero.scripts", "Float", *args, **kwargs)
+    elif schema_type == 'Boolean':
+        return create_class_instance(
+            "omero.scripts", "Bool", *args, **kwargs)
+    elif schema_type == 'boolean':
+        return create_class_instance(
+            "omero.scripts", "Bool", *args, **kwargs)
+    elif schema_type == 'String':
+        return create_class_instance(
+            "omero.scripts", "String", *args, **kwargs)
+    elif schema_type == 'string':
+        return create_class_instance(
+            "omero.scripts", "String", *args, **kwargs)
+    else:
+        raise ValueError(f"Unsupported schema type '{schema_type}'")
 
 
 # Backward compatibility aliases

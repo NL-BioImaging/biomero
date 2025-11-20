@@ -22,7 +22,7 @@ class TestBiaflowsTypeMapping:
     
     @pytest.mark.parametrize("input_type,expected_type", [
         ('String', 'string'),
-        ('Number', 'float'),  # Default number mapping
+        ('Number', 'integer'),  # Number maps to integer now (proper handling)
         ('Boolean', 'boolean'),
         ('Integer', 'integer'),
         ('Float', 'float'),
@@ -33,87 +33,8 @@ class TestBiaflowsTypeMapping:
         assert result == expected_type
 
 
-class TestOMEROTypeConversion:
-    """Test cases for OMERO script type conversion logic."""
-    
-    @pytest.fixture
-    def mock_slurm_client(self):
-        """Create a mocked SlurmClient instance with mocked OMERO scripts."""
-        from biomero.slurm_client import SlurmClient
-        
-        # Mock the OMERO scripts classes
-        mock_int = MagicMock()
-        mock_int.__class__.__name__ = 'Int'
-        mock_float = MagicMock()
-        mock_float.__class__.__name__ = 'Float'
-        mock_bool = MagicMock()
-        mock_bool.__class__.__name__ = 'Bool'
-        mock_string = MagicMock()
-        mock_string.__class__.__name__ = 'String'
-        
-        # Mock the str_to_class method to return appropriate mock objects
-        def mock_str_to_class(module_name, class_name, *args, **kwargs):
-            if class_name == 'Int':
-                return mock_int
-            elif class_name == 'Float':
-                return mock_float
-            elif class_name == 'Bool':
-                return mock_bool
-            elif class_name == 'String':
-                return mock_string
-            else:
-                raise ValueError(f"Unknown class: {class_name}")
-        
-        with patch.object(SlurmClient, '__init__', lambda x: None):
-            client = SlurmClient()
-            client.str_to_class = MagicMock(side_effect=mock_str_to_class)
-            return client
-    
-    @pytest.mark.parametrize("param_type,default_value,expected_class", [
-        ('Number', 1, 'Int'),
-        ('Number', 1.0, 'Float'),
-        ('integer', None, 'Int'),
-        ('float', None, 'Float'),
-        ('boolean', None, 'Bool'),
-        ('string', None, 'String'),
-    ])
-    def test_convert_cytype_to_omtype(self, mock_slurm_client, param_type,
-                                      default_value, expected_class):
-        """Test conversion from biaflows/biomero types to OMERO types."""
-        # Test conversion using the actual method signature
-        result = mock_slurm_client.convert_cytype_to_omtype(
-            param_type, default_value, "test_param"
-        )
-        assert result.__class__.__name__ == expected_class
-    
-    def test_number_type_inference_from_default(self, mock_slurm_client):
-        """Test that Number type is inferred from default value type."""
-        # Integer default should create Int
-        int_result = mock_slurm_client.convert_cytype_to_omtype(
-            'Number', 42, "int_test"
-        )
-        assert int_result.__class__.__name__ == 'Int'
-
-        # Float default should create Float
-        float_result = mock_slurm_client.convert_cytype_to_omtype(
-            'Number', 42.5, "float_test"
-        )
-        assert float_result.__class__.__name__ == 'Float'
-    
-    def test_explicit_types_override_default_inference(
-            self, mock_slurm_client):
-        """Test explicit integer/float types override default inference."""
-        # Explicit integer type should create Int regardless of default
-        int_result = mock_slurm_client.convert_cytype_to_omtype(
-            'integer', 42.7, "int_test"
-        )
-        assert int_result.__class__.__name__ == 'Int'
-        
-        # Explicit float type should create Float regardless of default
-        float_result = mock_slurm_client.convert_cytype_to_omtype(
-            'float', 42, "float_test"
-        )
-        assert float_result.__class__.__name__ == 'Float'
+# NOTE: Tests for convert_cytype_to_omtype and str_to_class methods have been
+# moved to test_schema_parsers.py as these functions were moved to that module
 
 
 class TestTypeHandlingIntegration:

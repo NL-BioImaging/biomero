@@ -297,7 +297,7 @@ def create_class_instance(module_name: str, class_name: str, *args, **kwargs):
 
 
 def convert_schema_type_to_omero(
-        schema_type: str, default_value, *args, **kwargs):
+        schema_type: str, default_value, *args, rtype=False, **kwargs):
     """
     Convert a schema type (BIAFLOWS/biomero-schema) to an OMERO type.
     
@@ -306,50 +306,78 @@ def convert_schema_type_to_omero(
             Boolean, integer, float, etc.)
         default_value: The default value. Used to distinguish between float
             and int for Number type.
-        *args: Additional positional arguments.
-        **kwargs: Additional keyword arguments.
+        *args: Additional positional arguments for script types.
+        rtype (bool): If True, return rtype instances for script execution.
+            If False, return script definition objects.
+        **kwargs: Additional keyword arguments for script types.
     
     Returns:
-        Any: The converted OMERO type class instance or None if errors
-            occurred.
+        Any: The converted OMERO type class instance or rtype instance,
+            or None if errors occurred.
     """
     if schema_type == 'Number':
         if isinstance(default_value, float):
+            if rtype:
+                return create_class_instance(
+                    "omero.rtypes", "rfloat", float(args[0]))
+            else:
+                return create_class_instance(
+                    "omero.scripts", "Float", *args, **kwargs)
+        else:
+            if rtype:
+                return create_class_instance(
+                    "omero.rtypes", "rint", int(float(args[0])))
+            else:
+                return create_class_instance(
+                    "omero.scripts", "Int", *args, **kwargs)
+    elif schema_type == 'integer':
+        if rtype:
             return create_class_instance(
-                "omero.scripts", "Float", *args, **kwargs)
+                "omero.rtypes", "rint", int(float(args[0])))
         else:
             return create_class_instance(
                 "omero.scripts", "Int", *args, **kwargs)
-    elif schema_type == 'integer':
-        return create_class_instance(
-            "omero.scripts", "Int", *args, **kwargs)
     elif schema_type == 'float':
-        return create_class_instance(
-            "omero.scripts", "Float", *args, **kwargs)
-    elif schema_type == 'Boolean':
-        return create_class_instance(
-            "omero.scripts", "Bool", *args, **kwargs)
-    elif schema_type == 'boolean':
-        return create_class_instance(
-            "omero.scripts", "Bool", *args, **kwargs)
-    elif schema_type == 'String':
-        return create_class_instance(
-            "omero.scripts", "String", *args, **kwargs)
-    elif schema_type == 'string':
-        return create_class_instance(
-            "omero.scripts", "String", *args, **kwargs)
-    elif schema_type == 'image':
-        # Image type - for OMERO, this is typically a String parameter
-        # that accepts image IDs or paths
-        return create_class_instance(
-            "omero.scripts", "String", *args, **kwargs)
-    elif schema_type == 'file':
-        # File type - for OMERO, this is typically a String parameter
-        # that accepts file paths
-        return create_class_instance(
-            "omero.scripts", "String", *args, **kwargs)
+        if rtype:
+            return create_class_instance(
+                "omero.rtypes", "rfloat", float(args[0]))
+        else:
+            return create_class_instance(
+                "omero.scripts", "Float", *args, **kwargs)
+    elif schema_type in ['Boolean', 'boolean']:
+        if rtype:
+            value = args[0] if args else default_value
+            bool_val = str(value).lower() in ['true', '1', 'yes', 'on']
+            return create_class_instance("omero.rtypes", "rbool", bool_val)
+        else:
+            return create_class_instance(
+                "omero.scripts", "Bool", *args, **kwargs)
+    elif schema_type in ['String', 'string', 'image', 'file']:
+        if rtype:
+            return create_class_instance(
+                "omero.rtypes", "rstring", str(args[0]))
+        else:
+            return create_class_instance(
+                "omero.scripts", "String", *args, **kwargs)
     else:
         raise ValueError(f"Unsupported schema type '{schema_type}'")
+
+
+def convert_schema_type_to_omero_rtype(
+        schema_type: str, default_value, value):
+    """
+    Convert a schema type to an OMERO rtype (backward compatibility wrapper).
+    
+    Args:
+        schema_type (str): The schema type to convert
+        default_value: The default value for type disambiguation
+        value: The actual value to convert
+    
+    Returns:
+        OMERO rtype: rtype instance ready for script execution
+    """
+    return convert_schema_type_to_omero(
+        schema_type, default_value, value, rtype=True)
 
 
 # Backward compatibility aliases

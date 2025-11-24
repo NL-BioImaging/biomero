@@ -14,6 +14,7 @@ from biomero.schema_parsers import (
     DescriptorParserFactory,
     detect_schema_format,
     convert_schema_type_to_omero,
+    convert_schema_type_to_omero_rtype,
     create_class_instance
 )
 
@@ -160,155 +161,140 @@ class TestDescriptorParserFactory:
 class TestTypeConversion:
     """Test cases for schema type to OMERO type conversion."""
     
+    @pytest.mark.parametrize("schema_type,default_value,expected_class", [
+        ('Number', 42, 'Int'),
+        ('Number', 42.0, 'Float'),
+        ('integer', 10, 'Int'),
+        ('float', 3.14, 'Float'),
+        ('Boolean', True, 'Bool'),
+        ('boolean', False, 'Bool'),
+        ('String', 'test', 'String'),
+        ('string', 'test', 'String'),
+        ('image', None, 'String'),
+        ('file', None, 'String'),
+    ])
     @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_number_int(self, mock_create_class):
-        """Test Number type with integer default converts to Int."""
-        # GIVEN
-        schema_type = 'Number'
-        default_value = 42
-        args = (1, 2, 3)
-        kwargs = {'key': 'value'}
-
-        # WHEN
-        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+    def test_convert_schema_type_to_omero_scripts(
+            self, mock_create_class, schema_type, default_value,
+            expected_class):
+        """Test schema type conversion to OMERO scripts."""
+        mock_create_class.return_value = "mocked_result"
         
-        # THEN
+        result = convert_schema_type_to_omero(
+            schema_type, default_value, 'param1',
+            description='test', optional=True)
+        
         mock_create_class.assert_called_once_with(
-            "omero.scripts", "Int", *args, **kwargs)
+            'omero.scripts', expected_class, 'param1',
+            description='test', optional=True)
+        assert result == "mocked_result"
+    
+    @pytest.mark.parametrize(
+        "schema_type,default_value,value,expected_class,expected_value", [
+        ('Number', 42, '100', 'rint', 100),
+        ('Number', 42.0, '100.5', 'rfloat', 100.5),
+        ('integer', 10, '100', 'rint', 100),
+        ('float', 3.14, '100.5', 'rfloat', 100.5),
+        ('string', 'test', 'hello', 'rstring', 'hello'),
+        ('String', 'test', 'hello', 'rstring', 'hello'),
+        ('image', None, '/path/img.tif', 'rstring', '/path/img.tif'),
+        ('file', None, '/path/data.csv', 'rstring', '/path/data.csv'),
+    ])
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_convert_schema_type_to_omero_rtypes(
+            self, mock_create_class, schema_type, default_value, value,
+            expected_class, expected_value):
+        """Test schema type conversion to OMERO rtypes."""
+        mock_create_class.return_value = "mocked_result"
+        
+        result = convert_schema_type_to_omero(
+            schema_type, default_value, value, rtype=True)
+        
+        mock_create_class.assert_called_once_with(
+            'omero.rtypes', expected_class, expected_value)
+        assert result == "mocked_result"
+    
+    @pytest.mark.parametrize("value,expected_bool", [
+        ('true', True), ('True', True), ('TRUE', True),
+        ('1', True), ('yes', True), ('YES', True),
+        ('on', True), ('ON', True),
+        ('false', False), ('False', False), ('FALSE', False),
+        ('0', False), ('no', False), ('NO', False),
+        ('off', False), ('OFF', False),
+        ('random', False), ('', False),
+    ])
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_boolean_value_parsing(
+            self, mock_create_class, value, expected_bool):
+        """Test boolean value parsing edge cases."""
+        mock_create_class.return_value = "mocked_rbool"
+        
+        convert_schema_type_to_omero('boolean', True, value, rtype=True)
+        
+        mock_create_class.assert_called_once_with(
+            'omero.rtypes', 'rbool', expected_bool)
+    
+    @pytest.mark.parametrize("value,expected_int", [
+        ('100', 100), ('100.0', 100), ('100.9', 100),
+        ('-42', -42), ('-42.7', -42),
+        ('0', 0), ('0.0', 0),
+    ])
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_integer_value_parsing(
+            self, mock_create_class, value, expected_int):
+        """Test integer value parsing edge cases."""
+        mock_create_class.return_value = "mocked_rint"
+        
+        convert_schema_type_to_omero('integer', 42, value, rtype=True)
+        
+        mock_create_class.assert_called_once_with(
+            'omero.rtypes', 'rint', expected_int)
+    
+    @pytest.mark.parametrize("value,expected_float", [
+        ('100', 100.0), ('100.5', 100.5), ('-42.7', -42.7),
+        ('0', 0.0), ('0.0', 0.0), ('3.14159', 3.14159),
+    ])
+    @patch('biomero.schema_parsers.create_class_instance')
+    def test_float_value_parsing(
+            self, mock_create_class, value, expected_float):
+        """Test float value parsing edge cases."""
+        mock_create_class.return_value = "mocked_rfloat"
+        
+        convert_schema_type_to_omero('float', 3.14, value, rtype=True)
+        
+        mock_create_class.assert_called_once_with(
+            'omero.rtypes', 'rfloat', expected_float)
     
     @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_number_float(
+    def test_convert_schema_type_to_omero_rtype_wrapper(
             self, mock_create_class):
-        """Test Number type with float default converts to Float."""
-        # GIVEN
-        schema_type = 'Number'
-        default_value = 42.0
-        args = (1, 2, 3)
-        kwargs = {'key': 'value'}
-
-        # WHEN
-        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
+        """Test that convert_schema_type_to_omero_rtype is a proper wrapper."""
+        mock_create_class.return_value = "mocked_rfloat"
         
-        # THEN
+        result = convert_schema_type_to_omero_rtype('float', 42.0, '100')
+        
         mock_create_class.assert_called_once_with(
-            "omero.scripts", "Float", *args, **kwargs)
+            "omero.rtypes", "rfloat", 100.0)
+        assert result == "mocked_rfloat"
     
     @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_integer(self, mock_create_class):
-        """Test integer type converts to Int."""
-        convert_schema_type_to_omero('integer', 10, 'test_param')
+    def test_omero_not_available(self, mock_create_class):
+        """Test behavior when OMERO is not available."""
+        mock_create_class.return_value = None
         
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "Int", 'test_param')
+        result = convert_schema_type_to_omero('float', 42.0, '100.5', rtype=True)
+        
+        assert result is None
     
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_float(self, mock_create_class):
-        """Test float type converts to Float."""
-        convert_schema_type_to_omero('float', 3.14, 'test_param')
-        
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "Float", 'test_param')
-    
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_boolean(self, mock_create_class):
-        """Test Boolean type converts to Bool."""
-        # GIVEN
-        schema_type = 'Boolean'
-        default_value = "false"
-        args = (1, 2, 3)
-        kwargs = {'key': 'value'}
-
-        # WHEN
-        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
-        
-        # THEN
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "Bool", *args, **kwargs)
-    
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_boolean_lowercase(
-            self, mock_create_class):
-        """Test boolean type converts to Bool."""
-        convert_schema_type_to_omero('boolean', False, 'test_param')
-        
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "Bool", 'test_param')
-    
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_string(self, mock_create_class):
-        """Test String type converts to String."""
-        # GIVEN
-        schema_type = 'String'
-        default_value = "42 is the answer"
-        args = (1, 2, 3)
-        kwargs = {'key': 'value'}
-
-        # WHEN
-        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
-        
-        # THEN
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "String", *args, **kwargs)
-
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_image(self, mock_create_class):
-        """Test image type converts to String."""
-        # GIVEN
-        schema_type = 'image'
-        default_value = None
-        args = (1, 2, 3)
-        kwargs = {'key': 'value'}
-
-        # WHEN
-        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
-        
-        # THEN
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "String", *args, **kwargs)
-
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_file(self, mock_create_class):
-        """Test file type converts to String."""
-        # GIVEN
-        schema_type = 'file'
-        default_value = None
-        args = (1, 2, 3)
-        kwargs = {'key': 'value'}
-
-        # WHEN
-        convert_schema_type_to_omero(schema_type, default_value, *args, **kwargs)
-        
-        # THEN
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "String", *args, **kwargs)
-    
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_string_lowercase(
-            self, mock_create_class):
-        """Test string type converts to String."""
-        convert_schema_type_to_omero('string', 'test', 'test_param')
-        
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "String", 'test_param')
-    
-    @patch('biomero.schema_parsers.create_class_instance')
-    def test_convert_schema_type_to_omero_with_kwargs(self, mock_create_class):
-        """Test conversion with additional kwargs."""
-        convert_schema_type_to_omero(
-            'integer', 42, 'test_param',
-            description='Test description',
-            optional=True
-        )
-        
-        mock_create_class.assert_called_once_with(
-            "omero.scripts", "Int", 'test_param',
-            description='Test description', optional=True)
-    
-    def test_convert_schema_type_to_omero_unsupported_type(self):
+    def test_unsupported_schema_type(self):
         """Test that unsupported types raise ValueError."""
-        with pytest.raises(ValueError,
-                           match="Unsupported schema type 'unknown'"):
-            convert_schema_type_to_omero('unknown', 'test', 'test_param')
+        with pytest.raises(ValueError, match="Unsupported schema type 'unknown'"):
+            convert_schema_type_to_omero('unknown', 'test', 'param')
+    
+    def test_unsupported_schema_type_rtype(self):
+        """Test that unsupported types raise ValueError for rtypes too."""
+        with pytest.raises(ValueError, match="Unsupported schema type 'unknown'"):
+            convert_schema_type_to_omero('unknown', 'test', 'param', rtype=True)
 
 
 class TestClassInstantiation:

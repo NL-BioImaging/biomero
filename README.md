@@ -1,21 +1,11 @@
-# BIOMERO - BioImage analysis in OMERO
+# BIOMERO 2.0 — BioImage Analysis in OMERO
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![DOI](https://zenodo.org/badge/638954891.svg)](https://zenodo.org/badge/latestdoi/638954891) [![PyPI - Version](https://img.shields.io/pypi/v/biomero)](https://pypi.org/project/biomero/) [![PyPI - Python Versions](https://img.shields.io/pypi/pyversions/biomero)](https://pypi.org/project/biomero/) ![Slurm](https://img.shields.io/badge/Slurm-21.08.6-blue.svg) ![OMERO](https://img.shields.io/badge/OMERO-5.6.8-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu) [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7530/badge)](https://bestpractices.coreinfrastructure.org/projects/7530) [![Sphinx build](https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment) [![python-package build](https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml/badge.svg)](https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml) [![python-publish build](https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml) [![Coverage Status](https://coveralls.io/repos/github/NL-BioImaging/biomero/badge.svg?branch=main)](https://coveralls.io/github/NL-BioImaging/biomero?branch=main)
 
 The **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**, allows you to run (FAIR) bioimage analysis workflows directly from OMERO on a high-performance compute (HPC) cluster, remotely through SSH.
 
-The BIOMERO framework consists of this Python library `biomero` (also known as **BIOMERO.analyzer**), together with the [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts) that can be run directly from the OMERO web interface.
-
-The package includes the `SlurmClient` class, which provides **SSH-based connectivity** and interaction with a [Slurm](https://slurm.schedmd.com/quickstart.html) (high-performance compute) cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images (think Docker containers...), as well as specific FAIR image analysis workflows and their associated repositories. 
-
-Overall, the `biomero` package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.
-
-_WARNING_: Please note that default settings are for short/medium jobs. If you run long workflows (>45min), you will run into 2 lethal issues:
-- Your Slurm job will timeout after **45 minutes**! See [Time Limit on Slurm](#time-limit-on-slurm) on what configs to change.
-- Your OMERO script (incl [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes**! Change [omero script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout) settings if you expect longer workflows.
-
 # BIOMERO 2.0
 
-Get ready for an enhanced BIOMERO! 
+Get ready for an enhanced **BIOMERO**! 
 
 BIOMERO 2.0 is a complete ecosystem that includes:
 - **BIOMERO.analyzer** (this Python library) - The core analysis engine
@@ -23,28 +13,57 @@ BIOMERO 2.0 is a complete ecosystem that includes:
 - **BIOMERO.importer** - Automated data import service
 - **OMERO.biomero** - Modern web interface plugin
 
-In 2.0, we add full workflow tracking via a database and dashboard, with the [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) plugin providing a nice new User Interface in OMERO.web. Every workflow run will be uniquely identifiable and you can find its resulting assets back in OMERO.
+Full workflow tracking is now supported via a database and dashboard. The [OMERO.biomero](https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero) plugin provides an intuitive interface in OMERO.web. Every workflow run is uniquely identifiable, and resulting assets are accessible directly in OMERO.
 
-All in all, BIOMERO 2.0 greatly enhances both the user interaction for BIOMERO and the FAIR metadata of all these resulting assets in OMERO. 
+NL-BIOMERO provides a full containerized deployment stack and documentation:  
+- Repository: [NL-BIOMERO](https://github.com/NL-BioImaging/NL-BIOMERO)  
+- Documentation: [NL-BIOMERO GitHub Pages](https://nl-bioimaging.github.io/NL-BIOMERO/)  <-- start reading here
 
-# Overview
+## 📊 Highlights
+| Feature | BIOMERO 1.x | BIOMERO 2.0 |
+|---------|------------|-------------|
+| Workflow Tracking | Logs only | Full database events |
+| Interface | Scripts only | Modern web plugin + scripts |
+| Progress Monitoring | Manual | Live dashboards |
+| Job History | None | Complete execution history |
+| Analytics | None | Integrated Metabase |
+
+---
+
+# BIOMERO Python library (BIOMERO.analyzer)
+
+The BIOMERO framework consists of this Python library `biomero` (also known as **BIOMERO.analyzer**), together with the [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts) that can be run directly from the OMERO web interface.
+
+The package includes the `SlurmClient` class, which provides **SSH-based connectivity** and interaction with a [Slurm](https://slurm.schedmd.com/quickstart.html) (high-performance compute) cluster. The package enables users to submit jobs, monitor job status, retrieve job output, and perform other Slurm-related tasks. Additionally, the package offers functionality for configuring and managing paths to Slurm data and Singularity images (think Docker containers...), as well as specific FAIR image analysis workflows and their associated repositories. 
+
+Overall, the `biomero` package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.
+
+> ⚠️ **Warning:** Default settings are intended for short/medium jobs. For long workflows (>45min) please change some default settings:
+> - Slurm jobs will timeout after **45 minutes** — see [Time Limit on Slurm](#time-limit-on-slurm)  
+> - OMERO scripts (including [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts)) will timeout after **60 minutes** — adjust [OMERO script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.scripts.timeout)
+
+---
+
+## Overview
 
 In the figure below we show our **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**. 
 
-BIOMERO consists of this Python library (`biomero`) and the integrations within OMERO, currently through our [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts).
+BIOMERO 1.0 consists of this Python library (`biomero`) and the integrations within OMERO, currently through our [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts).
 
 ![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
 
+For the BIOMERO 2.0 setup, see NL-BIOMERO for deployment; and for details on the design and FAIR features, see our latest preprint: [“BIOMERO 2.0: end-to-end FAIR infrastructure for bioimaging data import, analysis, and provenance”](https://arxiv.org/abs/2511.13611)  
 
 
 ## Deploy with NL-BIOMERO
 
 For the easiest deployment and integration with other FAIR infrastructure, use the NL-BIOMERO stack:
 
-- NL-BIOMERO deployment repo: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO
-- OMERO.biomero OMERO.web plugin: https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero
+- NL-BIOMERO deployment repo: https://github.com/NL-BioImaging/NL-BIOMERO
+- OMERO.biomero OMERO.web plugin: https://github.com/NL-BioImaging/OMERO.biomero
 - Prebuilt BIOMERO processor container: https://hub.docker.com/r/cellularimagingcf/biomero
 
+---
 
 # Quickstart
 

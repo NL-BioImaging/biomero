@@ -119,3 +119,14 @@ class workflow_status:
     FAILED = "FAILED"
     RUNNING = "RUNNING"
     JOB_STATUS = "JOB_"
+
+
+class schema_formats:
+    # ------------------------------------------------------------
+    # Workflow descriptor schema format identifiers
+    # ------------------------------------------------------------
+    BIAFLOWS = "BIAFLOWS"  # cytomine-0.1 format
+    CYTOMINE = "cytomine-0.1"  # legacy name
+    BIOMERO_SCHEMA = "biomero-schema"  # new Pydantic format
+    CWL = "CWL"  # Common Workflow Language
+    OPENAPI = "OpenAPI"  # OpenAPI format

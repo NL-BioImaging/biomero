@@ -148,7 +148,7 @@ def test_get_unzip_command(slurm_client):
     slurm_data_path = "/path/to/slurm/data"
     slurm_client.slurm_data_path = slurm_data_path
     zipfile = "example"
-    filter_filetypes = "*.zarr *.tiff *.tif"
+    filter_filetypes = "*.zarr *.ome.zarr *.tiff *.tif"
     expected_command = (
         f"mkdir \"{slurm_data_path}/{zipfile}\" \
                     \"{slurm_data_path}/{zipfile}/data\" \
@@ -422,8 +422,19 @@ def test_run_conversion_workflow_job(
         expected_sbatch_env["CONVERSION_PARTITION"] = f'"{conversion_partition}"'
 
     expected_conversion_cmd = 'sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N "$SCRIPT_PATH/convert_job_array.sh"'
+    
+    # Handle special case for zarr format (.zarr and .ome.zarr)
+    if source_format == 'zarr':
+        find_cmd = (f'find "{expected_data_path}/data/in" -name "*.zarr" '
+                    f'-o -name "*.ome.zarr" | awk \'{{print NR, $0}}\' '
+                    f'> "{expected_config_file}"')
+    else:
+        find_cmd = (f'find "{expected_data_path}/data/in" '
+                    f'-name "*.{source_format}" | awk \'{{print NR, $0}}\' '
+                    f'> "{expected_config_file}"')
+    
     expected_commands = [
-        f'find "{expected_data_path}/data/in" -name "*.{source_format}" | awk \'{{print NR, $0}}\' > "{expected_config_file}"',
+        find_cmd,
         f'N=$(wc -l < "{expected_config_file}")',
         f'echo "Number of .{source_format} files: $N"',
         expected_conversion_cmd,
@@ -524,55 +535,8 @@ def test_extract_parts_from_url(slurm_client):
     assert valid_branch2 == 'master'
 
 
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_Number(mock_str_to_class,
-                                         slurm_client):
-    # GIVEN
-    cytype = 'Number'
-    _default = 42.0
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "Float", *args, **kwargs)
-
-
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_Boolean(mock_str_to_class,
-                                          slurm_client):
-    # GIVEN
-    cytype = 'Boolean'
-    _default = "false"
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "Bool", *args, **kwargs)
-
-
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_String(mock_str_to_class,
-                                         slurm_client):
-    # GIVEN
-    cytype = 'String'
-    _default = "42 is the answer"
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "String", *args, **kwargs)
+# NOTE: convert_cytype_to_omtype method has been removed in favor of
+# convert_schema_type_to_omero in schema_parsers module
 
 
 @patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github', return_value={
@@ -631,6 +595,78 @@ def test_get_workflow_parameters(mock_pull_descriptor,
         },
     }
     assert workflow_params == expected_workflow_params
+
+
+@patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github')
+def test_get_workflow_parameters_with_schema_parser_integration(
+        mock_pull_descriptor, slurm_client):
+    """Test get_workflow_parameters integrates with schema parser."""
+    # GIVEN - A raw BIAFLOWS descriptor that needs parsing
+    raw_biaflows_descriptor = {
+        "name": "Test Workflow",
+        "description": "Test workflow for integration testing",
+        "schema-version": "cytomine-0.1",
+        "command-line": "python wrapper.py",
+        "container-image": {
+            "image": "test/image:latest",
+            "type": "singularity"
+        },
+        "inputs": [
+            {
+                "id": "input1",
+                "value-key": "@ID1",
+                "default-value": "default_value1",
+                "type": "String",
+                "optional": False,
+                "command-line-flag": "--flag1",
+                "description": "Test input parameter",
+            },
+            {
+                "id": "input2",
+                "value-key": "@ID2",
+                "default-value": 42,
+                "type": "Number",
+                "optional": True,
+                "command-line-flag": "--flag2",
+                "description": "Test numeric parameter",
+            },
+            {
+                "id": "cytomine_skip",  # Should be filtered out
+                "type": "String",
+                "default-value": "skip me"
+            }
+        ]
+    }
+    mock_pull_descriptor.return_value = raw_biaflows_descriptor
+
+    # WHEN
+    workflow_params = slurm_client.get_workflow_parameters("test_workflow")
+
+    # THEN - Should parse and convert attribute names correctly
+    expected_workflow_params = {
+        'input1': {
+            'name': 'input1',
+            'default': 'default_value1',
+            'cytype': 'string',  # BIAFLOWS "String" -> "string"
+            'optional': False,
+            'cmd_flag': '--flag1',
+            'description': 'Test input parameter',
+        },
+        'input2': {
+            'name': 'input2',
+            'default': 42,
+            'cytype': 'integer',  # Number with int default -> integer
+            'optional': True,
+            'cmd_flag': '--flag2',
+            'description': 'Test numeric parameter',
+        },
+        # cytomine_skip should be filtered out
+    }
+
+    assert workflow_params == expected_workflow_params
+    # Verify schema parser was used by checking transformed types
+    assert workflow_params['input1']['cytype'] == 'string'
+    assert workflow_params['input2']['cytype'] == 'integer'
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')

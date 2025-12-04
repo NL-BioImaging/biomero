@@ -90,6 +90,37 @@ For a quick overview of what this library can do for you, we can install an exam
 
 # Prerequisites & Getting Started with BIOMERO
 
+## Installation
+
+### Using pip (Cross-platform)
+
+BIOMERO can be installed via pip with different dependency sets:
+
+```bash
+# Basic library only (core BIOMERO functionality)
+python3 -m pip install biomero
+
+# With BIOMERO.scripts requirements (includes BIOMERO.scripts dependencies)
+python3 -m pip install biomero[full]
+
+# Latest development version with BIOMERO.scripts requirements
+python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero[full]'
+
+# With test dependencies (for local testing/development)
+python3 -m pip install biomero[test]
+
+# With both test and BIOMERO.scripts requirements
+python3 -m pip install biomero[test,full]
+```
+
+**Dependency sets explained:**
+- **Default (no extras)**: Core BIOMERO library for basic functionality
+- **`[test]`**: Adds pytest, coverage tools for local testing and development
+- **`[full]`**: Adds BIOMERO.scripts requirements (`ezomero`, `tifffile`, `omero-metadata`, `omero-cli-zarr`) which require complex dependencies like `zeroc-ice` and `omero-py`
+
+**Note**: The `[full]` dependencies require complex packages like `zeroc-ice` and `omero-py` that need system libraries. For OMERO integration, you may need to install these separately or use conda.
+
+
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
 
@@ -106,12 +137,11 @@ Your Slurm cluster/login node needs to have:
 Your OMERO _processing_ node needs to have:
 1. SSH client and access to the Slurm cluster (w/ private key / headless)
 2. SCP access to the Slurm cluster
-3. Python3.8+
+3. Python3.10+
 4. This library installed 
-    - Latest release on PyPI `python3 -m pip install biomero`
-    - or latest Github version `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero'`
-5. Configuration setup at `/etc/slurm-.ini`
-6. Requirements for some scripts: `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` and the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr).
+    - **With BIOMERO.scripts dependencies**: `python3 -m pip install biomero[full]`
+    - **Latest development**: `python3 -m pip install 'git+https://github.com/NL-BioImaging/biomero[full]'`
+5. Configuration setup at `/etc/slurm-config.ini`
 
 Your OMERO _server_ node needs to have:
 1. Some OMERO example scripts installed to interact with this library:
@@ -151,11 +181,12 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
-5. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements, e.g.
-    - `python3 -m pip install ezomero==1.1.1 tifffile==2020.9.3` 
-    - the [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr), e.g. 
-    `python3 -m pip install omero-cli-zarr==0.5.3` && `yum install -y blosc-devel`
-    - the [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip), e.g. `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
+5. 4. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements:
+    - **If you installed `biomero[full]`**: All required dependencies (`ezomero`, `tifffile`, `omero-metadata`, `omero-cli-zarr`) are already included
+    - **Manual installation** (if using basic `biomero` without `[full]` extras): 
+      - `python3 -m pip install ezomero>=1.1.1 tifffile>=2020.9.3 omero-metadata>=0.12.0 omero-cli-zarr>=0.5.5` 
+      - Additional system dependencies may be required: `yum install -y blosc-devel`
+      - Install [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip): `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
 
 6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.
     - You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field. 

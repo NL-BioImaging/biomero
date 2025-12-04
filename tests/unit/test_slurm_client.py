@@ -148,7 +148,7 @@ def test_get_unzip_command(slurm_client):
     slurm_data_path = "/path/to/slurm/data"
     slurm_client.slurm_data_path = slurm_data_path
     zipfile = "example"
-    filter_filetypes = "*.zarr *.tiff *.tif"
+    filter_filetypes = "*.zarr *.ome.zarr *.tiff *.tif"
     expected_command = (
         f"mkdir \"{slurm_data_path}/{zipfile}\" \
                     \"{slurm_data_path}/{zipfile}/data\" \
@@ -422,8 +422,19 @@ def test_run_conversion_workflow_job(
         expected_sbatch_env["CONVERSION_PARTITION"] = f'"{conversion_partition}"'
 
     expected_conversion_cmd = 'sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N "$SCRIPT_PATH/convert_job_array.sh"'
+    
+    # Handle special case for zarr format (.zarr and .ome.zarr)
+    if source_format == 'zarr':
+        find_cmd = (f'find "{expected_data_path}/data/in" -name "*.zarr" '
+                    f'-o -name "*.ome.zarr" | awk \'{{print NR, $0}}\' '
+                    f'> "{expected_config_file}"')
+    else:
+        find_cmd = (f'find "{expected_data_path}/data/in" '
+                    f'-name "*.{source_format}" | awk \'{{print NR, $0}}\' '
+                    f'> "{expected_config_file}"')
+
     expected_commands = [
-        f'find "{expected_data_path}/data/in" -name "*.{source_format}" | awk \'{{print NR, $0}}\' > "{expected_config_file}"',
+        find_cmd,
         f'N=$(wc -l < "{expected_config_file}")',
         f'echo "Number of .{source_format} files: $N"',
         expected_conversion_cmd,

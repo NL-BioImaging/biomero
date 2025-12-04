@@ -1606,8 +1606,19 @@ class SlurmClient(Connection):
         data_path = f"{self.slurm_data_path}/{folder_name}"
         conversion_cmd, sbatch_env, chosen_converter, version = self.get_conversion_command(
             data_path, config_file, source_format, target_format)
+        
+        # Handle both .zarr and .ome.zarr extensions for backward compatibility
+        if source_format == 'zarr':
+            find_cmd = (f"find \"{data_path}/data/in\" -name \"*.zarr\" "
+                        f"-o -name \"*.ome.zarr\" | "
+                        f"awk '{{print NR, $0}}' > \"{config_file}\"")
+        else:
+            find_cmd = (f"find \"{data_path}/data/in\" "
+                        f"-name \"*.{source_format}\" | "
+                        f"awk '{{print NR, $0}}' > \"{config_file}\"")
+
         commands = [
-            f"find \"{data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{config_file}\"",
+            find_cmd,
             f"N=$(wc -l < \"{config_file}\")",
             f"echo \"Number of .{source_format} files: $N\"",
             conversion_cmd
@@ -2284,7 +2295,7 @@ class SlurmClient(Connection):
         return local_tmp_storage, export_file, result
 
     def get_unzip_command(self, zipfile: str,
-                          filter_filetypes: str = "*.zarr *.tiff *.tif"
+                          filter_filetypes: str = "*.zarr *.ome.zarr *.tiff *.tif"
                           ) -> str:
         """
         Generate a command string for unzipping a data archive and creating
@@ -2295,7 +2306,7 @@ class SlurmClient(Connection):
                 Without extension.
             filter_filetypes (str, optional): A space-separated string
                 containing the file extensions to extract from the zip file.
-                E.g. defaults to "*.zarr *.tiff *.tif".
+                E.g. defaults to "*.zarr *.ome.zarr *.tiff *.tif".
                 Setting this argument to `None` will omit the file
                 filter and extract all files.
 

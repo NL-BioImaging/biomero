@@ -54,6 +54,10 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#quickstart">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-pip-cross-platform">Using pip (Cross-platform)</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#slurm-requirements">Slurm Requirements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#omero-requirements">OMERO Requirements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a></li>
@@ -62,7 +66,7 @@
 <li class="toctree-l1"><a class="reference internal" href="#biomero-scripts">BIOMERO.scripts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#biomero-web-interface">BIOMERO Web Interface</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Installation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#recommended-use-nl-biomero-stack">Recommended: Use NL-BIOMERO Stack</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#manual-installation-advanced">Manual Installation (Advanced)</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
@@ -290,6 +294,36 @@
 </section>
 <section id="prerequisites-getting-started-with-biomero">
 <h1>Prerequisites &amp; Getting Started with BIOMERO<a class="headerlink" href="#prerequisites-getting-started-with-biomero" title="Permalink to this heading"></a></h1>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
+<section id="using-pip-cross-platform">
+<h3>Using pip (Cross-platform)<a class="headerlink" href="#using-pip-cross-platform" title="Permalink to this heading"></a></h3>
+<p>BIOMERO can be installed via pip with different dependency sets:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic library only (core BIOMERO functionality)</span>
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>biomero
+
+<span class="c1"># With BIOMERO.scripts requirements (includes BIOMERO.scripts dependencies)</span>
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>biomero<span class="o">[</span>full<span class="o">]</span>
+
+<span class="c1"># Latest development version with BIOMERO.scripts requirements</span>
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;git+https://github.com/NL-BioImaging/biomero[full]&#39;</span>
+
+<span class="c1"># With test dependencies (for local testing/development)</span>
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>biomero<span class="o">[</span>test<span class="o">]</span>
+
+<span class="c1"># With both test and BIOMERO.scripts requirements</span>
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>biomero<span class="o">[</span>test,full<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Dependency sets explained:</strong></p>
+<ul class="simple">
+<li><p><strong>Default (no extras)</strong>: Core BIOMERO library for basic functionality</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">[test]</span></code></strong>: Adds pytest, coverage tools for local testing and development</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">[full]</span></code></strong>: Adds BIOMERO.scripts requirements (<code class="docutils literal notranslate"><span class="pre">ezomero</span></code>, <code class="docutils literal notranslate"><span class="pre">tifffile</span></code>, <code class="docutils literal notranslate"><span class="pre">omero-metadata</span></code>, <code class="docutils literal notranslate"><span class="pre">omero-cli-zarr</span></code>) which require complex dependencies like <code class="docutils literal notranslate"><span class="pre">zeroc-ice</span></code> and <code class="docutils literal notranslate"><span class="pre">omero-py</span></code></p></li>
+</ul>
+<p><strong>Note</strong>: The <code class="docutils literal notranslate"><span class="pre">[full]</span></code> dependencies require complex packages like <code class="docutils literal notranslate"><span class="pre">zeroc-ice</span></code> and <code class="docutils literal notranslate"><span class="pre">omero-py</span></code> that need system libraries. For OMERO integration, you may need to install these separately or use conda.</p>
+</section>
+</section>
 <section id="slurm-requirements">
 <h2>Slurm Requirements<a class="headerlink" href="#slurm-requirements" title="Permalink to this heading"></a></h2>
 <p>Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !</p>
@@ -309,15 +343,14 @@
 <ol class="arabic simple">
 <li><p>SSH client and access to the Slurm cluster (w/ private key / headless)</p></li>
 <li><p>SCP access to the Slurm cluster</p></li>
-<li><p>Python3.8+</p></li>
+<li><p>Python3.10+</p></li>
 <li><p>This library installed</p>
 <ul class="simple">
-<li><p>Latest release on PyPI <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">biomero</span></code></p></li>
-<li><p>or latest Github version <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'git+https://github.com/NL-BioImaging/biomero'</span></code></p></li>
+<li><p><strong>With BIOMERO.scripts dependencies</strong>: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">biomero[full]</span></code></p></li>
+<li><p><strong>Latest development</strong>: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'git+https://github.com/NL-BioImaging/biomero[full]'</span></code></p></li>
 </ul>
 </li>
-<li><p>Configuration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-.ini</span></code></p></li>
-<li><p>Requirements for some scripts: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code> and the <a class="reference external" href="https://github.com/ome/omero-cli-zarr">OMERO CLI Zarr plugin</a>.</p></li>
+<li><p>Configuration setup at <code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
 </ol>
 <p>Your OMERO <em>server</em> node needs to have:</p>
 <ol class="arabic simple">
@@ -362,13 +395,19 @@
 </li>
 </ol>
 <p>!!<em>NOTE</em>: Do not install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py">Example Minimal Slurm Script</a> if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a <strong>FEATURE</strong>.</p>
-<ol class="arabic simple" start="5">
-<li><p>Install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/">BIOMERO.scripts</a> requirements, e.g.</p>
+<ol class="arabic" start="5">
+<li><ol class="arabic simple" start="4">
+<li><p>Install <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/">BIOMERO.scripts</a> requirements:</p></li>
+</ol>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero==1.1.1</span> <span class="pre">tifffile==2020.9.3</span></code></p></li>
-<li><p>the <a class="reference external" href="https://github.com/ome/omero-cli-zarr">OMERO CLI Zarr plugin</a>, e.g.
-<code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">omero-cli-zarr==0.5.3</span></code> &amp;&amp; <code class="docutils literal notranslate"><span class="pre">yum</span> <span class="pre">install</span> <span class="pre">-y</span> <span class="pre">blosc-devel</span></code></p></li>
-<li><p>the <a class="reference external" href="https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip">bioformats2raw-0.7.0</a>, e.g. <code class="docutils literal notranslate"><span class="pre">unzip</span> <span class="pre">-d</span> <span class="pre">/opt</span> <span class="pre">bioformats2raw-0.7.0.zip</span> <span class="pre">&amp;&amp;</span> <span class="pre">export</span> <span class="pre">PATH=&quot;$PATH:/opt/bioformats2raw-0.7.0/bin&quot;</span></code></p></li>
+<li><p><strong>If you installed <code class="docutils literal notranslate"><span class="pre">biomero[full]</span></code></strong>: All required dependencies (<code class="docutils literal notranslate"><span class="pre">ezomero</span></code>, <code class="docutils literal notranslate"><span class="pre">tifffile</span></code>, <code class="docutils literal notranslate"><span class="pre">omero-metadata</span></code>, <code class="docutils literal notranslate"><span class="pre">omero-cli-zarr</span></code>) are already included</p></li>
+<li><p><strong>Manual installation</strong> (if using basic <code class="docutils literal notranslate"><span class="pre">biomero</span></code> without <code class="docutils literal notranslate"><span class="pre">[full]</span></code> extras):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ezomero&gt;=1.1.1</span> <span class="pre">tifffile&gt;=2020.9.3</span> <span class="pre">omero-metadata&gt;=0.12.0</span> <span class="pre">omero-cli-zarr&gt;=0.5.5</span></code></p></li>
+<li><p>Additional system dependencies may be required: <code class="docutils literal notranslate"><span class="pre">yum</span> <span class="pre">install</span> <span class="pre">-y</span> <span class="pre">blosc-devel</span></code></p></li>
+<li><p>Install <a class="reference external" href="https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip">bioformats2raw-0.7.0</a>: <code class="docutils literal notranslate"><span class="pre">unzip</span> <span class="pre">-d</span> <span class="pre">/opt</span> <span class="pre">bioformats2raw-0.7.0.zip</span> <span class="pre">&amp;&amp;</span> <span class="pre">export</span> <span class="pre">PATH=&quot;$PATH:/opt/bioformats2raw-0.7.0/bin&quot;</span></code></p></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in an OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
@@ -422,8 +461,8 @@
 <li><p><strong>Metabase Analytics</strong>: View workflow analytics and performance metrics through integrated dashboards</p></li>
 </ul>
 </section>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
+<section id="id1">
+<h2>Installation<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
 <section id="recommended-use-nl-biomero-stack">
 <h3>Recommended: Use NL-BIOMERO Stack<a class="headerlink" href="#recommended-use-nl-biomero-stack" title="Permalink to this heading"></a></h3>
 <p><strong>For most users, we strongly recommend using the pre-built NL-BIOMERO deployment stack</strong> which includes OMERO.biomero and all required dependencies pre-configured:</p>

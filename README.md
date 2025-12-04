@@ -1,11 +1,13 @@
-# BIOMERO 2.0 — BioImage Analysis in OMERO
+# BIOMERO — BioImage Analysis in OMERO
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![DOI](https://zenodo.org/badge/638954891.svg)](https://zenodo.org/badge/latestdoi/638954891) [![PyPI - Version](https://img.shields.io/pypi/v/biomero)](https://pypi.org/project/biomero/) [![PyPI - Python Versions](https://img.shields.io/pypi/pyversions/biomero)](https://pypi.org/project/biomero/) ![Slurm](https://img.shields.io/badge/Slurm-21.08.6-blue.svg) ![OMERO](https://img.shields.io/badge/OMERO-5.6.8-blue.svg) [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu) [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7530/badge)](https://bestpractices.coreinfrastructure.org/projects/7530) [![Sphinx build](https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/biomero/actions/workflows/sphinx.yml) [![pages-build-deployment](https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/NL-BioImaging/biomero/actions/workflows/pages/pages-build-deployment) [![python-package build](https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml/badge.svg)](https://github.com/NL-BioImaging/biomero/actions/workflows/python-package.yml) [![python-publish build](https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml/badge.svg?branch=main)](https://github.com/NL-BioImaging/biomero/actions/workflows/python-publish.yml) [![Coverage Status](https://coveralls.io/repos/github/NL-BioImaging/biomero/badge.svg?branch=main)](https://coveralls.io/github/NL-BioImaging/biomero?branch=main)
+
+> 🚀 **This package is part of BIOMERO 2.0** — For complete deployment and FAIR infrastructure setup, start with the [**NL-BIOMERO Documentation**](https://nl-bioimaging.github.io/NL-BIOMERO/) 📖
 
 The **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**, allows you to run (FAIR) bioimage analysis workflows directly from OMERO on a high-performance compute (HPC) cluster, remotely through SSH.
 
 # BIOMERO 2.0
 
-Get ready for an enhanced **BIOMERO**! 
+We have release an enhanced **BIOMERO** experience! 
 
 BIOMERO 2.0 is a complete ecosystem that includes:
 - **BIOMERO.analyzer** (this Python library) - The core analysis engine
@@ -181,12 +183,12 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 
 !!*NOTE*: Do not install [Example Minimal Slurm Script](https://github.com/NL-BioImaging/biomero-scripts/blob/master/Example_Minimal_Slurm_Script.py) if you do not trust your users with your Slurm cluster. It has literal Command Injection for the SSH user as a **FEATURE**. 
 
-5. 4. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements:
+5. Install [BIOMERO.scripts](https://github.com/NL-BioImaging/biomero-scripts/) requirements:
     - **If you installed `biomero[full]`**: All required dependencies (`ezomero`, `tifffile`, `omero-metadata`, `omero-cli-zarr`) are already included
     - **Manual installation** (if using basic `biomero` without `[full]` extras): 
-      - `python3 -m pip install ezomero>=1.1.1 tifffile>=2020.9.3 omero-metadata>=0.12.0 omero-cli-zarr>=0.5.5` 
+      - `python3 -m pip install ezomero>=1.1.1 tifffile>=2020.9.3 omero-metadata>=0.12.0 omero-cli-zarr>=0.6.1` 
       - Additional system dependencies may be required: `yum install -y blosc-devel`
-      - Install [bioformats2raw-0.7.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.7.0/bioformats2raw-0.7.0.zip): `unzip -d /opt bioformats2raw-0.7.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.7.0/bin"`
+      - Install [bioformats2raw-0.11.0](https://github.com/glencoesoftware/bioformats2raw/releases/download/v0.11.0/bioformats2raw-0.11.0.zip): `unzip -d /opt bioformats2raw-0.11.0.zip && export PATH="$PATH:/opt/bioformats2raw-0.11.0/bin"`
 
 6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.
     - You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field. 

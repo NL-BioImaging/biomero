@@ -7,7 +7,7 @@ The **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**, allows yo
 
 # BIOMERO 2.0
 
-We have release an enhanced **BIOMERO** experience! 
+We have released an enhanced **BIOMERO** experience! 
 
 BIOMERO 2.0 is a complete ecosystem that includes:
 - **BIOMERO.analyzer** (this Python library) - The core analysis engine

@@ -188,7 +188,7 @@
 <li><p><strong>BIOMERO.importer</strong> - Automated data import service</p></li>
 <li><p><strong>OMERO.biomero</strong> - Modern web interface plugin</p></li>
 </ul>
-<p>Full workflow tracking is now supported via a database and dashboard. The <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> plugin provides an intuitive interface in OMERO.web. Every workflow run is uniquely identifiable, and resulting assets are accessible directly in OMERO.</p>
+<p>Full workflow tracking is now supported via a database and dashboard. The <a class="reference external" href="https://github.com/NL-BioImaging/OMERO.biomero">OMERO.biomero</a> plugin provides an intuitive interface in OMERO.web. Every workflow run is uniquely identifiable, and resulting assets are accessible directly in OMERO.</p>
 <p>NL-BIOMERO provides a full containerized deployment stack and documentation:</p>
 <ul class="simple">
 <li><p>Repository: <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO">NL-BIOMERO</a></p></li>
@@ -266,12 +266,12 @@
 <ol class="arabic simple">
 <li><p>Setup a local OMERO w/ this library:</p>
 <ul class="simple">
-<li><p>Follow Quickstart of https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO</p></li>
+<li><p>Follow Quickstart of https://github.com/NL-BioImaging/NL-BIOMERO</p></li>
 </ul>
 </li>
 <li><p>Setup a local Slurm w/ SSH access:</p>
 <ul class="simple">
-<li><p>Follow Quickstart of https://github.com/TorecLuik/slurm-docker-cluster</p></li>
+<li><p>Follow Quickstart of https://github.com/NL-BioImaging/NL-BIOMERO-Local-Slurm</p></li>
 </ul>
 </li>
 <li><p>Upload some data with OMERO.insight to <code class="docutils literal notranslate"><span class="pre">localhost</span></code> server (… we are working on a web importer … TBC)</p></li>
@@ -447,7 +447,7 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 </section>
 <section id="biomero-web-interface">
 <h1>BIOMERO Web Interface<a class="headerlink" href="#biomero-web-interface" title="Permalink to this heading"></a></h1>
-<p>In addition to the BIOMERO.scripts, BIOMERO 2.0 introduces a modern web-based user interface through the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/OMERO.biomero">OMERO.biomero</a> web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.</p>
+<p>In addition to the BIOMERO.scripts, BIOMERO 2.0 introduces a modern web-based user interface through the <a class="reference external" href="https://github.com/NL-BioImaging/OMERO.biomero">OMERO.biomero</a> web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.</p>
 <section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this heading"></a></h2>
 <p>The OMERO.biomero plugin offers:</p>
@@ -468,9 +468,9 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <h3>Recommended: Use NL-BIOMERO Stack<a class="headerlink" href="#recommended-use-nl-biomero-stack" title="Permalink to this heading"></a></h3>
 <p><strong>For most users, we strongly recommend using the pre-built NL-BIOMERO deployment stack</strong> which includes OMERO.biomero and all required dependencies pre-configured:</p>
 <ul class="simple">
-<li><p><strong>NL-BIOMERO deployment repo</strong>: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO</p></li>
+<li><p><strong>NL-BIOMERO deployment repo</strong>: https://github.com/NL-BioImaging/NL-BIOMERO</p></li>
 <li><p><strong>Pre-built containers</strong>: Available at <a class="reference external" href="https://hub.docker.com/u/cellularimagingcf">cellularimagingcf</a></p></li>
-<li><p><strong>Full documentation</strong>: https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/</p></li>
+<li><p><strong>Full documentation</strong>: https://nl-bioimaging.github.io/NL-BIOMERO/</p></li>
 </ul>
 <p>The NL-BIOMERO stack provides Docker Compose configurations that automatically set up:</p>
 <ul class="simple">
@@ -524,7 +524,7 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <ol class="arabic simple" start="5">
 <li><p><strong>Set up Metabase dashboards</strong>: Configure dashboard IDs for imports and workflows tracking</p></li>
 </ol>
-<p>For detailed installation instructions, see the <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/">NL-BIOMERO sysadmin documentation</a> and <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/developer/containers/metabase.html">here</a></p>
+<p>For detailed installation instructions, see the <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/sysadmin/">NL-BIOMERO sysadmin documentation</a> and <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/developer/containers/metabase.html">here</a></p>
 </section>
 </section>
 </section>
@@ -552,9 +552,9 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <li><p><code class="docutils literal notranslate"><span class="pre">METABASE_IMPORTS_DB_PAGE_DASHBOARD_ID</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">METABASE_WORKFLOWS_DB_PAGE_DASHBOARD_ID</span></code></p></li>
 </ul>
-<p>We have a Metabase instance available at the <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO/tree/master/metabase/metabase.db">NL-BIOMERO</a> repository with nice dashboards 2 and 6.</p>
+<p>We have a Metabase instance available at the <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO/tree/master/metabase/metabase.db">NL-BIOMERO</a> repository with nice dashboards 2 and 6.</p>
 <p>Be sure to change the passwords and embedding tokens!</p>
-<p>See more documentation on this Metabase <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/developer/containers/metabase.html">here</a>.</p>
+<p>See more documentation on this Metabase <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/developer/containers/metabase.html">here</a>.</p>
 </section>
 </section>
 <section id="database-integration">
@@ -610,12 +610,12 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 </tbody>
 </table>
 <p>For new users, we recommend starting with the NL-BIOMERO stack for the complete experience. Advanced users who need custom scripting capabilities can continue using the traditional BIOMERO.scripts alongside the web interface.</p>
-<p>For more information about the new Admin interfaces, see <a class="reference external" href="https://cellular-imaging-amsterdam-umc.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html">NL-BIOMERO documentation</a></p>
+<p>For more information about the new Admin interfaces, see <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/sysadmin/omero-biomero-admin.html">NL-BIOMERO documentation</a></p>
 </section>
 </section>
 <section id="docker-containers">
 <h1>(Docker) containers<a class="headerlink" href="#docker-containers" title="Permalink to this heading"></a></h1>
-<p>We host BIOMERO container dockerfiles at <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO">NL-BIOMERO</a>, which publishes container images to our public dockerhub <a class="reference external" href="https://hub.docker.com/u/cellularimagingcf">cellularimagingcf</a>. Specifically the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/biomero">cellularimagingcf/biomero</a> image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging in Amsterdam).</p>
+<p>We host BIOMERO container dockerfiles at <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO">NL-BIOMERO</a>, which publishes container images to our public dockerhub <a class="reference external" href="https://hub.docker.com/u/cellularimagingcf">cellularimagingcf</a>. Specifically the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/biomero">cellularimagingcf/biomero</a> image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging in Amsterdam).</p>
 <p>You can mount your specific configurations over those in the container, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span># Run the biomero container
 echo &quot;Starting BIOMERO...&quot;

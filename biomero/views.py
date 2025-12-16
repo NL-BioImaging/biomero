@@ -252,6 +252,7 @@ class WorkflowProgress(ProcessApplication):
         logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
         EngineManager.commit()
 
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
         """Handle Task StatusUpdated event"""
@@ -306,6 +307,7 @@ class WorkflowProgress(ProcessApplication):
                 self.update_view_table(wf_id)
         EngineManager.commit()
 
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.ProgressUpdated)
     def _(self, domain_event, process_event):
         """Handle ProgressUpdated event"""
@@ -395,6 +397,7 @@ class JobProgress(ProcessApplication):
         logger.debug(f"[JP] JobId added: job_id={job_id}, task_id={task_id} -- {domain_event.__dict__}")
         EngineManager.commit()
         
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
         """Handle StatusUpdated event"""
@@ -413,6 +416,7 @@ class JobProgress(ProcessApplication):
             self.update_view_table(job_id)
         EngineManager.commit()
     
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.ProgressUpdated)
     def _(self, domain_event, process_event):
         """Handle ProgressUpdated event"""

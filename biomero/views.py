@@ -452,6 +452,7 @@ class JobProgress(ProcessApplication):
             except IntegrityError:
                 session.rollback()
                 logger.error(f"[JP] Failed to insert/update job progress in view table: job_id={job_id}")
+                raise  # Re-raise so retry decorator can handle it
 
 
 # @event.listens_for(Engine, "before_cursor_execute")

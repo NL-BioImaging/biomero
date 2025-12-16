@@ -57,16 +57,33 @@ def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
                     # Don't retry on the last attempt
                     if attempt == max_retries:
                         break
-                        
+                    
                     # Check if it's a conflict we can retry
                     error_msg = str(e).lower()
-                    if any(conflict in error_msg for conflict in [
+                    
+                    # These are retryable concurrency conflicts
+                    retryable_conflicts = [
                         'unique constraint',
                         'duplicate key',
                         'concurrent update',
                         'transaction is aborted',
                         'deadlock detected'
-                    ]):
+                    ]
+                    
+                    # These are permanent data validation errors - do NOT retry
+                    non_retryable_errors = [
+                        'not null constraint',
+                        'null value in column',
+                        'cannot be null'
+                    ]
+                    
+                    # Check for non-retryable errors first
+                    if any(error in error_msg for error in non_retryable_errors):
+                        logger.debug(f"Non-retryable data validation error: {e}")
+                        break
+                    
+                    # Check for retryable conflicts
+                    if any(conflict in error_msg for conflict in retryable_conflicts):
                         # Calculate exponential backoff with jitter
                         delay = min(
                             base_delay * (2 ** attempt) + random.uniform(0, 0.1),
@@ -102,34 +119,26 @@ def database_transaction(isolation_level=None):
     Args:
         isolation_level: SQLAlchemy isolation level (e.g., 'READ_COMMITTED', 'SERIALIZABLE')
     """
-    session = EngineManager.get_session()
-    transaction_started = False
-    
+    # Don't manage session lifecycle here - let the scoped session handle it
+    # Just provide transaction boundaries and error handling
     try:
         # Set isolation level if specified
         if isolation_level:
+            session = EngineManager.get_session()
             session.connection(execution_options={'isolation_level': isolation_level})
             
-        # Begin transaction
-        session.begin()
-        transaction_started = True
-        
-        yield session
+        yield
         
         # Commit if we reach this point
-        session.commit()
+        EngineManager.commit()
         
     except Exception as e:
-        if transaction_started:
-            try:
-                session.rollback()
-                logger.debug(f"Transaction rolled back due to: {e}")
-            except Exception as rollback_error:
-                logger.error(f"Error during rollback: {rollback_error}")
+        try:
+            EngineManager.rollback()
+            logger.debug(f"Transaction rolled back due to: {e}")
+        except Exception as rollback_error:
+            logger.error(f"Error during rollback: {rollback_error}")
         raise
-    finally:
-        # Always remove the session
-        session.remove()
 
 # --------------------- VIEWS DB tables/classes ---------------------------- #
 

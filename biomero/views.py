@@ -448,7 +448,6 @@ class JobProgress(ProcessApplication):
             except IntegrityError:
                 session.rollback()
                 logger.error(f"[JP] Failed to insert/update job progress in view table: job_id={job_id}")
-                raise
 
 
 # @event.listens_for(Engine, "before_cursor_execute")
@@ -619,7 +618,6 @@ class WorkflowAnalytics(ProcessApplication):
                 session.rollback()
                 logger.error(f"[WFA] Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
                 logger.debug(f"[WFA] Task info: {task_info}")
-                raise
 
     def get_task_counts(self, user=None, group=None):
         """Retrieve task execution counts grouped by task name and version.

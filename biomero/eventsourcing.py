@@ -18,7 +18,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from typing import Any, Dict, List
 from fabric import Result
 import logging
-from biomero.database import EngineManager, retry_on_database_conflict, database_transaction
+from biomero.database import EngineManager, retry_on_database_conflict
 
 
 # Create a logger for this module
@@ -365,10 +365,10 @@ class WorkflowTracker(Application):
             UUID: The UUID of the newly initiated workflow.
         """
         logger.debug(f"[WFT] Initiating workflow: name={name}, description={description}, user={user}, group={group}")
-        with database_transaction():
-            workflow = WorkflowRun(name, description, user, group)
-            self.save(workflow)
-            return workflow.id
+        workflow = WorkflowRun(name, description, user, group)
+        self.save(workflow)
+        EngineManager.safe_commit()
+        return workflow.id
 
     @retry_on_database_conflict(max_retries=3)
     def add_task_to_workflow(self,
@@ -393,17 +393,18 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Adding task to workflow: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
 
-        with database_transaction():
-            task = Task(workflow_id,
-                        task_name,
-                        task_version,
-                        input_data,
-                        kwargs)
-            self.save(task)
-            workflow: WorkflowRun = self.repository.get(workflow_id)
-            workflow.add_task(task.id)
-            self.save(workflow)
-            return task.id
+        task = Task(workflow_id,
+                    task_name,
+                    task_version,
+                    input_data,
+                    kwargs)
+        self.save(task)
+        EngineManager.safe_commit()
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        workflow.add_task(task.id)
+        self.save(workflow)
+        EngineManager.safe_commit()
+        return task.id
 
     @retry_on_database_conflict(max_retries=3)
     def start_workflow(self, workflow_id: UUID):
@@ -415,10 +416,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Starting workflow: workflow_id={workflow_id}")
 
-        with database_transaction():
-            workflow: WorkflowRun = self.repository.get(workflow_id)
-            workflow.start_workflow()
-            self.save(workflow)
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        workflow.start_workflow()
+        self.save(workflow)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def complete_workflow(self, workflow_id: UUID):
@@ -430,10 +431,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Completing workflow: workflow_id={workflow_id}")
 
-        with database_transaction():
-            workflow: WorkflowRun = self.repository.get(workflow_id)
-            workflow.complete_workflow()
-            self.save(workflow)
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        workflow.complete_workflow()
+        self.save(workflow)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def fail_workflow(self, workflow_id: UUID, error_message: str):
@@ -446,10 +447,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Failing workflow: workflow_id={workflow_id}, error_message={error_message}")
 
-        with database_transaction():
-            workflow: WorkflowRun = self.repository.get(workflow_id)
-            workflow.fail_workflow(error_message)
-            self.save(workflow)
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        workflow.fail_workflow(error_message)
+        self.save(workflow)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def start_task(self, task_id: UUID):
@@ -461,10 +462,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Starting task: task_id={task_id}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.start_task()
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.start_task()
+        self.save(task)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def complete_task(self, task_id: UUID, message: str):
@@ -477,10 +478,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Completing task: task_id={task_id}, message={message}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.complete_task(message)
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.complete_task(message)
+        self.save(task)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def fail_task(self, task_id: UUID, error_message: str):
@@ -493,10 +494,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Failing task: task_id={task_id}, error_message={error_message}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.fail_task(error_message)
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.fail_task(error_message)
+        self.save(task)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def add_job_id(self, task_id, slurm_job_id):
@@ -509,10 +510,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Adding job_id to task: task_id={task_id}, slurm_job_id={slurm_job_id}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.add_job_id(slurm_job_id)
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.add_job_id(slurm_job_id)
+        self.save(task)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def add_result(self, task_id, result):
@@ -525,10 +526,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Adding result to task: task_id={task_id}, result={result}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.add_result(result)
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.add_result(result)
+        self.save(task)
+        EngineManager.safe_commit()
 
     @retry_on_database_conflict(max_retries=3)
     def update_task_status(self, task_id, status):
@@ -541,10 +542,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Adding status to task: task_id={task_id}, status={status}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.update_task_status(status)
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.update_task_status(status)
+        self.save(task)
+        EngineManager.safe_commit()
         
     @retry_on_database_conflict(max_retries=3)
     def update_task_progress(self, task_id, progress):
@@ -557,10 +558,10 @@ class WorkflowTracker(Application):
         """
         logger.debug(f"[WFT] Adding progress to task: task_id={task_id}, progress={progress}")
 
-        with database_transaction():
-            task: Task = self.repository.get(task_id)
-            task.update_task_progress(progress)
-            self.save(task)
+        task: Task = self.repository.get(task_id)
+        task.update_task_progress(progress)
+        self.save(task)
+        EngineManager.safe_commit()
 
 
 

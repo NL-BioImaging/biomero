@@ -18,7 +18,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 from biomero.eventsourcing import WorkflowRun, Task
-from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView
+from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
 from biomero.constants import workflow_status as wfs
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,7 @@ class JobAccounting(ProcessApplication):
         # process_event.collect_events(jobaccount)
         EngineManager.commit()
         
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, job_id, user, group, task_id):
         """Update the view table with new job information."""
         with EngineManager.get_session() as session:
@@ -320,6 +321,7 @@ class WorkflowProgress(ProcessApplication):
                 self.update_view_table(wf_id)   
         EngineManager.commit() 
     
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, wf_id):
         """Update the view table with new workflow status, progress, user, and group."""
         with EngineManager.get_session() as session:
@@ -346,6 +348,7 @@ class WorkflowProgress(ProcessApplication):
             except IntegrityError:
                 session.rollback()
                 logger.error(f"[WFP] Failed to insert/update wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
+                raise
                 
     def _determine_main_task_name(self, wf_id):
         """Determine the main user-facing task name for a workflow."""
@@ -428,6 +431,7 @@ class JobProgress(ProcessApplication):
             self.update_view_table(job_id)
         EngineManager.commit()
         
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, job_id):
         """Update the view table with new job status and progress information."""
         with EngineManager.get_session() as session:
@@ -444,6 +448,7 @@ class JobProgress(ProcessApplication):
             except IntegrityError:
                 session.rollback()
                 logger.error(f"[JP] Failed to insert/update job progress in view table: job_id={job_id}")
+                raise
 
 
 # @event.listens_for(Engine, "before_cursor_execute")
@@ -563,6 +568,7 @@ class WorkflowAnalytics(ProcessApplication):
             self.update_view_table(task_id)
         EngineManager.commit()
 
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, task_id):
         """Update the view table with new task execution information."""
         task_info = self.tasks.get(task_id)
@@ -613,6 +619,7 @@ class WorkflowAnalytics(ProcessApplication):
                 session.rollback()
                 logger.error(f"[WFA] Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
                 logger.debug(f"[WFA] Task info: {task_info}")
+                raise
 
     def get_task_counts(self, user=None, group=None):
         """Retrieve task execution counts grouped by task name and version.

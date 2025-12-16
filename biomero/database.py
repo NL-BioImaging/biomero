@@ -24,9 +24,112 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.exc import OperationalError, IntegrityError
 import os
+import time
+import random
+from contextlib import contextmanager
+from functools import wraps
 
 logger = logging.getLogger(__name__)
+
+# --------------------- CONCURRENCY HELPERS ---------------------------- #
+
+def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
+    """Decorator to retry database operations on concurrency conflicts.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except (IntegrityError, OperationalError) as e:
+                    last_exception = e
+                    
+                    # Don't retry on the last attempt
+                    if attempt == max_retries:
+                        break
+                        
+                    # Check if it's a conflict we can retry
+                    error_msg = str(e).lower()
+                    if any(conflict in error_msg for conflict in [
+                        'unique constraint',
+                        'duplicate key',
+                        'concurrent update',
+                        'transaction is aborted',
+                        'deadlock detected'
+                    ]):
+                        # Calculate exponential backoff with jitter
+                        delay = min(
+                            base_delay * (2 ** attempt) + random.uniform(0, 0.1),
+                            max_delay
+                        )
+                        logger.warning(
+                            f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {e}. "
+                            f"Retrying in {delay:.2f}s..."
+                        )
+                        time.sleep(delay)
+                        
+                        # Rollback current transaction
+                        try:
+                            EngineManager.rollback()
+                        except:
+                            pass
+                    else:
+                        # Not a retryable error
+                        break
+                        
+            # All retries exhausted, raise the last exception
+            logger.error(f"Database operation failed after {max_retries + 1} attempts: {last_exception}")
+            raise last_exception
+            
+        return wrapper
+    return decorator
+
+
+@contextmanager
+def database_transaction(isolation_level=None):
+    """Context manager for database transactions with proper error handling.
+    
+    Args:
+        isolation_level: SQLAlchemy isolation level (e.g., 'READ_COMMITTED', 'SERIALIZABLE')
+    """
+    session = EngineManager.get_session()
+    transaction_started = False
+    
+    try:
+        # Set isolation level if specified
+        if isolation_level:
+            session.connection(execution_options={'isolation_level': isolation_level})
+            
+        # Begin transaction
+        session.begin()
+        transaction_started = True
+        
+        yield session
+        
+        # Commit if we reach this point
+        session.commit()
+        
+    except Exception as e:
+        if transaction_started:
+            try:
+                session.rollback()
+                logger.debug(f"Transaction rolled back due to: {e}")
+            except Exception as rollback_error:
+                logger.error(f"Error during rollback: {rollback_error}")
+        raise
+    finally:
+        # Always remove the session
+        session.remove()
 
 # --------------------- VIEWS DB tables/classes ---------------------------- #
 
@@ -247,7 +350,40 @@ class EngineManager:
         """
         Commits the current transaction in the scoped session.
         """
-        cls._session.commit()
+        try:
+            cls._session.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit transaction: {e}")
+            cls.rollback()
+            raise
+    
+    @classmethod
+    def rollback(cls):
+        """
+        Rolls back the current transaction in the scoped session.
+        """
+        try:
+            cls._session.rollback()
+        except Exception as e:
+            logger.error(f"Failed to rollback transaction: {e}")
+            # Force session removal on rollback failure
+            cls._session.remove()
+            raise
+    
+    @classmethod
+    def remove_session(cls):
+        """
+        Removes the current session from the scoped session registry.
+        """
+        cls._session.remove()
+    
+    @classmethod
+    @retry_on_database_conflict(max_retries=3)
+    def safe_commit(cls):
+        """
+        Commits the transaction with automatic retry on conflicts.
+        """
+        cls.commit()
             
     @classmethod
     def close_engine(cls):

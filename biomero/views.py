@@ -209,6 +209,11 @@ class WorkflowProgress(ProcessApplication):
     @policy.register(WorkflowRun.WorkflowCompleted)
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
+        # Defensive check: ensure workflow exists in our dictionary
+        if wf_id not in self.workflows:
+            logger.warning(f"[WFP] WorkflowCompleted event for unknown workflow: wf_id={wf_id}. Skipping status update.")
+            return
+            
         self.workflows[wf_id]["status"] = wfs.DONE
         self.workflows[wf_id]["progress"] = "100%"
         logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.DONE} -- {domain_event.__dict__}")
@@ -219,6 +224,11 @@ class WorkflowProgress(ProcessApplication):
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
         error = domain_event.error_message
+        # Defensive check: ensure workflow exists in our dictionary
+        if wf_id not in self.workflows:
+            logger.warning(f"[WFP] WorkflowFailed event for unknown workflow: wf_id={wf_id}. Skipping status update.")
+            return
+            
         self.workflows[wf_id]["status"] = wfs.FAILED
         logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.FAILED} -- {domain_event.__dict__}")
         self.update_view_table(wf_id)
@@ -305,6 +315,8 @@ class WorkflowProgress(ProcessApplication):
                 self.workflows[wf_id]["progress"] = workflow_prog
                 logger.debug(f"[WFP] Status updated: wf_id={wf_id}, task_id={task_id}, status={workflow_status} -- {domain_event.__dict__}")
                 self.update_view_table(wf_id)
+            else:
+                logger.warning(f"[WFP] Task.StatusUpdated event for unknown workflow: task_id={task_id}, wf_id={wf_id}. Skipping status update.")
         EngineManager.commit()
 
     @retry_on_database_conflict(max_retries=3)
@@ -320,12 +332,19 @@ class WorkflowProgress(ProcessApplication):
             if wf_id and wf_id in self.workflows:
                 self.workflows[wf_id]["task_progress"] = progress
                 logger.debug(f"[WFP] (Task) Progress updated: wf_id={wf_id}, progress={progress} -- {domain_event.__dict__}")
-                self.update_view_table(wf_id)   
+                self.update_view_table(wf_id)
+            else:
+                logger.warning(f"[WFP] Task.ProgressUpdated event for unknown workflow: task_id={task_id}, wf_id={wf_id}. Skipping progress update.")   
         EngineManager.commit() 
     
     @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, wf_id):
         """Update the view table with new workflow status, progress, user, and group."""
+        # Defensive check: ensure workflow exists in our dictionary
+        if wf_id not in self.workflows:
+            logger.warning(f"[WFP] Cannot update view table for unknown workflow: wf_id={wf_id}")
+            return
+            
         with EngineManager.get_session() as session:
             workflow_info = self.workflows[wf_id]
             

@@ -31,6 +31,15 @@ import random
 from contextlib import contextmanager
 from functools import wraps
 
+# Import EventSourcing exceptions
+try:
+    from eventsourcing.persistence import IntegrityError as EventSourcingIntegrityError
+    from eventsourcing.persistence import OperationalError as EventSourcingOperationalError
+except ImportError:
+    # Fallback for older versions
+    EventSourcingIntegrityError = None
+    EventSourcingOperationalError = None
+
 logger = logging.getLogger(__name__)
 
 # --------------------- CONCURRENCY HELPERS ---------------------------- #
@@ -48,10 +57,18 @@ def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
         def wrapper(*args, **kwargs):
             last_exception = None
             
+            # Build list of exception types to catch
+            exception_types = [IntegrityError, OperationalError]
+            if EventSourcingIntegrityError:
+                exception_types.append(EventSourcingIntegrityError)
+            if EventSourcingOperationalError:
+                exception_types.append(EventSourcingOperationalError)
+            exception_types = tuple(exception_types)
+            
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
-                except (IntegrityError, OperationalError) as e:
+                except exception_types as e:
                     last_exception = e
                     
                     # Don't retry on the last attempt
@@ -60,6 +77,10 @@ def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
                     
                     # Check if it's a conflict we can retry
                     error_msg = str(e).lower()
+                    
+                    # For EventSourcing exceptions, also check the underlying cause
+                    if hasattr(e, '__cause__') and e.__cause__:
+                        error_msg += " " + str(e.__cause__).lower()
                     
                     # These are retryable concurrency conflicts
                     retryable_conflicts = [
@@ -93,6 +114,11 @@ def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
                             f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {e}. "
                             f"Retrying in {delay:.2f}s..."
                         )
+                        
+                        # Add trace logging for EventSourcing exceptions
+                        if EventSourcingIntegrityError and isinstance(e, (EventSourcingIntegrityError, EventSourcingOperationalError)):
+                            logger.debug(f"[TRACE] EventSourcing exception caught: {type(e).__name__}, underlying cause: {e.__cause__}")
+                        
                         time.sleep(delay)
                         
                         # Rollback current transaction
@@ -102,6 +128,7 @@ def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
                             pass
                     else:
                         # Not a retryable error
+                        logger.debug(f"[TRACE] Non-retryable error detected: {error_msg}")
                         break
                         
             # All retries exhausted, raise the last exception

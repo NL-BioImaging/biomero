@@ -1973,3 +1973,184 @@ class TestDatabaseRetryMechanism:
         warning_messages = [record.message for record in caplog.records if "Database conflict on attempt" in record.message]
         assert len(warning_messages) == 0
 
+    def test_eventsourcing_integrity_error_retry_mechanism(self, caplog):
+        """
+        GIVEN: EventSourcing IntegrityError (the production issue that killed threads)
+        WHEN: Function decorated with @retry_on_database_conflict encounters this error
+        THEN: EventSourcing error is caught and retried successfully (no more thread deaths)
+        
+        This test covers the specific production scenario from 2025-12-16 where:
+        - Thread 24545 died with eventsourcing.persistence.IntegrityError
+        - Error was: psycopg2.errors.UniqueViolation in jobprogress_tracking_pkey
+        - Our enhanced retry decorator now catches EventSourcing exceptions
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        
+        # Import the EventSourcing exceptions our decorator now handles
+        try:
+            from eventsourcing.persistence import IntegrityError as EventSourcingIntegrityError
+        except ImportError:
+            # For test environments without eventsourcing, create mock exception
+            class EventSourcingIntegrityError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+        
+        # GIVEN: Production EventSourcing IntegrityError with psycopg2 underlying cause
+        eventsourcing_error = EventSourcingIntegrityError(
+            'duplicate key value violates unique constraint "jobprogress_tracking_pkey"'
+        )
+        # Add the underlying psycopg2 error as an attribute
+        eventsourcing_error.orig = psycopg2.errors.UniqueViolation(
+            'duplicate key value violates unique constraint "jobprogress_tracking_pkey"\n'
+            'DETAIL: Key (job_id)=(b048f0c5-workflow-batch-1) already exists.'
+        )
+        
+        # WHEN: Function encounters EventSourcing error then succeeds on retry
+        mock_function = Mock()
+        mock_function.side_effect = [eventsourcing_error, "success"]
+        
+        decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+        
+        caplog.clear()
+        result = decorated_function()
+        
+        # THEN: EventSourcing error is caught and function retries successfully
+        assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
+        assert result == "success", "Should return success after retry"
+        
+        # Verify EventSourcing error is properly logged
+        warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+        
+        assert len(retry_logs) == 1, "Should log exactly one retry attempt"
+        assert "attempt 1/4:" in retry_logs[0], "Should show correct attempt number"
+        assert "jobprogress_tracking_pkey" in retry_logs[0], "Should log constraint name"
+        
+        # Ensure no ERROR logs (thread should not die)
+        error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
+        failure_logs = [msg for msg in error_logs if "Database operation failed after" in msg]
+        assert len(failure_logs) == 0, "Should not have final failure logs (operation succeeded)"
+
+    def test_eventsourcing_operational_error_retry_mechanism(self, caplog):
+        """
+        GIVEN: EventSourcing OperationalError (another database conflict scenario)
+        WHEN: Function decorated with @retry_on_database_conflict encounters this error
+        THEN: OperationalError is caught and retried successfully
+        
+        This covers the OperationalError case from eventsourcing.persistence that we also handle.
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        
+        # Import the EventSourcing exceptions our decorator now handles
+        try:
+            from eventsourcing.persistence import OperationalError as EventSourcingOperationalError
+        except ImportError:
+            # For test environments without eventsourcing, create mock exception  
+            class EventSourcingOperationalError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+        
+        # GIVEN: EventSourcing OperationalError with database lock conflict
+        eventsourcing_op_error = EventSourcingOperationalError('deadlock detected')
+        # Add the underlying psycopg2 error as an attribute
+        eventsourcing_op_error.orig = psycopg2.errors.OperationalError('deadlock detected')
+        
+        # WHEN: Function encounters EventSourcing OperationalError then succeeds on retry
+        mock_function = Mock()
+        mock_function.side_effect = [eventsourcing_op_error, "success"]
+        
+        decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+        
+        caplog.clear()
+        result = decorated_function()
+        
+        # THEN: OperationalError is caught and function retries successfully  
+        assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
+        assert result == "success", "Should return success after retry"
+        
+        # Verify OperationalError is properly logged
+        warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+        
+        assert len(retry_logs) == 1, "Should log exactly one retry attempt"
+        assert "deadlock detected" in retry_logs[0], "Should log operational error details"
+
+    def test_comprehensive_eventsourcing_exception_coverage(self, caplog):
+        """
+        GIVEN: All EventSourcing exception types our decorator should handle
+        WHEN: Each type of exception occurs during database operations
+        THEN: All are caught and retried properly (comprehensive regression test)
+        
+        This is our comprehensive regression test ensuring the enhanced retry decorator
+        covers all EventSourcing scenarios that were causing production thread deaths.
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        
+        # Import EventSourcing exceptions or create mocks
+        try:
+            from eventsourcing.persistence import IntegrityError as ESIntegrityError
+            from eventsourcing.persistence import OperationalError as ESOperationalError
+        except ImportError:
+            # Create mock exceptions for test environments
+            class ESIntegrityError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+            
+            class ESOperationalError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+        
+        # GIVEN: All EventSourcing exception scenarios from production
+        integrity_error = ESIntegrityError('unique constraint violation')
+        integrity_error.orig = psycopg2.errors.UniqueViolation('duplicate key')
+        
+        operational_error = ESOperationalError('database deadlock detected')
+        operational_error.orig = psycopg2.errors.OperationalError('deadlock detected')
+        
+        test_cases = [
+            {
+                "name": "EventSourcing IntegrityError",
+                "exception": integrity_error,
+                "expected_log_content": "unique constraint violation"
+            },
+            {
+                "name": "EventSourcing OperationalError",  
+                "exception": operational_error,
+                "expected_log_content": "database deadlock detected"
+            }
+        ]
+        
+        # WHEN/THEN: Each exception type is handled properly
+        for test_case in test_cases:
+            mock_function = Mock()
+            mock_function.side_effect = [test_case["exception"], f"success_{test_case['name']}"]
+            
+            decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+            
+            caplog.clear()
+            result = decorated_function()
+            
+            # Verify successful retry for each exception type
+            assert mock_function.call_count == 2, f"{test_case['name']}: Should retry once and succeed"
+            assert result == f"success_{test_case['name']}", f"{test_case['name']}: Should return success"
+            
+            # Verify proper logging
+            warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+            retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+            
+            assert len(retry_logs) == 1, f"{test_case['name']}: Should log retry attempt"
+            assert test_case["expected_log_content"] in retry_logs[0], f"{test_case['name']}: Should log exception details"
+            
+            # Reset for next test case
+            mock_function.reset_mock()
+

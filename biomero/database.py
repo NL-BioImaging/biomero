@@ -389,7 +389,7 @@ class EngineManager:
         try:
             cls._session.commit()
         except Exception as e:
-            logger.error(f"Failed to commit transaction: {e}")
+            logger.warning(f"Database commit failed (will be retried if applicable): {e}")
             cls.rollback()
             raise
     
@@ -401,7 +401,7 @@ class EngineManager:
         try:
             cls._session.rollback()
         except Exception as e:
-            logger.error(f"Failed to rollback transaction: {e}")
+            logger.warning(f"Database rollback failed (forcing session removal): {e}")
             # Force session removal on rollback failure
             cls._session.remove()
             raise

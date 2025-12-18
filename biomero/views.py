@@ -111,7 +111,7 @@ class JobAccounting(ProcessApplication):
             except IntegrityError as e:
                 session.rollback()
                 # Handle the case where the job already exists in the table if necessary
-                logger.error(f"Failed to insert job into view table (already exists?): job_id={job_id}, user={user}, group={group}. Error {e}")
+                logger.warning(f"Database conflict inserting job (will retry): job_id={job_id}, user={user}, group={group}, error={e}")
 
     def get_jobs(self, user=None, group=None):
         """Retrieve jobs for a specific user and/or group.
@@ -366,9 +366,9 @@ class WorkflowProgress(ProcessApplication):
                 session.merge(new_workflow_progress)
                 session.commit()
                 logger.debug(f"[WFP] Inserted wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
-            except IntegrityError:
+            except IntegrityError as e:
                 session.rollback()
-                logger.error(f"[WFP] Failed to insert/update wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
+                logger.warning(f"[WFP] Database conflict inserting wf progress (will retry): wf_id={wf_id}, error={e}")
                 raise
                 
     def _determine_main_task_name(self, wf_id):
@@ -468,9 +468,9 @@ class JobProgress(ProcessApplication):
                 session.merge(new_job_progress)  # Use merge to insert or update
                 session.commit()
                 logger.debug(f"[JP] Inserted/Updated job progress in view table: job_id={job_id}, status={job_info['status']}, progress={job_info['progress']}")
-            except IntegrityError:
+            except IntegrityError as e:
                 session.rollback()
-                logger.error(f"[JP] Failed to insert/update job progress in view table: job_id={job_id}")
+                logger.warning(f"[JP] Database conflict inserting job progress (will retry): job_id={job_id}, error={e}")
                 raise  # Re-raise so retry decorator can handle it
 
 
@@ -640,7 +640,7 @@ class WorkflowAnalytics(ProcessApplication):
                 logger.debug(f"[WFA] Updated/Inserted task execution into view table: task_id={task_id}, task_name={task_info.get('task_name')}")
             except IntegrityError as e:
                 session.rollback()
-                logger.error(f"[WFA] Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
+                logger.warning(f"[WFA] Database conflict inserting task execution (will retry): task_id={task_id}, error={str(e)}")
                 logger.debug(f"[WFA] Task info: {task_info}")
 
     def get_task_counts(self, user=None, group=None):

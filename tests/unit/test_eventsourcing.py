@@ -1077,12 +1077,12 @@ def test_job_progress_update_view_table_failed(workflow_tracker_and_job_progress
     job_progress.job_status[job_id] = {"status": None, "progress": "50%"}
 
     # THEN the update should fail and raise IntegrityError after retry attempts
-    with caplog.at_level("ERROR"):
+    with caplog.at_level("WARNING"):
         with pytest.raises(IntegrityError, match="NOT NULL constraint failed"):
             job_progress.update_view_table(job_id)
     
     # AND it should log the failure attempts and final failure
-    assert f"Failed to insert/update job progress in view table: job_id={job_id}" in caplog.text
+    assert f"Database conflict inserting job progress (will retry): job_id={job_id}" in caplog.text
     assert "Database operation failed after" in caplog.text
 
   
@@ -1361,11 +1361,11 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
         
         
     # rollback/integrityerror
-    with caplog.at_level("ERROR"):
+    with caplog.at_level("WARNING"):
         workflow_analytics.tasks[task_id]["status"] = None
         workflow_analytics.update_view_table(task_id)
     
-    assert f"Failed to insert/update task execution into view table: task_id={task_id}, error=" in caplog.text
+    assert f"Database conflict inserting task execution (will retry): task_id={task_id}, error=" in caplog.text
     
 
 def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_analytics):

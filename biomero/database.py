@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 # --------------------- CONCURRENCY HELPERS ---------------------------- #
 
-def retry_on_database_conflict(max_retries=3, base_delay=0.1, max_delay=2.0):
+def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
     """Decorator to retry database operations on concurrency conflicts.
     
     Args:
@@ -414,7 +414,7 @@ class EngineManager:
         cls._session.remove()
     
     @classmethod
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=10)
     def safe_commit(cls):
         """
         Commits the transaction with automatic retry on conflicts.

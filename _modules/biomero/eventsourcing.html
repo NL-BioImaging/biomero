@@ -131,7 +131,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">fabric</span><span class="w"> </span><span class="kn">import</span> <span class="n">Result</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">retry_on_database_conflict</span>
 
 
 <span class="c1"># Create a logger for this module</span>
@@ -459,7 +459,8 @@
 <span class="sd">        update_task_progress: Updates the progress of a task.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="WorkflowTracker.initiate_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.initiate_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">initiate_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="WorkflowTracker.initiate_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.initiate_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">initiate_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                           <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">user</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -479,10 +480,11 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Initiating workflow: name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">, description=</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">workflow</span> <span class="o">=</span> <span class="n">WorkflowRun</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">workflow</span><span class="o">.</span><span class="n">id</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.add_task_to_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_task_to_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">add_task_to_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<div class="viewcode-block" id="WorkflowTracker.add_task_to_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_task_to_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_task_to_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                              <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
                              <span class="n">task_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">task_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -510,14 +512,15 @@
                     <span class="n">input_data</span><span class="p">,</span>
                     <span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">id</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.start_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">start_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.start_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Starts the workflow with the given UUID.</span>
 
@@ -529,9 +532,10 @@
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">start_workflow</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.complete_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.complete_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">complete_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.complete_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.complete_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">complete_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Marks the workflow with the given UUID as completed.</span>
 
@@ -543,9 +547,10 @@
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">complete_workflow</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.fail_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.fail_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">fail_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.fail_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.fail_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fail_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Marks the workflow with the given UUID as failed with an error message.</span>
 
@@ -558,9 +563,10 @@
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">fail_workflow</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.start_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">start_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.start_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_task">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Starts the task with the given UUID.</span>
 
@@ -572,9 +578,10 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">start_task</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.complete_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.complete_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">complete_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.complete_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.complete_task">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">complete_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Marks the task with the given UUID as completed with a result message.</span>
 
@@ -587,9 +594,10 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">complete_task</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.fail_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.fail_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">fail_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.fail_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.fail_task">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fail_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Marks the task with the given UUID as failed with an error message.</span>
 
@@ -602,9 +610,10 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">fail_task</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.add_job_id"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_job_id">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">add_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.add_job_id"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_job_id">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adds a Slurm job ID to the task with the given UUID.</span>
 
@@ -617,9 +626,10 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.add_result"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_result">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.add_result"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_result">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adds a result to the task with the given UUID.</span>
 
@@ -632,9 +642,10 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.update_task_status"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.update_task_status">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_task_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.update_task_status"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.update_task_status">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_task_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Updates the status of the task with the given UUID.</span>
 
@@ -647,9 +658,10 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">update_task_status</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
         
-<div class="viewcode-block" id="WorkflowTracker.update_task_progress"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.update_task_progress">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_task_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">progress</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowTracker.update_task_progress"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.update_task_progress">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_task_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">progress</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Updates the progress of the task with the given UUID.</span>
 
@@ -662,7 +674,7 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div></div>
 
 
 

@@ -3,12 +3,15 @@ import os
 from unittest.mock import patch
 import uuid
 import pytest
+import unittest.mock
 from biomero.eventsourcing import Task, WorkflowTracker
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution
 from biomero.constants import workflow_status as wfs
 from uuid import UUID
 import logging
+from sqlalchemy.exc import IntegrityError
+import psycopg2
 from eventsourcing.system import System, SingleThreadedRunner
 
 # Configure logging
@@ -1069,16 +1072,18 @@ def test_job_progress_update_view_table_failed(workflow_tracker_and_job_progress
     job_progress: JobProgress
     workflow_tracker, job_progress = workflow_tracker_and_job_progress
 
-    # WHEN a job status is not set
+    # WHEN a job status is not set (invalid data that will cause IntegrityError)
     job_id = 12345
     job_progress.job_status[job_id] = {"status": None, "progress": "50%"}
 
-    # Force update to the view table
-    with caplog.at_level("ERROR"):
-        job_progress.update_view_table(job_id)
+    # THEN the update should fail and raise IntegrityError after retry attempts
+    with caplog.at_level("WARNING"):
+        with pytest.raises(IntegrityError, match="NOT NULL constraint failed"):
+            job_progress.update_view_table(job_id)
     
-    # THEN
-    assert f"Failed to insert/update job progress in view table: job_id={job_id}" in caplog.text
+    # AND it should log the failure attempts and final failure
+    assert f"Database conflict inserting job progress (will retry): job_id={job_id}" in caplog.text
+    assert "Database operation failed after" in caplog.text
 
   
 def test_wfanalytics_workflow_initiated(workflow_tracker_and_workflow_analytics):
@@ -1356,11 +1361,11 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
         
         
     # rollback/integrityerror
-    with caplog.at_level("ERROR"):
+    with caplog.at_level("WARNING"):
         workflow_analytics.tasks[task_id]["status"] = None
         workflow_analytics.update_view_table(task_id)
     
-    assert f"Failed to insert/update task execution into view table: task_id={task_id}, error=" in caplog.text
+    assert f"Database conflict inserting task execution (will retry): task_id={task_id}, error=" in caplog.text
     
 
 def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_analytics):
@@ -1727,4 +1732,425 @@ def test_wfanalytics_get_task_usage_over_time_with_filters(workflow_tracker_and_
         str(datetime(2023, 8, 3).date()): 1
     }
     assert result_user_3_group_4 == expected_result_user_3_group_4
+
+
+# ================ Database Retry Mechanism Tests ================ #
+
+
+class TestDatabaseRetryMechanism:
+    """
+    TDD Test Suite for Database Retry Mechanism
+    
+    These tests demonstrate the exact production scenario that occurred with workflow b048f0c5
+    and verify that @retry_on_database_conflict decorators solve concurrent access conflicts.
+    
+    Test-Driven Development approach:
+    1. Tests fail without retry decorators (proving the problem exists)
+    2. Tests pass with retry decorators (proving the fix works)
+    """
+
+    def test_event_handlers_have_retry_protection(self, caplog):
+        """
+        GIVEN: Event handlers in WorkflowProgress class (one that properly uses retry mechanism)
+        WHEN: Database unique constraint violations occur during update_view_table operations
+        THEN: Handlers automatically retry and succeed due to @retry_on_database_conflict decorators
+        """
+        from biomero.views import WorkflowProgress
+        from unittest.mock import patch, Mock, MagicMock
+        import psycopg2.errors
+        from sqlalchemy.exc import IntegrityError
+        
+        # GIVEN: WorkflowProgress handler instance and database conflict scenario
+        handler_instance = WorkflowProgress()
+        
+        # Create realistic database constraint violation (production scenario)
+        unique_violation = IntegrityError(
+            statement="INSERT INTO workflowprogress_tracking ...",
+            params=None,
+            orig=psycopg2.errors.UniqueViolation('duplicate key value violates unique constraint "workflowprogress_tracking_pkey"')
+        )
+        
+        # Setup required state for WorkflowProgress handler
+        handler_instance.workflows = {"test-id-123": {
+            "status": "RUNNING", 
+            "progress": "50%",
+            "user": "test_user",
+            "group": "test_group",
+            "name": "test_workflow",
+            "task": "test_task",
+            "start_time": "2025-12-16T10:00:00Z"
+        }}
+        handler_instance.tasks = {"some_task": {"workflow_id": "test-id-123", "task_name": "test_task"}}
+        # Mock the _determine_main_task_name method
+        handler_instance._determine_main_task_name = Mock(return_value="test_main_task")
+        
+        # WHEN: Database session encounters conflict then succeeds on retry
+        with patch('biomero.views.EngineManager.get_session') as mock_get_session:
+            # Mock session context manager
+            mock_session = MagicMock()
+            mock_session.__enter__ = Mock(return_value=mock_session)
+            mock_session.__exit__ = Mock(return_value=None)
+            mock_get_session.return_value = mock_session
+            
+            # Session operations fail once then succeed
+            mock_session.merge.side_effect = [unique_violation, None]
+            mock_session.commit.side_effect = [None, None]  # Always succeed
+            
+            caplog.clear()
+            
+            # Call update_view_table to test retry behavior  
+            handler_instance.update_view_table("test-id-123")
+            
+            # THEN: Retry mechanism activates and eventually succeeds
+            assert mock_session.merge.call_count == 2, f"Expected 2 merge calls (1 failure + 1 success), got {mock_session.merge.call_count}"
+            
+            # Verify retry logging occurred
+            warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+            retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+            assert len(retry_logs) == 1, f"Expected 1 retry log, got {len(retry_logs)}"
+
+    def test_production_scenario_workflow_b048f0c5_constraint_violation(self, caplog):
+        """
+        GIVEN: The exact production error from workflow b048f0c5 (2025-12-16 13:17:16)
+        WHEN: retry_on_database_conflict decorator handles this error
+        THEN: Function retries once and succeeds, with proper logging
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        from sqlalchemy.exc import IntegrityError
+        
+        # GIVEN: Exact error from production logs (workflow b048f0c5)
+        production_error = IntegrityError(
+            statement='INSERT INTO workflowprogress_tracking (workflow_id, status) VALUES (?, ?)',
+            params=('0bf47c07-7efc-41e7-b011-1fe69782fb06', 'CREATED'),
+            orig=psycopg2.errors.UniqueViolation(
+                'duplicate key value violates unique constraint "workflowprogress_tracking_pkey"\n'
+                'DETAIL:  Key (workflow_id)=(0bf47c07-7efc-41e7-b011-1fe69782fb06) already exists.'
+            )
+        )
+        
+        # WHEN: Function decorated with retry_on_database_conflict fails once then succeeds
+        mock_function = Mock()
+        mock_function.side_effect = [production_error, "success"]
+        
+        decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+        
+        caplog.clear()
+        result = decorated_function()
+        
+        # THEN: Production scenario resolves with single retry
+        assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
+        assert result == "success", "Should return success after retry"
+        
+        # Verify exact production error details logged
+        warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+        
+        assert len(retry_logs) == 1, "Should log exactly one retry attempt"
+        assert "attempt 1/4:" in retry_logs[0], "Should show correct attempt number"
+        assert "workflowprogress_tracking_pkey" in retry_logs[0], "Should log constraint name"
+        assert "0bf47c07-7efc-41e7-b011-1fe69782fb06" in retry_logs[0], "Should log workflow ID"
+
+    @pytest.mark.parametrize("max_retries,expected_calls", [(1, 2), (2, 3), (3, 4)])
+    def test_retry_decorator_respects_max_retries_configuration(self, caplog, max_retries, expected_calls):
+        """
+        GIVEN: retry_on_database_conflict decorator with different max_retries values
+        WHEN: Function consistently fails with database conflicts
+        THEN: Decorator makes exactly (max_retries + 1) attempts then gives up
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        from sqlalchemy.exc import IntegrityError
+        
+        # GIVEN: Function that always fails with constraint violation
+        persistent_error = IntegrityError(
+            statement="INSERT INTO test_table ...",
+            params=None,
+            orig=psycopg2.errors.UniqueViolation('duplicate key value violates unique constraint "test_pkey"')
+        )
+        
+        mock_function = Mock(side_effect=persistent_error)
+        decorated_function = retry_on_database_conflict(max_retries=max_retries)(mock_function)
+        
+        caplog.clear()
+        
+        # WHEN: Function consistently fails beyond max retries
+        with pytest.raises(IntegrityError):
+            decorated_function()
+        
+        # THEN: Exact number of attempts and proper final failure logging
+        assert mock_function.call_count == expected_calls, f"Should attempt {expected_calls} times"
+        
+        warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+        error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
+        final_failure_logs = [msg for msg in error_logs if "Database operation failed after" in msg]
+        
+        assert len(retry_logs) == max_retries, f"Should log {max_retries} retry attempts"
+        assert len(final_failure_logs) == 1, "Should log final failure"
+        assert f"after {expected_calls} attempts" in final_failure_logs[0]
+
+    def test_retry_decorator_fails_after_max_attempts_with_logs(self, caplog):
+        """Test that retry decorator fails after max attempts and logs final failure."""
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        from sqlalchemy.exc import IntegrityError
+        
+        mock_function = Mock()
+        
+        # Create persistent unique constraint violation
+        unique_violation = IntegrityError(
+            statement="INSERT INTO workflowprogress_tracking ...",
+            params=None,
+            orig=psycopg2.errors.UniqueViolation('duplicate key value violates unique constraint "workflowprogress_tracking_pkey"')
+        )
+        
+        # Configure mock to always fail
+        mock_function.side_effect = unique_violation
+        
+        # Apply the retry decorator with 2 max retries
+        decorated_function = retry_on_database_conflict(max_retries=2)(mock_function)
+        
+        caplog.clear()
+        
+        # Execute and expect the final exception
+        with pytest.raises(IntegrityError) as exc_info:
+            decorated_function()
+        
+        # Verify the function was called 3 times (2 retries + 1 original)
+        assert mock_function.call_count == 3
+        
+        # Verify the final exception is the same type
+        assert "workflowprogress_tracking_pkey" in str(exc_info.value)
+        
+        # Check log messages for all attempts
+        log_messages = [record.message for record in caplog.records]
+        warning_messages = [msg for msg in log_messages if "Database conflict on attempt" in msg]
+        error_messages = [msg for msg in log_messages if "Database operation failed after" in msg]
+        
+        # Should have logged 2 retry attempts
+        assert len(warning_messages) == 2
+        assert "attempt 1/3:" in warning_messages[0]
+        assert "attempt 2/3:" in warning_messages[1]
+        
+        # Should have logged final failure
+        assert len(error_messages) == 1
+        assert "Database operation failed after 3 attempts" in error_messages[0]
+
+    def test_retry_decorator_does_not_retry_non_retryable_errors(self, caplog):
+        """Test that retry decorator doesn't retry non-retryable errors like NOT NULL constraints."""
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        from sqlalchemy.exc import IntegrityError
+        
+        mock_function = Mock()
+        
+        # Create a non-retryable error (NULL constraint violation)
+        null_violation = IntegrityError(
+            statement="INSERT INTO workflowprogress_tracking ...",
+            params=None,
+            orig=Exception('null value in column "required_field" violates not-null constraint')
+        )
+        
+        mock_function.side_effect = null_violation
+        
+        # Apply the retry decorator
+        decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+        
+        caplog.clear()
+        
+        # Execute and expect immediate failure
+        with pytest.raises(IntegrityError):
+            decorated_function()
+        
+        # Verify the function was called only once (no retries)
+        assert mock_function.call_count == 1
+        
+        # Should not have any retry warning messages
+        warning_messages = [record.message for record in caplog.records if "Database conflict on attempt" in record.message]
+        assert len(warning_messages) == 0
+
+    def test_eventsourcing_integrity_error_retry_mechanism(self, caplog):
+        """
+        GIVEN: EventSourcing IntegrityError (the production issue that killed threads)
+        WHEN: Function decorated with @retry_on_database_conflict encounters this error
+        THEN: EventSourcing error is caught and retried successfully (no more thread deaths)
+        
+        This test covers the specific production scenario from 2025-12-16 where:
+        - Thread 24545 died with eventsourcing.persistence.IntegrityError
+        - Error was: psycopg2.errors.UniqueViolation in jobprogress_tracking_pkey
+        - Our enhanced retry decorator now catches EventSourcing exceptions
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        
+        # Import the EventSourcing exceptions our decorator now handles
+        try:
+            from eventsourcing.persistence import IntegrityError as EventSourcingIntegrityError
+        except ImportError:
+            # For test environments without eventsourcing, create mock exception
+            class EventSourcingIntegrityError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+        
+        # GIVEN: Production EventSourcing IntegrityError with psycopg2 underlying cause
+        eventsourcing_error = EventSourcingIntegrityError(
+            'duplicate key value violates unique constraint "jobprogress_tracking_pkey"'
+        )
+        # Add the underlying psycopg2 error as an attribute
+        eventsourcing_error.orig = psycopg2.errors.UniqueViolation(
+            'duplicate key value violates unique constraint "jobprogress_tracking_pkey"\n'
+            'DETAIL: Key (job_id)=(b048f0c5-workflow-batch-1) already exists.'
+        )
+        
+        # WHEN: Function encounters EventSourcing error then succeeds on retry
+        mock_function = Mock()
+        mock_function.side_effect = [eventsourcing_error, "success"]
+        
+        decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+        
+        caplog.clear()
+        result = decorated_function()
+        
+        # THEN: EventSourcing error is caught and function retries successfully
+        assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
+        assert result == "success", "Should return success after retry"
+        
+        # Verify EventSourcing error is properly logged
+        warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+        
+        assert len(retry_logs) == 1, "Should log exactly one retry attempt"
+        assert "attempt 1/4:" in retry_logs[0], "Should show correct attempt number"
+        assert "jobprogress_tracking_pkey" in retry_logs[0], "Should log constraint name"
+        
+        # Ensure no ERROR logs (thread should not die)
+        error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
+        failure_logs = [msg for msg in error_logs if "Database operation failed after" in msg]
+        assert len(failure_logs) == 0, "Should not have final failure logs (operation succeeded)"
+
+    def test_eventsourcing_operational_error_retry_mechanism(self, caplog):
+        """
+        GIVEN: EventSourcing OperationalError (another database conflict scenario)
+        WHEN: Function decorated with @retry_on_database_conflict encounters this error
+        THEN: OperationalError is caught and retried successfully
+        
+        This covers the OperationalError case from eventsourcing.persistence that we also handle.
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        
+        # Import the EventSourcing exceptions our decorator now handles
+        try:
+            from eventsourcing.persistence import OperationalError as EventSourcingOperationalError
+        except ImportError:
+            # For test environments without eventsourcing, create mock exception  
+            class EventSourcingOperationalError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+        
+        # GIVEN: EventSourcing OperationalError with database lock conflict
+        eventsourcing_op_error = EventSourcingOperationalError('deadlock detected')
+        # Add the underlying psycopg2 error as an attribute
+        eventsourcing_op_error.orig = psycopg2.errors.OperationalError('deadlock detected')
+        
+        # WHEN: Function encounters EventSourcing OperationalError then succeeds on retry
+        mock_function = Mock()
+        mock_function.side_effect = [eventsourcing_op_error, "success"]
+        
+        decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+        
+        caplog.clear()
+        result = decorated_function()
+        
+        # THEN: OperationalError is caught and function retries successfully  
+        assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
+        assert result == "success", "Should return success after retry"
+        
+        # Verify OperationalError is properly logged
+        warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+        
+        assert len(retry_logs) == 1, "Should log exactly one retry attempt"
+        assert "deadlock detected" in retry_logs[0], "Should log operational error details"
+
+    def test_comprehensive_eventsourcing_exception_coverage(self, caplog):
+        """
+        GIVEN: All EventSourcing exception types our decorator should handle
+        WHEN: Each type of exception occurs during database operations
+        THEN: All are caught and retried properly (comprehensive regression test)
+        
+        This is our comprehensive regression test ensuring the enhanced retry decorator
+        covers all EventSourcing scenarios that were causing production thread deaths.
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        import psycopg2.errors
+        
+        # Import EventSourcing exceptions or create mocks
+        try:
+            from eventsourcing.persistence import IntegrityError as ESIntegrityError
+            from eventsourcing.persistence import OperationalError as ESOperationalError
+        except ImportError:
+            # Create mock exceptions for test environments
+            class ESIntegrityError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+            
+            class ESOperationalError(Exception):
+                def __init__(self, message):
+                    self.orig = None
+                    super().__init__(message)
+        
+        # GIVEN: All EventSourcing exception scenarios from production
+        integrity_error = ESIntegrityError('unique constraint violation')
+        integrity_error.orig = psycopg2.errors.UniqueViolation('duplicate key')
+        
+        operational_error = ESOperationalError('database deadlock detected')
+        operational_error.orig = psycopg2.errors.OperationalError('deadlock detected')
+        
+        test_cases = [
+            {
+                "name": "EventSourcing IntegrityError",
+                "exception": integrity_error,
+                "expected_log_content": "unique constraint violation"
+            },
+            {
+                "name": "EventSourcing OperationalError",  
+                "exception": operational_error,
+                "expected_log_content": "database deadlock detected"
+            }
+        ]
+        
+        # WHEN/THEN: Each exception type is handled properly
+        for test_case in test_cases:
+            mock_function = Mock()
+            mock_function.side_effect = [test_case["exception"], f"success_{test_case['name']}"]
+            
+            decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
+            
+            caplog.clear()
+            result = decorated_function()
+            
+            # Verify successful retry for each exception type
+            assert mock_function.call_count == 2, f"{test_case['name']}: Should retry once and succeed"
+            assert result == f"success_{test_case['name']}", f"{test_case['name']}: Should return success"
+            
+            # Verify proper logging
+            warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
+            retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
+            
+            assert len(retry_logs) == 1, f"{test_case['name']}: Should log retry attempt"
+            assert test_case["expected_log_content"] in retry_logs[0], f"{test_case['name']}: Should log exception details"
+            
+            # Reset for next test case
+            mock_function.reset_mock()
 

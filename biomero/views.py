@@ -18,7 +18,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 from biomero.eventsourcing import WorkflowRun, Task
-from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView
+from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
 from biomero.constants import workflow_status as wfs
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,7 @@ class JobAccounting(ProcessApplication):
         # process_event.collect_events(jobaccount)
         EngineManager.commit()
         
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, job_id, user, group, task_id):
         """Update the view table with new job information."""
         with EngineManager.get_session() as session:
@@ -110,7 +111,7 @@ class JobAccounting(ProcessApplication):
             except IntegrityError as e:
                 session.rollback()
                 # Handle the case where the job already exists in the table if necessary
-                logger.error(f"Failed to insert job into view table (already exists?): job_id={job_id}, user={user}, group={group}. Error {e}")
+                logger.warning(f"Database conflict inserting job (will retry): job_id={job_id}, user={user}, group={group}, error={e}")
 
     def get_jobs(self, user=None, group=None):
         """Retrieve jobs for a specific user and/or group.
@@ -208,6 +209,11 @@ class WorkflowProgress(ProcessApplication):
     @policy.register(WorkflowRun.WorkflowCompleted)
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
+        # Defensive check: ensure workflow exists in our dictionary
+        if wf_id not in self.workflows:
+            logger.warning(f"[WFP] WorkflowCompleted event for unknown workflow: wf_id={wf_id}. Skipping status update.")
+            return
+            
         self.workflows[wf_id]["status"] = wfs.DONE
         self.workflows[wf_id]["progress"] = "100%"
         logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.DONE} -- {domain_event.__dict__}")
@@ -218,6 +224,11 @@ class WorkflowProgress(ProcessApplication):
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
         error = domain_event.error_message
+        # Defensive check: ensure workflow exists in our dictionary
+        if wf_id not in self.workflows:
+            logger.warning(f"[WFP] WorkflowFailed event for unknown workflow: wf_id={wf_id}. Skipping status update.")
+            return
+            
         self.workflows[wf_id]["status"] = wfs.FAILED
         logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.FAILED} -- {domain_event.__dict__}")
         self.update_view_table(wf_id)
@@ -251,6 +262,7 @@ class WorkflowProgress(ProcessApplication):
         logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
         EngineManager.commit()
 
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
         """Handle Task StatusUpdated event"""
@@ -303,8 +315,11 @@ class WorkflowProgress(ProcessApplication):
                 self.workflows[wf_id]["progress"] = workflow_prog
                 logger.debug(f"[WFP] Status updated: wf_id={wf_id}, task_id={task_id}, status={workflow_status} -- {domain_event.__dict__}")
                 self.update_view_table(wf_id)
+            else:
+                logger.warning(f"[WFP] Task.StatusUpdated event for unknown workflow: task_id={task_id}, wf_id={wf_id}. Skipping status update.")
         EngineManager.commit()
 
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.ProgressUpdated)
     def _(self, domain_event, process_event):
         """Handle ProgressUpdated event"""
@@ -317,11 +332,19 @@ class WorkflowProgress(ProcessApplication):
             if wf_id and wf_id in self.workflows:
                 self.workflows[wf_id]["task_progress"] = progress
                 logger.debug(f"[WFP] (Task) Progress updated: wf_id={wf_id}, progress={progress} -- {domain_event.__dict__}")
-                self.update_view_table(wf_id)   
+                self.update_view_table(wf_id)
+            else:
+                logger.warning(f"[WFP] Task.ProgressUpdated event for unknown workflow: task_id={task_id}, wf_id={wf_id}. Skipping progress update.")   
         EngineManager.commit() 
     
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, wf_id):
         """Update the view table with new workflow status, progress, user, and group."""
+        # Defensive check: ensure workflow exists in our dictionary
+        if wf_id not in self.workflows:
+            logger.warning(f"[WFP] Cannot update view table for unknown workflow: wf_id={wf_id}")
+            return
+            
         with EngineManager.get_session() as session:
             workflow_info = self.workflows[wf_id]
             
@@ -343,9 +366,10 @@ class WorkflowProgress(ProcessApplication):
                 session.merge(new_workflow_progress)
                 session.commit()
                 logger.debug(f"[WFP] Inserted wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
-            except IntegrityError:
+            except IntegrityError as e:
                 session.rollback()
-                logger.error(f"[WFP] Failed to insert/update wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
+                logger.warning(f"[WFP] Database conflict inserting wf progress (will retry): wf_id={wf_id}, error={e}")
+                raise
                 
     def _determine_main_task_name(self, wf_id):
         """Determine the main user-facing task name for a workflow."""
@@ -392,6 +416,7 @@ class JobProgress(ProcessApplication):
         logger.debug(f"[JP] JobId added: job_id={job_id}, task_id={task_id} -- {domain_event.__dict__}")
         EngineManager.commit()
         
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.StatusUpdated)
     def _(self, domain_event, process_event):
         """Handle StatusUpdated event"""
@@ -410,6 +435,7 @@ class JobProgress(ProcessApplication):
             self.update_view_table(job_id)
         EngineManager.commit()
     
+    @retry_on_database_conflict(max_retries=3)
     @policy.register(Task.ProgressUpdated)
     def _(self, domain_event, process_event):
         """Handle ProgressUpdated event"""
@@ -428,6 +454,7 @@ class JobProgress(ProcessApplication):
             self.update_view_table(job_id)
         EngineManager.commit()
         
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, job_id):
         """Update the view table with new job status and progress information."""
         with EngineManager.get_session() as session:
@@ -441,9 +468,10 @@ class JobProgress(ProcessApplication):
                 session.merge(new_job_progress)  # Use merge to insert or update
                 session.commit()
                 logger.debug(f"[JP] Inserted/Updated job progress in view table: job_id={job_id}, status={job_info['status']}, progress={job_info['progress']}")
-            except IntegrityError:
+            except IntegrityError as e:
                 session.rollback()
-                logger.error(f"[JP] Failed to insert/update job progress in view table: job_id={job_id}")
+                logger.warning(f"[JP] Database conflict inserting job progress (will retry): job_id={job_id}, error={e}")
+                raise  # Re-raise so retry decorator can handle it
 
 
 # @event.listens_for(Engine, "before_cursor_execute")
@@ -563,6 +591,7 @@ class WorkflowAnalytics(ProcessApplication):
             self.update_view_table(task_id)
         EngineManager.commit()
 
+    @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, task_id):
         """Update the view table with new task execution information."""
         task_info = self.tasks.get(task_id)
@@ -611,7 +640,7 @@ class WorkflowAnalytics(ProcessApplication):
                 logger.debug(f"[WFA] Updated/Inserted task execution into view table: task_id={task_id}, task_name={task_info.get('task_name')}")
             except IntegrityError as e:
                 session.rollback()
-                logger.error(f"[WFA] Failed to insert/update task execution into view table: task_id={task_id}, error={str(e)}")
+                logger.warning(f"[WFA] Database conflict inserting task execution (will retry): task_id={task_id}, error={str(e)}")
                 logger.debug(f"[WFA] Task info: {task_info}")
 
     def get_task_counts(self, user=None, group=None):

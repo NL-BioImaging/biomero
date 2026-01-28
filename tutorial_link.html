@@ -14,6 +14,7 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -588,7 +589,7 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 <p>When using a new version, like <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>, update this config again.
 For example, I had a bugfix, so I released <a class="reference external" href="https://hub.docker.com/r/torecluik/w_spotcounting-cellprofiler/tags">my workflow</a> to <code class="docutils literal notranslate"><span class="pre">v1.0.1</span></code>, using the release + push + update steps.</p>
 <p>For me, updating is done by rebuilding my docker container for the processor worker:
-<code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span> <span class="pre">omeroworker-5</span></code></p>
+<code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span> <span class="pre">biomeroworker</span></code></p>
 <ol class="arabic simple" start="2">
 <li><p>and recreate the Slurm environment:</p></li>
 </ol>
@@ -730,7 +731,7 @@ In our example, we have aggregates (spots) outside of the nucleus and we want to
 <h2>1. Import data to OMERO<a class="headerlink" href="#import-data-to-omero" title="Permalink to this heading"></a></h2>
 <p>Import <a class="reference internal" href="#./images/Cells.tif"><span class="xref myst">data</span></a> as you would normally.</p>
 <p>We use this image ‘Cells.tif’, shown as part of this png with a mask here:</p>
-<p><img alt="Nuclei label image" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/nuclei_labels.png?raw=true" /></p>
+<p><img alt="Nuclei label image" src="https://github.com/NL-BioImaging/biomero/blob/main/resources/tutorials/images/nuclei_labels.png?raw=true" /></p>
 </section>
 <section id="extract-masks-with-cellpose">
 <h2>2. Extract masks with Cellpose<a class="headerlink" href="#extract-masks-with-cellpose" title="Permalink to this heading"></a></h2>
@@ -749,7 +750,7 @@ We store them as images in a new dataset and particularly name them: “{origina
 <p>To estimate the amount of aggregates per cell, we actually need the cytoplasm in our example. Then we can calculate overlap.</p>
 <p>One could segment the cytoplasm, especially in this image (its just channel 1), but we have a Python script that does this algorithmically instead for the fun of it.</p>
 <p>We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.</p>
-<p><img alt="4 images showing cell expansion" src="https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/cellexpansion.png?raw=true" /></p>
+<p><img alt="4 images showing cell expansion" src="https://github.com/NL-BioImaging/biomero/blob/main/resources/tutorials/images/cellexpansion.png?raw=true" /></p>
 <p>For this, we have to first add it to OMERO:
 We could just add the Python code to a OMERO job script. But then the Processor needs to have the right Python libraries installed.
 Instead, we should package it in a lightweight container with the correct Python environment. This in turn makes the workflow more FAIR.</p>
@@ -868,7 +869,7 @@ This is what we will cover in this tutorial.</p>
 <section id="tl-dr">
 <h3>TL;DR:<a class="headerlink" href="#tl-dr" title="Permalink to this heading"></a></h3>
 <ul class="simple">
-<li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">slurm-docker-cluster</span></code> locally: <a class="reference external" href="https://github.com/TorecLuik/slurm-docker-cluster">here</a></p></li>
+<li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">slurm-docker-cluster</span></code> locally: <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO-Local-Slurm">here</a></p></li>
 </ul>
 <details>
   <summary>Details</summary>
@@ -1102,17 +1103,17 @@ c2
 <section id="id4">
 <h3>TL;DR:<a class="headerlink" href="#id4" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
-<li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
+<li><p>Clone my example NL-BIOMERO locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/NL-BIOMERO.git</span></code></p></li>
 <li><p>Fire up the OMERO containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>Go to OMERO.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
-<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight (e.g. <a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-client/blob/main/resources/tutorials/images/Cells.tif">Cells.tiff</a>).</p></li>
-<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script (<a class="reference external" href="https://github.com/NL-BioImaging/omero-slurm-scripts/blob/master/init/SLURM_Init_environment.py">here</a>)</p></li>
+<li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight or our BIOMERO.importer (e.g. <a class="reference external" href="https://github.com/NL-BioImaging/biomero/blob/main/resources/tutorials/images/Cells.tif">Cells.tiff</a>).</p></li>
+<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">biomero/admin/SLURM</span> <span class="pre">Init</span> <span class="pre">environment</span></code> script (<a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py">here</a>)</p></li>
 </ol>
 <details>
   <summary>Details</summary>
 <p>======= OMERO in Docker =======</p>
-<p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>-b<span class="w"> </span>processors<span class="w"> </span>https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+<p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO">get it here</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/NL-BioImaging/NL-BIOMERO.git
 </pre></div>
 </div>
 <p>Let’s (build it and) fire it up:</p>
@@ -1121,11 +1122,11 @@ c2
 </div>
 <p>======= OMERO web =======</p>
 <p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
-<p>Import some example data with OMERO Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
+<p>Import some example data with OMERO Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) or the BIOMERO.importer.</p>
 <p>======= Connect to Slurm =======</p>
-<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
+<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">biomero</span></code> library.</p>
 <p>======= Add ssh config to OMERO Processor =======</p>
-<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the OMERO processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
+<p>Ok, so <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from your machine, but we need the OMERO processing server <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> to be able to do it too, like <a class="reference internal" href="#2c-add-ssh-config-for-simple-login"><span class="xref myst">we did before</span></a>.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
 <p>However, we need to change the <code class="docutils literal notranslate"><span class="pre">HostName</span></code> to match one that the container can understand. <code class="docutils literal notranslate"><span class="pre">localhost</span></code> works fine from our machine, but not from within a Docker container. Instead, we need to use <code class="docutils literal notranslate"><span class="pre">host.docker.internal</span></code> (<a class="reference external" href="https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host">documentation</a>).</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">Host slurm</span>
@@ -1138,8 +1139,8 @@ c2
 </div>
 <p>Restart your OMERO cluster if you already started it:
 <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">down</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p>
-<p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">docker-example-omero-grid</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">omeroworker</span><span class="p">-</span><span class="n">5</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
+<p>Ok, so now we can connect from within the biomeroworker to our Slurm cluster. We can try it out:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">NL-BIOMERO</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">biomeroworker</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
 <span class="n">bash</span><span class="p">-</span><span class="n">4</span><span class="p">.</span><span class="n">2</span><span class="p">$</span> <span class="n">ssh</span> <span class="n">slurm</span>
 <span class="n">Last</span> <span class="n">login</span><span class="p">:</span> <span class="n">Wed</span> <span class="n">Aug</span>  <span class="n">9</span> <span class="n">13</span><span class="p">:</span><span class="n">08</span><span class="p">:</span><span class="n">54</span> <span class="n">2023</span> <span class="n">from</span> <span class="n">172</span><span class="p">.</span><span class="n">21</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span>
 <span class="p">[</span><span class="n">slurm</span><span class="nv">@slurmctld</span> <span class="p">~]$</span> <span class="n">squeue</span>
@@ -1153,8 +1154,8 @@ c2
 </div>
 <p>======= slurm-config.ini =======</p>
 <p>Let us setup the library’s config file <a class="reference internal" href="#../slurm-config.ini"><span class="xref myst">slurm-config.ini</span></a> correctly.</p>
-<p>Now, the <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library by default expects the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> ssh connection to be called <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, but you can adjust it to whatever you named your ssh <em>Host</em> in config.</p>
-<p>In this Docker setup, the config file is located at the <code class="docutils literal notranslate"><span class="pre">worker-gpu</span></code> folder and in the Dockerfile it is copied to <code class="docutils literal notranslate"><span class="pre">/etc/</span></code>, where the library will pick it up.</p>
+<p>Now, the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> library by default expects the <code class="docutils literal notranslate"><span class="pre">Slurm</span></code> ssh connection to be called <code class="docutils literal notranslate"><span class="pre">localslurm</span></code>, but you can adjust it to whatever you named your ssh <em>Host</em> in config, like <code class="docutils literal notranslate"><span class="pre">slurm</span></code>.</p>
+<p>In this Docker setup, the config file is located at the <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> folder and in the Dockerfile it is copied to <code class="docutils literal notranslate"><span class="pre">/etc/</span></code>, where the library will pick it up.</p>
 <p>Let’s use these values:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
 <span class="c1"># -------------------------------------</span>
@@ -1353,7 +1354,7 @@ c2
 </pre></div>
 </div>
 <p>======= Init environment =======</p>
-<p>Now we go to OMERO web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
+<p>Now we go to OMERO web and run the <code class="docutils literal notranslate"><span class="pre">biomero/admin/SLURM</span> <span class="pre">Init</span> <span class="pre">environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
 <p><img alt="Slurm Init Busy" src="images/webclient_init_env.PNG" /></p>
 <p><img alt="Slurm Init Done" src="images/webclient_init_env_done.PNG" /></p>
 </details>
@@ -1610,21 +1611,21 @@ hpcsmall-debug-ghpc-3
 <section id="id15">
 <h3>TL;DR:<a class="headerlink" href="#id15" title="Permalink to this heading"></a></h3>
 <ol class="arabic simple">
-<li><p>Clone my example <code class="docutils literal notranslate"><span class="pre">docker-example-omero-grid-amc</span></code> locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">-b</span> <span class="pre">processors</span> <span class="pre">https://github.com/TorecLuik/docker-example-omero-grid-amc.git</span></code></p></li>
-<li><p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to point to <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already)</p></li>
+<li><p>Clone my example NL-BIOMERO locally: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/NL-BIOMERO.git</span></code></p></li>
+<li><p>Change the <code class="docutils literal notranslate"><span class="pre">biomeroworker/slurm-config.ini</span></code> file to point to <code class="docutils literal notranslate"><span class="pre">biomeroworker/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already)</p></li>
 <li><p>Fire up the OMERO containers: <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>Go to OMERO.web (<code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>), login <code class="docutils literal notranslate"><span class="pre">root</span></code> pw <code class="docutils literal notranslate"><span class="pre">omero</span></code></p></li>
 <li><p>Upload some images (to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>) with OMERO.Insight (not included).</p></li>
-<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script</p></li>
+<li><p>In web, run the <code class="docutils literal notranslate"><span class="pre">biomero/admin/SLURM</span> <span class="pre">Init</span> <span class="pre">environment</span></code> script</p></li>
 </ol>
 <details>
   <summary>Details</summary>
 <p>======= OMERO in Docker =======</p>
-<p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors">get it here</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>-b<span class="w"> </span>processors<span class="w"> </span>https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+<p>You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO">get it here</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/NL-BioImaging/NL-BIOMERO.git
 </pre></div>
 </div>
-<p>Change the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.ini</span></code> file to be the <code class="docutils literal notranslate"><span class="pre">worker-gpu/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already).</p>
+<p>Change the <code class="docutils literal notranslate"><span class="pre">biomeroworker/slurm-config.ini</span></code> file to be the <code class="docutils literal notranslate"><span class="pre">biomeroworker/slurm-config.gcslurm.ini</span></code> file (if it is not the same file already).</p>
 <p>What we did was point to <code class="docutils literal notranslate"><span class="pre">gcslurm</span></code> profile (or rename your SSH profile to <code class="docutils literal notranslate"><span class="pre">slurm</span></code>)</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
 <span class="c1"># -------------------------------------</span>
@@ -1644,12 +1645,12 @@ hpcsmall-debug-ghpc-3
 <p>Once they are running, you should be able to access web at <code class="docutils literal notranslate"><span class="pre">localhost:4080</span></code>. Login with user <code class="docutils literal notranslate"><span class="pre">root</span></code> / pw <code class="docutils literal notranslate"><span class="pre">omero</span></code>.</p>
 <p>Import some example data with OMERO Insight (connect with <code class="docutils literal notranslate"><span class="pre">localhost</span></code>).</p>
 <p>======= Connect to Slurm =======</p>
-<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">worker-5</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">omero-slurm-client</span></code> library.</p>
+<p>This container’s processor node (<code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code>) has already installed our <code class="docutils literal notranslate"><span class="pre">biomero</span></code> library.</p>
 <p>======= Add ssh config to OMERO Processor =======</p>
-<p>Ok, so SSH works fine from your machine, but we need the OMERO processing server <code class="docutils literal notranslate"><span class="pre">worker-5</span></code> to be able to do it too.</p>
+<p>Ok, so SSH works fine from your machine, but we need the OMERO processing server <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> to be able to do it too.</p>
 <p>By some smart tricks, we have mounted our <code class="docutils literal notranslate"><span class="pre">~/.ssh</span></code> folder to the worker container, so it knows and can use our SSH settings and config.</p>
-<p>Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:</p>
-<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">docker-example-omero-grid</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">omeroworker</span><span class="p">-</span><span class="n">5</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
+<p>Ok, so now we can connect from within the biomeroworker to our Slurm cluster. We can try it out:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">...\</span><span class="n">NL-BIOMERO</span><span class="p">&gt;</span> <span class="n">docker-compose</span> <span class="n">exec</span> <span class="n">biomeroworker</span> <span class="p">/</span><span class="n">bin</span><span class="p">/</span><span class="n">bash</span>
 <span class="n">bash</span><span class="p">-</span><span class="n">4</span><span class="p">.</span><span class="n">2</span><span class="p">$</span> <span class="n">ssh</span> <span class="n">gcslurm</span>
 
 <span class="p">&lt;</span><span class="n">pretty-slurm-art</span><span class="p">&gt;</span>
@@ -1659,7 +1660,7 @@ hpcsmall-debug-ghpc-3
 </pre></div>
 </div>
 <p>======= Init environment =======</p>
-<p>Now we go to OMERO web and run the <code class="docutils literal notranslate"><span class="pre">slurm/init_environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
+<p>Now we go to OMERO web and run the <code class="docutils literal notranslate"><span class="pre">biomero/admin/SLURM</span> <span class="pre">Init</span> <span class="pre">environment</span></code> script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.</p>
 <p><img alt="Slurm Init Busy" src="images/webclient_init_env.PNG" /></p>
 <p><img alt="Slurm Init Done" src="images/webclient_init_env_done.PNG" /></p>
 </details>
@@ -1947,9 +1948,9 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <li><p>Ensure it works so you can look at the lolcow again <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">godlovedc/lolcow</span></code></p></li>
 </ol>
 <p>Ok, good enough.</p>
-<p>Now let’s pull an easy BIOMERO setup from <a class="reference external" href="https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git">NL-BIOMERO</a> onto our VM:</p>
+<p>Now let’s pull an easy BIOMERO setup from <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO.git">NL-BIOMERO</a> onto our VM:</p>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/NL-BioImaging/NL-BIOMERO.git</span></code></p></li>
 <li><p>Let’s test it: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span> <span class="pre">--build</span></code></p></li>
 <li><p>Now we need to open the OMERO web port to view it <code class="docutils literal notranslate"><span class="pre">4080</span></code>.</p></li>
 </ol>

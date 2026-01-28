@@ -213,9 +213,9 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.
 
 Ok, good enough. 
 
-Now let's pull an easy BIOMERO setup from [NL-BIOMERO](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git) onto our VM:
+Now let's pull an easy BIOMERO setup from [NL-BIOMERO](https://github.com/NL-BioImaging/NL-BIOMERO.git) onto our VM:
 
-1. `git clone https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO.git`
+1. `git clone https://github.com/NL-BioImaging/NL-BIOMERO.git`
 
 2. Let's test it: `docker compose up -d --build`
 

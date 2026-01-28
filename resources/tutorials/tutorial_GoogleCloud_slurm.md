@@ -198,25 +198,25 @@ Now let's connect OMERO to our Slurm!
 Ok, now we need a OMERO server and a correctly configured OMERO Slurm Client.
 
 ### TL;DR:
-1.  Clone my example `docker-example-omero-grid-amc` locally: `git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git`
-2. Change the `worker-gpu/slurm-config.ini` file to point to `worker-gpu/slurm-config.gcslurm.ini` file (if it is not the same file already)
+1.  Clone my example NL-BIOMERO locally: `git clone https://github.com/NL-BioImaging/NL-BIOMERO.git`
+2. Change the `biomeroworker/slurm-config.ini` file to point to `biomeroworker/slurm-config.gcslurm.ini` file (if it is not the same file already)
 3. Fire up the OMERO containers: `docker-compose up -d --build`
 4. Go to OMERO.web (`localhost:4080`), login `root` pw `omero`
 5. Upload some images (to `localhost`) with OMERO.Insight (not included).
-6. In web, run the `slurm/init_environment` script
+6. In web, run the `biomero/admin/SLURM Init environment` script
 
 <details>
   <summary>Details</summary>
 
 ======= OMERO in Docker =======
 
-You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: [get it here](https://github.com/TorecLuik/docker-example-omero-grid-amc/tree/processors).
+You can use your own OMERO setup, but for this tutorial I will refer to a dockerized OMERO that I am working with: [get it here](https://github.com/NL-BioImaging/NL-BIOMERO).
 
 ```bash
-git clone -b processors https://github.com/TorecLuik/docker-example-omero-grid-amc.git
+git clone https://github.com/NL-BioImaging/NL-BIOMERO.git
 ```
 
-Change the `worker-gpu/slurm-config.ini` file to be the `worker-gpu/slurm-config.gcslurm.ini` file (if it is not the same file already).
+Change the `biomeroworker/slurm-config.ini` file to be the `biomeroworker/slurm-config.gcslurm.ini` file (if it is not the same file already).
 
 What we did was point to `gcslurm` profile (or rename your SSH profile to `slurm`)
 ```ini
@@ -247,17 +247,17 @@ Import some example data with OMERO Insight (connect with `localhost`).
 
 ======= Connect to Slurm =======
 
-This container's processor node (`worker-5`) has already installed our `omero-slurm-client` library. 
+This container's processor node (`biomeroworker`) has already installed our `biomero` library. 
 
 ======= Add ssh config to OMERO Processor =======
 
-Ok, so SSH works fine from your machine, but we need the OMERO processing server `worker-5` to be able to do it too.
+Ok, so SSH works fine from your machine, but we need the OMERO processing server `biomeroworker` to be able to do it too.
 
 By some smart tricks, we have mounted our `~/.ssh` folder to the worker container, so it knows and can use our SSH settings and config.
 
-Ok, so now we can connect from within the worker-5 to our Slurm cluster. We can try it out:
+Ok, so now we can connect from within the biomeroworker to our Slurm cluster. We can try it out:
 ```powershell
-...\docker-example-omero-grid> docker-compose exec omeroworker-5 /bin/bash
+...\NL-BIOMERO> docker-compose exec biomeroworker /bin/bash
 bash-4.2$ ssh gcslurm
 
 <pretty-slurm-art>
@@ -268,7 +268,7 @@ bash-4.2$ ssh gcslurm
 
 ======= Init environment =======
 
-Now we go to OMERO web and run the `slurm/init_environment` script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.
+Now we go to OMERO web and run the `biomero/admin/SLURM Init environment` script to apply this config and setup our Slurm. We will use the default location, no need to fill in anything, just run the script.
 
 ![Slurm Init Busy](./images/webclient_init_env.PNG)
 

@@ -11,7 +11,7 @@ Import [data](./images/Cells.tif) as you would normally.
 
 We use this image 'Cells.tif', shown as part of this png with a mask here:
 
-![Nuclei label image](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/nuclei_labels.png?raw=true)
+![Nuclei label image](https://github.com/NL-BioImaging/biomero/blob/main/resources/tutorials/images/nuclei_labels.png?raw=true)
 
 ## 2. Extract masks with Cellpose
 
@@ -33,7 +33,7 @@ One could segment the cytoplasm, especially in this image (its just channel 1), 
 
 We apply the CellExpansion algorithm on the nuclei mask and estimate the full reach of the cells with new masks.
 
-![4 images showing cell expansion](https://github.com/NL-BioImaging/omero-slurm-client/blob/502dd074e995b29d5206056d0f9c6eae0a3450b4/resources/tutorials/images/cellexpansion.png?raw=true)
+![4 images showing cell expansion](https://github.com/NL-BioImaging/biomero/blob/main/resources/tutorials/images/cellexpansion.png?raw=true)
 
 For this, we have to first add it to OMERO: 
 We could just add the Python code to a OMERO job script. But then the Processor needs to have the right Python libraries installed. 

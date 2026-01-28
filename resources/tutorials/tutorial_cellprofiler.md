@@ -356,7 +356,7 @@ When using a new version, like `v1.0.1`, update this config again.
 For example, I had a bugfix, so I released [my workflow](https://hub.docker.com/r/torecluik/w_spotcounting-cellprofiler/tags) to `v1.0.1`, using the release + push + update steps.
 
 For me, updating is done by rebuilding my docker container for the processor worker:
-`docker-compose up -d --build omeroworker-5`
+`docker-compose up -d --build biomeroworker`
 
 2. and recreate the Slurm environment:
 

@@ -1159,6 +1159,7 @@ class SlurmClient(Connection):
     def run_commands(self, cmdlist: List[str],
                      env: Optional[Dict[str, str]] = None,
                      sep: str = ' && ',
+                     log_stdout: bool = True,
                      **kwargs) -> Result:
         """
         Run a list of shell commands consecutively on the Slurm cluster,
@@ -1174,6 +1175,8 @@ class SlurmClient(Connection):
                 set when running the command. Defaults to None.
             sep (str, optional): The separator used to concatenate the 
                 commands. Defaults to ' && '.
+            log_stdout (bool, optional): Whether to log the stdout output.
+                Defaults to True.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -1187,14 +1190,15 @@ class SlurmClient(Connection):
                 and {kwargs}: {cmd}")
         result = self.run(cmd, env=env, **kwargs)  # out_stream=out_stream,
 
-        try:
-            # Watch out for UnicodeEncodeError when you str() this.
-            logger.info(f"{result.stdout}")
-        except UnicodeEncodeError as e:
-            logger.error(f"Unicode error: {e}")
-            # TODO: ONLY stdout RECODE NEEDED?? or also error?
-            result.stdout = result.stdout.encode(
-                'utf-8', 'ignore').decode('utf-8')
+        if log_stdout:
+            try:
+                # Watch out for UnicodeEncodeError when you str() this.
+                logger.info(f"{result.stdout}")
+            except UnicodeEncodeError as e:
+                logger.error(f"Unicode error: {e}")
+                # TODO: ONLY stdout RECODE NEEDED?? or also error?
+                result.stdout = result.stdout.encode(
+                    'utf-8', 'ignore').decode('utf-8')
         return result
 
     def str_to_class(self, module_name: str, class_name: str, *args, **kwargs):
@@ -1300,9 +1304,10 @@ class SlurmClient(Connection):
 
         cmd = self.get_jobs_info_command(states="cd")
         logger.info("Retrieving a list of completed jobs from Slurm")
-        result = self.run_commands([cmd], env=env)
+        result = self.run_commands([cmd], env=env, log_stdout=False)
         job_list = [job.strip() for job in result.stdout.strip().split('\n')]
         job_list.reverse()
+        logger.info(f"Found {len(job_list)} completed jobs: {job_list[:5]}{'...' if len(job_list) > 5 else ''}")
         return job_list
 
     def list_all_jobs(self, env: Optional[Dict[str, str]] = None) -> List[str]:
@@ -1319,9 +1324,10 @@ class SlurmClient(Connection):
 
         cmd = self.get_jobs_info_command()
         logger.info("Retrieving a list of all jobs from Slurm")
-        result = self.run_commands([cmd], env=env)
+        result = self.run_commands([cmd], env=env, log_stdout=False)
         job_list = result.stdout.strip().split('\n')
         job_list.reverse()
+        logger.info(f"Found {len(job_list)} total jobs: {job_list[:5]}{'...' if len(job_list) > 5 else ''}")
         return job_list
 
     def get_jobs_info_command(self, start_time: str = "2023-01-01",

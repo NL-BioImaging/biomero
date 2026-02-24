@@ -273,20 +273,23 @@ class WorkflowProgress(ProcessApplication):
         task_info = self.tasks.get(task_id)
         if task_info:
             wf_id = task_info["workflow_id"]
-            task_name = task_info["task_name"]
+            task_name = task_info["task_name"].lower()
 
             if wf_id and wf_id in self.workflows:
                 # Determine status based on task_name
-                if task_name == '_SLURM_Image_Transfer.py':
+                if task_name == '_slurm_image_transfer.py':
                     workflow_status = wfs.TRANSFERRING
                     workflow_prog = "5%"
                 elif task_name.startswith('convert_'):
                     workflow_status = wfs.CONVERTING
                     workflow_prog = "25%"
-                elif task_name == 'SLURM_Get_Results.py':
+                elif task_name == 'slurm_get_results.py':
                     workflow_status = wfs.RETRIEVING
                     workflow_prog = "90%"
-                elif task_name == 'SLURM_Run_Workflow.py':
+                elif task_name == 'slurm_import_results.py':
+                    workflow_status = wfs.RETRIEVING + status
+                    workflow_prog = "90%"
+                elif task_name == 'slurm_run_workflow.py':
                     workflow_status = wfs.RUNNING
                     workflow_prog = "50%"
                 else:
@@ -377,13 +380,12 @@ class WorkflowProgress(ProcessApplication):
         main_tasks = []
         for task_id, task_info in self.tasks.items():
             if task_info.get("workflow_id") == wf_id:
-                task_name = task_info.get("task_name", "")
+                task_name = task_info.get("task_name", "").lower()
                 # Skip infrastructure tasks, keep the actual workflow tasks
-                if not (task_name.startswith("_SLURM_") or 
-                        task_name.startswith("SLURM_") or 
-                        task_name.startswith("convert_") or
-                        task_name.startswith("CONVERT_")):
-                    main_tasks.append(task_name)
+                if not (task_name.startswith("_slurm_") or 
+                        task_name.startswith("slurm_") or 
+                        task_name.startswith("convert_")):
+                    main_tasks.append(task_info.get("task_name", ""))  # Keep original case for display
         
         # Return the first non-infrastructure task, or fallback to current task
         if main_tasks:

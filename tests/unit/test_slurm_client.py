@@ -935,7 +935,8 @@ def test_list_completed_jobs(mock_run_commands,
     # THEN
     mock_run_commands.assert_called_once_with(
         [slurm_client.get_jobs_info_command(states="cd")],
-        env=env
+        env=env,
+        log_stdout=False
     )
 
     assert result == ["43210", "98765"]

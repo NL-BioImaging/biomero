@@ -387,20 +387,23 @@
         <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">&quot;workflow_id&quot;</span><span class="p">]</span>
-            <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">&quot;task_name&quot;</span><span class="p">]</span>
+            <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">&quot;task_name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
 
             <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
                 <span class="c1"># Determine status based on task_name</span>
-                <span class="k">if</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;_SLURM_Image_Transfer.py&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;_slurm_image_transfer.py&#39;</span><span class="p">:</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">TRANSFERRING</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;5%&quot;</span>
                 <span class="k">elif</span> <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;convert_&#39;</span><span class="p">):</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">CONVERTING</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;25%&quot;</span>
-                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;SLURM_Get_Results.py&#39;</span><span class="p">:</span>
+                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;slurm_get_results.py&#39;</span><span class="p">:</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RETRIEVING</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;90%&quot;</span>
-                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;SLURM_Run_Workflow.py&#39;</span><span class="p">:</span>
+                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;slurm_import_results.py&#39;</span><span class="p">:</span>
+                    <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RETRIEVING</span> <span class="o">+</span> <span class="n">status</span>
+                    <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;90%&quot;</span>
+                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">&#39;slurm_run_workflow.py&#39;</span><span class="p">:</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RUNNING</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">&quot;50%&quot;</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -491,13 +494,12 @@
         <span class="n">main_tasks</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">task_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;workflow_id&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">wf_id</span><span class="p">:</span>
-                <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
                 <span class="c1"># Skip infrastructure tasks, keep the actual workflow tasks</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_SLURM_&quot;</span><span class="p">)</span> <span class="ow">or</span> 
-                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;SLURM_&quot;</span><span class="p">)</span> <span class="ow">or</span> 
-                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;convert_&quot;</span><span class="p">)</span> <span class="ow">or</span>
-                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;CONVERT_&quot;</span><span class="p">)):</span>
-                    <span class="n">main_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_slurm_&quot;</span><span class="p">)</span> <span class="ow">or</span> 
+                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;slurm_&quot;</span><span class="p">)</span> <span class="ow">or</span> 
+                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;convert_&quot;</span><span class="p">)):</span>
+                    <span class="n">main_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>  <span class="c1"># Keep original case for display</span>
         
         <span class="c1"># Return the first non-infrastructure task, or fallback to current task</span>
         <span class="k">if</span> <span class="n">main_tasks</span><span class="p">:</span>

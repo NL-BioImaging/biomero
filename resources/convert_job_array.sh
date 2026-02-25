@@ -28,13 +28,14 @@ if [ -e "$file_to_convert" ]; then
     echo "Starting conversion for task $SLURM_ARRAY_TASK_ID..."
 
     # Run the conversion with default parameters
-    singularity run $CONVERSION_PATH/$CONVERTER_IMAGE "$file_to_convert"
-
-    # Remove the original file/folder after conversion
-    rm -rf "$file_to_convert"
-
-    # Log the completion of the task
-    echo "Task $SLURM_ARRAY_TASK_ID completed successfully."
+    if singularity run $CONVERSION_PATH/$CONVERTER_IMAGE "$file_to_convert"; then
+        # Remove the original file/folder only if conversion succeeded
+        rm -rf "$file_to_convert"
+        echo "Task $SLURM_ARRAY_TASK_ID completed successfully."
+    else
+        echo "ERROR: Conversion failed for task $SLURM_ARRAY_TASK_ID. Input file NOT deleted."
+        exit 1
+    fi
 else
     # Log if no corresponding input file is found
     echo "No corresponding input file for task $SLURM_ARRAY_TASK_ID."

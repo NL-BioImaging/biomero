@@ -287,7 +287,8 @@ class WorkflowProgress(ProcessApplication):
                     workflow_status = wfs.RETRIEVING
                     workflow_prog = "90%"
                 elif task_name == 'slurm_import_results.py':
-                    workflow_status = wfs.RETRIEVING + status
+                    # Map IMPORTING -> wfs.IMPORTING, IMPORTED -> wfs.IMPORTED, fallback to status
+                    workflow_status = getattr(wfs, status, status)
                     workflow_prog = "90%"
                 elif task_name == 'slurm_run_workflow.py':
                     workflow_status = wfs.RUNNING

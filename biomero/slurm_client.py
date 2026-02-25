@@ -588,7 +588,6 @@ class SlurmClient(Connection):
                 # Begin a transaction
                 listener.pull_and_process(leader_name=WorkflowTracker.__name__, start=start)
                 session.commit()
-                logger.info("Updated listener successfully")
             except IntegrityError as e:
                 logger.error(e)
                 session.rollback()

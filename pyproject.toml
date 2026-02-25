@@ -55,7 +55,9 @@ full = [
     "ezomero==1.1.1",
     "tifffile==2020.9.3",
     "omero-metadata==0.12.0",
-    "omero-cli-zarr==0.6.1"
+    "omero-cli-zarr==0.6.1",
+    "ome-zarr==0.11.1",
+    "zarr==2.18.7"
 ]
 
 [project.urls]

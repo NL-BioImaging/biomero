@@ -589,8 +589,16 @@ class SlurmClient(Connection):
                 listener.pull_and_process(leader_name=WorkflowTracker.__name__, start=start)
                 session.commit()
             except IntegrityError as e:
-                logger.error(e)
                 session.rollback()
+                error_msg = str(e).lower()
+                if 'unique constraint' in error_msg or 'duplicate key' in error_msg:
+                    # Already processed by another worker - this is expected and harmless.
+                    # The listener is already up to date.
+                    logger.debug(
+                        f"Listener already up to date (notification already processed): {e}")
+                else:
+                    logger.warning(
+                        f"Database conflict in bring_listener_uptodate (non-unique): {e}")
             
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Ensure to call the parent class's __exit__ 

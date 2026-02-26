@@ -40,5 +40,7 @@ jobs:
     - name: Coveralls GitHub Action
       if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
       uses: coverallsapp/github-action@v2.3.0
+      with:
+        fail-on-error: false
 
             

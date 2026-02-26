@@ -703,8 +703,16 @@
                 <span class="n">listener</span><span class="o">.</span><span class="n">pull_and_process</span><span class="p">(</span><span class="n">leader_name</span><span class="o">=</span><span class="n">WorkflowTracker</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">)</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
             <span class="k">except</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span></div>
+                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                <span class="n">error_msg</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s1">&#39;unique constraint&#39;</span> <span class="ow">in</span> <span class="n">error_msg</span> <span class="ow">or</span> <span class="s1">&#39;duplicate key&#39;</span> <span class="ow">in</span> <span class="n">error_msg</span><span class="p">:</span>
+                    <span class="c1"># Already processed by another worker - this is expected and harmless.</span>
+                    <span class="c1"># The listener is already up to date.</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Listener already up to date (notification already processed): </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Database conflict in bring_listener_uptodate (non-unique): </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
             
     <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
         <span class="c1"># Ensure to call the parent class&#39;s __exit__ </span>

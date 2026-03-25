@@ -37,6 +37,7 @@ class workflow:
     OUTPUT_PARENT = "1) Zip attachment to parent"
     OUTPUT_ATTACH = "2) Attach to original images"
     OUTPUT_NEW_DATASET = "3a) Import into NEW Dataset"
+    OUTPUT_NEW_SCREEN = "3a) Import into NEW Screen"
     OUTPUT_DUPLICATES = "3b) Allow duplicate dataset (name)?"
     OUTPUT_CSV_TABLE = "4) Upload result CSVs as OMERO tables"
     NO = "--NO THANK YOU--"
@@ -58,6 +59,11 @@ class results:
     OUTPUT_ATTACH_NEW_DATASET_DUPLICATE = "Allow duplicate?"
     OUTPUT_ATTACH_NEW_DATASET_RENAME = "Rename imported files?"
     OUTPUT_ATTACH_NEW_DATASET_RENAME_NAME = "Rename"
+    OUTPUT_ATTACH_NEW_SCREEN = "Output - Add as new images in NEW screen"
+    OUTPUT_ATTACH_NEW_SCREEN_NAME = "New Screen"
+    OUTPUT_ATTACH_NEW_SCREEN_DUPLICATE = "Allow duplicate?"
+    OUTPUT_ATTACH_NEW_SCREEN_RENAME = "Rename imported files?"
+    OUTPUT_ATTACH_NEW_SCREEN_RENAME_NAME = "Rename"
     OUTPUT_ATTACH_TABLE = "Output - Add csv files as OMERO.table"
     OUTPUT_ATTACH_TABLE_DATASET = "Attach table to dataset"
     OUTPUT_ATTACH_TABLE_DATASET_ID = "Dataset for table"
@@ -74,6 +80,7 @@ class transfer:
     DATA_TYPE_IMAGE = 'Image'
     DATA_TYPE_PLATE = 'Plate'
     DATA_TYPE_PROJECT = 'Project'
+    DATA_TYPE_SCREEN = 'Screen'
     IDS = "IDs"
     SETTINGS = "Image settings (Required)"
     CHANNELS = "Export_Individual_Channels"

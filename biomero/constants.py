@@ -29,6 +29,16 @@ RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 CLEANUP = "Cleanup?"
 
 
+class conversion:
+    # ------------------------------------------------------------
+    # SLURM_Remote_Conversion script constants
+    # ------------------------------------------------------------
+    INPUT_DATA = "Input data"
+    SOURCE_FORMAT = "Source format"
+    TARGET_FORMAT = "Target format"
+    PARENT_WORKFLOW_ID = "Parent_Workflow_ID"
+
+
 class workflow_batched:
     # ------------------------------------------------------------
     # SLURM_Run_Workflow_Batched script constants

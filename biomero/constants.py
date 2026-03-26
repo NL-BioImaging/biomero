@@ -18,6 +18,25 @@ IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
+RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
+
+
+# ------------------------------------------------------------
+# Shared constants used across multiple scripts
+# ------------------------------------------------------------
+
+# Shared parameter names
+CLEANUP = "Cleanup?"
+
+
+class conversion:
+    # ------------------------------------------------------------
+    # SLURM_Remote_Conversion script constants
+    # ------------------------------------------------------------
+    INPUT_DATA = "Input data"
+    SOURCE_FORMAT = "Source format"
+    TARGET_FORMAT = "Target format"
+    PARENT_WORKFLOW_ID = "Parent_Workflow_ID"
 
 
 class workflow_batched:
@@ -37,9 +56,11 @@ class workflow:
     OUTPUT_PARENT = "1) Zip attachment to parent"
     OUTPUT_ATTACH = "2) Attach to original images"
     OUTPUT_NEW_DATASET = "3a) Import into NEW Dataset"
+    OUTPUT_NEW_SCREEN = "3a) Import into NEW Screen"
     OUTPUT_DUPLICATES = "3b) Allow duplicate dataset (name)?"
     OUTPUT_CSV_TABLE = "4) Upload result CSVs as OMERO tables"
     NO = "--NO THANK YOU--"
+    USE_ZARR_FORMAT = "Use_ZARR_Format"
 
 
 class results:
@@ -48,6 +69,8 @@ class results:
     # ------------------------------------------------------------
     OUTPUT_SLURM_JOB_ID = "SLURM Job Id"
     OUTPUT_COMPLETED_JOB = "Completed Job"
+    WORKFLOW_UUID = "workflow_uuid"
+    TASK_ID = "Task_ID"
     OUTPUT_ATTACH_PROJECT = "Output - Attach as zip to project?"
     OUTPUT_ATTACH_PROJECT_ID = "Project"
     OUTPUT_ATTACH_PLATE = "Output - Attach as zip to plate?"
@@ -58,11 +81,20 @@ class results:
     OUTPUT_ATTACH_NEW_DATASET_DUPLICATE = "Allow duplicate?"
     OUTPUT_ATTACH_NEW_DATASET_RENAME = "Rename imported files?"
     OUTPUT_ATTACH_NEW_DATASET_RENAME_NAME = "Rename"
+    OUTPUT_ATTACH_NEW_SCREEN = "Output - Add as new images in NEW screen"
+    OUTPUT_ATTACH_NEW_SCREEN_NAME = "New Screen"
+    OUTPUT_ATTACH_NEW_SCREEN_DUPLICATE = "Allow duplicate screen name?"
+    OUTPUT_ATTACH_NEW_SCREEN_RENAME = "Rename imported screen files?"
+    OUTPUT_ATTACH_NEW_SCREEN_RENAME_NAME = "Screen Rename"
     OUTPUT_ATTACH_TABLE = "Output - Add csv files as OMERO.table"
     OUTPUT_ATTACH_TABLE_DATASET = "Attach table to dataset"
     OUTPUT_ATTACH_TABLE_DATASET_ID = "Dataset for table"
     OUTPUT_ATTACH_TABLE_PLATE = "Attach table to plate"
     OUTPUT_ATTACH_TABLE_PLATE_ID = "Plate for table"
+    IMPORT_LABEL_ZARRS = "Import_Label_Zarrs"
+    IMPORT_ONLY_LABELS = "Import_Only_Labels"
+    TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
+    WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
 
 
 class transfer:
@@ -74,6 +106,7 @@ class transfer:
     DATA_TYPE_IMAGE = 'Image'
     DATA_TYPE_PLATE = 'Plate'
     DATA_TYPE_PROJECT = 'Project'
+    DATA_TYPE_SCREEN = 'Screen'
     IDS = "IDs"
     SETTINGS = "Image settings (Required)"
     CHANNELS = "Export_Individual_Channels"

@@ -262,6 +262,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
+    _DEFAULT_SLURM_MODELS_PATH = "my-scratch/models"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -311,7 +312,8 @@ class SlurmClient(Connection):
                  sqlalchemy_url: str = None,
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
-                 slurm_conversion_partition: str = None):
+                 slurm_conversion_partition: str = None,
+                 slurm_models_path: str = _DEFAULT_SLURM_MODELS_PATH):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -408,9 +410,14 @@ class SlurmClient(Connection):
                 to the container. If your HPC administrator tells you to set 
                 APPTAINER_BINDPATH, configure this parameter. 
                 Defaults to None (no explicit binding).
-            slurm_conversion_partition (str, optional): SLURM partition to use 
-                for conversion jobs when no default partition is configured on 
+            slurm_conversion_partition (str, optional): SLURM partition to use
+                for conversion jobs when no default partition is configured on
                 your HPC. Defaults to None (use system default partition).
+            slurm_models_path (str, optional): The path on the SLURM cluster
+                for persistent AI model storage (weights, checkpoints).
+                Per-workflow subdirectories are created automatically.
+                Bound to /tmp/models inside containers via Singularity --bind.
+                Defaults to `_DEFAULT_SLURM_MODELS_PATH`.
         """
 
         super(SlurmClient, self).__init__(host,
@@ -435,6 +442,7 @@ class SlurmClient(Connection):
         self.slurm_model_jobs_params = slurm_model_jobs_params
         self.slurm_data_bind_path = slurm_data_bind_path
         self.slurm_conversion_partition = slurm_conversion_partition
+        self.slurm_models_path = slurm_models_path
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
@@ -881,6 +889,9 @@ class SlurmClient(Connection):
             # c. workflows
         if self.slurm_images_path:
             dir_cmds.append(f"mkdir -p \"{self.slurm_images_path}\"")
+            # d. models
+        if self.slurm_models_path:
+            dir_cmds.append(f"mkdir -p \"{self.slurm_models_path}\"")
         r = self.run_commands(dir_cmds)
         if not r.ok:
             raise SSHException(r)
@@ -937,6 +948,9 @@ class SlurmClient(Connection):
         slurm_conversion_partition = configs.get(
             "SLURM", "slurm_conversion_partition",
             fallback= None)
+        slurm_models_path = configs.get(
+            "SLURM", "slurm_models_path",
+            fallback=cls._DEFAULT_SLURM_MODELS_PATH)
 
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
@@ -1018,7 +1032,8 @@ class SlurmClient(Connection):
                    sqlalchemy_url=sqlalchemy_url,
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
-                   slurm_conversion_partition=slurm_conversion_partition)
+                   slurm_conversion_partition=slurm_conversion_partition,
+                   slurm_models_path=slurm_models_path)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
@@ -2072,6 +2087,9 @@ class SlurmClient(Connection):
             "SINGULARITY_IMAGE": f"\"{image}_{workflow_version}.sif\"",
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
         }
+        if self.slurm_models_path:
+            sbatch_env["MODELS_PATH"] = \
+                f"\"{self.slurm_models_path}/{model_path}\""
         if self.slurm_data_bind_path is not None:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         workflow_env = self.workflow_params_to_envvars(**kwargs)
@@ -2337,6 +2355,29 @@ class SlurmClient(Connection):
                     \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
 
         return unzip_cmd
+
+    def get_available_models(self, workflow: str) -> List[str]:
+        """List custom model files available for a workflow on SLURM.
+
+        Looks in the workflow's subdirectory under `slurm_models_path`
+        for model files or directories (e.g. trained weights).
+
+        Args:
+            workflow (str): The name of the workflow to query for.
+
+        Returns:
+            List[str]: Sorted list of model file/directory names.
+                Empty list if no models found or path doesn't exist.
+        """
+        model_path = self.slurm_model_paths.get(workflow.lower())
+        if not model_path:
+            return []
+        models_dir = f"{self.slurm_models_path}/{model_path}"
+        cmd = (f'ls -1 "{models_dir}" 2>/dev/null || :')
+        result = self.run_commands([cmd])
+        if result.ok and result.stdout.strip():
+            return sorted(result.stdout.strip().split('\n'))
+        return []
 
     def get_image_versions_and_data_files(self, model: str
                                           ) -> Tuple[List[str], List[str]]:

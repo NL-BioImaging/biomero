@@ -71,10 +71,18 @@ module load singularity > /dev/null 2>&1 || true
 #     rm "$CONFIG_FILE"
 # fi
 
+# Bind persistent model storage if MODELS_PATH is set
+MODELS_BIND=""
+if [ -n "$MODELS_PATH" ]; then
+    mkdir -p "$MODELS_PATH"
+    MODELS_BIND="--bind $MODELS_PATH:/tmp/models"
+    echo "Binding models path: $MODELS_PATH -> /tmp/models"
+fi
+
 # We run a (singularity) container with the provided ENV variables.
 # The container is already downloaded as a .simg file at $IMAGE_PATH.
 echo "Running workflow..."
-singularity run --nv "$IMAGE_PATH/$SINGULARITY_IMAGE" \
+singularity run --nv $MODELS_BIND "$IMAGE_PATH/$SINGULARITY_IMAGE" \
 	--infolder "$DATA_PATH/data/in" \
 	--outfolder "$DATA_PATH/data/out" \
 	--gtfolder "$DATA_PATH/data/gt" \

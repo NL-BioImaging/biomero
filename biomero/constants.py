@@ -139,6 +139,11 @@ class transfer:
     FORMAT_TIFF = 'TIFF'
     FORMAT_OMETIFF = 'OME-TIFF'
     FORMAT_ZARR = 'ZARR'
+    OME_VERSION = "OME-Zarr_version"
+    OME_ZARR_VERSION_0_4 = '0.4'
+    OME_ZARR_VERSION_0_5 = '0.5'
+    OME_ZARR_VERSION_0_6 = '0.6'
+    OME_ZARR_VERSION_1_0 = '1.0'
     FOLDER = "Folder_Name"
     FOLDER_DEFAULT = 'SLURM_IMAGES_'
     

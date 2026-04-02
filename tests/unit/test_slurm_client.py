@@ -301,6 +301,11 @@ def test_get_workflow_command(
     # Add the test-specific environment variables
     expected_env.update(expected_env_values)
 
+    # Add models path if configured
+    if slurm_client.slurm_models_path:
+        expected_env["MODELS_PATH"] = \
+            f'"{slurm_client.slurm_models_path}/workflow_path"'
+
     # Add bind path if specified
     if data_bind_path is not None:
         expected_env["APPTAINER_BINDPATH"] = f'"{data_bind_path}"'
@@ -1390,6 +1395,7 @@ def test_from_config(mock_ConfigParser,
         config_only=config_only,
         slurm_data_bind_path=mv,
         slurm_conversion_partition=mv,
+        slurm_models_path=mv,
     )
 
 
@@ -1442,8 +1448,9 @@ def test_setup_slurm_notok(mock_run, mock_validate):
     # THEN
     # 1 create dirs
     mock_run.assert_called()
+    mpath = SlurmClient._DEFAULT_SLURM_MODELS_PATH
     mock_run.assert_any_call(
-        f"mkdir -p \"{dpath}\" && mkdir -p \"{spath}\" && mkdir -p \"{ipath}\"", env={})
+        f"mkdir -p \"{dpath}\" && mkdir -p \"{spath}\" && mkdir -p \"{ipath}\" && mkdir -p \"{mpath}\"", env={})
 
 
 @pytest.mark.parametrize("mpaths, expected_modelpaths", [({'wf': 'path'}, 'path'), ({'wf': 'path', 'wf2': 'path2'}, 'path" "path2')])
@@ -1493,9 +1500,10 @@ def test_setup_slurm(_mock_CachedSession,
     # THEN
     mock_run.assert_called()
     # 1 create dirs
+    mpath = SlurmClient._DEFAULT_SLURM_MODELS_PATH
     mock_run.assert_any_call(
-        [f"mkdir -p \"{dpath}\"", f"mkdir -p \"{spath}\"", f"mkdir -p \"{ipath}\""])
-    # 2 git 
+        [f"mkdir -p \"{dpath}\"", f"mkdir -p \"{spath}\"", f"mkdir -p \"{ipath}\"", f"mkdir -p \"{mpath}\""])
+    # 2 git
     mock_run.assert_any_call(
         ['rm -rf "$LOCALREPO"', 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null'],
         {"REPOSRC": f"\"{srepo}\"", "LOCALREPO": f"\"{spath}\""})
@@ -1717,3 +1725,100 @@ def test_init_invalid_workflow_url():
                 "workflow1": invalid_url},
             slurm_script_repo="https://github.com/nl-bioimaging/slurm-scripts",
         )
+
+
+def test_get_workflow_command_includes_models_path(slurm_client):
+    """Test that get_workflow_command includes MODELS_PATH in env dict."""
+    # GIVEN
+    slurm_client.slurm_models_path = "/scratch/models"
+    slurm_client.slurm_model_paths = {"cellpose": "cellpose"}
+    slurm_client.slurm_model_jobs = {"cellpose": "jobs/cellpose.sh"}
+    slurm_client.slurm_model_jobs_params = {"cellpose": []}
+    slurm_client.slurm_model_images = {"cellpose": "user/cellpose"}
+    slurm_client.slurm_images_path = "/scratch/images"
+    slurm_client.slurm_data_path = "/scratch/data"
+    slurm_client.slurm_script_path = "/scratch/scripts"
+    slurm_client.slurm_data_bind_path = None
+
+    # WHEN
+    cmd, env = slurm_client.get_workflow_command(
+        "cellpose", "v1.0", "input_data")
+
+    # THEN
+    assert "MODELS_PATH" in env
+    assert env["MODELS_PATH"] == '"/scratch/models/cellpose"'
+
+
+def test_get_workflow_command_no_models_path(slurm_client):
+    """Test that MODELS_PATH is omitted when slurm_models_path is empty."""
+    # GIVEN
+    slurm_client.slurm_models_path = ""
+    slurm_client.slurm_model_paths = {"cellpose": "cellpose"}
+    slurm_client.slurm_model_jobs = {"cellpose": "jobs/cellpose.sh"}
+    slurm_client.slurm_model_jobs_params = {"cellpose": []}
+    slurm_client.slurm_model_images = {"cellpose": "user/cellpose"}
+    slurm_client.slurm_images_path = "/scratch/images"
+    slurm_client.slurm_data_path = "/scratch/data"
+    slurm_client.slurm_script_path = "/scratch/scripts"
+    slurm_client.slurm_data_bind_path = None
+
+    # WHEN
+    cmd, env = slurm_client.get_workflow_command(
+        "cellpose", "v1.0", "input_data")
+
+    # THEN
+    assert "MODELS_PATH" not in env
+
+
+def test_get_available_models(slurm_client):
+    """Test listing available models for a workflow."""
+    # GIVEN
+    slurm_client.slurm_models_path = "/scratch/models"
+    slurm_client.slurm_model_paths = {"cellpose": "cellpose"}
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=True,
+        stdout="custom_nuclei.pt\nmy_model.pth\n"
+    ))
+
+    # WHEN
+    models = slurm_client.get_available_models("cellpose")
+
+    # THEN
+    assert models == ["custom_nuclei.pt", "my_model.pth"]
+    slurm_client.run_commands.assert_called_once_with(
+        ['ls -1 "/scratch/models/cellpose" 2>/dev/null || :'])
+
+
+def test_get_available_models_empty(slurm_client):
+    """Test listing models returns empty list when none exist."""
+    # GIVEN
+    slurm_client.slurm_models_path = "/scratch/models"
+    slurm_client.slurm_model_paths = {"cellpose": "cellpose"}
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=True,
+        stdout=""
+    ))
+
+    # WHEN
+    models = slurm_client.get_available_models("cellpose")
+
+    # THEN
+    assert models == []
+
+
+def test_get_available_models_unknown_workflow(slurm_client):
+    """Test listing models for unknown workflow returns empty list."""
+    # GIVEN
+    slurm_client.slurm_models_path = "/scratch/models"
+    slurm_client.slurm_model_paths = {}
+
+    # WHEN
+    models = slurm_client.get_available_models("nonexistent")
+
+    # THEN
+    assert models == []
+
+
+def test_slurm_models_path_default():
+    """Test that slurm_models_path has the correct default."""
+    assert SlurmClient._DEFAULT_SLURM_MODELS_PATH == "my-scratch/models"

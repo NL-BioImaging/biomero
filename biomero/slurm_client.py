@@ -36,9 +36,11 @@ from biomero.database import EngineManager, JobProgressView, JobView, TaskExecut
 from eventsourcing.system import System, SingleThreadedRunner
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SACCT_START_TIME = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")  # default to checking jobs from the last 7 days
 
 class SlurmJob:
     """Represents a job submitted to a Slurm cluster.
@@ -1337,7 +1339,7 @@ class SlurmClient(Connection):
         logger.info(f"Found {len(job_list)} total jobs: {job_list[:5]}{'...' if len(job_list) > 5 else ''}")
         return job_list
 
-    def get_jobs_info_command(self, start_time: str = "2023-01-01",
+    def get_jobs_info_command(self, start_time: None | str = None,
                               end_time: str = "now",
                               columns: str = "JobId",
                               states: str = "r,cd,f,to,rs,dl,nf") -> str:
@@ -1352,7 +1354,9 @@ class SlurmClient(Connection):
 
         Args:
             start_time (str): The start time from which to retrieve job
-                information. Defaults to "2023-01-01".
+                information. Defaults to the value of the environment variable
+                "BIOMERO_SACCT_START_TIME" or 7 days ago if the environment
+                variable is not set.
             end_time (str): The end time until which to retrieve job
                 information. Defaults to "now".
             columns (str): The columns to retrieve from the job information.
@@ -1365,6 +1369,8 @@ class SlurmClient(Connection):
                 A string representing the Slurm command to retrieve
                 information about old jobs.
         """
+        if start_time is None:
+            start_time = os.getenv("BIOMERO_SACCT_START_TIME") or DEFAULT_SACCT_START_TIME
         return self._ALL_JOBS_CMD.format(start_time=start_time,
                                          end_time=end_time,
                                          states=states,

@@ -139,6 +139,7 @@ class transfer:
     FORMAT_TIFF = 'TIFF'
     FORMAT_OMETIFF = 'OME-TIFF'
     FORMAT_ZARR = 'ZARR'
+    FORMAT_ZARR3 = 'ZARR3'
     OME_VERSION = "OME-Zarr_version"
     OME_ZARR_VERSION_0_4 = '0.4'
     OME_ZARR_VERSION_0_5 = '0.5'

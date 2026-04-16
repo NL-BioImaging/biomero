@@ -40,8 +40,6 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SACCT_START_TIME = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")  # default to checking jobs from the last 7 days
-
 class SlurmJob:
     """Represents a job submitted to a Slurm cluster.
 
@@ -264,6 +262,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
+    _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -313,7 +312,9 @@ class SlurmClient(Connection):
                  sqlalchemy_url: str = None,
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
-                 slurm_conversion_partition: str = None):
+                 slurm_conversion_partition: str = None,
+                 sacct_start_time: str = None,
+                 sacct_days_ago: int = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -437,6 +438,8 @@ class SlurmClient(Connection):
         self.slurm_model_jobs_params = slurm_model_jobs_params
         self.slurm_data_bind_path = slurm_data_bind_path
         self.slurm_conversion_partition = slurm_conversion_partition
+        self.sacct_start_time = sacct_start_time
+        self.sacct_days_ago = sacct_days_ago
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
@@ -939,6 +942,18 @@ class SlurmClient(Connection):
         slurm_conversion_partition = configs.get(
             "SLURM", "slurm_conversion_partition",
             fallback= None)
+        sacct_start_time = configs.get(
+            "SLURM", "sacct_start_time",
+            fallback=None) or None  # treat empty string as None
+        sacct_days_ago_raw = configs.get(
+            "SLURM", "sacct_days_ago",
+            fallback=None)
+        try:
+            sacct_days_ago = int(sacct_days_ago_raw) if sacct_days_ago_raw else None
+        except ValueError:
+            logger.warning(
+                f"Invalid sacct_days_ago value '{sacct_days_ago_raw}', ignoring.")
+            sacct_days_ago = None
 
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
@@ -1020,7 +1035,9 @@ class SlurmClient(Connection):
                    sqlalchemy_url=sqlalchemy_url,
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
-                   slurm_conversion_partition=slurm_conversion_partition)
+                   slurm_conversion_partition=slurm_conversion_partition,
+                   sacct_start_time=sacct_start_time,
+                   sacct_days_ago=sacct_days_ago)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
@@ -1339,7 +1356,7 @@ class SlurmClient(Connection):
         logger.info(f"Found {len(job_list)} total jobs: {job_list[:5]}{'...' if len(job_list) > 5 else ''}")
         return job_list
 
-    def get_jobs_info_command(self, start_time: None | str = None,
+    def get_jobs_info_command(self, start_time: str = None,
                               end_time: str = "now",
                               columns: str = "JobId",
                               states: str = "r,cd,f,to,rs,dl,nf") -> str:
@@ -1354,9 +1371,11 @@ class SlurmClient(Connection):
 
         Args:
             start_time (str): The start time from which to retrieve job
-                information. Defaults to the value of the environment variable
-                "BIOMERO_SACCT_START_TIME" or 7 days ago if the environment
-                variable is not set.
+                information. Defaults to None, which resolves in priority order:
+                class default (2023-01-01), then ``sacct_start_time`` config,
+                then ``sacct_days_ago`` config (relative), then env var
+                ``BIOMERO_SACCT_START_TIME``, then env var
+                ``BIOMERO_SACCT_START_DAYS_AGO`` (relative, highest priority).
             end_time (str): The end time until which to retrieve job
                 information. Defaults to "now".
             columns (str): The columns to retrieve from the job information.
@@ -1370,7 +1389,23 @@ class SlurmClient(Connection):
                 information about old jobs.
         """
         if start_time is None:
-            start_time = os.getenv("BIOMERO_SACCT_START_TIME") or DEFAULT_SACCT_START_TIME
+            # Priority (low to high):
+            # 1. class default  -> "2023-01-01" (backward compatible)
+            # 2. sacct_start_time from slurm-config.ini  (absolute date)
+            # 3. sacct_days_ago  from slurm-config.ini  (relative, overrides #2)
+            # 4. BIOMERO_SACCT_START_TIME  env var       (absolute)
+            # 5. BIOMERO_SACCT_START_DAYS_AGO env var    (relative, highest priority)
+            start_time = self._DEFAULT_SACCT_START_TIME
+            if self.sacct_start_time:
+                start_time = self.sacct_start_time
+            if self.sacct_days_ago is not None:
+                start_time = (datetime.now() - timedelta(days=int(self.sacct_days_ago))).strftime("%Y-%m-%d")
+            env_start = os.getenv("BIOMERO_SACCT_START_TIME")
+            if env_start:
+                start_time = env_start
+            env_days = os.getenv("BIOMERO_SACCT_START_DAYS_AGO")
+            if env_days:
+                start_time = (datetime.now() - timedelta(days=int(env_days))).strftime("%Y-%m-%d")
         return self._ALL_JOBS_CMD.format(start_time=start_time,
                                          end_time=end_time,
                                          states=states,

@@ -778,7 +778,7 @@ You can test the library by installing the extra test dependencies:
 1. Create a venv to isolate the python install:
 `python -m venv venvTest`
 
-2. Install OSC with test dependencies:
+2. Install BIOMERO with test dependencies:
 `venvTest/Scripts/python -m pip install .[test]`
 
 3. Run pytest from this venv:

@@ -1278,6 +1278,154 @@ def test_workflow_tracker_and_listeners_no_op(
     assert True  # No exception means test passes
 
 
+# ---------------------------------------------------------------------------
+# Tests for get_jobs_info_command sacct start-time resolution
+# ---------------------------------------------------------------------------
+
+def test_get_jobs_info_command_default_start_time(slurm_client):
+    """
+    No config, no env vars → backward-compatible default "2023-01-01".
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = None
+    slurm_client.sacct_days_ago = None
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert "--starttime 2023-01-01" in cmd
+
+
+def test_get_jobs_info_command_ini_absolute_date(slurm_client):
+    """
+    sacct_start_time set (e.g. from slurm-config.ini) overrides class default.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = "2025-01-01"
+    slurm_client.sacct_days_ago = None
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert "--starttime 2025-01-01" in cmd
+    assert "2023-01-01" not in cmd
+
+
+def test_get_jobs_info_command_ini_days_ago_only(slurm_client):
+    """
+    sacct_days_ago alone computes a rolling window from today.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = None
+    slurm_client.sacct_days_ago = 30
+    from datetime import datetime, timedelta
+    expected_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert f"--starttime {expected_date}" in cmd
+    assert "2023-01-01" not in cmd
+
+
+def test_get_jobs_info_command_ini_days_ago_overrides_absolute(slurm_client):
+    """
+    sacct_days_ago overrides sacct_start_time when both are set.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = "2025-01-01"
+    slurm_client.sacct_days_ago = 7
+    from datetime import datetime, timedelta
+    expected_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert f"--starttime {expected_date}" in cmd
+    assert "2025-01-01" not in cmd
+
+
+@patch.dict(os.environ, {"BIOMERO_SACCT_START_TIME": "2024-06-01"})
+def test_get_jobs_info_command_env_absolute_overrides_ini(slurm_client):
+    """
+    BIOMERO_SACCT_START_TIME env var overrides ini absolute date.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = "2025-01-01"
+    slurm_client.sacct_days_ago = None
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert "--starttime 2024-06-01" in cmd
+    assert "2025-01-01" not in cmd
+
+
+@patch.dict(os.environ, {"BIOMERO_SACCT_START_TIME": "2024-06-01"})
+def test_get_jobs_info_command_env_absolute_overrides_days_ago(slurm_client):
+    """
+    BIOMERO_SACCT_START_TIME env var overrides sacct_days_ago.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = None
+    slurm_client.sacct_days_ago = 7
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert "--starttime 2024-06-01" in cmd
+
+
+@patch.dict(os.environ, {
+    "BIOMERO_SACCT_START_TIME": "2024-06-01",
+    "BIOMERO_SACCT_START_DAYS_AGO": "3",
+})
+def test_get_jobs_info_command_env_days_ago_highest_priority(slurm_client):
+    """
+    BIOMERO_SACCT_START_DAYS_AGO has the highest priority, overriding
+    sacct_start_time, sacct_days_ago, and BIOMERO_SACCT_START_TIME.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = "2025-01-01"
+    slurm_client.sacct_days_ago = 30
+    from datetime import datetime, timedelta
+    expected_date = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert f"--starttime {expected_date}" in cmd
+    assert "2024-06-01" not in cmd
+    assert "2025-01-01" not in cmd
+
+
+@patch.dict(os.environ, {
+    "BIOMERO_SACCT_START_TIME": "2024-06-01",
+    "BIOMERO_SACCT_START_DAYS_AGO": "3",
+})
+def test_get_jobs_info_command_explicit_arg_bypasses_all(slurm_client):
+    """
+    An explicit start_time argument always wins over all config and env vars.
+    """
+    # GIVEN
+    slurm_client.sacct_start_time = "2025-01-01"
+    slurm_client.sacct_days_ago = 7
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command(start_time="2022-03-15")
+
+    # THEN
+    assert "--starttime 2022-03-15" in cmd
+    assert "2024-06-01" not in cmd
+
+
 @patch('biomero.slurm_client.Connection.create_session')
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.Connection.put')
@@ -1310,9 +1458,11 @@ def test_from_config(mock_ConfigParser,
         'enable_workflow_analytics': True
     }.get(option, fallback)
     
-    # Set up mock for 'sqlalchemy_url' (new addition)
+    # Set up mock for 'sqlalchemy_url' and new sacct options
     mock_configparser_instance.get.side_effect = lambda section, option, fallback=None: {
         ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+        ('SLURM', 'sacct_start_time'): None,
+        ('SLURM', 'sacct_days_ago'): None,
     }.get((section, option), mv)
     
     model_dict = {
@@ -1390,6 +1540,8 @@ def test_from_config(mock_ConfigParser,
         config_only=config_only,
         slurm_data_bind_path=mv,
         slurm_conversion_partition=mv,
+        sacct_start_time=None,
+        sacct_days_ago=None,
     )
 
 

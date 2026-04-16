@@ -150,9 +150,9 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span><span class="p">,</span> <span class="n">SingleThreadedRunner</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.exc</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntegrityError</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
 
 <div class="viewcode-block" id="SlurmJob"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">SlurmJob</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a job submitted to a Slurm cluster.</span>
@@ -376,6 +376,7 @@
     <span class="n">_DEFAULT_SLURM_IMAGES_PATH</span> <span class="o">=</span> <span class="s2">&quot;my-scratch/singularity_images/workflows&quot;</span>
     <span class="n">_DEFAULT_SLURM_CONVERTERS_PATH</span> <span class="o">=</span> <span class="s2">&quot;my-scratch/singularity_images/converters&quot;</span>
     <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span> <span class="o">=</span> <span class="s2">&quot;slurm-scripts&quot;</span>
+    <span class="n">_DEFAULT_SACCT_START_TIME</span> <span class="o">=</span> <span class="s2">&quot;2023-01-01&quot;</span>
     <span class="n">_OUT_SEP</span> <span class="o">=</span> <span class="s2">&quot;--split--&quot;</span>
     <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(?&lt;=\-|\_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
     <span class="n">_CONVERTER_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{converter_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(convert_.+)(?=.simg|.sif)&#39; | awk &#39;{{n=split($0, a, </span><span class="se">\&quot;</span><span class="s2">_</span><span class="se">\&quot;</span><span class="s2">); last=a[n]; sub(</span><span class="se">\&quot;</span><span class="s2">_</span><span class="se">\&quot;</span><span class="s2">last</span><span class="se">\&quot;</span><span class="s2">$</span><span class="se">\&quot;</span><span class="s2">, </span><span class="se">\&quot;\&quot;</span><span class="s2">, $0); print $0, last}}&#39;&quot;</span>
@@ -425,7 +426,9 @@
                  <span class="n">sqlalchemy_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">config_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="n">slurm_data_bind_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">slurm_conversion_partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                 <span class="n">slurm_conversion_partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sacct_start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sacct_days_ago</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes a new instance of the SlurmClient class.</span>
 
@@ -549,6 +552,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs_params</span> <span class="o">=</span> <span class="n">slurm_model_jobs_params</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_bind_path</span> <span class="o">=</span> <span class="n">slurm_data_bind_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_conversion_partition</span> <span class="o">=</span> <span class="n">slurm_conversion_partition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sacct_start_time</span> <span class="o">=</span> <span class="n">sacct_start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sacct_days_ago</span> <span class="o">=</span> <span class="n">sacct_days_ago</span>
 
         <span class="c1"># Init cache. Keep responses for 360 seconds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">sqlite</span><span class="o">.</span><span class="n">SQLiteCache</span><span class="p">(</span>
@@ -1051,6 +1056,18 @@
         <span class="n">slurm_conversion_partition</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_conversion_partition&quot;</span><span class="p">,</span>
             <span class="n">fallback</span><span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">sacct_start_time</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_start_time&quot;</span><span class="p">,</span>
+            <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span>  <span class="c1"># treat empty string as None</span>
+        <span class="n">sacct_days_ago_raw</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_days_ago&quot;</span><span class="p">,</span>
+            <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sacct_days_ago</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sacct_days_ago_raw</span><span class="p">)</span> <span class="k">if</span> <span class="n">sacct_days_ago_raw</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Invalid sacct_days_ago value &#39;</span><span class="si">{</span><span class="n">sacct_days_ago_raw</span><span class="si">}</span><span class="s2">&#39;, ignoring.&quot;</span><span class="p">)</span>
+            <span class="n">sacct_days_ago</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># Split the MODELS into paths, repos and images</span>
         <span class="n">models_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">configs</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="s2">&quot;MODELS&quot;</span><span class="p">))</span>
@@ -1132,7 +1149,9 @@
                    <span class="n">sqlalchemy_url</span><span class="o">=</span><span class="n">sqlalchemy_url</span><span class="p">,</span>
                    <span class="n">config_only</span><span class="o">=</span><span class="n">config_only</span><span class="p">,</span>
                    <span class="n">slurm_data_bind_path</span><span class="o">=</span><span class="n">slurm_data_bind_path</span><span class="p">,</span>
-                   <span class="n">slurm_conversion_partition</span><span class="o">=</span><span class="n">slurm_conversion_partition</span><span class="p">)</span></div>
+                   <span class="n">slurm_conversion_partition</span><span class="o">=</span><span class="n">slurm_conversion_partition</span><span class="p">,</span>
+                   <span class="n">sacct_start_time</span><span class="o">=</span><span class="n">sacct_start_time</span><span class="p">,</span>
+                   <span class="n">sacct_days_ago</span><span class="o">=</span><span class="n">sacct_days_ago</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.cleanup_tmp_files"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">cleanup_tmp_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                           <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1451,7 +1470,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="si">}</span><span class="s2"> total jobs: </span><span class="si">{</span><span class="n">job_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job_list</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_jobs_info_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_jobs_info_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs_info_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2023-01-01&quot;</span><span class="p">,</span>
+<div class="viewcode-block" id="SlurmClient.get_jobs_info_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_jobs_info_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs_info_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                               <span class="n">end_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;now&quot;</span><span class="p">,</span>
                               <span class="n">columns</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;JobId&quot;</span><span class="p">,</span>
                               <span class="n">states</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r,cd,f,to,rs,dl,nf&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1466,7 +1485,11 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            start_time (str): The start time from which to retrieve job</span>
-<span class="sd">                information. Defaults to &quot;2023-01-01&quot;.</span>
+<span class="sd">                information. Defaults to None, which resolves in priority order:</span>
+<span class="sd">                class default (2023-01-01), then ``sacct_start_time`` config,</span>
+<span class="sd">                then ``sacct_days_ago`` config (relative), then env var</span>
+<span class="sd">                ``BIOMERO_SACCT_START_TIME``, then env var</span>
+<span class="sd">                ``BIOMERO_SACCT_START_DAYS_AGO`` (relative, highest priority).</span>
 <span class="sd">            end_time (str): The end time until which to retrieve job</span>
 <span class="sd">                information. Defaults to &quot;now&quot;.</span>
 <span class="sd">            columns (str): The columns to retrieve from the job information.</span>
@@ -1479,6 +1502,24 @@
 <span class="sd">                A string representing the Slurm command to retrieve</span>
 <span class="sd">                information about old jobs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">start_time</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Priority (low to high):</span>
+            <span class="c1"># 1. class default  -&gt; &quot;2023-01-01&quot; (backward compatible)</span>
+            <span class="c1"># 2. sacct_start_time from slurm-config.ini  (absolute date)</span>
+            <span class="c1"># 3. sacct_days_ago  from slurm-config.ini  (relative, overrides #2)</span>
+            <span class="c1"># 4. BIOMERO_SACCT_START_TIME  env var       (absolute)</span>
+            <span class="c1"># 5. BIOMERO_SACCT_START_DAYS_AGO env var    (relative, highest priority)</span>
+            <span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_DEFAULT_SACCT_START_TIME</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sacct_start_time</span><span class="p">:</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sacct_start_time</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sacct_days_ago</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sacct_days_ago</span><span class="p">)))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">env_start</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;BIOMERO_SACCT_START_TIME&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">env_start</span><span class="p">:</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="n">env_start</span>
+            <span class="n">env_days</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;BIOMERO_SACCT_START_DAYS_AGO&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">env_days</span><span class="p">:</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">env_days</span><span class="p">)))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ALL_JOBS_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">start_time</span><span class="p">,</span>
                                          <span class="n">end_time</span><span class="o">=</span><span class="n">end_time</span><span class="p">,</span>
                                          <span class="n">states</span><span class="o">=</span><span class="n">states</span><span class="p">,</span>

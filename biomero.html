@@ -2358,6 +2358,9 @@ and its parameters for debugging purposes.</p>
 <dt class="sig sig-object py" id="biomero.views.JobAccounting.update_view_table">
 <span class="sig-name descname"><span class="pre">update_view_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#JobAccounting.update_view_table"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.JobAccounting.update_view_table" title="Permalink to this definition"></a></dt>
 <dd><p>Update the view table with new job information.</p>
+<p>Uses merge (upsert) so that if SLURM recycles a job ID the new
+task_id/user/group overwrites the stale row instead of silently
+failing and leaving the old mapping in place.</p>
 </dd></dl>
 
 </dd></dl>

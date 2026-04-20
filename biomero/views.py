@@ -101,17 +101,22 @@ class JobAccounting(ProcessApplication):
         
     @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, job_id, user, group, task_id):
-        """Update the view table with new job information."""
+        """Update the view table with new job information.
+
+        Uses merge (upsert) so that if SLURM recycles a job ID the new
+        task_id/user/group overwrites the stale row instead of silently
+        failing and leaving the old mapping in place.
+        """
         with EngineManager.get_session() as session:
             try:
                 new_job = JobView(slurm_job_id=job_id, user=user, group=group, task_id=task_id)
-                session.add(new_job)
+                session.merge(new_job)
                 session.commit()
-                logger.debug(f"Inserted job into view table: job_id={job_id}, user={user}, group={group}, task_id={task_id}")
+                logger.debug(f"Upserted job into view table: job_id={job_id}, user={user}, group={group}, task_id={task_id}")
             except IntegrityError as e:
                 session.rollback()
-                # Handle the case where the job already exists in the table if necessary
-                logger.warning(f"Database conflict inserting job (will retry): job_id={job_id}, user={user}, group={group}, error={e}")
+                logger.warning(f"Database conflict upserting job (will retry): job_id={job_id}, user={user}, group={group}, error={e}")
+                raise
 
     def get_jobs(self, user=None, group=None):
         """Retrieve jobs for a specific user and/or group.

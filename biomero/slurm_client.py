@@ -273,7 +273,7 @@ class SlurmClient(Connection):
     # Data could legit be empty.
     _DATA_CMD = "ls -h \"{slurm_data_path}\" | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
-    _ZIP_CMD = "7z a -y \"{filename}\" -tzip \"{data_location}/data/out/\"*"
+    _ZIP_CMD = "cd \"{data_location}/data/out\" && 7z a -y ~/{filename}.zip -tzip ."
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
     # TODO move all commands to a similar format.

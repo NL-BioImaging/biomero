@@ -206,29 +206,13 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # WHEN
     result = slurm_client.zip_data_on_slurm_server(data_location, filename)
 
-    # THEN - cd into data/out so archive entries are relative, zip lands in ~
+    # THEN - cd into data/out so archive entries are relative, zip at absolute path
     mock_run_commands.assert_called_once_with(
-        [f'cd "{data_location}/data/out" && 7z a -y ~/{filename}.zip -tzip .'], env=None)
+        [f'cd "{data_location}/data/out" && 7z a -y "{data_location}/{filename}.zip" -tzip .'], env=None)
     assert result.ok is True
     assert result.stdout == ""
     mock_logger.info.assert_called_with(
         f"Zipping {data_location} as {filename} on Slurm")
-
-
-def test_zip_command_does_not_include_out_folder():
-    # GIVEN - a data_location with deep nesting (mirrors real SLURM paths)
-    data_location = "/scratch/my-scratch/data/1052_JobName_501_Dataset_uuid"
-    filename = "job123_out"
-
-    # WHEN
-    cmd = SlurmClient._ZIP_CMD.format(filename=filename, data_location=data_location)
-
-    # THEN - cd into data/out so archive entries are relative, zip output goes to ~/
-    assert f'cd "{data_location}/data/out"' in cmd
-    assert f'~/{filename}.zip' in cmd
-    assert cmd.endswith('-tzip .')
-    # No absolute path in the zip output path (only ~ prefix)
-    assert data_location not in cmd.split('&&')[1]
 
 
 @patch('biomero.slurm_client.logger')

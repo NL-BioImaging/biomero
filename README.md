@@ -9,7 +9,7 @@ The **BIOMERO** framework, for **B**io**I**mage analysis in **OMERO**, allows yo
 
 We have released an enhanced **BIOMERO** experience! 
 
-BIOMERO 2.0 is a complete ecosystem that includes:
+<img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="16" align="absmiddle"> BIOMERO 2.0 is a complete ecosystem that includes:
 - **BIOMERO.analyzer** (this Python library) - The core analysis engine
 - **BIOMERO.scripts** - OMERO scripts for HPC integration 
 - **BIOMERO.importer** - Automated data import service
@@ -55,7 +55,7 @@ BIOMERO 1.0 consists of this Python library (`biomero`) and the integrations wit
 
 ![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
 
-For the BIOMERO 2.0 setup, see NL-BIOMERO for deployment; and for details on the design and FAIR features, see our latest preprint: [“BIOMERO 2.0: end-to-end FAIR infrastructure for bioimaging data import, analysis, and provenance”](https://arxiv.org/abs/2511.13611)  
+For the <img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="16" align="absmiddle"> BIOMERO 2.0 setup, see NL-BIOMERO for deployment; and for details on the design and FAIR features, see our latest preprint: [“BIOMERO 2.0: end-to-end FAIR infrastructure for bioimaging data import, analysis, and provenance”](https://arxiv.org/abs/2511.13611)  
 
 
 ## Deploy with NL-BIOMERO
@@ -228,7 +228,7 @@ You are encouraged to create your own custom scripts. Do note the copy-left lice
 
 # BIOMERO Web Interface
 
-In addition to the BIOMERO.scripts, BIOMERO 2.0 introduces a modern web-based user interface through the [OMERO.biomero](https://github.com/NL-BioImaging/OMERO.biomero) web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.
+In addition to the BIOMERO.scripts, <img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="16" align="absmiddle"> BIOMERO 2.0 introduces a modern web-based user interface through the [OMERO.biomero](https://github.com/NL-BioImaging/OMERO.biomero) web plugin. This plugin provides a more intuitive and user-friendly way to interact with BIOMERO workflows directly from the OMERO.web interface.
 
 ## Features
 

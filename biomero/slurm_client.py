@@ -30,6 +30,7 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+import yaml
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
@@ -1878,11 +1879,11 @@ class SlurmClient(Connection):
             ValueError: If an error occurs while retrieving the workflow
                 parameters.
         """
-        json_descriptor = self.pull_descriptor_from_github(workflow)
+        descriptor = self.pull_descriptor_from_github(workflow)
         # convert to omero types
-        logger.debug(json_descriptor)
+        logger.debug(descriptor)
         workflow_dict = {}
-        for input in json_descriptor['inputs']:
+        for input in descriptor['inputs']:
             # filter cytomine parameters
             if not input['id'].startswith('cytomine'):
                 workflow_params = {}
@@ -1990,13 +1991,14 @@ class SlurmClient(Connection):
         else:
             return None, image
     
-    def convert_url(self, input_url: str) -> str:
+    def convert_url(self, input_url: str, ext: str = ".json") -> str:
         """
         Convert the input GitHub URL to an output URL that retrieves
         the 'descriptor.json' file in raw format.
 
         Args:
             input_url (str): The input GitHub URL.
+            ext (str): (Optional) The input file extension.
 
         Returns:
             str: The output URL to the 'descriptor.json' file.
@@ -2008,7 +2010,7 @@ class SlurmClient(Connection):
 
         # Construct the output URL by combining the extracted information
         # with the desired file path
-        output_url = f"https://github.com/{url_parts[3]}/{url_parts[4]}/raw/{branch}/descriptor.json"
+        output_url = f"https://github.com/{url_parts[3]}/{url_parts[4]}/raw/{branch}/descriptor{ext}"
 
         return output_url
 
@@ -2020,26 +2022,37 @@ class SlurmClient(Connection):
             workflow (str): The workflow for which to pull the descriptor.
 
         Returns:
-            Dict: The JSON descriptor.
+            Dict: The descriptor.
 
         Raises:
             ValueError: If an error occurs while pulling the descriptor file.
         """
         git_repo = self.slurm_model_repos[workflow]
-        # convert git repo to json file
+        logger.debug(f"Pull workflow: {workflow}: {git_repo}")
+        # convert git repo to dictionary
         raw_url = self.convert_url(git_repo)
-        logger.debug(f"Pull workflow: {workflow}: {git_repo} >> {raw_url}")
         # pull workflow params
         github_session = self.get_or_create_github_session()
         ghfile = github_session.get(raw_url)
+        cached = False
         if ghfile.ok:
-            logger.debug(f"Cached? {ghfile.from_cache}")
-            json_descriptor = ghfile.json()
+            cached = ghfile.from_cache
+            descriptor = ghfile.json()
+        else:
+            # no json, try yaml
+            raw_url = self.convert_url(git_repo, ext=".yaml")
+            # pull workflow params
+            ghfile = github_session.get(raw_url)
+            if ghfile.ok:
+                cached = ghfile.from_cache
+            descriptor = yaml.safe_load(ghfile.text)
+        if ghfile.ok:
+            logger.debug(f"Cached? {cached}")
         else:
             raise ValueError(
                 f'Error while pulling descriptor file for workflow {workflow},\
                     from {raw_url}: {ghfile.__dict__}')
-        return json_descriptor
+        return descriptor
 
     def get_or_create_github_session(self):
         # Note, using requests_cache 1.1.1, conditional queries are default:

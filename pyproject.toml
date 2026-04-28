@@ -32,7 +32,8 @@ dependencies = [
     "eventsourcing==9.3",
     "sqlalchemy==2.0.32",
     "psycopg2==2.9.9",
-    "eventsourcing_sqlalchemy==0.9"
+    "eventsourcing_sqlalchemy==0.9",
+    "yaml"
 ]
 
 [tool.setuptools.packages]
@@ -58,8 +59,7 @@ full = [
     "omero-cli-zarr==0.8.0",
     "ome-zarr==0.14.0",
     "zarr==3.1.5",
-    "numpy<2.0",
-    "yaml"
+    "numpy<2.0"
 ]
 
 [project.urls]

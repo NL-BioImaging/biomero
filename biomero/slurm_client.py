@@ -2043,7 +2043,7 @@ class SlurmClient(Connection):
             ghfile = github_session.get(raw_url)
             if ghfile.ok:
                 cached = ghfile.from_cache
-            descriptor = yaml.safe_load(ghfile.text)
+                descriptor = yaml.safe_load(ghfile.text)
         if ghfile.ok:
             logger.debug(f"Cached? {cached}")
         else:

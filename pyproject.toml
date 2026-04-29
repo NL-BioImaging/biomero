@@ -33,7 +33,7 @@ dependencies = [
     "sqlalchemy==2.0.32",
     "psycopg2==2.9.9",
     "eventsourcing_sqlalchemy==0.9",
-    "yaml"
+    "pyyaml"
 ]
 
 [tool.setuptools.packages]

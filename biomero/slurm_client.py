@@ -632,9 +632,9 @@ class SlurmClient(Connection):
             # skips the setup
         for workflow in self.slurm_model_repos.keys():
             if workflow not in self.slurm_model_images or force_update:
-                json_descriptor = self.pull_descriptor_from_github(workflow)
-                logger.debug('%s: %s', workflow, json_descriptor)
-                image = json_descriptor['container-image']['image']
+                descriptor = self.pull_descriptor_from_github(workflow)
+                logger.debug('%s: %s', workflow, descriptor)
+                image = descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
 
     def setup_slurm(self):
@@ -1883,19 +1883,17 @@ class SlurmClient(Connection):
         # convert to omero types
         logger.debug(descriptor)
         workflow_dict = {}
-        for input in descriptor['inputs']:
+        for inp in descriptor['inputs']:
             # filter cytomine parameters
-            if not input['id'].startswith('cytomine'):
-                workflow_params = {}
-                workflow_params['name'] = input['id']
-                workflow_params['default'] = input['default-value']
-                workflow_params['cytype'] = input['type']
-                workflow_params['optional'] = input['optional']
-                cmd_flag = input['command-line-flag']
-                cmd_flag = cmd_flag.replace("@id", input['id'])
-                workflow_params['cmd_flag'] = cmd_flag
-                workflow_params['description'] = input['description']
-                workflow_dict[input['id']] = workflow_params
+            id_name = inp.get('id', inp.get('name'))
+            if not id_name.startswith('cytomine'):
+                workflow_params = {'name': id_name,
+                                   'default': inp.get('default-value', inp.get('default')),
+                                   'cytype': inp['type'],
+                                   'optional': inp['optional'],
+                                   'cmd_flag': inp['command-line-flag'].replace("@id", id_name),
+                                   'description': inp['description']}
+                workflow_dict[inp['id']] = workflow_params
         return workflow_dict
 
     def convert_cytype_to_omtype(self,
@@ -2052,6 +2050,10 @@ class SlurmClient(Connection):
             raise ValueError(
                 f'Error while pulling descriptor file for workflow {workflow},\
                     from {raw_url}: {ghfile.__dict__}')
+        if 'container-image' not in descriptor and 'docker_image' in descriptor:
+            image = descriptor['docker_image']
+            descriptor['container-image'] = (
+                    image.get('org') + '/' + image.get('name') + ':' + image.get('tag'))
         return descriptor
 
     def get_or_create_github_session(self):

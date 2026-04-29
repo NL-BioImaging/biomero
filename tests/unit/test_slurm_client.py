@@ -464,7 +464,7 @@ def test_pull_descriptor_from_github(slurm_client):
     workflow = "example_workflow"
     git_repo = "https://github.com/username/repo/tree/branch"
     expected_raw_url = "https://github.com/username/repo/raw/branch/descriptor.json"
-    expected_json_descriptor = {"key": "value"}
+    expected_descriptor = {"key": "value"}
     repos = {
         workflow: git_repo
     }
@@ -472,16 +472,15 @@ def test_pull_descriptor_from_github(slurm_client):
         slurm_client.slurm_model_repos = repos
         with patch.object(slurm_client, 'convert_url', return_value=expected_raw_url):
             mock_get.return_value.ok = True
-            mock_get.return_value.json.return_value = expected_json_descriptor
+            mock_get.return_value.json.return_value = expected_descriptor
 
             # WHEN
-            json_descriptor = slurm_client.pull_descriptor_from_github(
-                workflow)
+            descriptor = slurm_client.pull_descriptor_from_github(workflow)
 
             # THEN
             slurm_client.convert_url.assert_called_once_with(git_repo)
             mock_get.assert_called_with(expected_raw_url)
-            assert json_descriptor == expected_json_descriptor
+            assert descriptor == expected_descriptor
 
             # WHEN & THEN
             mock_get.return_value.ok = False

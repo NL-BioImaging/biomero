@@ -84,6 +84,8 @@ class results:
     OUTPUT_ATTACH_NEW_SCREEN = "Output - Add as new images in NEW screen"
     OUTPUT_ATTACH_NEW_SCREEN_NAME = "New Screen"
     OUTPUT_ATTACH_NEW_SCREEN_DUPLICATE = "Allow duplicate screen name?"
+    OUTPUT_ATTACH_NEW_DATASET_ID = "Dataset_ID"
+    OUTPUT_ATTACH_NEW_SCREEN_ID = "Screen_ID"
     OUTPUT_ATTACH_NEW_SCREEN_RENAME = "Rename imported screen files?"
     OUTPUT_ATTACH_NEW_SCREEN_RENAME_NAME = "Screen Rename"
     OUTPUT_ATTACH_TABLE = "Output - Add csv files as OMERO.table"

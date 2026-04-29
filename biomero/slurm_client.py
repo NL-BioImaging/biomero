@@ -1883,7 +1883,7 @@ class SlurmClient(Connection):
         # convert to omero types
         logger.debug(descriptor)
         workflow_dict = {}
-        for inp in descriptor['inputs']:
+        for inp in descriptor.get('inputs', []) + descriptor.get('parameters', []):
             # filter cytomine parameters
             id_name = inp.get('id', inp.get('name'))
             if not id_name.startswith('cytomine'):
@@ -1893,7 +1893,7 @@ class SlurmClient(Connection):
                                    'optional': inp['optional'],
                                    'cmd_flag': inp.get('command-line-flag', inp.get('cli_tag')).replace("@id", id_name),
                                    'description': inp['description']}
-                workflow_dict[inp['id']] = workflow_params
+                workflow_dict[id_name] = workflow_params
         return workflow_dict
 
     def convert_cytype_to_omtype(self,

@@ -1891,7 +1891,7 @@ class SlurmClient(Connection):
                                    'default': inp.get('default-value', inp.get('default')),
                                    'cytype': inp['type'],
                                    'optional': inp['optional'],
-                                   'cmd_flag': inp['command-line-flag'].replace("@id", id_name),
+                                   'cmd_flag': inp.get('command-line-flag', inp.get('cli_tag')).replace("@id", id_name),
                                    'description': inp['description']}
                 workflow_dict[inp['id']] = workflow_params
         return workflow_dict

@@ -2053,7 +2053,8 @@ class SlurmClient(Connection):
         if 'container-image' not in descriptor and 'docker_image' in descriptor:
             image = descriptor['docker_image']
             descriptor['container-image'] = {'image':
-                    image.get('org') + '/' + image.get('name')  # + ':' + image.get('tag')}
+                    image.get('org') + '/' + image.get('name')  # + ':' + image.get('tag')
+            }
         return descriptor
 
     def get_or_create_github_session(self):

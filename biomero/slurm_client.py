@@ -1883,16 +1883,20 @@ class SlurmClient(Connection):
         # convert to omero types
         logger.debug(descriptor)
         workflow_dict = {}
-        for inp in descriptor.get('inputs', []) + descriptor.get('parameters', []):
+        if 'parameters' in descriptor:
+            params = descriptor.get('inputs', []) + descriptor.get('parameters', []) + descriptor.get('outputs', [])
+        else:
+            params = descriptor.get('inputs', [])
+        for param in params:
             # filter cytomine parameters
-            id_name = inp.get('id', inp.get('name'))
+            id_name = param.get('id', param.get('name'))
             if not id_name.startswith('cytomine'):
                 workflow_params = {'name': id_name,
-                                   'default': inp.get('default-value', inp.get('default')),
-                                   'cytype': inp['type'],
-                                   'optional': inp['optional'],
-                                   'cmd_flag': inp.get('command-line-flag', inp.get('cli_tag')).replace("@id", id_name),
-                                   'description': inp['description']}
+                                   'default': param.get('default-value', param.get('default')),
+                                   'cytype': param['type'],
+                                   'optional': param['optional'],
+                                   'cmd_flag': param.get('command-line-flag', param.get('cli_tag')).replace("@id", id_name),
+                                   'description': param['description']}
                 workflow_dict[id_name] = workflow_params
         return workflow_dict
 

@@ -2059,6 +2059,12 @@ class SlurmClient(Connection):
             descriptor['container-image'] = {'image':
                     image.get('org') + '/' + image.get('name')  # + ':' + image.get('tag')
             }
+        if 'description' not in descriptor:
+            general_description = ''
+            citations = descriptor.get('citations', [])
+            if len(citations) > 0:
+                general_description = citations[0].get('description')
+            descriptor['description'] = general_description
         return descriptor
 
     def get_or_create_github_session(self):

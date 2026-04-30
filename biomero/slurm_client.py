@@ -1927,20 +1927,25 @@ class SlurmClient(Connection):
 
         """
         # TODO make Enum ?
-        if cytype == 'Number':
+        # bilayers
+        class_name = 'String'
+        if cytype == 'integer':
+            class_name = 'Int'
+        elif cytype == 'float':
+            class_name = 'Float'
+        elif cytype == 'checkbox':
+            class_name = 'Bool'
+        # cytomine/biaflows
+        elif cytype == 'Number':
             if isinstance(_default, float):
                 # float instead
-                return self.str_to_class("omero.scripts", "Float",
-                                         *args, **kwargs)
+                class_name = 'Float'
             else:
-                return self.str_to_class("omero.scripts", "Int",
-                                         *args, **kwargs)
+                class_name = 'Int'
         elif cytype == 'Boolean':
-            return self.str_to_class("omero.scripts", "Bool",
-                                     *args, **kwargs)
-        elif cytype == 'String':
-            return self.str_to_class("omero.scripts", "String",
-                                     *args, **kwargs)
+            class_name = 'Bool'
+        return self.str_to_class("omero.scripts", class_name,
+                                 *args, **kwargs)
 
     def extract_parts_from_url(self, input_url: str) -> Tuple[List[str], str]:
         """

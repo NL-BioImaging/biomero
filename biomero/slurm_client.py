@@ -632,7 +632,7 @@ class SlurmClient(Connection):
             # skips the setup
         for workflow in self.slurm_model_repos.keys():
             if workflow not in self.slurm_model_images or force_update:
-                descriptor = self.pull_descriptor_from_github(workflow)
+                descriptor = self.generic_descriptor_from_github(workflow)
                 logger.debug('%s: %s', workflow, descriptor)
                 image = descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
@@ -1522,7 +1522,7 @@ class SlurmClient(Connection):
             logger.info("Generating Slurm job scripts")
             for wf, job_path in self.slurm_model_jobs.items():
                 # generate job script
-                params = self.get_workflow_parameters(wf)
+                params = self.generic_descriptor_from_github(wf)
                 subs = self.workflow_params_to_subs(params)
                 job_script = self.generate_slurm_job_for_workflow(wf, subs)
                 # ensure all dirs exist remotely
@@ -1863,90 +1863,6 @@ class SlurmClient(Connection):
         else:
             raise SSHException(result)
 
-    def get_workflow_parameters(self,
-                                workflow: str) -> Dict[str, Dict[str, Any]]:
-        """
-        Retrieve the parameters of a workflow.
-
-        Args:
-            workflow (str): The workflow for which to retrieve the parameters.
-
-        Returns:
-            Dict[str, Dict[str, Any]]:
-                A dictionary containing the workflow parameters.
-
-        Raises:
-            ValueError: If an error occurs while retrieving the workflow
-                parameters.
-        """
-        descriptor = self.pull_descriptor_from_github(workflow)
-        # convert to omero types
-        logger.debug(descriptor)
-        workflow_dict = {}
-        if 'parameters' in descriptor:
-            params = descriptor.get('inputs', []) + descriptor.get('parameters', []) + descriptor.get('outputs', [])
-        else:
-            params = descriptor.get('inputs', [])
-        for param in params:
-            # filter cytomine parameters
-            id_name = param.get('id', param.get('name'))
-            if not id_name.startswith('cytomine'):
-                workflow_params = {'name': id_name,
-                                   'default': param.get('default-value', param.get('default')),
-                                   'cytype': param['type'],
-                                   'optional': param['optional'],
-                                   'cmd_flag': param.get('command-line-flag', param.get('cli_tag')).replace("@id", id_name),
-                                   'description': param['description']}
-                workflow_dict[id_name] = workflow_params
-        return workflow_dict
-
-    def convert_cytype_to_omtype(self,
-                                 cytype: str, _default, *args, **kwargs
-                                 ) -> Any:
-        """
-        Convert a Cytomine type to an OMERO type and instantiates it
-        with args/kwargs.
-
-        Note that Cytomine has a Python Client, and some conversion methods
-        to python types, but nothing particularly worth depending on that
-        library for yet. Might be useful in the future perhaps.
-        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/
-        blob/master/cytomine/cytomine_job.py)
-
-        Args:
-            cytype (str): The Cytomine type to convert.
-            _default: The default value. Required to distinguish between float
-                and int.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            Any:
-                The converted OMERO type class instance
-                or None if errors occured.
-
-        """
-        # TODO make Enum ?
-        # bilayers
-        class_name = 'String'
-        if cytype == 'integer':
-            class_name = 'Int'
-        elif cytype == 'float':
-            class_name = 'Float'
-        elif cytype == 'checkbox':
-            class_name = 'Bool'
-        # cytomine/biaflows
-        elif cytype == 'Number':
-            if isinstance(_default, float):
-                # float instead
-                class_name = 'Float'
-            else:
-                class_name = 'Int'
-        elif cytype == 'Boolean':
-            class_name = 'Bool'
-        return self.str_to_class("omero.scripts", class_name,
-                                 *args, **kwargs)
-
     def extract_parts_from_url(self, input_url: str) -> Tuple[List[str], str]:
         """
         Extract the repository and branch information from the input URL.
@@ -2021,12 +1937,12 @@ class SlurmClient(Connection):
 
         return output_url
 
-    def pull_descriptor_from_github(self, workflow: str) -> Dict:
+    def generic_descriptor_from_github(self, workflow: str) -> Dict:
         """
-        Pull the workflow descriptor from GitHub.
+        Pull the workflow descriptor from GitHub and convert to generic format.
 
         Args:
-            workflow (str): The workflow for which to pull the descriptor.
+            workflow (str): The workflow name for which to pull the descriptor.
 
         Returns:
             Dict: The descriptor.

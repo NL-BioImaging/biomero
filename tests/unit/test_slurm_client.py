@@ -475,7 +475,7 @@ def test_pull_descriptor_from_github(slurm_client):
             mock_get.return_value.json.return_value = expected_descriptor
 
             # WHEN
-            descriptor = slurm_client.pull_descriptor_from_github(workflow)
+            descriptor = slurm_client.generic_descriptor_from_github(workflow)
 
             # THEN
             slurm_client.convert_url.assert_called_once_with(git_repo)
@@ -485,7 +485,7 @@ def test_pull_descriptor_from_github(slurm_client):
             # WHEN & THEN
             mock_get.return_value.ok = False
             with pytest.raises(ValueError, match="Error while pulling descriptor file"):
-                slurm_client.pull_descriptor_from_github(workflow)
+                slurm_client.generic_descriptor_from_github(workflow)
 
 
 def test_convert_url(slurm_client):
@@ -534,57 +534,6 @@ def test_extract_parts_from_url(slurm_client):
     assert valid_branch2 == 'master'
 
 
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_Number(mock_str_to_class,
-                                         slurm_client):
-    # GIVEN
-    cytype = 'Number'
-    _default = 42.0
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "Float", *args, **kwargs)
-
-
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_Boolean(mock_str_to_class,
-                                          slurm_client):
-    # GIVEN
-    cytype = 'Boolean'
-    _default = "false"
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "Bool", *args, **kwargs)
-
-
-@patch('biomero.slurm_client.SlurmClient.str_to_class')
-def test_convert_cytype_to_omtype_String(mock_str_to_class,
-                                         slurm_client):
-    # GIVEN
-    cytype = 'String'
-    _default = "42 is the answer"
-    args = (1, 2, 3)
-    kwargs = {'key': 'value'}
-
-    # WHEN
-    slurm_client.convert_cytype_to_omtype(cytype, _default, *args, **kwargs)
-
-    # THEN
-    mock_str_to_class.assert_called_once_with(
-        "omero.scripts", "String", *args, **kwargs)
-
-
 @patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github', return_value={
     'inputs': [
         {
@@ -619,7 +568,7 @@ def test_get_workflow_parameters(mock_pull_descriptor,
     workflow = "my_workflow"
 
     # WHEN
-    workflow_params = slurm_client.get_workflow_parameters(workflow)
+    workflow_params = slurm_client.generic_descriptor_from_github(workflow)
 
     # THEN
     expected_workflow_params = {
@@ -852,7 +801,7 @@ def test_extract_job_id(mock_result, slurm_client):
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.SlurmClient.run')
 @patch('biomero.slurm_client.SlurmClient.put')
-@patch('biomero.slurm_client.SlurmClient.get_workflow_parameters')
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
 @patch('biomero.slurm_client.SlurmClient.workflow_params_to_subs')
 @patch('biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow')
 def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,

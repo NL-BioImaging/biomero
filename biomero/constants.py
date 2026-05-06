@@ -73,6 +73,8 @@ class results:
     TASK_ID = "Task_ID"
     OUTPUT_ATTACH_PROJECT = "Output - Attach as zip to project?"
     OUTPUT_ATTACH_PROJECT_ID = "Project"
+    OUTPUT_ATTACH_DATASET = "Output - Attach as zip to dataset?"
+    OUTPUT_ATTACH_DATASET_ID = "Dataset_Attach"
     OUTPUT_ATTACH_PLATE = "Output - Attach as zip to plate?"
     OUTPUT_ATTACH_PLATE_ID = "Plate"
     OUTPUT_ATTACH_OG_IMAGES = "Output - Add as attachment to original images"

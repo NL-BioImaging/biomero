@@ -160,7 +160,7 @@ class TestBilayersSchemaParser:
         assert parsed.schema_version == "1.0.0"
         container_image = "cellprofiler/runcellpose_no_pretrained:2.3.2"
         assert parsed.container_image.image == container_image
-        assert parsed.container_image.type == "singularity"
+        assert parsed.container_image.type == "docker"
         assert "python -m cellpose" in parsed.command_line
 
         # Test parameters

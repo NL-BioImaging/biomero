@@ -32,6 +32,7 @@ import io
 import os
 import yaml
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
+from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
 from eventsourcing.system import System, SingleThreadedRunner
@@ -1960,7 +1961,7 @@ class SlurmClient(Connection):
         cached = False
         if ghfile.ok:
             cached = ghfile.from_cache
-            descriptor = ghfile.json()
+            raw_descriptor = ghfile.json()
         else:
             # no json, try yaml
             raw_url = self.convert_url(git_repo, ext=".yaml")
@@ -1968,8 +1969,11 @@ class SlurmClient(Connection):
             ghfile = github_session.get(raw_url)
             if ghfile.ok:
                 cached = ghfile.from_cache
-                descriptor = yaml.safe_load(ghfile.text)
+                raw_descriptor = yaml.safe_load(ghfile.text)
+            else:
+                raw_descriptor = ""
         if ghfile.ok:
+            descriptor = DescriptorParserFactory.parse_descriptor(raw_descriptor)
             logger.debug(f"Cached? {cached}")
         else:
             raise ValueError(

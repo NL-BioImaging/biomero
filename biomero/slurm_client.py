@@ -635,7 +635,7 @@ class SlurmClient(Connection):
             if workflow not in self.slurm_model_images or force_update:
                 descriptor = self.generic_descriptor_from_github(workflow)
                 logger.debug('%s: %s', workflow, descriptor)
-                image = descriptor['container-image']['image']
+                image = descriptor['container_image']['image']
                 self.slurm_model_images[workflow] = image
 
     def setup_slurm(self):

@@ -459,7 +459,7 @@ def test_run_conversion_workflow_job(
     assert slurm_job.submit_result.ok
     assert slurm_job.job_state is None
 
-def test_pull_descriptor_from_github(slurm_client):
+def test_descriptor_from_github(slurm_client):
     # GIVEN
     workflow = "example_workflow"
     git_repo = "https://github.com/username/repo/tree/branch"
@@ -534,7 +534,7 @@ def test_extract_parts_from_url(slurm_client):
     assert valid_branch2 == 'master'
 
 
-@patch('biomero.slurm_client.SlurmClient.pull_descriptor_from_github', return_value={
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github', return_value={
     'inputs': [
         {
             'id': 'input1',

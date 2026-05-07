@@ -9,6 +9,7 @@ import json
 import pytest
 from pathlib import Path
 from unittest.mock import patch, Mock
+import yaml
 
 from biomero.schema_parsers import (
     DescriptorParserFactory,
@@ -41,6 +42,14 @@ def biomero_descriptor(test_data_dir):
         return json.load(f)
 
 
+@pytest.fixture
+def bilayers_descriptor(test_data_dir):
+    """Load the biomero-schema test descriptor."""
+    file_path = test_data_dir / "bilayers_example.yaml"
+    with open(file_path, 'r') as f:
+        return yaml.safe_load(f)
+
+
 class TestSchemaFormatDetection:
     """Test cases for schema format detection."""
     
@@ -49,6 +58,7 @@ class TestSchemaFormatDetection:
         ({'schema-version': '1.0.0'}, 'biomero-schema'),
         ({'schema-version': 'biomero-0.1'}, 'biomero-schema'),
         ({'container-image': {}, 'inputs': []}, 'BIAFLOWS'),
+        ({'docker_image': {}}, 'bilayers'),
     ])
     def test_format_detection(self, descriptor_data, expected_format):
         """Test schema format detection with various inputs."""
@@ -130,6 +140,37 @@ class TestBiomeroSchemaParser:
                 assert len(metadata['authors']) >= 1
             if 'problem_class' in metadata:
                 assert metadata['problem_class'] == 'object-tracking'
+
+
+class TestBilayersSchemaParser:
+    """Test cases for bilayers format parsing."""
+
+    def test_bilayers_format_detection(self, bilayers_descriptor):
+        """Test that bilayers format is detected correctly."""
+        detected = detect_schema_format(bilayers_descriptor)
+        assert detected == 'bilayers'
+
+    def test_bilayers_parsing(self, bilayers_descriptor):
+        """Test parsing of bilayers format."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+
+        # Test basic metadata
+        assert parsed.name == "Cellpose"
+        assert "Deep Learning algorithm for cell segmentation in microscopy images" in parsed.description
+        assert parsed.schema_version == "1.0.0"
+        container_image = "cellprofiler/runcellpose_no_pretrained:2.3.2"
+        assert parsed.container_image.image == container_image
+        assert parsed.container_image.type == "singularity"
+        assert "python -m cellpose" in parsed.command_line
+
+        # Test parameters
+        assert len(parsed.inputs) >= 9
+        assert len(parsed.outputs) >= 1
+
+        # Check parameter names exist
+        param_names = [p.name for p in parsed.inputs]
+        assert "diameter" in param_names
+        assert "pretrained_model" in param_names
 
 
 class TestDescriptorParserFactory:

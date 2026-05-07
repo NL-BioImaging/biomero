@@ -26,7 +26,7 @@ import logging
 
 # biomero-schema is our internal representation
 from biomero_schema.models import (
-    WorkflowSchema, Parameter, ContainerImage, Author, Institution, Citation
+    WorkflowSchema, Parameter, OutputParameter, ContainerImage, Author, Institution, Citation
 )
 
 logger = logging.getLogger(__name__)
@@ -173,6 +173,97 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
         return type_mapping.get(biaflows_type, 'string')
 
 
+class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
+
+    type_mapping = {
+        'integer': 'integer',
+        'float': 'float',
+        'checkbox': 'boolean',
+    }
+
+    def get_supported_formats(self) -> List[str]:
+        return ["bilayers"]
+
+    def adapt_to_biomero_schema(
+        self, descriptor_data: Dict[str, Any]
+    ) -> WorkflowSchema:
+        """Convert Bilayers descriptor to biomero-schema format."""
+
+        # Convert container info
+        container_info = descriptor_data.get("docker_image", {})
+        container_image = ContainerImage(
+            image=container_info.get('org') + '/' + container_info.get('name') + ':' + container_info.get('tag'),
+            type=container_info.get("type", "singularity")
+        )
+
+        # Convert input parameters
+        inputs = [self._map_bilayers(param) for param in
+                  descriptor_data.get("inputs", []) + descriptor_data.get("parameters", [])]
+
+        # Convert output parameters
+        outputs = [self._map_bilayers(param, is_output=True) for param in
+                   descriptor_data.get("outputs", [])]
+
+        # Create citation information
+        authors = [Author(name="Unknown", email=None)]
+        institutions = []
+        citations = [Citation(
+            name=citation.get("name"),
+            doi=citation.get("doi"),
+            license=citation.get("license"),
+            description=citation.get("description")
+        ) for citation in descriptor_data.get("citations", [])]
+        if len(citations) > 0:
+            name = citations[0].name
+            description = citations[0].description
+        else:
+            description = None
+
+        # Build the biomero-schema object
+        biomero_descriptor = WorkflowSchema(
+            schema_version="1.0.0",  # Normalize to biomero-schema version
+            name=name,
+            description=description,
+            command_line=descriptor_data.get("exec_function", {}).get("cli_command"),
+            container_image=container_image,
+            inputs=inputs,
+            outputs=outputs,
+            authors=authors,
+            institutions=institutions,
+            citations=citations,
+            problem_class=None,  # Bilayers doesn't have this
+            configuration=None   # Bilayers doesn't have resource requirements
+        )
+        return biomero_descriptor
+
+    def _map_bilayers(self, param, is_output=False):
+        # Build command line info
+        param_id = param.get("name", "")
+        value_key = param_id.upper()
+
+        # Build the parameter data with alias names for Pydantic validation
+        param_data = {
+            "id": param_id,
+            "type": self.type_mapping.get("type", "string"),
+            "name": param_id,
+            "description": param.get("description", param.get("label", "")),
+            "value-key": value_key,  # Use alias name
+            "command-line-flag": param.get("cli_tag"),
+            "default-value": param.get("default"),
+            "optional": param.get("optional", False),
+            "format": param.get("format"),
+            "sub-type": param.get("subtype"),
+        }
+
+        # Create Parameter using model_validate with alias names
+        if is_output:
+            param_obj = OutputParameter.model_validate(param_data)
+        else:
+            param_obj = Parameter.model_validate(param_data)
+
+        return param_obj
+
+
 def detect_schema_format(descriptor_data: Dict[str, Any]) -> str:
     """
     Auto-detect schema format from descriptor data.
@@ -209,6 +300,9 @@ def detect_schema_format(descriptor_data: Dict[str, Any]) -> str:
         # Looks like a workflow descriptor, assume cytomine format
         return "BIAFLOWS"
 
+    if "docker_image" in descriptor_data:
+        return "bilayers"
+
     keys = list(descriptor_data.keys())
     raise ValueError(
         f"Unable to detect schema format from descriptor: {keys}"
@@ -223,6 +317,7 @@ class WorkflowDescriptorParser:
         "cytomine-0.1": BiaflowsSchemaAdapter,
         "biomero-schema": BiomeroSchemaAdapter,
         "biomero-0.1": BiomeroSchemaAdapter,
+        "bilayers": BilayersSchemaAdapter,
     }
 
     @classmethod

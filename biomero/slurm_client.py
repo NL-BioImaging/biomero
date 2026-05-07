@@ -1973,7 +1973,7 @@ class SlurmClient(Connection):
             else:
                 raw_descriptor = ""
         if ghfile.ok:
-            descriptor = DescriptorParserFactory.parse_descriptor(raw_descriptor)
+            descriptor = DescriptorParserFactory.parse_descriptor(raw_descriptor).model_dump()
             logger.debug(f"Cached? {cached}")
         else:
             raise ValueError(

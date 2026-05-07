@@ -1981,6 +1981,39 @@ class SlurmClient(Connection):
                     from {raw_url}: {ghfile.__dict__}')
         return descriptor
 
+    def get_workflow_parameters(self,
+                                workflow: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Retrieve the parameters of a workflow.
+
+        Args:
+            workflow (str): The workflow for which to retrieve the parameters.
+
+        Returns:
+            Dict[str, Dict[str, Any]]:
+                A dictionary containing the workflow parameters.
+
+        Raises:
+            ValueError: If an error occurs while retrieving the workflow
+                parameters.
+        """
+        descriptor = self.generic_descriptor_from_github(workflow)
+        # convert to omero types
+        logger.debug(descriptor)
+        params_dict = {}
+        for param in descriptor.get('inputs', []):
+            # filter cytomine parameters
+            id_name = param.get('id', param.get('name'))
+            if not id_name.startswith('cytomine'):
+                workflow_param = {'name': id_name,
+                                  'default': param.get('default-value'),
+                                  'cytype': param['type'],
+                                  'optional': param['optional'],
+                                  'cmd_flag': param.get('command-line-flag').replace("@id", id_name),
+                                  'description': param['description']}
+                params_dict[id_name] = workflow_param
+        return params_dict
+
     def get_or_create_github_session(self):
         # Note, using requests_cache 1.1.1, conditional queries are default:
         # The cached response will still be used until the remote content actually changes

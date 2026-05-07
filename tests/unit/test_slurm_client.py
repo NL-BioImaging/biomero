@@ -568,7 +568,7 @@ def test_get_workflow_parameters(mock_pull_descriptor,
     workflow = "my_workflow"
 
     # WHEN
-    workflow_params = slurm_client.generic_descriptor_from_github(workflow)
+    workflow_params = slurm_client.get_workflow_parameters(workflow)
 
     # THEN
     expected_workflow_params = {

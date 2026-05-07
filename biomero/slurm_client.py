@@ -2003,16 +2003,52 @@ class SlurmClient(Connection):
         params_dict = {}
         for param in descriptor.get('inputs', []):
             # filter cytomine parameters
-            id_name = param.get('id', param.get('name'))
+            id_name = param.get('id')
             if not id_name.startswith('cytomine'):
                 workflow_param = {'name': id_name,
                                   'default': param.get('default-value'),
-                                  'cytype': param['type'],
+                                  'type': param['type'],
                                   'optional': param['optional'],
                                   'cmd_flag': param.get('command-line-flag').replace("@id", id_name),
                                   'description': param['description']}
                 params_dict[id_name] = workflow_param
         return params_dict
+
+    def convert_param_type_to_omtype(self,
+                                     param_type: str, _default, *args, **kwargs
+                                    ) -> Any:
+        """
+        Convert a Cytomine type to an OMERO type and instantiates it
+        with args/kwargs.
+
+        Note that Cytomine has a Python Client, and some conversion methods
+        to python types, but nothing particularly worth depending on that
+        library for yet. Might be useful in the future perhaps.
+        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/
+        blob/master/cytomine/cytomine_job.py)
+
+        Args:
+            param_type (str): The param type to convert.
+            _default: The default value. Required to distinguish between float
+                and int.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Any:
+                The converted OMERO type class instance
+                or None if errors occured.
+
+        """
+        class_name = 'String'
+        if param_type == 'integer':
+            class_name = 'Int'
+        elif param_type == 'float':
+            class_name = 'Float'
+        elif param_type == 'boolean':
+            class_name = 'Bool'
+        return self.str_to_class("omero.scripts", class_name,
+                                 *args, **kwargs)
 
     def get_or_create_github_session(self):
         # Note, using requests_cache 1.1.1, conditional queries are default:

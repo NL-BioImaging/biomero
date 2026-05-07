@@ -2018,7 +2018,7 @@ class SlurmClient(Connection):
                                      param_type: str, _default, *args, **kwargs
                                     ) -> Any:
         """
-        Convert a Cytomine type to an OMERO type and instantiates it
+        Convert a generic type to an OMERO type and instantiates it
         with args/kwargs.
 
         Note that Cytomine has a Python Client, and some conversion methods

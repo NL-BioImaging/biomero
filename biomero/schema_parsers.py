@@ -249,11 +249,18 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             "description": param.get("description", param.get("label", "")),
             "value-key": value_key,  # Use alias name
             "command-line-flag": param.get("cli_tag"),
-            "default-value": param.get("default"),
             "optional": param.get("optional", False),
-            "format": param.get("format"),
-            "sub-type": param.get("subtype"),
         }
+
+        default_value = param.get("default")
+        if default_value is not None:
+            param["default-value"] = default_value
+        param_format = param.get("format")
+        if param_format:
+            param_data["format"] = param_format
+        subtype = param.get("subtype")
+        if subtype:
+            param_data["sub-type"] = subtype
 
         # Create Parameter using model_validate with alias names
         if is_output:

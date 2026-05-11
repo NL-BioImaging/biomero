@@ -464,28 +464,35 @@ def test_descriptor_from_github(slurm_client):
     workflow = "example_workflow"
     git_repo = "https://github.com/username/repo/tree/branch"
     expected_raw_url = "https://github.com/username/repo/raw/branch/descriptor.json"
-    expected_descriptor = {"key": "value"}
+    raw_descriptor = {"key": "value"}
+    expected_descriptor = {"container-image": {"image": "dockerhub.com/image1"}}
     repos = {
         workflow: git_repo
     }
     with patch('biomero.slurm_client.requests_cache.CachedSession.get') as mock_get:
-        slurm_client.slurm_model_repos = repos
-        with patch.object(slurm_client, 'convert_url', return_value=expected_raw_url):
-            mock_get.return_value.ok = True
-            mock_get.return_value.json.return_value = expected_descriptor
+        with patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor') as mock_parse:
+            mock_schema = mock.Mock()
+            mock_schema.model_dump.return_value = expected_descriptor
+            mock_parse.return_value = mock_schema
 
-            # WHEN
-            descriptor = slurm_client.generic_descriptor_from_github(workflow)
+            slurm_client.slurm_model_repos = repos
+            with patch.object(slurm_client, 'convert_url', return_value=expected_raw_url):
+                mock_get.return_value.ok = True
+                mock_get.return_value.json.return_value = raw_descriptor
 
-            # THEN
-            slurm_client.convert_url.assert_called_once_with(git_repo)
-            mock_get.assert_called_with(expected_raw_url)
-            assert descriptor == expected_descriptor
+                # WHEN
+                descriptor = slurm_client.generic_descriptor_from_github(workflow)
 
-            # WHEN & THEN
-            mock_get.return_value.ok = False
-            with pytest.raises(ValueError, match="Error while pulling descriptor file"):
-                slurm_client.generic_descriptor_from_github(workflow)
+                # THEN
+                slurm_client.convert_url.assert_called_once_with(git_repo)
+                mock_get.assert_called_with(expected_raw_url)
+                mock_parse.assert_called_once_with(raw_descriptor, name=workflow)
+                assert descriptor == expected_descriptor
+
+                # WHEN & THEN
+                mock_get.return_value.ok = False
+                with pytest.raises(ValueError, match="Error while pulling descriptor file"):
+                    slurm_client.generic_descriptor_from_github(workflow)
 
 
 def test_convert_url(slurm_client):
@@ -575,7 +582,7 @@ def test_get_workflow_parameters(mock_pull_descriptor,
         'input1': {
             'name': 'input1',
             'default': 'default_value1',
-            'cytype': 'type1',
+            'type': 'type1',
             'optional': False,
             'cmd_flag': '--flag1',
             'description': 'description1',
@@ -583,7 +590,7 @@ def test_get_workflow_parameters(mock_pull_descriptor,
         'input2': {
             'name': 'input2',
             'default': 'default_value2',
-            'cytype': 'type2',
+            'type': 'type2',
             'optional': True,
             'cmd_flag': '--flag2',
             'description': 'description2',
@@ -801,7 +808,7 @@ def test_extract_job_id(mock_result, slurm_client):
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.SlurmClient.run')
 @patch('biomero.slurm_client.SlurmClient.put')
-@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
+@patch('biomero.slurm_client.SlurmClient.get_workflow_parameters')
 @patch('biomero.slurm_client.SlurmClient.workflow_params_to_subs')
 @patch('biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow')
 def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
@@ -1711,8 +1718,10 @@ def test_slurm_client_connection(mconn_put, mconn_run, slurm_client):
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.Connection.run')
 @patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor')
 @patch('biomero.slurm_client.requests_cache.CachedSession')
 def test_init_workflows(mock_CachedSession,
+                        mock_parse_descriptor,
                         _mock_Connection_put,
                         _mock_Connection_run,
                         _mock_Connection_open,
@@ -1723,6 +1732,9 @@ def test_init_workflows(mock_CachedSession,
     # GIVEN
     wf_image = "dockerhub.com/image1"
     json_descriptor = {"container-image": {"image": wf_image}}
+    mock_schema = mock.Mock()
+    mock_schema.model_dump.return_value = json_descriptor
+    mock_parse_descriptor.return_value = mock_schema
     github_session = mock_CachedSession.return_value
     github_response = mock.Mock()
     github_response.json.return_value = json_descriptor
@@ -1740,10 +1752,12 @@ def test_init_workflows(mock_CachedSession,
 
 
 @patch('biomero.slurm_client.requests_cache.CachedSession')
+@patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor')
 @patch('biomero.slurm_client.Connection.run')
 @patch('biomero.slurm_client.Connection.put')
 def test_init_workflows_force_update(_mock_Connection_put,
                                      _mock_Connection_run,
+                                     mock_parse_descriptor,
                                      mock_CachedSession):
     """
     Test the forced update of workflows in the SlurmClient.
@@ -1753,6 +1767,9 @@ def test_init_workflows_force_update(_mock_Connection_put,
     wf_repo = "https://github.com/example/workflow1"
     wf_image = "dockerhub.com/image1"
     json_descriptor = {"container-image": {"image": wf_image}}
+    mock_schema = mock.Mock()
+    mock_schema.model_dump.return_value = json_descriptor
+    mock_parse_descriptor.return_value = mock_schema
     github_session = mock_CachedSession.return_value
     github_response = mock.Mock()
     github_response.json.return_value = json_descriptor

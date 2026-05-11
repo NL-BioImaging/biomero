@@ -109,6 +109,7 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
                 "default-value": input_param.get("default-value"),  # Alias
                 "optional": input_param.get("optional", False),
                 "set-by-server": input_param.get("set-by-server", False),
+                "value-choices": input_param.get("value-choices"),
             }
             
             # Create Parameter using model_validate with alias names
@@ -175,10 +176,21 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
 
 class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
 
+    # Map bilayers types to biomero-schema types.
+    # Types not listed here are passed through if valid, else fall back to 'string'.
     type_mapping = {
         'integer': 'integer',
         'float': 'float',
         'checkbox': 'boolean',
+        'radio': 'string',
+        'textbox': 'string',
+        'text': 'string',
+    }
+
+    # Valid biomero-schema input types
+    _valid_input_types = {
+        "Number", "String", "integer", "float", "boolean",
+        "string", "file", "image", "array"
     }
 
     def get_supported_formats(self) -> List[str]:
@@ -241,11 +253,21 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
         param_id = param.get("name", "")
         value_key = param_id.upper()
 
+        # Map type: use explicit mapping, pass through if valid, else 'string'
+        raw_type = param.get("type", "string")
+        if is_output:
+            # OutputParameter only accepts "Number" or "String"
+            mapped_type = "String"
+        else:
+            mapped_type = self.type_mapping.get(raw_type, raw_type)
+            if mapped_type not in self._valid_input_types:
+                mapped_type = "string"
+
         # Build the parameter data with alias names for Pydantic validation
         param_data = {
             "id": param_id,
-            "type": self.type_mapping.get("type", "string"),
-            "name": param_id,
+            "type": mapped_type,
+            "name": param.get("label", param_id),
             "description": param.get("description", param.get("label", "")),
             "value-key": value_key,  # Use alias name
             "command-line-flag": param.get("cli_tag"),
@@ -254,13 +276,30 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
 
         default_value = param.get("default")
         if default_value is not None:
-            param["default-value"] = default_value
+            param_data["default-value"] = default_value
+
+        # Map bilayers 'options' list to value-choices
+        options = param.get("options")
+        if options:
+            param_data["value-choices"] = [
+                opt.get("value") for opt in options if "value" in opt
+            ]
+
         param_format = param.get("format")
         if param_format:
-            param_data["format"] = param_format
+            # format may be a list in bilayers; take first element
+            if isinstance(param_format, list):
+                param_data["format"] = param_format[0]
+            else:
+                param_data["format"] = param_format
+
         subtype = param.get("subtype")
         if subtype:
-            param_data["sub-type"] = subtype
+            # subtype may be a list in bilayers; take first element
+            if isinstance(subtype, list):
+                param_data["sub-type"] = subtype[0]
+            else:
+                param_data["sub-type"] = subtype
 
         # Create Parameter using model_validate with alias names
         if is_output:

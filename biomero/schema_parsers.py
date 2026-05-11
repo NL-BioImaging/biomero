@@ -329,13 +329,14 @@ class WorkflowDescriptorParser:
 
     @classmethod
     def parse_descriptor(
-        cls, descriptor_data: Dict[str, Any]
+        cls, descriptor_data: Dict[str, Any], name: str = None
     ) -> WorkflowSchema:
         """
         Auto-detect format and parse descriptor to biomero-schema.
 
         Args:
             descriptor_data: Raw descriptor dictionary
+            name: Optional name for logging purposes.
 
         Returns:
             Validated WorkflowSchema (biomero-schema format)
@@ -354,8 +355,8 @@ class WorkflowDescriptorParser:
             )
 
         adapter = adapter_class()
-        logger.info(
-            f"Parsing workflow descriptor with format: {schema_format}"
+        logger.debug(
+            f"Parsing {'"' + name + '" ' if name else ''}descriptor with format: {schema_format}"
         )
 
         # Convert to biomero-schema and validate with Pydantic

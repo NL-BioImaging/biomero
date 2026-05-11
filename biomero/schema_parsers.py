@@ -355,8 +355,9 @@ class WorkflowDescriptorParser:
             )
 
         adapter = adapter_class()
+        name_str = f'"{name}" ' if name else ""
         logger.debug(
-            f"Parsing {'"' + name + '" ' if name else ''}descriptor with format: {schema_format}"
+            f"Parsing {name_str}descriptor with format: {schema_format}"
         )
 
         # Convert to biomero-schema and validate with Pydantic

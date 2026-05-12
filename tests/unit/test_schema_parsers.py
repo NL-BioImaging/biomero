@@ -129,7 +129,7 @@ class TestBilayersSchemaParser:
         assert parsed.name == "Cellpose"
         assert "Deep Learning algorithm for cell segmentation in microscopy images" in parsed.description
         assert parsed.schema_version == "bilayers-1.0.0"
-        container_image = "cellprofiler/runcellpose_no_pretrained:2.3.2"
+        container_image = "cellprofiler/runcellpose_no_pretrained"
         assert parsed.container_image.image == container_image
         assert parsed.container_image.type == "docker"
         assert "python -m cellpose" in parsed.command_line

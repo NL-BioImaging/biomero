@@ -204,8 +204,9 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
 
         # Convert container info
         container_info = descriptor_data.get("docker_image", {})
+        # ignore container tag definition in descriptor
         container_image = ContainerImage(
-            image=container_info.get('org') + '/' + container_info.get('name') + ':' + container_info.get('tag'),
+            image=container_info.get('org') + '/' + container_info.get('name'),
             type=container_info.get("type", "docker")
         )
 

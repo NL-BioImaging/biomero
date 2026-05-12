@@ -695,9 +695,17 @@ class SlurmClient(Connection):
                 for wf, image in self.slurm_model_images.items():
                     repo = self.slurm_model_repos[wf]
                     path = self.slurm_model_paths[wf]
-                    _, version = self.extract_parts_from_url(repo)
-                    if version == "master":
-                        version = "latest"
+                    # If the image already includes a tag (e.g. "org/image:v1.2"),
+                    # use that tag and strip it from the image name to avoid
+                    # producing docker://org/image:v1.2:v1.2.
+                    image_tag, image_name = self.parse_docker_image_version(image)
+                    if image_tag:
+                        image = image_name
+                        version = image_tag
+                    else:
+                        _, version = self.extract_parts_from_url(repo)
+                        if version == "master":
+                            version = "latest"
                     pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}

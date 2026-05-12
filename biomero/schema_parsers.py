@@ -185,6 +185,7 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
         'radio': 'string',
         'textbox': 'string',
         'text': 'string',
+        'dropdown': 'string',
     }
 
     # Valid biomero-schema input types

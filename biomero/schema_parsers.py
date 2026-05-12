@@ -234,7 +234,7 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
 
         # Build the biomero-schema object
         biomero_descriptor = WorkflowSchema(
-            schema_version="1.0.0",  # Normalize to biomero-schema version
+            schema_version="bilayers-1.0.0",  # Preserve source format for downstream detection
             name=name,
             description=description,
             command_line=descriptor_data.get("exec_function", {}).get("cli_command"),
@@ -273,6 +273,8 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             "value-key": value_key,  # Use alias name
             "command-line-flag": param.get("cli_tag"),
             "optional": param.get("optional", False),
+            # image/file inputs are folder params managed by biomero, not user-facing
+            "set-by-server": raw_type in ("image", "file") and not is_output,
         }
 
         default_value = param.get("default")

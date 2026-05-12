@@ -20,35 +20,6 @@ from biomero.schema_parsers import (
 )
 
 
-@pytest.fixture
-def test_data_dir():
-    """Path to the test data directory."""
-    return Path(__file__).parent.parent
-
-
-@pytest.fixture
-def biaflows_descriptor(test_data_dir):
-    """Load the biaflows test descriptor."""
-    file_path = test_data_dir / "W_NucleiSegmentation-ImageJ.descriptor.json"
-    with open(file_path, 'r') as f:
-        return json.load(f)
-
-
-@pytest.fixture
-def biomero_descriptor(test_data_dir):
-    """Load the biomero-schema test descriptor."""
-    file_path = test_data_dir / "example_workflow.json"
-    with open(file_path, 'r') as f:
-        return json.load(f)
-
-
-@pytest.fixture
-def bilayers_descriptor(test_data_dir):
-    """Load the biomero-schema test descriptor."""
-    file_path = test_data_dir / "bilayers_example.yaml"
-    with open(file_path, 'r') as f:
-        return yaml.safe_load(f)
-
 
 class TestSchemaFormatDetection:
     """Test cases for schema format detection."""
@@ -157,7 +128,7 @@ class TestBilayersSchemaParser:
         # Test basic metadata
         assert parsed.name == "Cellpose"
         assert "Deep Learning algorithm for cell segmentation in microscopy images" in parsed.description
-        assert parsed.schema_version == "1.0.0"
+        assert parsed.schema_version == "bilayers-1.0.0"
         container_image = "cellprofiler/runcellpose_no_pretrained:2.3.2"
         assert parsed.container_image.image == container_image
         assert parsed.container_image.type == "docker"
@@ -167,10 +138,10 @@ class TestBilayersSchemaParser:
         assert len(parsed.inputs) >= 9
         assert len(parsed.outputs) >= 1
 
-        # Check parameter names exist
+        # Check parameter names exist (bilayers uses label as name)
         param_names = [p.name for p in parsed.inputs]
-        assert "diameter" in param_names
-        assert "pretrained_model" in param_names
+        assert "Diameter" in param_names
+        assert "PreTrained Model" in param_names
 
 
 class TestDescriptorParserFactory:
@@ -376,3 +347,43 @@ class TestClassInstantiation:
         assert result == mock_instance
         mock_import.assert_called_once_with('some.module')
         mock_class.assert_called_once_with('arg1', kwarg1='value1')
+
+
+class TestBilayersSchemaVersionPreservation:
+    """Test that bilayers descriptors get schema-version='bilayers-1.0.0'
+    so downstream code can reliably detect the source format."""
+
+    def test_bilayers_schema_version_in_parsed_object(self, bilayers_descriptor):
+        """Parsed bilayers descriptor has schema_version starting with 'bilayers'."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        assert parsed.schema_version.startswith("bilayers")
+
+    def test_bilayers_schema_version_in_model_dump(self, bilayers_descriptor):
+        """schema-version survives model_dump(by_alias=True) as 'bilayers-1.0.0'."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dumped = parsed.model_dump(by_alias=True)
+        assert dumped["schema-version"] == "bilayers-1.0.0"
+
+    def test_biaflows_schema_version_not_bilayers(self, biaflows_descriptor):
+        """BIAFLOWS descriptor does NOT get a bilayers schema-version."""
+        parsed = DescriptorParserFactory.parse_descriptor(biaflows_descriptor)
+        assert not parsed.schema_version.startswith("bilayers")
+
+    def test_biomero_schema_version_not_bilayers(self, biomero_descriptor):
+        """biomero-schema descriptor does NOT get a bilayers schema-version."""
+        parsed = DescriptorParserFactory.parse_descriptor(biomero_descriptor)
+        assert not parsed.schema_version.startswith("bilayers")
+
+    @pytest.mark.parametrize("schema_version,expected_is_bilayers", [
+        ("bilayers-1.0.0", True),
+        ("bilayers-2.0.0", True),
+        ("1.0.0", False),
+        ("biomero-0.1", False),
+        ("cytomine-0.1", False),
+        ("", False),
+    ])
+    def test_is_bilayers_detection_logic(self, schema_version, expected_is_bilayers):
+        """Test the startswith('bilayers') check used in slurm_client._is_bilayers_workflow."""
+        descriptor = {"schema-version": schema_version}
+        result = descriptor.get("schema-version", "").startswith("bilayers")
+        assert result == expected_is_bilayers

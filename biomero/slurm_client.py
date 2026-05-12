@@ -1523,6 +1523,44 @@ class SlurmClient(Connection):
         subs['PARAMS'] = " ".join(flags)
         return subs
 
+    def _is_bilayers_workflow(self, descriptor: Dict) -> bool:
+        """Return True if descriptor originated from a bilayers config."""
+        return descriptor.get('schema-version', '').startswith('bilayers')
+
+    def workflow_bilayers_folder_params_to_subs(self,
+                                                descriptor: Dict
+                                                ) -> Dict[str, str]:
+        """
+        Build INPARAMS and OUTPARAMS substitution strings for bilayers job
+        templates.
+
+        Image/file inputs are mapped to ``$DATA_PATH/data/in`` and
+        image/file/array outputs are mapped to ``$DATA_PATH/data/out``.
+
+        Args:
+            descriptor (Dict): The parsed workflow descriptor.
+
+        Returns:
+            Dict[str, str]: Dictionary with keys ``INPARAMS`` and ``OUTPARAMS``.
+        """
+        inparams = []
+        for inp in descriptor.get('inputs', []):
+            if inp.get('type') in ('image', 'file'):
+                flag = inp.get('command-line-flag', 'None')
+                if flag and flag != 'None':
+                    inparams.append(f'{flag} "$DATA_PATH/data/in"')
+
+        outparams = []
+        for out in descriptor.get('outputs', []):
+            flag = out.get('command-line-flag', 'None')
+            if flag and flag != 'None':
+                outparams.append(f'{flag} "$DATA_PATH/data/out"')
+
+        return {
+            'INPARAMS': ' '.join(inparams),
+            'OUTPARAMS': ' '.join(outparams),
+        }
+
     def update_slurm_scripts(self,
                              generate_jobs: bool = False,
                              env: Optional[Dict[str, str]] = None) -> Result:
@@ -1553,8 +1591,18 @@ class SlurmClient(Connection):
             for wf, job_path in self.slurm_model_jobs.items():
                 # generate job script
                 params = self.get_workflow_parameters(wf)
-                subs = self.workflow_params_to_subs(params)
-                job_script = self.generate_slurm_job_for_workflow(wf, subs)
+                descriptor = self.generic_descriptor_from_github(wf)
+                if self._is_bilayers_workflow(descriptor):
+                    template = "job_template_bilayers.sh"
+                    folder_subs = self.workflow_bilayers_folder_params_to_subs(
+                        descriptor)
+                    subs = {**self.workflow_params_to_subs(params),
+                            **folder_subs}
+                else:
+                    template = "job_template.sh"
+                    subs = self.workflow_params_to_subs(params)
+                job_script = self.generate_slurm_job_for_workflow(
+                    wf, subs, template)
                 # ensure all dirs exist remotely
                 full_path = self.slurm_script_path+"/"+job_path
                 job_dir, _ = os.path.split(full_path)
@@ -2035,6 +2083,9 @@ class SlurmClient(Connection):
             # filter cytomine parameters
             id_name = param.get('id')
             if not id_name.startswith('cytomine'):
+                # skip folder params managed by biomero (bilayers image/file inputs)
+                if param.get('set-by-server'):
+                    continue
                 workflow_param = {'name': id_name,
                                   'default': param.get('default-value'),
                                   'type': param['type'],

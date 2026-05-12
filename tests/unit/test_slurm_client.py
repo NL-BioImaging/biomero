@@ -3,6 +3,7 @@ from uuid import uuid4
 from biomero.slurm_client import SlurmClient
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
+from biomero.schema_parsers import DescriptorParserFactory
 import pytest
 import mock
 from mock import patch, MagicMock
@@ -811,7 +812,10 @@ def test_extract_job_id(mock_result, slurm_client):
 @patch('biomero.slurm_client.SlurmClient.get_workflow_parameters')
 @patch('biomero.slurm_client.SlurmClient.workflow_params_to_subs')
 @patch('biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow')
-def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
+@patch('biomero.slurm_client.SlurmClient._is_bilayers_workflow', return_value=False)
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
+def test_update_slurm_scripts(mock_generic_descriptor, mock_is_bilayers,
+                              mock_generate_job, mock_workflow_params_to_subs,
                               mock_get_workflow_params, mock_put,
                               mock_run, _mock_open,
                               _mock_session, mock_stringio):
@@ -827,11 +831,15 @@ def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
     mock_generate_job.return_value = "GeneratedJobScript"
     mock_put.return_value = SerializableMagicMock(ok=True)
     mock_run.return_value = SerializableMagicMock(ok=True)
+    mock_generic_descriptor.return_value = {'schema-version': '1.0.0'}
 
     # WHEN
     slurm_client.update_slurm_scripts(generate_jobs=True)
 
     # THEN
+    # Assert that the descriptor was fetched
+    mock_generic_descriptor.assert_called_once_with("workflow_name")
+
     # Assert that the workflow parameters are obtained
     mock_get_workflow_params.assert_called_once_with("workflow_name")
 
@@ -839,9 +847,9 @@ def test_update_slurm_scripts(mock_generate_job, mock_workflow_params_to_subs,
     mock_workflow_params_to_subs.assert_called_once_with(
         {'param1': {'cmd_flag': '--param1', 'name': 'param1_name'}})
 
-    # Assert that the job script is generated
+    # Assert that the job script is generated (non-bilayers uses default template)
     mock_generate_job.assert_called_once_with(
-        "workflow_name", {'PARAMS': '--param1 $PARAM1_NAME'})
+        "workflow_name", {'PARAMS': '--param1 $PARAM1_NAME'}, "job_template.sh")
 
     # Assert that the remote directories are created
     mock_run.assert_called_with("mkdir -p \"scriptpath\"")
@@ -868,6 +876,151 @@ def test_workflow_params_to_subs(slurm_client):
     # THEN
     expected_result = {'PARAMS': '--param1="$PARAM1_NAME" --param2="$PARAM2_NAME"'}
     assert result == expected_result
+
+
+def test_is_bilayers_workflow_bilayers_version(slurm_client):
+    assert slurm_client._is_bilayers_workflow(
+        {'schema-version': 'bilayers-1.0.0'}) is True
+
+
+def test_is_bilayers_workflow_future_version(slurm_client):
+    assert slurm_client._is_bilayers_workflow(
+        {'schema-version': 'bilayers-2.0.0'}) is True
+
+
+def test_is_bilayers_workflow_biaflows_version(slurm_client):
+    assert slurm_client._is_bilayers_workflow(
+        {'schema-version': '1.0.0'}) is False
+
+
+def test_is_bilayers_workflow_biomero_version(slurm_client):
+    assert slurm_client._is_bilayers_workflow(
+        {'schema-version': 'biomero-0.1'}) is False
+
+
+def test_is_bilayers_workflow_missing_version(slurm_client):
+    assert slurm_client._is_bilayers_workflow({}) is False
+
+
+def test_bilayers_folder_params_image_input(slurm_client):
+    descriptor = {
+        'inputs': [{'type': 'image', 'command-line-flag': '--dir'}],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in"'
+    assert result['OUTPARAMS'] == ''
+
+
+def test_bilayers_folder_params_file_input(slurm_client):
+    descriptor = {
+        'inputs': [{'type': 'file', 'command-line-flag': '--input'}],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == '--input "$DATA_PATH/data/in"'
+
+
+def test_bilayers_folder_params_non_folder_input_skipped(slurm_client):
+    descriptor = {
+        'inputs': [{'type': 'string', 'command-line-flag': '--model'}],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == ''
+
+
+def test_bilayers_folder_params_output_mapped(slurm_client):
+    descriptor = {
+        'inputs': [],
+        'outputs': [{'command-line-flag': '--output-dir'}],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['OUTPARAMS'] == '--output-dir "$DATA_PATH/data/out"'
+
+
+def test_bilayers_folder_params_none_flag_skipped(slurm_client):
+    descriptor = {
+        'inputs': [],
+        'outputs': [{'command-line-flag': 'None'}],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['OUTPARAMS'] == ''
+
+
+def test_bilayers_folder_params_missing_flag_skipped(slurm_client):
+    descriptor = {'inputs': [], 'outputs': [{}]}
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['OUTPARAMS'] == ''
+
+
+def test_bilayers_folder_params_multiple_inputs_and_outputs(slurm_client):
+    descriptor = {
+        'inputs': [
+            {'type': 'image', 'command-line-flag': '--dir'},
+            {'type': 'string', 'command-line-flag': '--model'},
+            {'type': 'file', 'command-line-flag': '--mask'},
+        ],
+        'outputs': [
+            {'command-line-flag': '--out'},
+            {'command-line-flag': 'None'},
+        ],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in" --mask "$DATA_PATH/data/in"'
+    assert result['OUTPARAMS'] == '--out "$DATA_PATH/data/out"'
+
+
+@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
+def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
+                                       mock_put, mock_run, _mock_open,
+                                       _mock_session, mock_stringio,
+                                       bilayers_descriptor):
+    """Bilayers workflow: uses job_template_bilayers.sh, INPARAMS/OUTPARAMS substituted,
+    image/file folder inputs excluded from PARAMS.
+
+    Only SSH and GitHub calls are mocked; all template/param logic runs for real
+    using the bilayers_example.yaml fixture.
+    """
+    # Parse the fixture exactly as slurm_client does via generic_descriptor_from_github
+    descriptor = DescriptorParserFactory.parse_descriptor(
+        bilayers_descriptor).model_dump(by_alias=True)
+    mock_generic_descriptor.return_value = descriptor
+    mock_put.return_value = SerializableMagicMock(ok=True)
+    mock_run.return_value = SerializableMagicMock(ok=True)
+
+    slurm_client = SlurmClient(
+        "localhost", 8022, "slurm", slurm_script_repo="gitrepo",
+        slurm_script_path="scriptpath",
+        slurm_model_jobs={'cellpose': 'jobs/cellpose.sh'})
+
+    # WHEN — _is_bilayers_workflow, workflow_bilayers_folder_params_to_subs,
+    # workflow_params_to_subs, get_workflow_parameters, and
+    # generate_slurm_job_for_workflow (reads real job_template_bilayers.sh) all run
+    slurm_client.update_slurm_scripts(generate_jobs=True)
+
+    generated_script = mock_stringio.call_args[0][0]
+
+    # image/file inputs → INPARAMS (both have non-None cli_tags)
+    assert '--dir "$DATA_PATH/data/in"' in generated_script
+    assert '--add_model "$DATA_PATH/data/in"' in generated_script
+
+    # the single output has cli_tag "None" → OUTPARAMS is empty (placeholder gone)
+    assert '"$DATA_PATH/data/out"' not in generated_script
+
+    # regular params are present; image/file inputs are NOT in PARAMS
+    assert '--diameter="$DIAMETER"' in generated_script
+    assert '--dir="$DIR"' not in generated_script
+    assert '--add_model="$CUSTOM_MODEL"' not in generated_script
+
+    # script pushed to correct remote path
+    mock_put.assert_called_once_with(
+        local=mock_stringio(generated_script), remote="scriptpath/jobs/cellpose.sh")
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')

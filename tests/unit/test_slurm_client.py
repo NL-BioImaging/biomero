@@ -954,6 +954,73 @@ def test_bilayers_folder_params_missing_flag_skipped(slurm_client):
     assert result['OUTPARAMS'] == ''
 
 
+def test_bilayers_folder_params_optional_file_input_skipped(slurm_client):
+    """Optional folder inputs (e.g. optional model file) must not appear in INPARAMS."""
+    descriptor = {
+        'inputs': [
+            {'type': 'image', 'command-line-flag': '--dir', 'optional': False},
+            {'type': 'file', 'command-line-flag': '--add_model', 'optional': True},
+        ],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in"'
+    assert '--add_model' not in result['INPARAMS']
+
+
+def test_bilayers_folder_params_output_dir_set_routes_to_outparams(slurm_client):
+    """Parameters with output-dir-set=True must appear in OUTPARAMS, not INPARAMS."""
+    descriptor = {
+        'inputs': [
+            {'type': 'image', 'command-line-flag': '--dir', 'optional': False},
+            # save_dir after schema parsing: set-by-server=True, output-dir-set=True
+            {'type': 'string', 'command-line-flag': '--savedir',
+             'set-by-server': True, 'output-dir-set': True},
+        ],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in"'
+    assert result['OUTPARAMS'] == '--savedir "$DATA_PATH/data/out"'
+
+
+def test_bilayers_folder_params_output_dir_set_and_outputs(slurm_client):
+    """Both output[] cli_tags and output_dir_set params contribute to OUTPARAMS."""
+    descriptor = {
+        'inputs': [
+            {'type': 'string', 'command-line-flag': '--savedir',
+             'set-by-server': True, 'output-dir-set': True},
+        ],
+        'outputs': [
+            {'command-line-flag': '--out'},
+        ],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert '--out "$DATA_PATH/data/out"' in result['OUTPARAMS']
+    assert '--savedir "$DATA_PATH/data/out"' in result['OUTPARAMS']
+
+
+def test_bilayers_folder_params_all_folder_types_inparams(slurm_client):
+    """All mandatory folder input types (image/file/array/measurement/executable)
+    should appear in INPARAMS."""
+    descriptor = {
+        'inputs': [
+            {'type': 'image',      'command-line-flag': '--images'},
+            {'type': 'file',       'command-line-flag': '--file'},
+            {'type': 'array',      'command-line-flag': '--array'},
+            {'type': 'measurement','command-line-flag': '--measure'},
+            {'type': 'executable', 'command-line-flag': '--script'},
+        ],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert '--images "$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--file "$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--array "$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--measure "$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--script "$DATA_PATH/data/in"' in result['INPARAMS']
+
+
 def test_bilayers_folder_params_multiple_inputs_and_outputs(slurm_client):
     descriptor = {
         'inputs': [
@@ -967,6 +1034,7 @@ def test_bilayers_folder_params_multiple_inputs_and_outputs(slurm_client):
         ],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    # 'string' type is not a folder type → excluded; 'image' and 'file' included
     assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in" --mask "$DATA_PATH/data/in"'
     assert result['OUTPARAMS'] == '--out "$DATA_PATH/data/out"'
 
@@ -1006,17 +1074,20 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
 
     generated_script = mock_stringio.call_args[0][0]
 
-    # image/file inputs → INPARAMS (both have non-None cli_tags)
+    # mandatory image input 'dir' → INPARAMS
     assert '--dir "$DATA_PATH/data/in"' in generated_script
-    assert '--add_model "$DATA_PATH/data/in"' in generated_script
 
-    # the single output has cli_tag "None" → OUTPARAMS is empty (placeholder gone)
-    assert '"$DATA_PATH/data/out"' not in generated_script
+    # optional file input 'custom_model' → skipped from INPARAMS
+    assert '--add_model' not in generated_script
+
+    # output 'omezarr_images' has cli_tag "None" → no OUTPARAMS from outputs[]
+    # but save_dir has output_dir_set=True → routed to OUTPARAMS
+    assert '--savedir "$DATA_PATH/data/out"' in generated_script
 
     # regular params are present; image/file inputs are NOT in PARAMS
     assert '--diameter="$DIAMETER"' in generated_script
     assert '--dir="$DIR"' not in generated_script
-    assert '--add_model="$CUSTOM_MODEL"' not in generated_script
+    assert '--savedir="$SAVE_DIR"' not in generated_script
 
     # script pushed to correct remote path
     mock_put.assert_called_once_with(

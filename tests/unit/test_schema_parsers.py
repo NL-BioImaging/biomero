@@ -143,6 +143,43 @@ class TestBilayersSchemaParser:
         assert "Diameter" in param_names
         assert "PreTrained Model" in param_names
 
+    def test_bilayers_mandatory_image_input_set_by_server(self, bilayers_descriptor):
+        """Mandatory image inputs (type=image, optional=False) must be set-by-server."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dir_param = next(p for p in parsed.inputs if p.id == 'dir')
+        assert dir_param.set_by_server is True
+        assert dir_param.optional is False
+
+    def test_bilayers_optional_file_input_set_by_server(self, bilayers_descriptor):
+        """Optional file inputs (type=file, optional=True) are set-by-server too
+        (biomero skips them in INPARAMS because they are optional)."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        model_param = next(p for p in parsed.inputs if p.id == 'custom_model')
+        assert model_param.set_by_server is True
+        assert model_param.optional is True
+
+    def test_bilayers_output_dir_set_param(self, bilayers_descriptor):
+        """save_dir with output_dir_set=True must have output_dir_set=True
+        and set-by-server=True in the parsed schema."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        save_dir = next(p for p in parsed.inputs if p.id == 'save_dir')
+        assert save_dir.output_dir_set is True
+        assert save_dir.set_by_server is True
+
+    def test_bilayers_output_dir_set_survives_model_dump(self, bilayers_descriptor):
+        """output-dir-set must survive model_dump(by_alias=True) for downstream use."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dumped = parsed.model_dump(by_alias=True)
+        save_dir = next(p for p in dumped['inputs'] if p['id'] == 'save_dir')
+        assert save_dir['output-dir-set'] is True
+
+    def test_bilayers_regular_param_not_set_by_server(self, bilayers_descriptor):
+        """Regular user-facing parameters must NOT be set-by-server."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        diameter = next(p for p in parsed.inputs if p.id == 'diameter')
+        assert not diameter.set_by_server
+        assert not diameter.output_dir_set
+
 
 class TestDescriptorParserFactory:
     """Test cases for the descriptor parser factory."""

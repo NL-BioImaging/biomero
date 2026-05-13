@@ -1534,8 +1534,10 @@ class SlurmClient(Connection):
         Build INPARAMS and OUTPARAMS substitution strings for bilayers job
         templates.
 
-        Image/file inputs are mapped to ``$DATA_PATH/data/in`` and
-        image/file/array outputs are mapped to ``$DATA_PATH/data/out``.
+        Folder inputs (image/file/array/measurement/executable) are mapped to
+        ``$DATA_PATH/data/in``.  Outputs with a cli_tag and any parameter
+        with ``output_dir_set=True`` (marked ``set-by-server`` after schema
+        parsing) are mapped to ``$DATA_PATH/data/out``.
 
         Args:
             descriptor (Dict): The parsed workflow descriptor.
@@ -1543,18 +1545,28 @@ class SlurmClient(Connection):
         Returns:
             Dict[str, str]: Dictionary with keys ``INPARAMS`` and ``OUTPARAMS``.
         """
+        _FOLDER_INPUT_TYPES = ('image', 'file', 'array', 'measurement', 'executable')
+
         inparams = []
         for inp in descriptor.get('inputs', []):
-            if inp.get('type') in ('image', 'file'):
+            if inp.get('type') in _FOLDER_INPUT_TYPES and not inp.get('optional', False):
                 flag = inp.get('command-line-flag', 'None')
                 if flag and flag != 'None':
                     inparams.append(f'{flag} "$DATA_PATH/data/in"')
 
         outparams = []
+        # Outputs with an explicit cli_tag point to data/out
         for out in descriptor.get('outputs', []):
             flag = out.get('command-line-flag', 'None')
             if flag and flag != 'None':
                 outparams.append(f'{flag} "$DATA_PATH/data/out"')
+        # Parameters with output-dir-set=True explicitly declare they point to
+        # the output directory — route them to data/out
+        for inp in descriptor.get('inputs', []):
+            if inp.get('output-dir-set'):
+                flag = inp.get('command-line-flag', 'None')
+                if flag and flag != 'None':
+                    outparams.append(f'{flag} "$DATA_PATH/data/out"')
 
         return {
             'INPARAMS': ' '.join(inparams),

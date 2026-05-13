@@ -274,8 +274,11 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             "value-key": value_key,  # Use alias name
             "command-line-flag": param.get("cli_tag"),
             "optional": param.get("optional", False),
-            # image/file inputs are folder params managed by biomero, not user-facing
-            "set-by-server": raw_type in ("image", "file") and not is_output,
+            # folder inputs and output_dir_set params are managed by biomero, not user-facing
+            "set-by-server": (
+                raw_type in ("image", "file", "array", "measurement", "executable") and not is_output
+            ) or param.get("output_dir_set", False),
+            "output-dir-set": param.get("output_dir_set", False) or False,
         }
 
         default_value = param.get("default")

@@ -1268,6 +1268,7 @@ class SlurmClient(Connection):
             object: An instance of the specified class, or None if the class or
                 module does not exist.
         """
+        class_ = None
         try:
             module_ = importlib.import_module(module_name)
             try:
@@ -1523,9 +1524,85 @@ class SlurmClient(Connection):
         subs['PARAMS'] = " ".join(flags)
         return subs
 
+    _FOLDER_INPUT_TYPES = ('image', 'file', 'array', 'measurement', 'executable')
+
     def _is_bilayers_workflow(self, descriptor: Dict) -> bool:
         """Return True if descriptor originated from a bilayers config."""
         return descriptor.get('schema-version', '').startswith('bilayers')
+
+    def _get_bilayers_folder_flags(
+            self, descriptor: Dict) -> Tuple[List[str], List[str]]:
+        """Return (in_flags, out_flags) — the raw CLI flags that are
+        server-set for bilayers workflows.
+
+        in_flags:  non-optional folder-type inputs  → data/in
+        out_flags: outputs with an explicit flag, plus inputs with
+                   output-dir-set=True               → data/out
+        """
+        in_flags: List[str] = []
+        for inp in descriptor.get('inputs', []):
+            if (inp.get('type') in self._FOLDER_INPUT_TYPES
+                    and not inp.get('optional', False)):
+                flag = inp.get('command-line-flag', 'None')
+                if flag and flag != 'None':
+                    in_flags.append(flag)
+
+        out_flags: List[str] = []
+        for out in descriptor.get('outputs', []):
+            flag = out.get('command-line-flag', 'None')
+            if flag and flag != 'None':
+                out_flags.append(flag)
+        for inp in descriptor.get('inputs', []):
+            if inp.get('output-dir-set'):
+                flag = inp.get('command-line-flag', 'None')
+                if flag and flag != 'None':
+                    out_flags.append(flag)
+
+        return in_flags, out_flags
+
+    def _get_server_managed_params(self,
+                                   workflow_name: str,
+                                   input_data: str) -> Dict[str, Any]:
+        """Return the server-injected CLI params that will be baked into the job
+        script, so they can be recorded alongside user params in task metadata.
+
+        For bilayers workflows these come from the descriptor's folder_name
+        fields (INPARAMS / OUTPARAMS).  For standard biaflows workflows they
+        are the fixed template args (--infolder, --outfolder, --gtfolder,
+        --local, -nmc).  The descriptor is fetched from the cached GitHub
+        session so this adds negligible overhead at runtime.
+
+        Args:
+            workflow_name: Name of the workflow.
+            input_data: Input data folder name (used to resolve DATA_PATH).
+
+        Returns:
+            Dict mapping CLI flag strings to their resolved values.
+        """
+        data_path = f"{self.slurm_data_path}/{input_data}"
+        server_params: Dict[str, Any] = {}
+        try:
+            descriptor = self.generic_descriptor_from_github(workflow_name)
+        except Exception as exc:
+            logger.warning(
+                f"Could not fetch descriptor for server param recording: {exc}")
+            return server_params
+
+        if self._is_bilayers_workflow(descriptor):
+            in_flags, out_flags = self._get_bilayers_folder_flags(descriptor)
+            for flag in in_flags:
+                server_params[flag.lstrip('-')] = f"{data_path}/data/in"
+            for flag in out_flags:
+                server_params[flag.lstrip('-')] = f"{data_path}/data/out"
+        else:
+            # Standard biaflows job_template.sh fixed args
+            server_params["infolder"] = f"{data_path}/data/in"
+            server_params["outfolder"] = f"{data_path}/data/out"
+            server_params["gtfolder"] = f"{data_path}/data/gt"
+            server_params["local"] = True
+            server_params["nmc"] = True
+
+        return server_params
 
     def workflow_bilayers_folder_params_to_subs(self,
                                                 descriptor: Dict
@@ -1545,29 +1622,9 @@ class SlurmClient(Connection):
         Returns:
             Dict[str, str]: Dictionary with keys ``INPARAMS`` and ``OUTPARAMS``.
         """
-        _FOLDER_INPUT_TYPES = ('image', 'file', 'array', 'measurement', 'executable')
-
-        inparams = []
-        for inp in descriptor.get('inputs', []):
-            if inp.get('type') in _FOLDER_INPUT_TYPES and not inp.get('optional', False):
-                flag = inp.get('command-line-flag', 'None')
-                if flag and flag != 'None':
-                    inparams.append(f'{flag} "$DATA_PATH/data/in"')
-
-        outparams = []
-        # Outputs with an explicit cli_tag point to data/out
-        for out in descriptor.get('outputs', []):
-            flag = out.get('command-line-flag', 'None')
-            if flag and flag != 'None':
-                outparams.append(f'{flag} "$DATA_PATH/data/out"')
-        # Parameters with output-dir-set=True explicitly declare they point to
-        # the output directory — route them to data/out
-        for inp in descriptor.get('inputs', []):
-            if inp.get('output-dir-set'):
-                flag = inp.get('command-line-flag', 'None')
-                if flag and flag != 'None':
-                    outparams.append(f'{flag} "$DATA_PATH/data/out"')
-
+        in_flags, out_flags = self._get_bilayers_folder_flags(descriptor)
+        inparams = [f'{flag} "$DATA_PATH/data/in"' for flag in in_flags]
+        outparams = [f'{flag} "$DATA_PATH/data/out"' for flag in out_flags]
         return {
             'INPARAMS': ' '.join(inparams),
             'OUTPARAMS': ' '.join(outparams),
@@ -1669,12 +1726,17 @@ class SlurmClient(Connection):
                 -1,
                 -1
             )
+        # Enrich stored params with server-managed CLI args so the full
+        # command is reproducible from task metadata alone.
+        server_params = self._get_server_managed_params(workflow_name, input_data)
+        recorded_params = {**server_params, **kwargs}  # user kwargs take precedence
+
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
             workflow_name,
             workflow_version,
             input_data,
-            kwargs)
+            recorded_params)
         logger.debug(f"Added new task {task_id} to workflow {wf_id}")
 
         sbatch_cmd, sbatch_env = self.get_workflow_command(
@@ -2052,15 +2114,22 @@ class SlurmClient(Connection):
             cached = ghfile.from_cache
             raw_descriptor = ghfile.json()
         else:
-            # no json, try yaml
+            # no json, try descriptor.yaml (biaflows/biomero-schema)
             raw_url = self.convert_url(git_repo, ext=".yaml")
-            # pull workflow params
             ghfile = github_session.get(raw_url)
             if ghfile.ok:
                 cached = ghfile.from_cache
                 raw_descriptor = yaml.safe_load(ghfile.text)
             else:
-                raw_descriptor = ""
+                # try config.yaml (bilayers convention)
+                url_parts, branch = self.extract_parts_from_url(git_repo)
+                raw_url = f"https://github.com/{url_parts[3]}/{url_parts[4]}/raw/{branch}/config.yaml"
+                ghfile = github_session.get(raw_url)
+                if ghfile.ok:
+                    cached = ghfile.from_cache
+                    raw_descriptor = yaml.safe_load(ghfile.text)
+                else:
+                    raw_descriptor = ""
         if ghfile.ok:
             descriptor = DescriptorParserFactory.parse_descriptor(
                 raw_descriptor, name=workflow).model_dump(by_alias=True)

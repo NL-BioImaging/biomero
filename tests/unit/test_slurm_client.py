@@ -477,23 +477,21 @@ def test_descriptor_from_github(slurm_client):
             mock_parse.return_value = mock_schema
 
             slurm_client.slurm_model_repos = repos
-            with patch.object(slurm_client, 'convert_url', return_value=expected_raw_url):
-                mock_get.return_value.ok = True
-                mock_get.return_value.json.return_value = raw_descriptor
+            mock_get.return_value.ok = True
+            mock_get.return_value.json.return_value = raw_descriptor
 
                 # WHEN
-                descriptor = slurm_client.generic_descriptor_from_github(workflow)
+            descriptor = slurm_client.generic_descriptor_from_github(workflow)
 
                 # THEN
-                slurm_client.convert_url.assert_called_once_with(git_repo)
-                mock_get.assert_called_with(expected_raw_url)
-                mock_parse.assert_called_once_with(raw_descriptor, name=workflow)
-                assert descriptor == expected_descriptor
+            mock_get.assert_called_with(expected_raw_url)
+            mock_parse.assert_called_once_with(raw_descriptor, name=workflow)
+            assert descriptor == expected_descriptor
 
                 # WHEN & THEN
-                mock_get.return_value.ok = False
-                with pytest.raises(ValueError, match="Error while pulling descriptor file"):
-                    slurm_client.generic_descriptor_from_github(workflow)
+            mock_get.return_value.ok = False
+            with pytest.raises(ValueError, match="No descriptor file found for repository"):
+                slurm_client.generic_descriptor_from_github(workflow)
 
 
 def test_convert_url(slurm_client):
@@ -2022,7 +2020,7 @@ def test_init_invalid_workflow_repo():
     # GIVEN
     # THEN
     with pytest.raises(ValueError,
-                       match="Error while pulling descriptor file"):
+                       match="No descriptor file found for repository"):
         # WHEN
         invalid_url = "https://github.com/this-is-an-invalid-url/wf"
         SlurmClient(

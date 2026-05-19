@@ -180,6 +180,28 @@ class TestBilayersSchemaParser:
         assert not diameter.set_by_server
         assert not diameter.output_dir_set
 
+    def test_bilayers_image_format_preserved_as_list(self, bilayers_descriptor):
+        """format list from bilayers YAML must be passed through intact, not truncated to first element."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dir_param = next(p for p in parsed.inputs if p.id == 'dir')
+        assert dir_param.format == ["tiff", "ometiff", "omezarr"]
+
+    def test_bilayers_image_subtype_preserved_as_list(self, bilayers_descriptor):
+        """subtype list from bilayers YAML must be passed through intact, not truncated to first element."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dir_param = next(p for p in parsed.inputs if p.id == 'dir')
+        assert dir_param.sub_type == ["grayscale", "color", "binary"]
+
+    def test_bilayers_requires_zarr_true_when_omezarr_in_format_list(self, bilayers_descriptor):
+        """requires_zarr must be True when omezarr appears anywhere in a format list."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        assert parsed.requires_zarr is True
+
+    def test_bilayers_requires_plate_false_when_no_plate_subtype(self, bilayers_descriptor):
+        """requires_plate must be False when no input has plate in its subtype."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        assert parsed.requires_plate is False
+
 
 class TestDescriptorParserFactory:
     """Test cases for the descriptor parser factory."""

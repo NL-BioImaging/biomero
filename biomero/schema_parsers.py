@@ -294,19 +294,11 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
 
         param_format = param.get("format")
         if param_format:
-            # format may be a list in bilayers; take first element
-            if isinstance(param_format, list):
-                param_data["format"] = param_format[0]
-            else:
-                param_data["format"] = param_format
+            param_data["format"] = param_format
 
         subtype = param.get("subtype")
         if subtype:
-            # subtype may be a list in bilayers; take first element
-            if isinstance(subtype, list):
-                param_data["sub-type"] = subtype[0]
-            else:
-                param_data["sub-type"] = subtype
+            param_data["sub-type"] = subtype
 
         # Create Parameter using model_validate with alias names
         if is_output:

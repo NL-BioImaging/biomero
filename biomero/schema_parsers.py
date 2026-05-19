@@ -246,7 +246,7 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             institutions=institutions,
             citations=citations,
             problem_class=None,  # Bilayers doesn't have this
-            configuration=None   # Bilayers doesn't have resource requirements
+            configuration=None,  # Bilayers doesn't have resource requirements
         )
         return biomero_descriptor
 

@@ -2089,56 +2089,60 @@ class SlurmClient(Connection):
 
         return output_url
 
+    def _parse_descriptor_from_repo(self, repo_url: str, name: str) -> Dict:
+        """Fetch and parse a descriptor from a GitHub repository URL.
+
+        Tries ``descriptor.json``, ``descriptor.yaml``, and ``config.yaml``
+        in that order, then parses via :class:`DescriptorParserFactory`.
+
+        Args:
+            repo_url (str): GitHub repository URL (may include ``/tree/<ref>``).
+            name (str): Logical name passed to the parser (e.g. workflow key).
+
+        Returns:
+            Dict: Descriptor in biomero-schema format
+                  (``model_dump(by_alias=True)``).
+
+        Raises:
+            ValueError: If no descriptor file is found or the URL is invalid.
+        """
+        url_parts, branch = self.extract_parts_from_url(repo_url)
+        base = (f"https://github.com/{url_parts[3]}/{url_parts[4]}"
+                f"/raw/{branch}")
+        github_session = self.get_or_create_github_session()
+
+        for filename in ("descriptor.json", "descriptor.yaml", "config.yaml"):
+            ghfile = github_session.get(f"{base}/{filename}")
+            if not ghfile.ok:
+                continue
+            logger.debug(f"Descriptor found: {filename} (cached={ghfile.from_cache})")
+            raw = (ghfile.json() if filename.endswith(".json")
+                   else yaml.safe_load(ghfile.text))
+            return DescriptorParserFactory.parse_descriptor(
+                raw, name=name
+            ).model_dump(by_alias=True)
+
+        raise ValueError(
+            f"No descriptor file found for repository: {repo_url}"
+        )
+
     def generic_descriptor_from_github(self, workflow: str) -> Dict:
         """
         Pull the workflow descriptor from GitHub and convert to generic format.
 
         Args:
-            workflow (str): The workflow name for which to pull the descriptor.
+            workflow (str): Workflow name (looked up in ``slurm_model_repos``) or
+                a direct GitHub repository URL.
 
         Returns:
-            Dict: The descriptor.
+            Dict: The descriptor in biomero-schema format.
 
         Raises:
-            ValueError: If an error occurs while pulling the descriptor file.
+            ValueError: If no descriptor file is found or the URL is invalid.
         """
-        git_repo = self.slurm_model_repos[workflow]
+        git_repo = self.slurm_model_repos.get(workflow, workflow)
         logger.debug(f"Pull workflow: {workflow}: {git_repo}")
-        # convert git repo to dictionary
-        raw_url = self.convert_url(git_repo)
-        # pull workflow params
-        github_session = self.get_or_create_github_session()
-        ghfile = github_session.get(raw_url)
-        cached = False
-        if ghfile.ok:
-            cached = ghfile.from_cache
-            raw_descriptor = ghfile.json()
-        else:
-            # no json, try descriptor.yaml (biaflows/biomero-schema)
-            raw_url = self.convert_url(git_repo, ext=".yaml")
-            ghfile = github_session.get(raw_url)
-            if ghfile.ok:
-                cached = ghfile.from_cache
-                raw_descriptor = yaml.safe_load(ghfile.text)
-            else:
-                # try config.yaml (bilayers convention)
-                url_parts, branch = self.extract_parts_from_url(git_repo)
-                raw_url = f"https://github.com/{url_parts[3]}/{url_parts[4]}/raw/{branch}/config.yaml"
-                ghfile = github_session.get(raw_url)
-                if ghfile.ok:
-                    cached = ghfile.from_cache
-                    raw_descriptor = yaml.safe_load(ghfile.text)
-                else:
-                    raw_descriptor = ""
-        if ghfile.ok:
-            descriptor = DescriptorParserFactory.parse_descriptor(
-                raw_descriptor, name=workflow).model_dump(by_alias=True)
-            logger.debug(f"Cached? {cached}")
-        else:
-            raise ValueError(
-                f'Error while pulling descriptor file for workflow {workflow},\
-                    from {raw_url}: {ghfile.__dict__}')
-        return descriptor
+        return self._parse_descriptor_from_repo(git_repo, workflow)
 
     def get_workflow_parameters(self,
                                 workflow: str) -> Dict[str, Dict[str, Any]]:

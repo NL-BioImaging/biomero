@@ -99,6 +99,7 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
             value_key = input_param.get("value-key", f"@{param_id.upper()}")
 
             # Build the parameter data with alias names for Pydantic validation
+            raw_default = input_param.get("default-value")
             param_data = {
                 "id": param_id,
                 "type": param_type,
@@ -106,7 +107,7 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
                 "description": input_param.get("description", ""),
                 "value-key": value_key,  # Use alias name
                 "command-line-flag": cmd_flag,  # Use alias name
-                "default-value": input_param.get("default-value"),  # Alias
+                "default-value": raw_default,  # Alias
                 "optional": input_param.get("optional", False),
                 "set-by-server": input_param.get("set-by-server", False),
                 "value-choices": input_param.get("value-choices"),
@@ -296,6 +297,26 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             # Only store labels when they differ from values (avoids redundant data)
             if any(str(lbl) != str(val) for lbl, val in zip(labels, param_data["value-choices"])):
                 param_data["value-choices-labels"] = [str(lbl) if lbl is not None else None for lbl in labels]
+
+        # Ensure the default value type is consistent with value-choices.
+        # When all choices are integers the default MUST also be an int so
+        # OMERO's scripts framework can match str(default) against the
+        # stringified choices list.  We coerce unconditionally here (not just
+        # when already a float) because Pydantic on older schema versions
+        # re-coerces any int→float if int is absent from the Union — and
+        # there is no way to prevent that without fixing the schema.
+        # Fixing the schema (adding int to Union) is the real fix; this is
+        # defence-in-depth that also pre-aligns the raw value before Pydantic.
+        choices = param_data.get("value-choices", [])
+        default = param_data.get("default-value")
+        if choices and all(isinstance(c, int) for c in choices) and default is not None:
+            try:
+                coerced = int(default)
+                # only coerce if it's a lossless conversion (e.g. 0.0→0 ok, 0.5 not)
+                if coerced == default:
+                    param_data["default-value"] = coerced
+            except (ValueError, TypeError):
+                pass
 
         param_format = param.get("format")
         if param_format:

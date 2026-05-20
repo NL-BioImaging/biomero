@@ -66,6 +66,24 @@ class TestBiaflowsParser:
         assert "Radius" in param_names
         assert "Threshold" in param_names
 
+    def test_biaflows_number_int_default_stays_integer(self, biaflows_descriptor):
+        """Number param with int default parses as type 'integer' with int default_value."""
+        parsed = DescriptorParserFactory.parse_descriptor(biaflows_descriptor)
+        radius = next(p for p in parsed.inputs if p.id == 'ij_radius')
+        assert radius.type == 'integer'
+        assert isinstance(radius.default_value, int), (
+            f"default_value must be int, got {type(radius.default_value)}: {radius.default_value!r}"
+        )
+        assert radius.default_value == 5
+
+    def test_biaflows_number_float_default_stays_float(self, biaflows_descriptor):
+        """Number param with float default parses as type 'float' with float default_value."""
+        parsed = DescriptorParserFactory.parse_descriptor(biaflows_descriptor)
+        threshold = next(p for p in parsed.inputs if p.id == 'ij_threshold')
+        assert threshold.type == 'float'
+        assert isinstance(threshold.default_value, float)
+        assert threshold.default_value == -0.5
+
 
 class TestBiomeroSchemaParser:
     """Test cases for biomero-schema format parsing."""
@@ -232,14 +250,37 @@ class TestBilayersSchemaParser:
         assert channel_axis.value_choices == [0, 2]
         assert channel_axis.value_choices_labels is None
 
+    def test_bilayers_integer_radio_default_is_int_not_float(self, bilayers_descriptor):
+        """channel_axis default value is int, not float."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        channel_axis = next(p for p in parsed.inputs if p.id == 'channel_axis')
+        assert isinstance(channel_axis.default_value, int), (
+            f"default_value must be int, got {type(channel_axis.default_value)}: "
+            f"{channel_axis.default_value!r}"
+        )
+        assert channel_axis.default_value == 0
+
+    def test_bilayers_integer_radio_default_str_matches_string_choices(self, bilayers_descriptor):
+        """str(default_value) is in [str(c) for c in value_choices]."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        channel_axis = next(p for p in parsed.inputs if p.id == 'channel_axis')
+        str_choices = [str(c) for c in channel_axis.value_choices]
+        assert str(channel_axis.default_value) in str_choices, (
+            f"str({channel_axis.default_value!r}) not in {str_choices}"
+        )
+
     def test_bilayers_value_choices_labels_survive_model_dump(self, bilayers_descriptor):
-        """value-choices-labels must survive model_dump(by_alias=True) for downstream use."""
+        """value-choices-labels survives model_dump(by_alias=True)."""
         parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
         dumped = parsed.model_dump(by_alias=True)
         pretrained = next(p for p in dumped['inputs'] if p['id'] == 'pretrained_model')
         assert pretrained['value-choices-labels'] == ["Cyto", "Nuclei", "Cyto2", "Ignore"]
+
+
+
+class TestDescriptorParserFactory:
     """Test cases for the descriptor parser factory."""
-    
+
     def test_factory_parse_descriptor(self, biaflows_descriptor,
                                       biomero_descriptor):
         """Test end-to-end parsing through factory."""

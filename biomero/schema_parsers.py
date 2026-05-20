@@ -273,7 +273,7 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             "name": param.get("label", param_id),
             "description": param.get("description", param.get("label", "")),
             "value-key": value_key,  # Use alias name
-            "command-line-flag": param.get("cli_tag"),
+            "command-line-flag": param.get("cli_tag", "").rstrip("=") or None,
             "optional": param.get("optional", False),
             # folder inputs and output_dir_set params are managed by biomero, not user-facing
             "set-by-server": (

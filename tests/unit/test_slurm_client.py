@@ -906,7 +906,7 @@ def test_bilayers_folder_params_image_input(slurm_client):
         'outputs': [],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in"'
+    assert result['INPARAMS'] == '--dir="$DATA_PATH/data/in"'
     assert result['OUTPARAMS'] == ''
 
 
@@ -916,7 +916,7 @@ def test_bilayers_folder_params_file_input(slurm_client):
         'outputs': [],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert result['INPARAMS'] == '--input "$DATA_PATH/data/in"'
+    assert result['INPARAMS'] == '--input="$DATA_PATH/data/in"'
 
 
 def test_bilayers_folder_params_non_folder_input_skipped(slurm_client):
@@ -934,7 +934,7 @@ def test_bilayers_folder_params_output_mapped(slurm_client):
         'outputs': [{'command-line-flag': '--output-dir'}],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert result['OUTPARAMS'] == '--output-dir "$DATA_PATH/data/out"'
+    assert result['OUTPARAMS'] == '--output-dir="$DATA_PATH/data/out"'
 
 
 def test_bilayers_folder_params_none_flag_skipped(slurm_client):
@@ -962,7 +962,7 @@ def test_bilayers_folder_params_optional_file_input_skipped(slurm_client):
         'outputs': [],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in"'
+    assert result['INPARAMS'] == '--dir="$DATA_PATH/data/in"'
     assert '--add_model' not in result['INPARAMS']
 
 
@@ -978,8 +978,8 @@ def test_bilayers_folder_params_output_dir_set_routes_to_outparams(slurm_client)
         'outputs': [],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in"'
-    assert result['OUTPARAMS'] == '--savedir "$DATA_PATH/data/out"'
+    assert result['INPARAMS'] == '--dir="$DATA_PATH/data/in"'
+    assert result['OUTPARAMS'] == '--savedir="$DATA_PATH/data/out"'
 
 
 def test_bilayers_folder_params_output_dir_set_and_outputs(slurm_client):
@@ -994,8 +994,8 @@ def test_bilayers_folder_params_output_dir_set_and_outputs(slurm_client):
         ],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert '--out "$DATA_PATH/data/out"' in result['OUTPARAMS']
-    assert '--savedir "$DATA_PATH/data/out"' in result['OUTPARAMS']
+    assert '--out="$DATA_PATH/data/out"' in result['OUTPARAMS']
+    assert '--savedir="$DATA_PATH/data/out"' in result['OUTPARAMS']
 
 
 def test_bilayers_folder_params_all_folder_types_inparams(slurm_client):
@@ -1012,11 +1012,11 @@ def test_bilayers_folder_params_all_folder_types_inparams(slurm_client):
         'outputs': [],
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
-    assert '--images "$DATA_PATH/data/in"' in result['INPARAMS']
-    assert '--file "$DATA_PATH/data/in"' in result['INPARAMS']
-    assert '--array "$DATA_PATH/data/in"' in result['INPARAMS']
-    assert '--measure "$DATA_PATH/data/in"' in result['INPARAMS']
-    assert '--script "$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--images="$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--file="$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--array="$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--measure="$DATA_PATH/data/in"' in result['INPARAMS']
+    assert '--script="$DATA_PATH/data/in"' in result['INPARAMS']
 
 
 def test_bilayers_folder_params_multiple_inputs_and_outputs(slurm_client):
@@ -1033,8 +1033,8 @@ def test_bilayers_folder_params_multiple_inputs_and_outputs(slurm_client):
     }
     result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
     # 'string' type is not a folder type → excluded; 'image' and 'file' included
-    assert result['INPARAMS'] == '--dir "$DATA_PATH/data/in" --mask "$DATA_PATH/data/in"'
-    assert result['OUTPARAMS'] == '--out "$DATA_PATH/data/out"'
+    assert result['INPARAMS'] == '--dir="$DATA_PATH/data/in" --mask="$DATA_PATH/data/in"'
+    assert result['OUTPARAMS'] == '--out="$DATA_PATH/data/out"'
 
 
 @patch('biomero.slurm_client.io.StringIO')
@@ -1073,14 +1073,14 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
     generated_script = mock_stringio.call_args[0][0]
 
     # mandatory image input 'dir' → INPARAMS
-    assert '--dir "$DATA_PATH/data/in"' in generated_script
+    assert '--dir="$DATA_PATH/data/in"' in generated_script
 
     # optional file input 'custom_model' → skipped from INPARAMS
     assert '--add_model' not in generated_script
 
     # output 'omezarr_images' has cli_tag "None" → no OUTPARAMS from outputs[]
     # but save_dir has output_dir_set=True → routed to OUTPARAMS
-    assert '--savedir "$DATA_PATH/data/out"' in generated_script
+    assert '--savedir="$DATA_PATH/data/out"' in generated_script
 
     # regular params are present; image/file inputs are NOT in PARAMS
     assert '--diameter="$DIAMETER"' in generated_script
@@ -2195,10 +2195,10 @@ def test_workflow_bilayers_folder_params_to_subs_delegates_to_helper(slurm_clien
 
     # Every in_flag must appear in INPARAMS
     for flag in in_flags:
-        assert f'{flag} "$DATA_PATH/data/in"' in subs['INPARAMS']
+        assert f'{flag}="$DATA_PATH/data/in"' in subs['INPARAMS']
     # Every out_flag must appear in OUTPARAMS
     for flag in out_flags:
-        assert f'{flag} "$DATA_PATH/data/out"' in subs['OUTPARAMS']
+        assert f'{flag}="$DATA_PATH/data/out"' in subs['OUTPARAMS']
     # Optional file input excluded from both
     assert '--add_model' not in subs['INPARAMS']
     assert '--add_model' not in subs['OUTPARAMS']

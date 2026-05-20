@@ -1623,8 +1623,8 @@ class SlurmClient(Connection):
             Dict[str, str]: Dictionary with keys ``INPARAMS`` and ``OUTPARAMS``.
         """
         in_flags, out_flags = self._get_bilayers_folder_flags(descriptor)
-        inparams = [f'{flag} "$DATA_PATH/data/in"' for flag in in_flags]
-        outparams = [f'{flag} "$DATA_PATH/data/out"' for flag in out_flags]
+        inparams = [f'{flag}="$DATA_PATH/data/in"' for flag in in_flags]
+        outparams = [f'{flag}="$DATA_PATH/data/out"' for flag in out_flags]
         return {
             'INPARAMS': ' '.join(inparams),
             'OUTPARAMS': ' '.join(outparams),

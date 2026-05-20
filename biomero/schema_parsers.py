@@ -279,18 +279,23 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
                 raw_type in ("image", "file", "array", "measurement", "executable") and not is_output
             ) or param.get("output_dir_set", False),
             "output-dir-set": param.get("output_dir_set", False) or False,
+            "mode": param.get("mode"),
         }
 
         default_value = param.get("default")
         if default_value is not None:
             param_data["default-value"] = default_value
 
-        # Map bilayers 'options' list to value-choices
+        # Map bilayers 'options' list to value-choices and value-choices-labels
         options = param.get("options")
         if options:
             param_data["value-choices"] = [
                 opt.get("value") for opt in options if "value" in opt
             ]
+            labels = [opt.get("label") for opt in options if "value" in opt]
+            # Only store labels when they differ from values (avoids redundant data)
+            if any(str(lbl) != str(val) for lbl, val in zip(labels, param_data["value-choices"])):
+                param_data["value-choices-labels"] = [str(lbl) if lbl is not None else None for lbl in labels]
 
         param_format = param.get("format")
         if param_format:

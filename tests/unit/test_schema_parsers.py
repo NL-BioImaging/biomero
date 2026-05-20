@@ -202,8 +202,42 @@ class TestBilayersSchemaParser:
         parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
         assert parsed.requires_plate is False
 
+    def test_bilayers_mode_beginner_preserved(self, bilayers_descriptor):
+        """mode: beginner from YAML must be passed through to the parsed schema."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dir_param = next(p for p in parsed.inputs if p.id == 'dir')
+        assert dir_param.mode == "beginner"
 
-class TestDescriptorParserFactory:
+    def test_bilayers_mode_advanced_preserved(self, bilayers_descriptor):
+        """mode: advanced from YAML must be passed through to the parsed schema."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        custom_model = next(p for p in parsed.inputs if p.id == 'custom_model')
+        assert custom_model.mode == "advanced"
+
+    def test_bilayers_value_choices_labels_when_labels_differ_from_values(self, bilayers_descriptor):
+        """value_choices_labels must be populated when option labels differ from values.
+        pretrained_model has labels Cyto/Nuclei/Cyto2/Ignore vs values cyto/nuclei/cyto2/ignore.
+        """
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        pretrained = next(p for p in parsed.inputs if p.id == 'pretrained_model')
+        assert pretrained.value_choices == ["cyto", "nuclei", "cyto2", "ignore"]
+        assert pretrained.value_choices_labels == ["Cyto", "Nuclei", "Cyto2", "Ignore"]
+
+    def test_bilayers_value_choices_labels_none_when_labels_equal_values(self, bilayers_descriptor):
+        """value_choices_labels must be None when all option labels equal their values.
+        channel_axis has label 0 value 0 and label 2 value 2 — identical when stringified.
+        """
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        channel_axis = next(p for p in parsed.inputs if p.id == 'channel_axis')
+        assert channel_axis.value_choices == [0, 2]
+        assert channel_axis.value_choices_labels is None
+
+    def test_bilayers_value_choices_labels_survive_model_dump(self, bilayers_descriptor):
+        """value-choices-labels must survive model_dump(by_alias=True) for downstream use."""
+        parsed = DescriptorParserFactory.parse_descriptor(bilayers_descriptor)
+        dumped = parsed.model_dump(by_alias=True)
+        pretrained = next(p for p in dumped['inputs'] if p['id'] == 'pretrained_model')
+        assert pretrained['value-choices-labels'] == ["Cyto", "Nuclei", "Cyto2", "Ignore"]
     """Test cases for the descriptor parser factory."""
     
     def test_factory_parse_descriptor(self, biaflows_descriptor,

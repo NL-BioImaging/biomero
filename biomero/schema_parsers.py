@@ -192,7 +192,7 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
     # Valid biomero-schema input types
     _valid_input_types = {
         "Number", "String", "integer", "float", "boolean",
-        "string", "file", "image", "array"
+        "string", "file", "image", "array", "measurement", "executable"
     }
 
     def get_supported_formats(self) -> List[str]:
@@ -275,7 +275,8 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
             "value-key": value_key,  # Use alias name
             "command-line-flag": param.get("cli_tag", "").rstrip("=") or None,
             "optional": param.get("optional", False),
-            # folder inputs and output_dir_set params are managed by biomero, not user-facing
+            # image inputs are handled by OMERO selection; output_dir_set is set by biomero server
+            # file/array/measurement/executable are selected via attachment browser but path is server-injected
             "set-by-server": (
                 raw_type in ("image", "file", "array", "measurement", "executable") and not is_output
             ) or param.get("output_dir_set", False),
@@ -321,6 +322,10 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
         param_format = param.get("format")
         if param_format:
             param_data["format"] = param_format
+
+        file_count = param.get("file_count")
+        if file_count:
+            param_data["file-count"] = file_count
 
         subtype = param.get("subtype")
         if subtype:

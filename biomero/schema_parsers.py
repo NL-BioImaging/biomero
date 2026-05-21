@@ -110,6 +110,7 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
                 "default-value": raw_default,  # Alias
                 "optional": input_param.get("optional", False),
                 "set-by-server": input_param.get("set-by-server", False),
+                "file-attachment": False,  # BIAFLOWS has no optional file-attachment inputs
                 "value-choices": input_param.get("value-choices"),
             }
             
@@ -281,6 +282,11 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
                 raw_type in ("image", "file", "array", "measurement", "executable") and not is_output
             ) or param.get("output_dir_set", False),
             "output-dir-set": param.get("output_dir_set", False) or False,
+            # file-attachment: user supplies an OMERO annotation ID; biomero transfers the file to HPC
+            "file-attachment": (
+                raw_type in ("file", "array", "measurement", "executable")
+                and not is_output
+            ),
             "mode": param.get("mode"),
         }
 

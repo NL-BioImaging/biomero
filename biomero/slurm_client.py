@@ -1526,6 +1526,20 @@ class SlurmClient(Connection):
 
     _FOLDER_INPUT_TYPES = ('image', 'file', 'array', 'measurement', 'executable')
 
+    # Folder-type inputs that the user can supply as OMERO file-annotation IDs
+    # (i.e. not images — those are handled by Image_Transfer).
+    _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
+
+    def get_file_attachment_params(self, workflow: str) -> Dict[str, Dict[str, Any]]:
+        """Return only the file-attachment params for a workflow.
+
+        Thin filter over :meth:`get_workflow_parameters`.
+        """
+        return {
+            k: v for k, v in self.get_workflow_parameters(workflow).items()
+            if v.get('file_attachment')
+        }
+
     def _is_bilayers_workflow(self, descriptor: Dict) -> bool:
         """Return True if descriptor originated from a bilayers config."""
         return descriptor.get('schema-version', '').startswith('bilayers')
@@ -1659,17 +1673,23 @@ class SlurmClient(Connection):
             logger.info("Generating Slurm job scripts")
             for wf, job_path in self.slurm_model_jobs.items():
                 # generate job script
-                params = self.get_workflow_parameters(wf)
+                # All params in one call; file-attachment ones get type→'string'
+                # so the job script uses $VAR placeholders, not typed defaults.
+                all_params = self.get_workflow_parameters(wf)
+                merged_params = {
+                    k: ({**v, 'type': 'string'} if v['file_attachment'] else v)
+                    for k, v in all_params.items()
+                }
                 descriptor = self.generic_descriptor_from_github(wf)
                 if self._is_bilayers_workflow(descriptor):
                     template = "job_template_bilayers.sh"
                     folder_subs = self.workflow_bilayers_folder_params_to_subs(
                         descriptor)
-                    subs = {**self.workflow_params_to_subs(params),
+                    subs = {**self.workflow_params_to_subs(merged_params),
                             **folder_subs}
                 else:
                     template = "job_template.sh"
-                    subs = self.workflow_params_to_subs(params)
+                    subs = self.workflow_params_to_subs(merged_params)
                 job_script = self.generate_slurm_job_for_workflow(
                     wf, subs, template)
                 # ensure all dirs exist remotely
@@ -2168,15 +2188,21 @@ class SlurmClient(Connection):
             # filter cytomine parameters
             id_name = param.get('id')
             if not id_name.startswith('cytomine'):
-                # skip folder params managed by biomero (bilayers image/file inputs)
-                if param.get('set-by-server'):
+                # skip folder params managed by biomero (bilayers image inputs, output dirs)
+                # but keep file-attachment params — they need CLI flags AND OMERO UI input
+                if param.get('set-by-server') and not param.get('file-attachment'):
                     continue
-                workflow_param = {'name': id_name,
-                                  'default': param.get('default-value'),
-                                  'type': param['type'],
-                                  'optional': param['optional'],
-                                  'cmd_flag': param.get('command-line-flag').replace("@id", id_name),
-                                  'description': param['description']}
+                raw_flag = param.get('command-line-flag') or f'--{id_name}'
+                workflow_param = {
+                    'name': id_name,
+                    'default': param.get('default-value'),
+                    'type': param['type'],
+                    'optional': param['optional'],
+                    'cmd_flag': raw_flag.replace("@id", id_name),
+                    'description': param['description'],
+                    'file_attachment': bool(param.get('file-attachment')),
+                    'format': param.get('format') or [],
+                }
                 params_dict[id_name] = workflow_param
         return params_dict
 

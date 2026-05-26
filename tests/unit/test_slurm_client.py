@@ -585,6 +585,8 @@ def test_get_workflow_parameters(mock_pull_descriptor,
             'optional': False,
             'cmd_flag': '--flag1',
             'description': 'description1',
+            'file_attachment': False,
+            'format': [],
         },
         'input2': {
             'name': 'input2',
@@ -593,9 +595,96 @@ def test_get_workflow_parameters(mock_pull_descriptor,
             'optional': True,
             'cmd_flag': '--flag2',
             'description': 'description2',
+            'file_attachment': False,
+            'format': [],
         },
     }
     assert workflow_params == expected_workflow_params
+
+
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github', return_value={
+    'inputs': [
+        {
+            'id': 'reg_param',
+            'default-value': 'val',
+            'type': 'Number',
+            'optional': True,
+            'command-line-flag': '--reg',
+            'description': 'regular param',
+        },
+        {
+            'id': 'model_file',
+            'default-value': None,
+            'type': 'file',
+            'optional': True,
+            'command-line-flag': '--model',
+            'description': 'custom model file',
+            'set-by-server': True,
+            'file-attachment': True,
+            'format': ['unix'],
+        },
+        {
+            'id': 'server_only',
+            'default-value': None,
+            'type': 'string',
+            'optional': True,
+            'command-line-flag': '--server',
+            'description': 'server-managed, not a file attachment',
+            'set-by-server': True,
+        },
+    ]
+})
+def test_get_workflow_parameters_file_attachment(mock_descriptor, slurm_client):
+    """file-attachment params (set-by-server=True, file-attachment=True) are
+    included and tagged; plain set-by-server params are still excluded."""
+    params = slurm_client.get_workflow_parameters('my_workflow')
+
+    # regular param: present, not a file attachment
+    assert 'reg_param' in params
+    assert params['reg_param']['file_attachment'] is False
+    assert params['reg_param']['format'] == []
+
+    # file-attachment param: included even though set-by-server=True
+    assert 'model_file' in params
+    assert params['model_file']['file_attachment'] is True
+    assert params['model_file']['format'] == ['unix']
+    assert params['model_file']['cmd_flag'] == '--model'
+
+    # plain set-by-server (no file-attachment) → still excluded
+    assert 'server_only' not in params
+
+
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github', return_value={
+    'inputs': [
+        {
+            'id': 'reg_param',
+            'default-value': 'val',
+            'type': 'Number',
+            'optional': True,
+            'command-line-flag': '--reg',
+            'description': 'regular param',
+        },
+        {
+            'id': 'model_file',
+            'default-value': None,
+            'type': 'file',
+            'optional': True,
+            'command-line-flag': '--model',
+            'description': 'custom model file',
+            'set-by-server': True,
+            'file-attachment': True,
+            'format': ['unix'],
+        },
+    ]
+})
+def test_get_file_attachment_params_filters(mock_descriptor, slurm_client):
+    """get_file_attachment_params returns only params tagged file_attachment=True."""
+    params = slurm_client.get_file_attachment_params('my_workflow')
+
+    assert 'model_file' in params
+    assert params['model_file']['file_attachment'] is True
+    # regular param is excluded
+    assert 'reg_param' not in params
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -1075,8 +1164,10 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
     # mandatory image input 'dir' → INPARAMS
     assert '--dir="$DATA_PATH/data/in"' in generated_script
 
-    # optional file input 'custom_model' → skipped from INPARAMS
-    assert '--add_model' not in generated_script
+    # optional file input 'custom_model' is now a file-attachment param →
+    # NOT in INPARAMS (it's optional, _get_bilayers_folder_flags skips optionals)
+    # but IS in PARAMS as a string placeholder for the HPC-injected path
+    assert '--add_model="$CUSTOM_MODEL"' in generated_script
 
     # output 'omezarr_images' has cli_tag "None" → no OUTPARAMS from outputs[]
     # but save_dir has output_dir_set=True → routed to OUTPARAMS

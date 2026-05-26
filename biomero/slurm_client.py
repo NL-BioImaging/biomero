@@ -1677,7 +1677,7 @@ class SlurmClient(Connection):
                 # so the job script uses $VAR placeholders, not typed defaults.
                 all_params = self.get_workflow_parameters(wf)
                 merged_params = {
-                    k: ({**v, 'type': 'string'} if v['file_attachment'] else v)
+                    k: ({**v, 'type': 'string'} if v.get('file_attachment') else v)
                     for k, v in all_params.items()
                 }
                 descriptor = self.generic_descriptor_from_github(wf)

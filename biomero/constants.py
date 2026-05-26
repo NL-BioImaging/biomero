@@ -162,6 +162,7 @@ class file_transfer:
     FOLDER = "Folder_Name"
 
 
+class workflow_status:
     INITIALIZING = "INITIALIZING"
     TRANSFERRING = "TRANSFERRING"
     CONVERTING = "CONVERTING"

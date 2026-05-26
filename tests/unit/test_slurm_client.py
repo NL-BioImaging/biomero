@@ -1126,6 +1126,31 @@ def test_bilayers_folder_params_multiple_inputs_and_outputs(slurm_client):
     assert result['OUTPARAMS'] == '--out="$DATA_PATH/data/out"'
 
 
+def test_bilayers_folder_params_excludes_file_attachment(slurm_client):
+    """file-attachment params must NOT appear in INPARAMS regardless of optional flag.
+
+    They are user-supplied annotation IDs and get injected as full paths via
+    PARAMS (not as the generic data/in directory pointer).
+    """
+    descriptor = {
+        'inputs': [
+            # mandatory image input → INPARAMS
+            {'type': 'image', 'command-line-flag': '--dir', 'optional': False},
+            # required file-attachment → must NOT appear in INPARAMS
+            {'type': 'file', 'command-line-flag': '--model',
+             'optional': False, 'file-attachment': True},
+            # optional file-attachment → also must NOT appear in INPARAMS
+            {'type': 'file', 'command-line-flag': '--ref',
+             'optional': True, 'file-attachment': True},
+        ],
+        'outputs': [],
+    }
+    result = slurm_client.workflow_bilayers_folder_params_to_subs(descriptor)
+    assert result['INPARAMS'] == '--dir="$DATA_PATH/data/in"'
+    assert '--model' not in result['INPARAMS']
+    assert '--ref' not in result['INPARAMS']
+
+
 @patch('biomero.slurm_client.io.StringIO')
 @patch('biomero.slurm_client.Connection.create_session')
 @patch('biomero.slurm_client.Connection.open')

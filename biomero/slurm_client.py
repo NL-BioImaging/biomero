@@ -1556,7 +1556,8 @@ class SlurmClient(Connection):
         in_flags: List[str] = []
         for inp in descriptor.get('inputs', []):
             if (inp.get('type') in self._FOLDER_INPUT_TYPES
-                    and not inp.get('optional', False)):
+                    and not inp.get('optional', False)
+                    and not inp.get('file-attachment')):
                 flag = inp.get('command-line-flag', 'None')
                 if flag and flag != 'None':
                     in_flags.append(flag)

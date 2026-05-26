@@ -160,6 +160,7 @@ class file_transfer:
     FILE_ANNOTATION_ID = "Annotation_ID"
     PARAM_NAME = "Param_Name"
     FOLDER = "Folder_Name"
+    FORMAT = "Allowed_Formats"
 
 
 class workflow_status:

@@ -158,7 +158,7 @@ class file_transfer:
     # _SLURM_File_Transfer script constants
     # ------------------------------------------------------------
     FILE_ANNOTATION_ID = "Annotation_ID"
-    PARAM_NAME = "Param_Name"
+    PARAM_SLOT = "Param_Slot"
     FOLDER = "Folder_Name"
     FORMAT = "Allowed_Formats"
 

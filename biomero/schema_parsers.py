@@ -259,13 +259,9 @@ class BilayersSchemaAdapter(WorkflowDescriptorAdapter):
 
         # Map type: use explicit mapping, pass through if valid, else 'string'
         raw_type = param.get("type", "string")
-        if is_output:
-            # OutputParameter only accepts "Number" or "String"
-            mapped_type = "String"
-        else:
-            mapped_type = self.type_mapping.get(raw_type, raw_type)
-            if mapped_type not in self._valid_input_types:
-                mapped_type = "string"
+        mapped_type = self.type_mapping.get(raw_type, raw_type)
+        if mapped_type not in self._valid_input_types:
+            mapped_type = "string"
 
         # Build the parameter data with alias names for Pydantic validation
         param_data = {

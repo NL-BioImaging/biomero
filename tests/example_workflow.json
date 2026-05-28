@@ -1,0 +1,124 @@
+{
+  "name": "NucleiTracking-ImageJ",
+  "description": "ImageJ workflow for nuclei tracking in time-lapse microscopy images",
+  "schema-version": "1.0.0",
+  "authors": [
+    {
+      "name": "John Doe",
+      "email": "john.doe@university.edu",
+      "affiliations": [
+        "university-lab"
+      ]
+    },
+    {
+      "name": "Jane Smith",
+      "affiliations": [
+        "research-institute"
+      ]
+    }
+  ],
+  "institutions": [
+    {
+      "id": "university-lab",
+      "name": "University Imaging Laboratory"
+    },
+    {
+      "id": "research-institute",
+      "name": "Advanced Research Institute"
+    }
+  ],
+  "citations": [
+    {
+      "name": "ImageJ",
+      "doi": "10.1038/nmeth.2089",
+      "license": "BSD-2-Clause",
+      "description": "ImageJ: Image processing and analysis in Java"
+    },
+    {
+      "name": "TrackMate",
+      "license": "GPL-3.0",
+      "description": "TrackMate plugin for ImageJ"
+    }
+  ],
+  "problem-class": "object-tracking",
+  "container-image": {
+    "image": "neubiaswg5/w_nucleitracking-imagej:1.0.0",
+    "type": "oci",
+    "platforms": [
+      "linux/amd64",
+      "linux/arm64"
+    ]
+  },
+  "configuration": {
+    "input_folder": "/inputs",
+    "output_folder": "/outputs",
+    "resources": {
+      "networking": false,
+      "ram-min": 2048,
+      "cores-min": 2,
+      "gpu": false,
+      "cpuAVX": false,
+      "cpuAVX2": true
+    }
+  },
+  "inputs": [
+    {
+      "id": "input_image",
+      "type": "image",
+      "name": "Input Image Stack",
+      "description": "Time-lapse image stack for nuclei tracking",
+      "sub-type": "grayscale",
+      "format": "tif",
+      "value-key": "[INPUT_IMAGE]",
+      "command-line-flag": "--input",
+      "optional": false
+    },
+    {
+      "id": "radius",
+      "type": "float",
+      "name": "Detection Radius",
+      "description": "Radius for nuclei detection in pixels",
+      "value-key": "[RADIUS]",
+      "command-line-flag": "--radius",
+      "default-value": 5,
+      "optional": true
+    },
+    {
+      "id": "threshold",
+      "type": "float",
+      "name": "Detection Threshold",
+      "description": "Intensity threshold for nuclei detection",
+      "value-key": "[THRESHOLD]",
+      "command-line-flag": "--threshold",
+      "default-value": 100,
+      "optional": true
+    },
+    {
+      "id": "config_file",
+      "type": "file",
+      "name": "Configuration File",
+      "description": "CSV configuration file with parameters",
+      "format": "csv",
+      "value-key": "[CONFIG]",
+      "command-line-flag": "--config",
+      "optional": true
+    }
+  ],
+  "outputs": [
+    {
+      "id": "track_count",
+      "type": "Number",
+      "name": "Number of Tracks",
+      "description": "Total number of tracked nuclei",
+      "value-key": "[TRACK_COUNT]"
+    },
+    {
+      "id": "output_path",
+      "type": "String",
+      "name": "Output File Path",
+      "description": "Path to the generated tracking results",
+      "value-key": "[OUTPUT_PATH]"
+    }
+  ],
+  "command-line": "python wrapper.py [INPUT_IMAGE] --radius [RADIUS] --threshold [THRESHOLD] --config [CONFIG] --output [OUTPUT_PATH]"
+}

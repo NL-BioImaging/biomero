@@ -32,7 +32,9 @@ dependencies = [
     "eventsourcing==9.3",
     "sqlalchemy==2.0.32",
     "psycopg2==2.9.9",
-    "eventsourcing_sqlalchemy==0.9"
+    "eventsourcing_sqlalchemy==0.9",
+    "pyyaml",
+    "biomero-schema @ git+https://github.com/BioImageTools/biomero-schema.git@dev-bilayers"
 ]
 
 [tool.setuptools.packages]

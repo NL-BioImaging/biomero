@@ -1,0 +1,185 @@
+# Based on example https://github.com/bilayer-containers/bilayers/blob/main/algorithms/cellpose_inference/config.yaml
+
+citations:
+  - name: "Cellpose"
+    doi: 10.1038/s41592-020-01018-x
+    license: "BSD 3-Clause"
+    description: "Deep Learning algorithm for cell segmentation in microscopy images"
+
+docker_image:
+  org: cellprofiler
+  name: runcellpose_no_pretrained
+  tag: "2.3.2"
+  platform: "linux/amd64"
+
+algorithm_folder_name: "cellpose_inference"
+
+exec_function: 
+  name: "generate_cli_command"
+  cli_command: "python -m cellpose --verbose"
+  hidden_args: 
+    # dummy example
+    # - cli_tag: "--save_omezarr"
+    #   value: "True"
+    #   append_value: False
+    #   cli_order: 3
+
+inputs:
+  - name: dir
+    type: image
+    label: "Input Image Directory"
+    subtype: 
+      - grayscale
+      - color
+      - binary
+    description: "Path to the directory of input images"
+    cli_tag: "--dir"
+    cli_order: 0
+    default: "directory"
+    optional: False
+    format: 
+      - tiff
+      - ometiff
+      - omezarr
+    folder_name: "/input_images"
+    file_count: "multiple"
+    unique_string:
+      - "*"
+    section_id: "inputs"
+    mode: "beginner"
+    depth: True
+    timepoints: True
+    tiled: True
+    pyramidal: True
+  - name: custom_model
+    type: file
+    label: "Add Model"
+    description: "Custom model to be used for segmentation, if not using pretrained model"
+    cli_tag: "--add_model"
+    cli_order: 0
+    default: "single"
+    optional: True
+    format: 
+      - unix
+    folder_name: "/models"
+    file_count: "single"
+    unique_string:
+      - "*"
+    section_id: "inputs"
+    mode: "advanced"
+
+outputs:
+  - name: omezarr_images
+    type: image
+    label: "Segmented Ome-zarr images"
+    subtype: 
+      - label
+    description: "Segmented image if --save_omezarr flag is true."
+    cli_tag: "None"
+    cli_order: 0
+    default: "directory"
+    optional: True
+    format: 
+      - omezarr
+    folder_name: "/output_images"
+    file_count: "single"
+    unique_string:
+      - "_cp_masks"
+    section_id: "outputs"
+    mode: "beginner"
+    depth: True
+    timepoints: True
+    tiled: True
+    pyramidal: True
+    
+parameters:
+  # Input Image Arguments
+  - name: channel_axis
+    type: radio
+    label: "Channel Axis"
+    description: "axis of image which corresponds to image channels"
+    options: 
+      - label: 0
+        value: 0
+      - label: 2
+        value: 2
+    default: 0
+    cli_tag: "--channel_axis"
+    optional: True
+    section_id: "input-args"
+    mode: "advanced"
+
+  # Model Arguments
+  - name: pretrained_model
+    type: radio
+    label: "PreTrained Model"
+    description: "type of model to use"
+    options: 
+      - label: Cyto
+        value: "cyto"
+      - label: Nuclei
+        value: "nuclei"
+      - label: Cyto2
+        value: "cyto2" 
+      - label: Ignore
+        value: "ignore"
+    default: "cyto"
+    cli_tag: "--pretrained_model"
+    optional: True
+    section_id: "model-args"
+    mode: "beginner"
+
+    # Algorithm Arguments
+  - name: diameter
+    type: float
+    label: "Diameter"
+    description: "estimated diameter of cells in pixels"
+    default: 30
+    cli_tag: "--diameter"
+    optional: True
+    section_id: "algorithm-args"
+    mode: "beginner"
+  - name: stitch_threshold
+    type: float
+    label: "Stitch Threshold"
+    description: "stitching threshold"
+    default: 0.0
+    cli_tag: "--stitch_threshold"
+    optional: True
+    section_id: "algorithm-args"
+    mode: "advanced"
+  - name: min_size
+    type: integer
+    label: "Min Size"
+    description: "minimum size of objects in pixels"
+    default: 15
+    cli_tag: "--min_size"
+    optional: True
+    section_id: "algorithm-args"
+    mode: "advanced"
+
+# Output Arguments
+  - name: save_omezarr
+    type: checkbox
+    label: "Save Ome-zarr"
+    description: "save segmentation as Ome-zarr"
+    append_value: False 
+    default: False
+    cli_tag: "--save_omezarr"
+    optional: True
+    section_id: "output-args"
+    mode: "beginner"
+  - name: save_dir
+    type: textbox
+    label: "Save Directory"
+    description: "directory to save output files"
+    output_dir_set: True
+    default: "/output_images"
+    cli_tag: "--savedir"
+    optional: True
+    section_id: "output-args"
+    mode: "advanced"
+
+# Display_only Section
+display_only:
+  # dummy example : DONOT PUT CLI_TAG FLAG AT ALL. THESE ARE JUST FOR DISPLAY

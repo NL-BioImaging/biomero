@@ -39,7 +39,7 @@ jobs:
         python -m pytest tests/unit/ --cov=biomero --cov-report=xml
     - name: Coveralls GitHub Action
       if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-      uses: coverallsapp/github-action@v2.3.0
+      uses: coverallsapp/github-action@v2.3.6
       with:
         fail-on-error: false
 

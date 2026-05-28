@@ -60,6 +60,7 @@ class workflow:
     OUTPUT_NEW_SCREEN = "3a) Import into NEW Screen"
     OUTPUT_DUPLICATES = "3b) Allow duplicate dataset (name)?"
     OUTPUT_CSV_TABLE = "4) Upload result CSVs as OMERO tables"
+    OUTPUT_ATTACH_FILE_OUTPUTS = "5) Attach individual non-image output files"
     NO = "--NO THANK YOU--"
     USE_ZARR_FORMAT = "Use_ZARR_Format"
 
@@ -100,6 +101,7 @@ class results:
     IMPORT_ONLY_LABELS = "Import_Only_Labels"
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
+    OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
 
 
 class transfer:

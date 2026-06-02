@@ -268,7 +268,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _OUT_SEP = "--split--"
-    _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\-|\_)(v.+|latest)(?=.simg|.sif)'"
+    _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
     # Note, grep returns exitcode 1 if no match is found!
     # This will translate into a UnexpectedExit error, so mute that if you
@@ -285,7 +285,7 @@ class SlurmClient(Connection):
     _LOGFILE = "omero-{slurm_job_id}.log"
     _CONVERTER_LOGFILE = "\"slurm-{slurm_job_id}\"_*.out"
     _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
-    _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1'"
+    _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -1181,7 +1181,7 @@ class SlurmClient(Connection):
         Args:
             slurm_job_id (str): The ID of the Slurm job.
             pattern (str): The pattern to match in the job log to extract
-                the progress (default: r"\d+%").
+                the progress (default: r"\\d+%").
 
             env (Dict[str, str], optional): Optional environment variables 
                 to set when running the command. Defaults to None.
@@ -2251,8 +2251,7 @@ class SlurmClient(Connection):
         # If you provide this Etag when querying, you will get a 304 ('no change') and it will
         # NOT count towards your Github limits. And requests_cache does that for us now.
         # Not available in Python3.6 though.
-        s = requests_cache.CachedSession('github_cache',
-                                         backend=self.cache,
+        s = requests_cache.CachedSession(backend=self.cache,
                                          expire_after=1,
                                          cache_control=True
                                          )

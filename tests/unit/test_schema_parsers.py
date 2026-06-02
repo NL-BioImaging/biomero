@@ -18,6 +18,7 @@ from biomero.schema_parsers import (
     convert_schema_type_to_omero_rtype,
     create_class_instance
 )
+from biomero_schema import BIOMERO_SCHEMA_VERSION
 
 
 
@@ -26,7 +27,6 @@ class TestSchemaFormatDetection:
     
     @pytest.mark.parametrize("descriptor_data,expected_format", [
         ({'schema-version': 'cytomine-0.1'}, 'BIAFLOWS'),
-        ({'schema-version': '1.0.0'}, 'biomero-schema'),
         ({'schema-version': 'biomero-0.1'}, 'biomero-schema'),
         ({'container-image': {}, 'inputs': []}, 'BIAFLOWS'),
         ({'docker_image': {}}, 'bilayers'),
@@ -52,7 +52,7 @@ class TestBiaflowsParser:
         # Test basic metadata
         assert parsed.name == "NucleiSegmentation-ImageJ"
         assert "Segment clustered nuclei" in parsed.description
-        assert parsed.schema_version == "1.0.0"  # normalized
+        assert parsed.schema_version == BIOMERO_SCHEMA_VERSION  # normalized
         expected_image = "neubiaswg5/w_nucleisegmentation-imagej"
         assert expected_image in parsed.container_image.image
         assert parsed.container_image.type == "singularity"
@@ -100,7 +100,7 @@ class TestBiomeroSchemaParser:
         # Test basic metadata
         assert parsed.name == "NucleiTracking-ImageJ"
         assert "ImageJ workflow for nuclei tracking" in parsed.description
-        assert parsed.schema_version == "1.0.0"
+        assert parsed.schema_version == BIOMERO_SCHEMA_VERSION
         container_image = "neubiaswg5/w_nucleitracking-imagej:1.0.0"
         assert parsed.container_image.image == container_image
         assert parsed.container_image.type == "oci"

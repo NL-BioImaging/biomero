@@ -1,7 +1,7 @@
 {
   "name": "NucleiTracking-ImageJ",
   "description": "ImageJ workflow for nuclei tracking in time-lapse microscopy images",
-  "schema-version": "1.0.0",
+  "schema-version": "biomero-0.1",
   "authors": [
     {
       "name": "John Doe",

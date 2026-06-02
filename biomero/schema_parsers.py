@@ -28,6 +28,7 @@ import logging
 from biomero_schema.models import (
     WorkflowSchema, Parameter, OutputParameter, ContainerImage, Author, Institution, Citation
 )
+from biomero_schema import BIOMERO_SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,7 @@ class BiaflowsSchemaAdapter(WorkflowDescriptorAdapter):
 
         # Build the biomero-schema object
         biomero_descriptor = WorkflowSchema(
-            schema_version="1.0.0",  # Normalize to biomero-schema version
+            schema_version=BIOMERO_SCHEMA_VERSION,  # Normalize to biomero-schema version
             name=descriptor_data.get("name", ""),
             description=descriptor_data.get("description"),
             command_line=descriptor_data.get("command-line"),
@@ -369,8 +370,7 @@ def detect_schema_format(descriptor_data: Dict[str, Any]) -> str:
     if schema_version:
         if schema_version.startswith("cytomine"):
             return "BIAFLOWS"
-        elif (schema_version.startswith("biomero") or
-              schema_version.startswith("1.")):
+        elif schema_version.startswith("biomero"):
             return "biomero-schema"
 
     # Fallback heuristics

@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.11", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
       run: |
         python -m pytest tests/unit/ --cov=biomero --cov-report=xml
     - name: Coveralls GitHub Action
-      if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+      if: matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
       uses: coverallsapp/github-action@v2.3.6
       with:
         fail-on-error: false

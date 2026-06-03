@@ -346,7 +346,7 @@ class WorkflowTracker(Application):
         update_task_progress: Updates the progress of a task.
     """
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=10)
     def initiate_workflow(self,
                           name: str,
                           description: str,

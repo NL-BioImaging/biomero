@@ -144,7 +144,9 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">importlib_resources</span><span class="w"> </span><span class="kn">import</span> <span class="n">files</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">NoOpWorkflowTracker</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.schema_parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DescriptorParserFactory</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobAccounting</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span><span class="p">,</span> <span class="n">WorkflowProgress</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">JobProgressView</span><span class="p">,</span> <span class="n">JobView</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="p">,</span> <span class="n">WorkflowProgressView</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span><span class="p">,</span> <span class="n">SingleThreadedRunner</span>
@@ -153,6 +155,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="SlurmJob"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">SlurmJob</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a job submitted to a Slurm cluster.</span>
@@ -177,7 +180,7 @@
 <span class="sd">        submit_result, job_id, wf_id, task_id = slurmClient.run_workflow(</span>
 <span class="sd">            workflow_name, workflow_version, input_data, email, time, wf_id,</span>
 <span class="sd">            **kwargs)</span>
-<span class="sd">            </span>
+
 <span class="sd">        # Create a SlurmJob instance</span>
 <span class="sd">        slurmJob = SlurmJob(submit_result, job_id, wf_id, task_id)</span>
 
@@ -196,11 +199,11 @@
 
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">SLURM_POLLING_INTERVAL</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># seconds</span>
-    
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">submit_result</span><span class="p">:</span> <span class="n">Result</span><span class="p">,</span>
                  <span class="n">job_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-                 <span class="n">wf_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> 
+                 <span class="n">wf_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
                  <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
                  <span class="n">slurm_polling_interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">SLURM_POLLING_INTERVAL</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -222,7 +225,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ok</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="o">.</span><span class="n">ok</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">progress</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="o">.</span><span class="n">stderr</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="o">.</span><span class="n">stderr</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submit_result</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
 
 <div class="viewcode-block" id="SlurmJob.wait_for_completion"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.wait_for_completion">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">,</span> <span class="n">omeroConn</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -235,12 +239,12 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            str: The final state of the Slurm job.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;FAILED&quot;</span><span class="p">,</span> 
-                                     <span class="s2">&quot;COMPLETED&quot;</span><span class="p">,</span> 
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;FAILED&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;COMPLETED&quot;</span><span class="p">,</span>
                                      <span class="s2">&quot;CANCELLED&quot;</span><span class="p">,</span>
                                      <span class="s2">&quot;TIMEOUT&quot;</span><span class="p">,</span>
-                                     <span class="s2">&quot;FAILED+&quot;</span><span class="p">,</span> 
-                                     <span class="s2">&quot;COMPLETED+&quot;</span><span class="p">,</span> 
+                                     <span class="s2">&quot;FAILED+&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;COMPLETED+&quot;</span><span class="p">,</span>
                                      <span class="s2">&quot;CANCELLED+&quot;</span><span class="p">,</span>
                                      <span class="s2">&quot;TIMEOUT+&quot;</span><span class="p">):</span>
             <span class="n">job_status_dict</span><span class="p">,</span> <span class="n">poll_result</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">check_job_status</span><span class="p">(</span>
@@ -254,7 +258,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">]</span>
             <span class="c1"># wait for 10 seconds before checking again</span>
             <span class="n">omeroConn</span><span class="o">.</span><span class="n">keepAlive</span><span class="p">()</span>  <span class="c1"># keep the OMERO connection alive</span>
-            <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> 
+            <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span>
                                                            <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">)</span>
             <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="p">)</span>
@@ -263,7 +267,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;You can get the logfile using `Slurm Get Update` on job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span></div>
-    
+
 <div class="viewcode-block" id="SlurmJob.cleanup"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.cleanup">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Cleanup remaining log files.</span>
@@ -284,16 +288,16 @@
 <span class="sd">            bool: True if the job has completed; False otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">==</span> <span class="s2">&quot;COMPLETED+&quot;</span></div>
-    
+
 <div class="viewcode-block" id="SlurmJob.get_error"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmJob.get_error">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the error message associated with the Slurm job submission.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: The error message, or an empty string if no error occurred.</span>
-<span class="sd">        &quot;&quot;&quot;</span>        
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span></div>
-        
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return a string representation of the SlurmJob instance.</span>
@@ -340,7 +344,7 @@
 <span class="sd">            containing the Slurm job submission scripts. Optional.</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        </span>
+
 <span class="sd">        # Create a SlurmClient object as contextmanager</span>
 
 <span class="sd">        with SlurmClient.from_config() as client:</span>
@@ -359,7 +363,7 @@
 <span class="sd">            print(result.stdout)</span>
 
 <span class="sd">    Example 2:</span>
-<span class="sd">        </span>
+
 <span class="sd">        # Create a SlurmClient and setup Slurm (download containers etc.)</span>
 
 <span class="sd">        with SlurmClient.from_config(init_slurm=True) as client:</span>
@@ -378,7 +382,7 @@
     <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span> <span class="o">=</span> <span class="s2">&quot;slurm-scripts&quot;</span>
     <span class="n">_DEFAULT_SACCT_START_TIME</span> <span class="o">=</span> <span class="s2">&quot;2023-01-01&quot;</span>
     <span class="n">_OUT_SEP</span> <span class="o">=</span> <span class="s2">&quot;--split--&quot;</span>
-    <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(?&lt;=\-|\_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
+    <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(?&lt;=</span><span class="se">\\</span><span class="s2">-|</span><span class="se">\\</span><span class="s2">_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
     <span class="n">_CONVERTER_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{converter_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(convert_.+)(?=.simg|.sif)&#39; | awk &#39;{{n=split($0, a, </span><span class="se">\&quot;</span><span class="s2">_</span><span class="se">\&quot;</span><span class="s2">); last=a[n]; sub(</span><span class="se">\&quot;</span><span class="s2">_</span><span class="se">\&quot;</span><span class="s2">last</span><span class="se">\&quot;</span><span class="s2">$</span><span class="se">\&quot;</span><span class="s2">, </span><span class="se">\&quot;\&quot;</span><span class="s2">, $0); print $0, last}}&#39;&quot;</span>
     <span class="c1"># Note, grep returns exitcode 1 if no match is found!</span>
     <span class="c1"># This will translate into a UnexpectedExit error, so mute that if you</span>
@@ -395,7 +399,7 @@
     <span class="n">_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;omero-</span><span class="si">{slurm_job_id}</span><span class="s2">.log&quot;</span>
     <span class="n">_CONVERTER_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">slurm-</span><span class="si">{slurm_job_id}</span><span class="se">\&quot;</span><span class="s2">_*.out&quot;</span>
     <span class="n">_TAIL_LOG_CMD</span> <span class="o">=</span> <span class="s2">&quot;tail -n </span><span class="si">{n}</span><span class="s2"> </span><span class="se">\&quot;</span><span class="si">{log_file}</span><span class="se">\&quot;</span><span class="s2"> | strings&quot;</span>
-    <span class="n">_LOGFILE_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;cat </span><span class="se">\&quot;</span><span class="si">{log_file}</span><span class="se">\&quot;</span><span class="s2"> | perl -wne &#39;/Running [\w-]+? Job w\/ .+? \| .+? \| (.+?) \|.*/i and print$1&#39;&quot;</span>
+    <span class="n">_LOGFILE_DATA_CMD</span> <span class="o">=</span> <span class="s2">&quot;cat </span><span class="se">\&quot;</span><span class="si">{log_file}</span><span class="se">\&quot;</span><span class="s2"> | perl -wne &#39;/Running [</span><span class="se">\\</span><span class="s2">w-]+? Job w</span><span class="se">\\</span><span class="s2">/ .+? </span><span class="se">\\</span><span class="s2">| .+? </span><span class="se">\\</span><span class="s2">| (.+?) </span><span class="se">\\</span><span class="s2">|.*/i and print$1&#39;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">host</span><span class="o">=</span><span class="n">_DEFAULT_HOST</span><span class="p">,</span>
@@ -561,41 +565,45 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">init_workflows</span><span class="p">()</span>
-        
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">config_only</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
-        
+
             <span class="c1"># Setup workflow tracking and accounting</span>
             <span class="c1"># Initialize the analytics settings</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">track_workflows</span> <span class="o">=</span> <span class="n">track_workflows</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_accounting</span> <span class="o">=</span> <span class="n">enable_job_accounting</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_progress</span> <span class="o">=</span> <span class="n">enable_job_progress</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">enable_workflow_analytics</span> <span class="o">=</span> <span class="n">enable_workflow_analytics</span>
-            
+
             <span class="c1"># Initialize the analytics system</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">sqlalchemy_url</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">initialize_analytics_system</span><span class="p">(</span><span class="n">reset_tables</span><span class="o">=</span><span class="n">init_slurm</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Setup SlurmClient for config only&quot;</span><span class="p">)</span>
-    
+
 <div class="viewcode-block" id="SlurmClient.initialize_analytics_system"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.initialize_analytics_system">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">initialize_analytics_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset_tables</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize the analytics system based on the analytics configuration</span>
 <span class="sd">        passed to the constructor.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            reset_tables (bool): If True, drops and recreates all views.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Get persistence settings, prioritize environment variables</span>
-        <span class="n">persistence_module</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PERSISTENCE_MODULE&quot;</span><span class="p">,</span> <span class="s2">&quot;eventsourcing_sqlalchemy&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">persistence_module</span> <span class="o">!=</span> <span class="s2">&quot;eventsourcing_sqlalchemy&quot;</span><span class="p">:</span> 
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can&#39;t handle </span><span class="si">{</span><span class="n">persistence_module</span><span class="si">}</span><span class="s2">. Currently only supports &#39;eventsourcing_sqlalchemy&#39; as PERSISTENCE_MODULE&quot;</span><span class="p">)</span>
-        
+        <span class="n">persistence_module</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span>
+            <span class="s2">&quot;PERSISTENCE_MODULE&quot;</span><span class="p">,</span> <span class="s2">&quot;eventsourcing_sqlalchemy&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">persistence_module</span> <span class="o">!=</span> <span class="s2">&quot;eventsourcing_sqlalchemy&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Can&#39;t handle </span><span class="si">{</span><span class="n">persistence_module</span><span class="si">}</span><span class="s2">. Currently only supports &#39;eventsourcing_sqlalchemy&#39; as PERSISTENCE_MODULE&quot;</span><span class="p">)</span>
+
         <span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;SQLALCHEMY_URL&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sqlalchemy_url</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">sqlalchemy_url</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SQLALCHEMY_URL must be set either in init, config (&#39;sqlalchemy_url&#39;) or as an environment variable.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;SQLALCHEMY_URL must be set either in init, config (&#39;sqlalchemy_url&#39;) or as an environment variable.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">sqlalchemy_url</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sqlalchemy_url</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Overriding configured SQLALCHEMY_URL with env var SQLALCHEMY_URL.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Overriding configured SQLALCHEMY_URL with env var SQLALCHEMY_URL.&quot;</span><span class="p">)</span>
 
         <span class="c1"># Build the system based on the analytics configuration</span>
         <span class="n">pipes</span> <span class="o">=</span> <span class="p">[]</span>
@@ -609,7 +617,7 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_progress</span><span class="p">:</span>
                 <span class="n">pipes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">])</span>
                 <span class="n">pipes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">WorkflowProgress</span><span class="p">])</span>
-            
+
             <span class="c1"># Add WorkflowAnalytics to the pipeline if enabled</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_workflow_analytics</span><span class="p">:</span>
                 <span class="n">pipes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span><span class="p">])</span>
@@ -617,33 +625,34 @@
             <span class="c1"># Add onlys WorkflowTracker if no listeners are enabled</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">pipes</span><span class="p">:</span>
                 <span class="n">pipes</span> <span class="o">=</span> <span class="p">[[</span><span class="n">WorkflowTracker</span><span class="p">]]</span>
-                 
-            <span class="n">system</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">pipes</span><span class="o">=</span><span class="n">pipes</span><span class="p">)</span>        
+
+            <span class="n">system</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">pipes</span><span class="o">=</span><span class="n">pipes</span><span class="p">)</span>
             <span class="n">scoped_session_topic</span> <span class="o">=</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">create_scoped_session</span><span class="p">(</span>
                 <span class="n">sqlalchemy_url</span><span class="o">=</span><span class="n">sqlalchemy_url</span><span class="p">)</span>
             <span class="n">runner</span> <span class="o">=</span> <span class="n">SingleThreadedRunner</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">{</span>
                 <span class="s1">&#39;SQLALCHEMY_SCOPED_SESSION_TOPIC&#39;</span><span class="p">:</span> <span class="n">scoped_session_topic</span><span class="p">,</span>
                 <span class="s1">&#39;PERSISTENCE_MODULE&#39;</span><span class="p">:</span> <span class="n">persistence_module</span><span class="p">})</span>
             <span class="n">runner</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">WorkflowTracker</span><span class="p">)</span>  
+            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">WorkflowTracker</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>  <span class="c1"># turn off persistence, override</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Tracking workflows is disabled. No-op WorkflowTracker will be used.&quot;</span><span class="p">)</span>        
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Tracking workflows is disabled. No-op WorkflowTracker will be used.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span> <span class="o">=</span> <span class="n">NoOpWorkflowTracker</span><span class="p">()</span>
-            
+
         <span class="bp">self</span><span class="o">.</span><span class="n">setup_listeners</span><span class="p">(</span><span class="n">runner</span><span class="p">,</span> <span class="n">reset_tables</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.setup_listeners"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_listeners">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_listeners</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runner</span><span class="p">,</span> <span class="n">reset_tables</span><span class="p">):</span>
         <span class="c1"># Only when people run init script, we just drop and rebuild.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_listeners</span><span class="p">(</span><span class="n">runner</span><span class="p">)</span>
-            
+
         <span class="c1"># Optionally drop and recreate tables</span>
         <span class="k">if</span> <span class="n">reset_tables</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Resetting view tables.&quot;</span><span class="p">)</span>
-            <span class="n">tables</span> <span class="o">=</span> <span class="p">[]</span> 
+            <span class="n">tables</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="c1"># gather the listener tables</span>
-            <span class="n">listeners</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span><span class="p">,</span> 
+            <span class="n">listeners</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span><span class="p">,</span>
                          <span class="bp">self</span><span class="o">.</span><span class="n">jobProgress</span><span class="p">,</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">wfProgress</span><span class="p">,</span> 
+                         <span class="bp">self</span><span class="o">.</span><span class="n">wfProgress</span><span class="p">,</span>
                          <span class="bp">self</span><span class="o">.</span><span class="n">workflowAnalytics</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">listener</span> <span class="ow">in</span> <span class="n">listeners</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">listener</span><span class="p">,</span> <span class="n">NoOpWorkflowTracker</span><span class="p">):</span>
@@ -654,7 +663,7 @@
             <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TaskExecution</span><span class="o">.</span><span class="n">__tablename__</span><span class="p">)</span>
             <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">JobProgressView</span><span class="o">.</span><span class="n">__tablename__</span><span class="p">)</span>
             <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WorkflowProgressView</span><span class="o">.</span><span class="n">__tablename__</span><span class="p">)</span>
-            <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">JobView</span><span class="o">.</span><span class="n">__tablename__</span><span class="p">)</span> 
+            <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">JobView</span><span class="o">.</span><span class="n">__tablename__</span><span class="p">)</span>
             <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="c1"># Begin a transaction</span>
@@ -669,33 +678,34 @@
                 <span class="k">except</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
                     <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error trying to reset the view tables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> 
-                
-            <span class="n">EngineManager</span><span class="o">.</span><span class="n">close_engine</span><span class="p">()</span> <span class="c1"># close current sql session          </span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Error trying to reset the view tables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">close_engine</span><span class="p">()</span>  <span class="c1"># close current sql session</span>
             <span class="c1"># restart runner, listeners and recreate views</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">initialize_analytics_system</span><span class="p">(</span><span class="n">reset_tables</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="c1"># Update the view tables again</span>
-            <span class="n">listeners</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span><span class="p">,</span> 
+            <span class="n">listeners</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span><span class="p">,</span>
                          <span class="bp">self</span><span class="o">.</span><span class="n">jobProgress</span><span class="p">,</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">wfProgress</span><span class="p">,</span> 
+                         <span class="bp">self</span><span class="o">.</span><span class="n">wfProgress</span><span class="p">,</span>
                          <span class="bp">self</span><span class="o">.</span><span class="n">workflowAnalytics</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">listener</span> <span class="ow">in</span> <span class="n">listeners</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">listener</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">bring_listener_uptodate</span><span class="p">(</span><span class="n">listener</span><span class="p">)</span></div>
-            
+
 <div class="viewcode-block" id="SlurmClient.get_listeners"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_listeners">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_listeners</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runner</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">track_workflows</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_accounting</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">JobAccounting</span><span class="p">)</span>   
+            <span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">JobAccounting</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">jobAccounting</span> <span class="o">=</span> <span class="n">NoOpWorkflowTracker</span><span class="p">()</span>
-        
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">track_workflows</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_job_progress</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">jobProgress</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">JobProgress</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">wfProgress</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">WorkflowProgress</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">jobProgress</span> <span class="o">=</span> <span class="n">NoOpWorkflowTracker</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">wfProgress</span> <span class="o">=</span> <span class="n">NoOpWorkflowTracker</span><span class="p">()</span>
-        
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">track_workflows</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_workflow_analytics</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowAnalytics</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">WorkflowAnalytics</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -705,7 +715,8 @@
         <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="c1"># Begin a transaction</span>
-                <span class="n">listener</span><span class="o">.</span><span class="n">pull_and_process</span><span class="p">(</span><span class="n">leader_name</span><span class="o">=</span><span class="n">WorkflowTracker</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">)</span>
+                <span class="n">listener</span><span class="o">.</span><span class="n">pull_and_process</span><span class="p">(</span>
+                    <span class="n">leader_name</span><span class="o">=</span><span class="n">WorkflowTracker</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">)</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
             <span class="k">except</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
@@ -718,9 +729,9 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s2">&quot;Database conflict in bring_listener_uptodate (non-unique): </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
-            
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
-        <span class="c1"># Ensure to call the parent class&#39;s __exit__ </span>
+        <span class="c1"># Ensure to call the parent class&#39;s __exit__</span>
         <span class="c1"># to clean up Connection resources</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__exit__</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">)</span>
         <span class="c1"># Cleanup resources specific to SlurmClient</span>
@@ -745,9 +756,9 @@
             <span class="c1"># skips the setup</span>
         <span class="k">for</span> <span class="n">workflow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">workflow</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span> <span class="ow">or</span> <span class="n">force_update</span><span class="p">:</span>
-                <span class="n">json_descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pull_descriptor_from_github</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">workflow</span><span class="p">,</span> <span class="n">json_descriptor</span><span class="p">)</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">json_descriptor</span><span class="p">[</span><span class="s1">&#39;container-image&#39;</span><span class="p">][</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+                <span class="n">descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generic_descriptor_from_github</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">workflow</span><span class="p">,</span> <span class="n">descriptor</span><span class="p">)</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;container-image&#39;</span><span class="p">][</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="p">[</span><span class="n">workflow</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span></div>
 
 <div class="viewcode-block" id="SlurmClient.setup_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_slurm">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -798,9 +809,17 @@
                 <span class="k">for</span> <span class="n">wf</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                     <span class="n">repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span><span class="p">[</span><span class="n">wf</span><span class="p">]</span>
                     <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">[</span><span class="n">wf</span><span class="p">]</span>
-                    <span class="n">_</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_parts_from_url</span><span class="p">(</span><span class="n">repo</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">&quot;master&quot;</span><span class="p">:</span>
-                        <span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;latest&quot;</span>
+                    <span class="c1"># If the image already includes a tag (e.g. &quot;org/image:v1.2&quot;),</span>
+                    <span class="c1"># use that tag and strip it from the image name to avoid</span>
+                    <span class="c1"># producing docker://org/image:v1.2:v1.2.</span>
+                    <span class="n">image_tag</span><span class="p">,</span> <span class="n">image_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">image_tag</span><span class="p">:</span>
+                        <span class="n">image</span> <span class="o">=</span> <span class="n">image_name</span>
+                        <span class="n">version</span> <span class="o">=</span> <span class="n">image_tag</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">_</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_parts_from_url</span><span class="p">(</span><span class="n">repo</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">&quot;master&quot;</span><span class="p">:</span>
+                            <span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;latest&quot;</span>
                     <span class="n">pull_template</span> <span class="o">=</span> <span class="s2">&quot;echo &#39;starting $path $version&#39; &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">nohup sh -c </span><span class="se">\&quot;</span><span class="s2">singularity pull --disable-cache --dir $path docker://$image:$version; echo &#39;finished $path $version&#39;</span><span class="se">\&quot;</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 &amp; disown&quot;</span>
                     <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">pull_template</span><span class="p">)</span>
                     <span class="n">substitutes</span> <span class="o">=</span> <span class="p">{}</span>
@@ -828,7 +847,7 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initiated downloading and building&quot;</span> <span class="o">+</span>
                             <span class="s2">&quot; container images on Slurm.&quot;</span> <span class="o">+</span>
-                            <span class="s2">&quot; This will probably take a while in the background.&quot;</span> <span class="o">+</span> 
+                            <span class="s2">&quot; This will probably take a while in the background.&quot;</span> <span class="o">+</span>
                             <span class="s2">&quot; Check &#39;sing.log&#39; on Slurm for progress.&quot;</span><span class="p">)</span></div>
                 <span class="c1"># # cleanup giant singularity cache!</span>
                 <span class="c1"># using --disable-cache because we run in the background</span>
@@ -849,7 +868,7 @@
             <span class="c1"># Iterate over each line in the output</span>
             <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">):</span>
                 <span class="c1"># Split the line into key and version</span>
-                <span class="n">key</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>                
+                <span class="n">key</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                 <span class="c1"># Check if the key already exists in the dictionary</span>
                 <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">result_dict</span><span class="p">:</span>
                     <span class="c1"># Append the version to the existing list</span>
@@ -858,7 +877,7 @@
                     <span class="c1"># Create a new list with the version</span>
                     <span class="n">result_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">version</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">result_dict</span></div>
-        
+
 <div class="viewcode-block" id="SlurmClient.setup_converters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_converters">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets up converters for Slurm operations.</span>
@@ -874,14 +893,14 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">:</span>
             <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="se">\&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>
-        
+
         <span class="c1"># copy generic job array script over to slurm</span>
         <span class="n">convert_job_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
             <span class="s2">&quot;convert_job_array.sh&quot;</span><span class="p">)</span>
         <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_job_local</span><span class="p">,</span>
-                    <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">)</span>
-        
-        <span class="c1">## PULL converter if provided in config</span>
+                     <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">)</span>
+
+        <span class="c1"># PULL converter if provided in config</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">:</span>
             <span class="n">pull_commands</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -890,7 +909,8 @@
                     <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">.sif&quot;</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">version</span> <span class="o">=</span> <span class="s1">&#39;latest&#39;</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pulling &#39;latest&#39; as no version was provided for </span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Pulling &#39;latest&#39; as no version was provided for </span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                     <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_latest.sif&quot;</span>
                 <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
                     <span class="n">pull_template</span> <span class="o">=</span> <span class="s2">&quot;echo &#39;starting $path $version&#39; &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">nohup sh -c </span><span class="se">\&quot;</span><span class="s2">singularity pull --force --disable-cache $conv_name docker://$image:$version; echo &#39;finished $path $version&#39;</span><span class="se">\&quot;</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 &amp; disown&quot;</span>
@@ -921,10 +941,10 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initiated downloading and building&quot;</span> <span class="o">+</span>
                             <span class="s2">&quot; container images on Slurm.&quot;</span> <span class="o">+</span>
-                            <span class="s2">&quot; This will probably take a while in the background.&quot;</span> <span class="o">+</span> 
+                            <span class="s2">&quot; This will probably take a while in the background.&quot;</span> <span class="o">+</span>
                             <span class="s2">&quot; Check &#39;sing.log&#39; on Slurm for progress.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1">## BUILD converter from singularity def file</span>
+            <span class="c1"># BUILD converter from singularity def file</span>
             <span class="c1"># currently known converters</span>
             <span class="c1"># 3a. ZARR to TIFF</span>
             <span class="c1"># TODO extract these values to e.g. config if we have more</span>
@@ -936,9 +956,9 @@
             <span class="n">convert_def_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
                 <span class="n">convert_def</span><span class="p">)</span>
             <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_script_local</span><span class="p">,</span>
-                        <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
+                         <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
             <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_def_local</span><span class="p">,</span>
-                        <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
+                         <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
             <span class="c1"># Build singularity container from definition</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
                 <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
@@ -951,8 +971,8 @@
                     <span class="c1"># download /build new container</span>
                     <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s2">&quot;singularity build -F </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">convert_name</span><span class="si">}</span><span class="s2">_latest.sif</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">{</span><span class="n">convert_def</span><span class="si">}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo &#39;finished </span><span class="si">{</span><span class="n">convert_name</span><span class="si">}</span><span class="s2">_latest.sif&#39; &amp;&quot;</span><span class="p">)</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>        </div>
-    
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets up job scripts for Slurm operations.</span>
@@ -1036,7 +1056,7 @@
                      <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_2</span><span class="p">),</span>
                      <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_3</span><span class="p">),</span>
                      <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">configfile</span><span class="p">)])</span>
-        
+
         <span class="c1"># Read the required parameters from the configuration file,</span>
         <span class="c1"># fallback to defaults</span>
         <span class="n">host</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SSH&quot;</span><span class="p">,</span> <span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_HOST</span><span class="p">)</span>
@@ -1052,10 +1072,10 @@
             <span class="n">fallback</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_SLURM_CONVERTERS_PATH</span><span class="p">)</span>
         <span class="n">slurm_data_bind_path</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_data_bind_path&quot;</span><span class="p">,</span>
-            <span class="n">fallback</span><span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
         <span class="n">slurm_conversion_partition</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_conversion_partition&quot;</span><span class="p">,</span>
-            <span class="n">fallback</span><span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
         <span class="n">sacct_start_time</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_start_time&quot;</span><span class="p">,</span>
             <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span>  <span class="c1"># treat empty string as None</span>
@@ -1063,7 +1083,8 @@
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_days_ago&quot;</span><span class="p">,</span>
             <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">sacct_days_ago</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sacct_days_ago_raw</span><span class="p">)</span> <span class="k">if</span> <span class="n">sacct_days_ago_raw</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">sacct_days_ago</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="n">sacct_days_ago_raw</span><span class="p">)</span> <span class="k">if</span> <span class="n">sacct_days_ago_raw</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Invalid sacct_days_ago value &#39;</span><span class="si">{</span><span class="n">sacct_days_ago_raw</span><span class="si">}</span><span class="s2">&#39;, ignoring.&quot;</span><span class="p">)</span>
@@ -1099,7 +1120,7 @@
             <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_script_repo&quot;</span><span class="p">,</span>
             <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span>
         <span class="p">)</span>
-        
+
         <span class="c1"># Parse converters, if available</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">converter_items</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="s2">&quot;CONVERTERS&quot;</span><span class="p">)</span>
@@ -1108,15 +1129,20 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">converter_images</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Section exists but is empty</span>
         <span class="k">except</span> <span class="n">configparser</span><span class="o">.</span><span class="n">NoSectionError</span><span class="p">:</span>
-            <span class="n">converter_images</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Section does not exist    </span>
-            
+            <span class="n">converter_images</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Section does not exist</span>
+
         <span class="c1"># Read the analytics section, if available</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">track_workflows</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span><span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;track_workflows&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">enable_job_accounting</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span><span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_job_accounting&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">enable_job_progress</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span><span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_job_progress&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">enable_workflow_analytics</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span><span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_workflow_analytics&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;sqlalchemy_url&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="n">track_workflows</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span>
+                <span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;track_workflows&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">enable_job_accounting</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span>
+                <span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_job_accounting&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">enable_job_progress</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span>
+                <span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_job_progress&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">enable_workflow_analytics</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span>
+                <span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;enable_workflow_analytics&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s1">&#39;ANALYTICS&#39;</span><span class="p">,</span> <span class="s1">&#39;sqlalchemy_url&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">configparser</span><span class="o">.</span><span class="n">NoSectionError</span><span class="p">:</span>
             <span class="c1"># If the ANALYTICS section is missing, fallback to default values</span>
             <span class="n">track_workflows</span> <span class="o">=</span> <span class="kc">True</span>
@@ -1124,7 +1150,7 @@
             <span class="n">enable_job_progress</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="n">enable_workflow_analytics</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="kc">None</span>
-        
+
         <span class="c1"># Create the SlurmClient object with the parameters read from</span>
         <span class="c1"># the config file</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
@@ -1197,21 +1223,22 @@
         <span class="n">clog</span> <span class="o">=</span> <span class="n">clog</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
         <span class="n">rmclog</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="si">{</span><span class="n">clog</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmclog</span><span class="p">)</span>
-        
+
         <span class="c1"># data</span>
         <span class="k">if</span> <span class="n">data_location</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">data_location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_data_location_from_log</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>
-            
+
         <span class="k">if</span> <span class="n">data_location</span><span class="p">:</span>
             <span class="n">rmdata</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm -rf </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_location</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2"> </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_location</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">.*&quot;</span>
             <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmdata</span><span class="p">)</span>
-            
+
             <span class="c1"># convert config file</span>
             <span class="n">config_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;config_</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span><span class="si">}</span><span class="s2">.txt&quot;</span>
             <span class="n">rmconfig</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rm </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">config_file</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
             <span class="n">cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmconfig</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not extract data location from log </span><span class="si">{</span><span class="n">logfile</span><span class="si">}</span><span class="s2">. Skipping cleanup.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Could not extract data location from log </span><span class="si">{</span><span class="n">logfile</span><span class="si">}</span><span class="s2">. Skipping cleanup.&quot;</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># do as much as possible, not conditional removal</span>
@@ -1268,7 +1295,7 @@
 <span class="sd">        Args:</span>
 <span class="sd">            slurm_job_id (str): The ID of the Slurm job.</span>
 <span class="sd">            pattern (str): The pattern to match in the job log to extract</span>
-<span class="sd">                the progress (default: r&quot;\d+%&quot;).</span>
+<span class="sd">                the progress (default: r&quot;\\d+%&quot;).</span>
 
 <span class="sd">            env (Dict[str, str], optional): Optional environment variables </span>
 <span class="sd">                to set when running the command. Defaults to None.</span>
@@ -1355,6 +1382,7 @@
 <span class="sd">            object: An instance of the specified class, or None if the class or</span>
 <span class="sd">                module does not exist.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">class_</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">module_</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_name</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
@@ -1447,7 +1475,8 @@
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">log_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">job_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)]</span>
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="si">}</span><span class="s2"> completed jobs: </span><span class="si">{</span><span class="n">job_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="si">}</span><span class="s2"> completed jobs: </span><span class="si">{</span><span class="n">job_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job_list</span></div>
 
 <div class="viewcode-block" id="SlurmClient.list_all_jobs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.list_all_jobs">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">list_all_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -1467,7 +1496,8 @@
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">log_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">job_list</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">job_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="si">}</span><span class="s2"> total jobs: </span><span class="si">{</span><span class="n">job_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="si">}</span><span class="s2"> total jobs: </span><span class="si">{</span><span class="n">job_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">job_list</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job_list</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_jobs_info_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_jobs_info_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs_info_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1513,13 +1543,15 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sacct_start_time</span><span class="p">:</span>
                 <span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sacct_start_time</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sacct_days_ago</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">start_time</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sacct_days_ago</span><span class="p">)))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sacct_days_ago</span><span class="p">)))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">env_start</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;BIOMERO_SACCT_START_TIME&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">env_start</span><span class="p">:</span>
                 <span class="n">start_time</span> <span class="o">=</span> <span class="n">env_start</span>
             <span class="n">env_days</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;BIOMERO_SACCT_START_DAYS_AGO&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">env_days</span><span class="p">:</span>
-                <span class="n">start_time</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">env_days</span><span class="p">)))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">env_days</span><span class="p">)))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ALL_JOBS_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">start_time</span><span class="p">,</span>
                                          <span class="n">end_time</span><span class="o">=</span><span class="n">end_time</span><span class="p">,</span>
                                          <span class="n">states</span><span class="o">=</span><span class="n">states</span><span class="p">,</span>
@@ -1606,6 +1638,127 @@
         <span class="n">subs</span><span class="p">[</span><span class="s1">&#39;PARAMS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">subs</span></div>
 
+    <span class="n">_FOLDER_INPUT_TYPES</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;array&#39;</span><span class="p">,</span> <span class="s1">&#39;measurement&#39;</span><span class="p">,</span> <span class="s1">&#39;executable&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Folder-type inputs that the user can supply as OMERO file-annotation IDs</span>
+    <span class="c1"># (i.e. not images — those are handled by Image_Transfer).</span>
+    <span class="n">_FILE_ATTACHMENT_TYPES</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;array&#39;</span><span class="p">,</span> <span class="s1">&#39;measurement&#39;</span><span class="p">,</span> <span class="s1">&#39;executable&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlurmClient.get_file_attachment_params"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_file_attachment_params">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_file_attachment_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return only the file-attachment params for a workflow.</span>
+
+<span class="sd">        Thin filter over :meth:`get_workflow_parameters`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_workflow_parameters</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file_attachment&#39;</span><span class="p">)</span>
+        <span class="p">}</span></div>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_bilayers_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">descriptor</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if descriptor originated from a bilayers config.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;schema-version&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;bilayers&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_bilayers_folder_flags</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">descriptor</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return (in_flags, out_flags) — the raw CLI flags that are</span>
+<span class="sd">        server-set for bilayers workflows.</span>
+
+<span class="sd">        in_flags:  non-optional folder-type inputs  → data/in</span>
+<span class="sd">        out_flags: outputs with an explicit flag, plus inputs with</span>
+<span class="sd">                   output-dir-set=True               → data/out</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">in_flags</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;inputs&#39;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_FOLDER_INPUT_TYPES</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="n">inp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;optional&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="n">inp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file-attachment&#39;</span><span class="p">)):</span>
+                <span class="n">flag</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;command-line-flag&#39;</span><span class="p">,</span> <span class="s1">&#39;None&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">flag</span> <span class="ow">and</span> <span class="n">flag</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                    <span class="n">in_flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+
+        <span class="n">out_flags</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;outputs&#39;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;command-line-flag&#39;</span><span class="p">,</span> <span class="s1">&#39;None&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">flag</span> <span class="ow">and</span> <span class="n">flag</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                <span class="n">out_flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;inputs&#39;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="n">inp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output-dir-set&#39;</span><span class="p">):</span>
+                <span class="n">flag</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;command-line-flag&#39;</span><span class="p">,</span> <span class="s1">&#39;None&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">flag</span> <span class="ow">and</span> <span class="n">flag</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                    <span class="n">out_flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">in_flags</span><span class="p">,</span> <span class="n">out_flags</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_server_managed_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                   <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                   <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the server-injected CLI params that will be baked into the job</span>
+<span class="sd">        script, so they can be recorded alongside user params in task metadata.</span>
+
+<span class="sd">        For bilayers workflows these come from the descriptor&#39;s folder_name</span>
+<span class="sd">        fields (INPARAMS / OUTPARAMS).  For standard biaflows workflows they</span>
+<span class="sd">        are the fixed template args (--infolder, --outfolder, --gtfolder,</span>
+<span class="sd">        --local, -nmc).  The descriptor is fetched from the cached GitHub</span>
+<span class="sd">        session so this adds negligible overhead at runtime.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_name: Name of the workflow.</span>
+<span class="sd">            input_data: Input data folder name (used to resolve DATA_PATH).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict mapping CLI flag strings to their resolved values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">server_params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generic_descriptor_from_github</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Could not fetch descriptor for server param recording: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">server_params</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_bilayers_workflow</span><span class="p">(</span><span class="n">descriptor</span><span class="p">):</span>
+            <span class="n">in_flags</span><span class="p">,</span> <span class="n">out_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_bilayers_folder_flags</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">flag</span> <span class="ow">in</span> <span class="n">in_flags</span><span class="p">:</span>
+                <span class="n">server_params</span><span class="p">[</span><span class="n">flag</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/in&quot;</span>
+            <span class="k">for</span> <span class="n">flag</span> <span class="ow">in</span> <span class="n">out_flags</span><span class="p">:</span>
+                <span class="n">server_params</span><span class="p">[</span><span class="n">flag</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/out&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Standard biaflows job_template.sh fixed args</span>
+            <span class="n">server_params</span><span class="p">[</span><span class="s2">&quot;infolder&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/in&quot;</span>
+            <span class="n">server_params</span><span class="p">[</span><span class="s2">&quot;outfolder&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/out&quot;</span>
+            <span class="n">server_params</span><span class="p">[</span><span class="s2">&quot;gtfolder&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/gt&quot;</span>
+            <span class="n">server_params</span><span class="p">[</span><span class="s2">&quot;local&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">server_params</span><span class="p">[</span><span class="s2">&quot;nmc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">server_params</span>
+
+<div class="viewcode-block" id="SlurmClient.workflow_bilayers_folder_params_to_subs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.workflow_bilayers_folder_params_to_subs">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">workflow_bilayers_folder_params_to_subs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                                <span class="n">descriptor</span><span class="p">:</span> <span class="n">Dict</span>
+                                                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build INPARAMS and OUTPARAMS substitution strings for bilayers job</span>
+<span class="sd">        templates.</span>
+
+<span class="sd">        Folder inputs (image/file/array/measurement/executable) are mapped to</span>
+<span class="sd">        ``$DATA_PATH/data/in``.  Outputs with a cli_tag and any parameter</span>
+<span class="sd">        with ``output_dir_set=True`` (marked ``set-by-server`` after schema</span>
+<span class="sd">        parsing) are mapped to ``$DATA_PATH/data/out``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            descriptor (Dict): The parsed workflow descriptor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict[str, str]: Dictionary with keys ``INPARAMS`` and ``OUTPARAMS``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">in_flags</span><span class="p">,</span> <span class="n">out_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_bilayers_folder_flags</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span>
+        <span class="n">inparams</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">flag</span><span class="si">}</span><span class="s1">=&quot;$DATA_PATH/data/in&quot;&#39;</span> <span class="k">for</span> <span class="n">flag</span> <span class="ow">in</span> <span class="n">in_flags</span><span class="p">]</span>
+        <span class="n">outparams</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">flag</span><span class="si">}</span><span class="s1">=&quot;$DATA_PATH/data/out&quot;&#39;</span> <span class="k">for</span> <span class="n">flag</span> <span class="ow">in</span> <span class="n">out_flags</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;INPARAMS&#39;</span><span class="p">:</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">inparams</span><span class="p">),</span>
+            <span class="s1">&#39;OUTPARAMS&#39;</span><span class="p">:</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outparams</span><span class="p">),</span>
+        <span class="p">}</span></div>
+
 <div class="viewcode-block" id="SlurmClient.update_slurm_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.update_slurm_scripts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_slurm_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                              <span class="n">generate_jobs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                              <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Result</span><span class="p">:</span>
@@ -1635,9 +1788,25 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating Slurm job scripts&quot;</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">wf</span><span class="p">,</span> <span class="n">job_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_jobs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="c1"># generate job script</span>
-                <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_workflow_parameters</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>
-                <span class="n">subs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflow_params_to_subs</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
-                <span class="n">job_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_slurm_job_for_workflow</span><span class="p">(</span><span class="n">wf</span><span class="p">,</span> <span class="n">subs</span><span class="p">)</span>
+                <span class="c1"># All params in one call; file-attachment ones get type→&#39;string&#39;</span>
+                <span class="c1"># so the job script uses $VAR placeholders, not typed defaults.</span>
+                <span class="n">all_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_workflow_parameters</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>
+                <span class="n">merged_params</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="n">k</span><span class="p">:</span> <span class="p">({</span><span class="o">**</span><span class="n">v</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;string&#39;</span><span class="p">}</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file_attachment&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">v</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">all_params</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="p">}</span>
+                <span class="n">descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generic_descriptor_from_github</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_bilayers_workflow</span><span class="p">(</span><span class="n">descriptor</span><span class="p">):</span>
+                    <span class="n">template</span> <span class="o">=</span> <span class="s2">&quot;job_template_bilayers.sh&quot;</span>
+                    <span class="n">folder_subs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflow_bilayers_folder_params_to_subs</span><span class="p">(</span>
+                        <span class="n">descriptor</span><span class="p">)</span>
+                    <span class="n">subs</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">workflow_params_to_subs</span><span class="p">(</span><span class="n">merged_params</span><span class="p">),</span>
+                            <span class="o">**</span><span class="n">folder_subs</span><span class="p">}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">template</span> <span class="o">=</span> <span class="s2">&quot;job_template.sh&quot;</span>
+                    <span class="n">subs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflow_params_to_subs</span><span class="p">(</span><span class="n">merged_params</span><span class="p">)</span>
+                <span class="n">job_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_slurm_job_for_workflow</span><span class="p">(</span>
+                    <span class="n">wf</span><span class="p">,</span> <span class="n">subs</span><span class="p">,</span> <span class="n">template</span><span class="p">)</span>
                 <span class="c1"># ensure all dirs exist remotely</span>
                 <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="o">+</span><span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="n">job_path</span>
                 <span class="n">job_dir</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
@@ -1692,14 +1861,19 @@
                 <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
                 <span class="o">-</span><span class="mi">1</span>
             <span class="p">)</span>
+        <span class="c1"># Enrich stored params with server-managed CLI args so the full</span>
+        <span class="c1"># command is reproducible from task metadata alone.</span>
+        <span class="n">server_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_server_managed_params</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">,</span> <span class="n">input_data</span><span class="p">)</span>
+        <span class="n">recorded_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">server_params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">}</span>  <span class="c1"># user kwargs take precedence</span>
+
         <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
             <span class="n">wf_id</span><span class="p">,</span>
-            <span class="n">workflow_name</span><span class="p">,</span> 
+            <span class="n">workflow_name</span><span class="p">,</span>
             <span class="n">workflow_version</span><span class="p">,</span>
             <span class="n">input_data</span><span class="p">,</span>
-            <span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">recorded_params</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Added new task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> to workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            
+
         <span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_workflow_command</span><span class="p">(</span>
             <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running </span><span class="si">{</span><span class="n">workflow_name</span><span class="si">}</span><span class="s2"> job on </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2"> on Slurm:</span><span class="se">\</span>
@@ -1707,12 +1881,12 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running </span><span class="si">{</span><span class="n">workflow_name</span><span class="si">}</span><span class="s2"> job on </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2"> on Slurm&quot;</span><span class="p">)</span>
         <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">sbatch_cmd</span><span class="p">],</span> <span class="n">sbatch_env</span><span class="p">)</span>
         <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
-        
+
         <span class="k">if</span> <span class="n">task_id</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
-            
+
         <span class="k">return</span> <span class="n">res</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span></div>
 
 <div class="viewcode-block" id="SlurmClient.run_workflow_job"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_workflow_job">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
@@ -1740,11 +1914,11 @@
 <span class="sd">            SlurmJob: A SlurmJob instance representing the started workflow job.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">result</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_workflow</span><span class="p">(</span>
-            <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> 
+            <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">SlurmJob</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.run_conversion_workflow_job"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_conversion_workflow_job">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_conversion_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+<div class="viewcode-block" id="SlurmClient.run_conversion_workflow_job"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_conversion_workflow_job">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_conversion_workflow_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                     <span class="n">folder_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                     <span class="n">source_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;zarr&#39;</span><span class="p">,</span>
                                     <span class="n">target_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tiff&#39;</span><span class="p">,</span>
@@ -1774,7 +1948,7 @@
         <span class="n">data_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">folder_name</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">conversion_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span><span class="p">,</span> <span class="n">chosen_converter</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_conversion_command</span><span class="p">(</span>
             <span class="n">data_path</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">source_format</span><span class="p">,</span> <span class="n">target_format</span><span class="p">)</span>
-        
+
         <span class="c1"># Handle both .zarr and .ome.zarr extensions for backward compatibility</span>
         <span class="k">if</span> <span class="n">source_format</span> <span class="o">==</span> <span class="s1">&#39;zarr&#39;</span><span class="p">:</span>
             <span class="n">find_cmd</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/in</span><span class="se">\&quot;</span><span class="s2"> -name </span><span class="se">\&quot;</span><span class="s2">*.zarr</span><span class="se">\&quot;</span><span class="s2"> &quot;</span>
@@ -1810,14 +1984,14 @@
 
         <span class="c1"># Run all commands consecutively</span>
         <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">commands</span><span class="p">,</span> <span class="n">sbatch_env</span><span class="p">)</span>
-        
+
         <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
-        
+
         <span class="k">if</span> <span class="n">task_id</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
-        
+
         <span class="k">return</span> <span class="n">SlurmJob</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.extract_job_id"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.extract_job_id">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">extract_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -1893,22 +2067,22 @@
                     <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
                     <span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">line</span><span class="p">}</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job statuses: </span><span class="si">{</span><span class="n">job_status_dict</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                    
+
                     <span class="c1"># OK, we have to fix a stupid sacct functionality:</span>
                     <span class="c1"># Problem:</span>
                     <span class="c1"># When you query for a job-id, turns out that it queries</span>
-                    <span class="c1"># for this &#39;JobIdRaw&#39;. And JobIdRaw for arrays is a </span>
-                    <span class="c1"># ridiculous sum, e.g. &#39;JobId&#39; 11_2 gets assigned </span>
+                    <span class="c1"># for this &#39;JobIdRaw&#39;. And JobIdRaw for arrays is a</span>
+                    <span class="c1"># ridiculous sum, e.g. &#39;JobId&#39; 11_2 gets assigned</span>
                     <span class="c1"># &#39;JobIdRaw&#39; 13 (= 11+2)!</span>
                     <span class="c1"># Until you submit 2 more jobs and actual &#39;JobId&#39; 13 comes</span>
                     <span class="c1"># along, from then on you get that status returned...</span>
                     <span class="c1"># For us, this creates a race condition, where we get th</span>
-                    <span class="c1"># e wrong data back. We expect &#39;JobId&#39; 13, but its not </span>
-                    <span class="c1"># there yet for some reason, so we get some result </span>
-                    <span class="c1"># from &#39;11_2&#39; back instead. </span>
+                    <span class="c1"># e wrong data back. We expect &#39;JobId&#39; 13, but its not</span>
+                    <span class="c1"># there yet for some reason, so we get some result</span>
+                    <span class="c1"># from &#39;11_2&#39; back instead.</span>
                     <span class="c1"># And this causes a key_error later on, cause we expect</span>
                     <span class="c1"># &#39;13&#39; since we queried for that one.</span>
-                    
+
                     <span class="c1"># Current workaround: artificially add &#39;13&#39; to our results.</span>
                     <span class="c1"># And remove the fake one(s).</span>
                     <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
@@ -1922,7 +2096,7 @@
                         <span class="k">else</span><span class="p">:</span>
                             <span class="c1"># Copy those values that we want the keys from</span>
                             <span class="n">result_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span>
-                    
+
                     <span class="k">return</span> <span class="n">result_dict</span><span class="p">,</span> <span class="n">result</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Result is not ok: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -1976,83 +2150,6 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SlurmClient.get_workflow_parameters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_workflow_parameters">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_workflow_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                                <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Retrieve the parameters of a workflow.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            workflow (str): The workflow for which to retrieve the parameters.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Dict[str, Dict[str, Any]]:</span>
-<span class="sd">                A dictionary containing the workflow parameters.</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            ValueError: If an error occurs while retrieving the workflow</span>
-<span class="sd">                parameters.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">json_descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pull_descriptor_from_github</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
-        <span class="c1"># convert to omero types</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">json_descriptor</span><span class="p">)</span>
-        <span class="n">workflow_dict</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="nb">input</span> <span class="ow">in</span> <span class="n">json_descriptor</span><span class="p">[</span><span class="s1">&#39;inputs&#39;</span><span class="p">]:</span>
-            <span class="c1"># filter cytomine parameters</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;cytomine&#39;</span><span class="p">):</span>
-                <span class="n">workflow_params</span> <span class="o">=</span> <span class="p">{}</span>
-                <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
-                <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;default-value&#39;</span><span class="p">]</span>
-                <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;cytype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
-                <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;optional&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;optional&#39;</span><span class="p">]</span>
-                <span class="n">cmd_flag</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;command-line-flag&#39;</span><span class="p">]</span>
-                <span class="n">cmd_flag</span> <span class="o">=</span> <span class="n">cmd_flag</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
-                <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;cmd_flag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmd_flag</span>
-                <span class="n">workflow_params</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span>
-                <span class="n">workflow_dict</span><span class="p">[</span><span class="nb">input</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">workflow_params</span>
-        <span class="k">return</span> <span class="n">workflow_dict</span></div>
-
-<div class="viewcode-block" id="SlurmClient.convert_cytype_to_omtype"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_cytype_to_omtype">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">convert_cytype_to_omtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                                 <span class="n">cytype</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">_default</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
-                                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert a Cytomine type to an OMERO type and instantiates it</span>
-<span class="sd">        with args/kwargs.</span>
-
-<span class="sd">        Note that Cytomine has a Python Client, and some conversion methods</span>
-<span class="sd">        to python types, but nothing particularly worth depending on that</span>
-<span class="sd">        library for yet. Might be useful in the future perhaps.</span>
-<span class="sd">        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/</span>
-<span class="sd">        blob/master/cytomine/cytomine_job.py)</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            cytype (str): The Cytomine type to convert.</span>
-<span class="sd">            _default: The default value. Required to distinguish between float</span>
-<span class="sd">                and int.</span>
-<span class="sd">            *args: Additional positional arguments.</span>
-<span class="sd">            **kwargs: Additional keyword arguments.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Any:</span>
-<span class="sd">                The converted OMERO type class instance</span>
-<span class="sd">                or None if errors occured.</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># TODO make Enum ?</span>
-        <span class="k">if</span> <span class="n">cytype</span> <span class="o">==</span> <span class="s1">&#39;Number&#39;</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_default</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-                <span class="c1"># float instead</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">str_to_class</span><span class="p">(</span><span class="s2">&quot;omero.scripts&quot;</span><span class="p">,</span> <span class="s2">&quot;Float&quot;</span><span class="p">,</span>
-                                         <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">str_to_class</span><span class="p">(</span><span class="s2">&quot;omero.scripts&quot;</span><span class="p">,</span> <span class="s2">&quot;Int&quot;</span><span class="p">,</span>
-                                         <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">cytype</span> <span class="o">==</span> <span class="s1">&#39;Boolean&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">str_to_class</span><span class="p">(</span><span class="s2">&quot;omero.scripts&quot;</span><span class="p">,</span> <span class="s2">&quot;Bool&quot;</span><span class="p">,</span>
-                                     <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">cytype</span> <span class="o">==</span> <span class="s1">&#39;String&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">str_to_class</span><span class="p">(</span><span class="s2">&quot;omero.scripts&quot;</span><span class="p">,</span> <span class="s2">&quot;String&quot;</span><span class="p">,</span>
-                                     <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
-
 <div class="viewcode-block" id="SlurmClient.extract_parts_from_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.extract_parts_from_url">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">extract_parts_from_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract the repository and branch information from the input URL.</span>
@@ -2081,7 +2178,7 @@
             <span class="n">branch</span> <span class="o">=</span> <span class="s2">&quot;master&quot;</span>
 
         <span class="k">return</span> <span class="n">url_parts</span><span class="p">,</span> <span class="n">branch</span></div>
-       
+
 <div class="viewcode-block" id="SlurmClient.parse_docker_image_version"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">parse_docker_image_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Parses the Docker image string to extract the image name and version tag.</span>
@@ -2097,20 +2194,21 @@
         <span class="c1"># Regular expression to match image:tag format</span>
         <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;^([^:]+)(?::([^:]+))?$&#39;</span>
         <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">image</span><span class="p">)</span>
-        
+
         <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
             <span class="n">image_name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">version</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span> <span class="n">image_name</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">image</span></div>
-    
-<div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+
+<div class="viewcode-block" id="SlurmClient.convert_url"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_url">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">convert_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.json&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert the input GitHub URL to an output URL that retrieves</span>
 <span class="sd">        the &#39;descriptor.json&#39; file in raw format.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            input_url (str): The input GitHub URL.</span>
+<span class="sd">            ext (str): (Optional) The input file extension.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: The output URL to the &#39;descriptor.json&#39; file.</span>
@@ -2122,38 +2220,142 @@
 
         <span class="c1"># Construct the output URL by combining the extracted information</span>
         <span class="c1"># with the desired file path</span>
-        <span class="n">output_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;https://github.com/</span><span class="si">{</span><span class="n">url_parts</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">url_parts</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="si">}</span><span class="s2">/raw/</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">/descriptor.json&quot;</span>
+        <span class="n">output_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;https://github.com/</span><span class="si">{</span><span class="n">url_parts</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">url_parts</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="si">}</span><span class="s2">/raw/</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">/descriptor</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
 
         <span class="k">return</span> <span class="n">output_url</span></div>
 
-<div class="viewcode-block" id="SlurmClient.pull_descriptor_from_github"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.pull_descriptor_from_github">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">pull_descriptor_from_github</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Pull the workflow descriptor from GitHub.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_descriptor_from_repo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repo_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch and parse a descriptor from a GitHub repository URL.</span>
+
+<span class="sd">        Tries ``descriptor.json``, ``descriptor.yaml``, and ``config.yaml``</span>
+<span class="sd">        in that order, then parses via :class:`DescriptorParserFactory`.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            workflow (str): The workflow for which to pull the descriptor.</span>
+<span class="sd">            repo_url (str): GitHub repository URL (may include ``/tree/&lt;ref&gt;``).</span>
+<span class="sd">            name (str): Logical name passed to the parser (e.g. workflow key).</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Dict: The JSON descriptor.</span>
+<span class="sd">            Dict: Descriptor in biomero-schema format</span>
+<span class="sd">                  (``model_dump(by_alias=True)``).</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            ValueError: If an error occurs while pulling the descriptor file.</span>
+<span class="sd">            ValueError: If no descriptor file is found or the URL is invalid.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">git_repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span><span class="p">[</span><span class="n">workflow</span><span class="p">]</span>
-        <span class="c1"># convert git repo to json file</span>
-        <span class="n">raw_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_url</span><span class="p">(</span><span class="n">git_repo</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pull workflow: </span><span class="si">{</span><span class="n">workflow</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">git_repo</span><span class="si">}</span><span class="s2"> &gt;&gt; </span><span class="si">{</span><span class="n">raw_url</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="c1"># pull workflow params</span>
+        <span class="n">url_parts</span><span class="p">,</span> <span class="n">branch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_parts_from_url</span><span class="p">(</span><span class="n">repo_url</span><span class="p">)</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;https://github.com/</span><span class="si">{</span><span class="n">url_parts</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">url_parts</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;/raw/</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">github_session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
-        <span class="n">ghfile</span> <span class="o">=</span> <span class="n">github_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">raw_url</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">ghfile</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cached? </span><span class="si">{</span><span class="n">ghfile</span><span class="o">.</span><span class="n">from_cache</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="n">json_descriptor</span> <span class="o">=</span> <span class="n">ghfile</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Error while pulling descriptor file for workflow </span><span class="si">{</span><span class="n">workflow</span><span class="si">}</span><span class="s1">,</span><span class="se">\</span>
-<span class="s1">                    from </span><span class="si">{</span><span class="n">raw_url</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">ghfile</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">json_descriptor</span></div>
+
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;descriptor.json&quot;</span><span class="p">,</span> <span class="s2">&quot;descriptor.yaml&quot;</span><span class="p">,</span> <span class="s2">&quot;config.yaml&quot;</span><span class="p">):</span>
+            <span class="n">ghfile</span> <span class="o">=</span> <span class="n">github_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ghfile</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Descriptor found: </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> (cached=</span><span class="si">{</span><span class="n">ghfile</span><span class="o">.</span><span class="n">from_cache</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="p">(</span><span class="n">ghfile</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="k">if</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.json&quot;</span><span class="p">)</span>
+                   <span class="k">else</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">ghfile</span><span class="o">.</span><span class="n">text</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">DescriptorParserFactory</span><span class="o">.</span><span class="n">parse_descriptor</span><span class="p">(</span>
+                <span class="n">raw</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">by_alias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;No descriptor file found for repository: </span><span class="si">{</span><span class="n">repo_url</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="SlurmClient.generic_descriptor_from_github"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.generic_descriptor_from_github">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">generic_descriptor_from_github</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pull the workflow descriptor from GitHub and convert to generic format.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow (str): Workflow name (looked up in ``slurm_model_repos``) or</span>
+<span class="sd">                a direct GitHub repository URL.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict: The descriptor in biomero-schema format.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no descriptor file is found or the URL is invalid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">git_repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow</span><span class="p">,</span> <span class="n">workflow</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pull workflow: </span><span class="si">{</span><span class="n">workflow</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">git_repo</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_descriptor_from_repo</span><span class="p">(</span><span class="n">git_repo</span><span class="p">,</span> <span class="n">workflow</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlurmClient.get_workflow_parameters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_workflow_parameters">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_workflow_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                <span class="n">workflow</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve the parameters of a workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow (str): The workflow for which to retrieve the parameters.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict[str, Dict[str, Any]]:</span>
+<span class="sd">                A dictionary containing the workflow parameters.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If an error occurs while retrieving the workflow</span>
+<span class="sd">                parameters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">descriptor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generic_descriptor_from_github</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
+        <span class="c1"># convert to omero types</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span>
+        <span class="n">params_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;inputs&#39;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="c1"># filter cytomine parameters</span>
+            <span class="n">id_name</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">id_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;cytomine&#39;</span><span class="p">):</span>
+                <span class="c1"># skip folder params managed by biomero (bilayers image inputs, output dirs)</span>
+                <span class="c1"># but keep file-attachment params — they need CLI flags AND OMERO UI input</span>
+                <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;set-by-server&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file-attachment&#39;</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">raw_flag</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;command-line-flag&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="sa">f</span><span class="s1">&#39;--</span><span class="si">{</span><span class="n">id_name</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">workflow_param</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">id_name</span><span class="p">,</span>
+                    <span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;default-value&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;optional&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;optional&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;cmd_flag&#39;</span><span class="p">:</span> <span class="n">raw_flag</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="n">id_name</span><span class="p">),</span>
+                    <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;file_attachment&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file-attachment&#39;</span><span class="p">)),</span>
+                    <span class="s1">&#39;format&#39;</span><span class="p">:</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;format&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+                <span class="p">}</span>
+                <span class="n">params_dict</span><span class="p">[</span><span class="n">id_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_param</span>
+        <span class="k">return</span> <span class="n">params_dict</span></div>
+
+<div class="viewcode-block" id="SlurmClient.convert_param_type_to_omtype"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.convert_param_type_to_omtype">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">convert_param_type_to_omtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                     <span class="n">param_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">_default</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+                                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert a generic type to an OMERO type and instantiates it</span>
+<span class="sd">        with args/kwargs.</span>
+
+<span class="sd">        Note that Cytomine has a Python Client, and some conversion methods</span>
+<span class="sd">        to python types, but nothing particularly worth depending on that</span>
+<span class="sd">        library for yet. Might be useful in the future perhaps.</span>
+<span class="sd">        (e.g. https://github.com/Cytomine-ULiege/Cytomine-python-client/</span>
+<span class="sd">        blob/master/cytomine/cytomine_job.py)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            param_type (str): The param type to convert.</span>
+<span class="sd">            _default: The default value. Required to distinguish between float</span>
+<span class="sd">                and int.</span>
+<span class="sd">            *args: Additional positional arguments.</span>
+<span class="sd">            **kwargs: Additional keyword arguments.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any:</span>
+<span class="sd">                The converted OMERO type class instance</span>
+<span class="sd">                or None if errors occured.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">class_name</span> <span class="o">=</span> <span class="s1">&#39;String&#39;</span>
+        <span class="k">if</span> <span class="n">param_type</span> <span class="o">==</span> <span class="s1">&#39;integer&#39;</span><span class="p">:</span>
+            <span class="n">class_name</span> <span class="o">=</span> <span class="s1">&#39;Int&#39;</span>
+        <span class="k">elif</span> <span class="n">param_type</span> <span class="o">==</span> <span class="s1">&#39;float&#39;</span><span class="p">:</span>
+            <span class="n">class_name</span> <span class="o">=</span> <span class="s1">&#39;Float&#39;</span>
+        <span class="k">elif</span> <span class="n">param_type</span> <span class="o">==</span> <span class="s1">&#39;boolean&#39;</span><span class="p">:</span>
+            <span class="n">class_name</span> <span class="o">=</span> <span class="s1">&#39;Bool&#39;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">str_to_class</span><span class="p">(</span><span class="s2">&quot;omero.scripts&quot;</span><span class="p">,</span> <span class="n">class_name</span><span class="p">,</span>
+                                 <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_or_create_github_session"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_or_create_github_session">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_or_create_github_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># Note, using requests_cache 1.1.1, conditional queries are default:</span>
@@ -2163,8 +2365,7 @@
         <span class="c1"># If you provide this Etag when querying, you will get a 304 (&#39;no change&#39;) and it will</span>
         <span class="c1"># NOT count towards your Github limits. And requests_cache does that for us now.</span>
         <span class="c1"># Not available in Python3.6 though.</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="s1">&#39;github_cache&#39;</span><span class="p">,</span>
-                                         <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
                                          <span class="n">expire_after</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                                          <span class="n">cache_control</span><span class="o">=</span><span class="kc">True</span>
                                          <span class="p">)</span>
@@ -2276,12 +2477,12 @@
         <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{</span><span class="n">source_format</span><span class="si">}</span><span class="s2">_to_</span><span class="si">{</span><span class="n">target_format</span><span class="si">}</span><span class="s2">_latest.sif&quot;</span>
         <span class="n">version</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">source_format</span><span class="si">}</span><span class="s2">_to_</span><span class="si">{</span><span class="n">target_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>  
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">source_format</span><span class="si">}</span><span class="s2">_to_</span><span class="si">{</span><span class="n">target_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
             <span class="n">version</span><span class="p">,</span> <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
                 <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;convert_</span><span class="si">{</span><span class="n">source_format</span><span class="si">}</span><span class="s2">_to_</span><span class="si">{</span><span class="n">target_format</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">.sif&quot;</span>
         <span class="n">version</span> <span class="o">=</span> <span class="n">version</span> <span class="ow">or</span> <span class="s2">&quot;latest&quot;</span>
-        
+
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Converting with </span><span class="si">{</span><span class="n">chosen_converter</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">sbatch_env</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;DATA_PATH&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">,</span>
@@ -2310,8 +2511,8 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Dict: A dictionary containing the environment variables.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">workflow_env</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span> <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;-&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span> 
-                   <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">workflow_env</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span> <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;-&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+                        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">workflow_env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">workflow_env</span></div>
 

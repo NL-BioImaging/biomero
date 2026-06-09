@@ -103,8 +103,15 @@ def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
                         logger.debug(f"Non-retryable data validation error: {e}")
                         break
                     
+                    # EventSourcing exceptions are always concurrency conflicts
+                    # (newer versions may have empty messages, never data-validation errors)
+                    is_eventsourcing_error = (
+                        (EventSourcingIntegrityError and isinstance(e, EventSourcingIntegrityError)) or
+                        (EventSourcingOperationalError and isinstance(e, EventSourcingOperationalError))
+                    )
+
                     # Check for retryable conflicts
-                    if any(conflict in error_msg for conflict in retryable_conflicts):
+                    if any(conflict in error_msg for conflict in retryable_conflicts) or is_eventsourcing_error:
                         # Calculate exponential backoff with jitter
                         delay = min(
                             base_delay * (2 ** attempt) + random.uniform(0, 0.1),
@@ -127,7 +134,7 @@ def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
                         break
                         
             # All retries exhausted, raise the last exception
-            logger.error(f"Database operation failed after {max_retries + 1} attempts: {last_exception}")
+            logger.error(f"Database operation failed after {attempt + 1} attempts (max {max_retries + 1}): {last_exception}")
             raise last_exception
             
         return wrapper

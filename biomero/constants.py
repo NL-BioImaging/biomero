@@ -17,6 +17,7 @@
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
+FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 
@@ -59,6 +60,7 @@ class workflow:
     OUTPUT_NEW_SCREEN = "3a) Import into NEW Screen"
     OUTPUT_DUPLICATES = "3b) Allow duplicate dataset (name)?"
     OUTPUT_CSV_TABLE = "4) Upload result CSVs as OMERO tables"
+    OUTPUT_ATTACH_FILE_OUTPUTS = "5) Attach individual non-image output files"
     NO = "--NO THANK YOU--"
     USE_ZARR_FORMAT = "Use_ZARR_Format"
 
@@ -95,10 +97,15 @@ class results:
     OUTPUT_ATTACH_TABLE_DATASET_ID = "Dataset for table"
     OUTPUT_ATTACH_TABLE_PLATE = "Attach table to plate"
     OUTPUT_ATTACH_TABLE_PLATE_ID = "Plate for table"
+    OUTPUT_ATTACH_FILE_OUTPUTS_DATASET = "Attach file outputs to dataset"
+    OUTPUT_ATTACH_FILE_OUTPUTS_DATASET_ID = "Dataset for file outputs"
+    OUTPUT_ATTACH_FILE_OUTPUTS_PLATE = "Attach file outputs to plate"
+    OUTPUT_ATTACH_FILE_OUTPUTS_PLATE_ID = "Plate for file outputs"
     IMPORT_LABEL_ZARRS = "Import_Label_Zarrs"
     IMPORT_ONLY_LABELS = "Import_Only_Labels"
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
+    OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
 
 
 class transfer:
@@ -150,7 +157,17 @@ class transfer:
     OME_ZARR_VERSION_1_0 = '1.0'
     FOLDER = "Folder_Name"
     FOLDER_DEFAULT = 'SLURM_IMAGES_'
-    
+
+
+class file_transfer:
+    # ------------------------------------------------------------
+    # _SLURM_File_Transfer script constants
+    # ------------------------------------------------------------
+    FILE_ANNOTATION_ID = "Annotation_ID"
+    PARAM_SLOT = "Param_Slot"
+    FOLDER = "Folder_Name"
+    FORMAT = "Allowed_Formats"
+
 
 class workflow_status:
     INITIALIZING = "INITIALIZING"
@@ -163,3 +180,15 @@ class workflow_status:
     FAILED = "FAILED"
     RUNNING = "RUNNING"
     JOB_STATUS = "JOB_"
+
+
+class schema_formats:
+    # ------------------------------------------------------------
+    # Workflow descriptor schema format identifiers
+    # ------------------------------------------------------------
+    BIAFLOWS = "BIAFLOWS"  # cytomine-0.1 format
+    CYTOMINE = "cytomine-0.1"  # legacy name
+    BIOMERO_SCHEMA = "biomero-schema"  # new Pydantic format
+    BILAYERS = "BILAYERS"
+    CWL = "CWL"  # Common Workflow Language
+    OPENAPI = "OpenAPI"  # OpenAPI format

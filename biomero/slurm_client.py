@@ -30,6 +30,7 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+import shlex
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
@@ -39,6 +40,65 @@ from sqlalchemy.sql import text
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+
+
+def _inject_env_file_sourcing(job_script: str) -> str:
+    """Insert an env-file sourcing block into a generated Slurm job script.
+
+    Reads an optional path from the first positional argument (``$1``) and
+    sources it before the job body runs.  This allows the caller to write
+    environment variables to a file and pass the path on the ``sbatch``
+    command line, which works on clusters that do not propagate the SSH
+    session environment into batch jobs.
+
+    Idempotent: does nothing when the marker ``BIOMERO_ENV_FILE`` is already
+    present.
+    """
+    if "BIOMERO_ENV_FILE" in job_script:
+        return job_script
+    env_loader = (
+        "\n"
+        'BIOMERO_ENV_FILE="${1:-}"\n'
+        'if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then\n'
+        '    . "$BIOMERO_ENV_FILE"\n'
+        "fi\n"
+    )
+    lines = job_script.splitlines(keepends=True)
+    insert_at = 0
+    for idx, line in enumerate(lines):
+        if line.startswith("#SBATCH"):
+            insert_at = idx + 1
+    lines.insert(insert_at, env_loader)
+    return "".join(lines)
+
+
+def _make_gpu_flag_conditional(job_script: str) -> str:
+    """Replace a hard-coded ``singularity run --nv`` with a USE_GPU-gated flag.
+
+    Converts scripts that unconditionally request a GPU device (``--nv``) into
+    ones that only pass the flag when ``USE_GPU`` is set to a truthy value.
+    This lets the same script run on both CPU and GPU partitions without
+    modification.
+
+    Idempotent: does nothing when ``GPU_FLAG=`` is already present.
+    """
+    if "GPU_FLAG=" in job_script:
+        return job_script
+    singularity_call = "singularity run --nv "
+    if singularity_call not in job_script:
+        return job_script
+    gpu_flag = (
+        'GPU_FLAG=""\n'
+        'case "${USE_GPU:-}" in\n'
+        '  true|True|TRUE|1|yes|Yes|YES|y|Y|on|On|ON) GPU_FLAG="--nv" ;;\n'
+        "esac\n\n"
+    )
+    return job_script.replace(
+        singularity_call,
+        gpu_flag + "singularity run $GPU_FLAG ",
+        1,
+    )
+
 
 class SlurmJob:
     """Represents a job submitted to a Slurm cluster.
@@ -273,7 +333,7 @@ class SlurmClient(Connection):
     # Data could legit be empty.
     _DATA_CMD = "ls -h \"{slurm_data_path}\" | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
-    _ZIP_CMD = "cd \"{data_location}/data/out\" && 7z a -y \"{data_location}/{filename}.zip\" -tzip ."
+    _ZIP_CMD = "cd \"{data_location}/data/out\" && ZIP_CMD=$(command -v 7z || command -v 7za) && \"$ZIP_CMD\" a -y \"{data_location}/{filename}.zip\" -tzip ."  # default; overridden by slurm_zip_cmd
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
     # TODO move all commands to a similar format.
@@ -314,7 +374,12 @@ class SlurmClient(Connection):
                  slurm_data_bind_path: str = None,
                  slurm_conversion_partition: str = None,
                  sacct_start_time: str = None,
-                 sacct_days_ago: int = None):
+                 sacct_days_ago: int = None,
+                 env_file_submission: bool = False,
+                 inject_gpu_flag: bool = False,
+                 gpu_partition: str = None,
+                 gpu_gres: str = None,
+                 slurm_zip_cmd: str = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -440,6 +505,11 @@ class SlurmClient(Connection):
         self.slurm_conversion_partition = slurm_conversion_partition
         self.sacct_start_time = sacct_start_time
         self.sacct_days_ago = sacct_days_ago
+        self.env_file_submission = env_file_submission
+        self.inject_gpu_flag = inject_gpu_flag
+        self.gpu_partition = gpu_partition
+        self.gpu_gres = gpu_gres
+        self.slurm_zip_cmd = slurm_zip_cmd
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
@@ -955,6 +1025,33 @@ class SlurmClient(Connection):
                 f"Invalid sacct_days_ago value '{sacct_days_ago_raw}', ignoring.")
             sacct_days_ago = None
 
+        # Processing settings: env-file submission and GPU defaults.
+        # INI supplies the base; environment variables allow runtime override.
+        env_file_submission = configs.getboolean(
+            "SLURM", "env_file_submission", fallback=False)
+        env_override = os.getenv("BIOMERO_ENV_FILE_SUBMISSION")
+        if env_override is not None:
+            env_file_submission = env_override.lower() in (
+                "true", "1", "yes", "y", "on")
+
+        inject_gpu_flag = configs.getboolean(
+            "SLURM", "inject_gpu_flag", fallback=False)
+        gpu_flag_override = os.getenv("BIOMERO_INJECT_GPU_FLAG")
+        if gpu_flag_override is not None:
+            inject_gpu_flag = gpu_flag_override.lower() in (
+                "true", "1", "yes", "y", "on")
+
+        gpu_partition = configs.get(
+            "SLURM", "gpu_partition", fallback=None) or None
+        gpu_partition = os.getenv("GPU_PARTITION", gpu_partition or "") or None
+
+        gpu_gres = configs.get(
+            "SLURM", "gpu_gres", fallback=None) or None
+        gpu_gres = os.getenv("GPU_GRES", gpu_gres or "") or None
+
+        slurm_zip_cmd = configs.get(
+            "SLURM", "slurm_zip_cmd", fallback=None) or None
+
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
         slurm_model_paths = {}
@@ -1037,7 +1134,12 @@ class SlurmClient(Connection):
                    slurm_data_bind_path=slurm_data_bind_path,
                    slurm_conversion_partition=slurm_conversion_partition,
                    sacct_start_time=sacct_start_time,
-                   sacct_days_ago=sacct_days_ago)
+                   sacct_days_ago=sacct_days_ago,
+                   env_file_submission=env_file_submission,
+                   inject_gpu_flag=inject_gpu_flag,
+                   gpu_partition=gpu_partition,
+                   gpu_gres=gpu_gres,
+                   slurm_zip_cmd=slurm_zip_cmd)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
@@ -1470,6 +1572,10 @@ class SlurmClient(Connection):
         with template_f.open('r') as f:
             src = Template(f.read())
             job_script = src.safe_substitute(substitutes)
+        if self.env_file_submission:
+            job_script = _inject_env_file_sourcing(job_script)
+        if self.inject_gpu_flag:
+            job_script = _make_gpu_flag_conditional(job_script)
         return job_script
 
     def workflow_params_to_subs(self, params) -> Dict[str, str]:
@@ -2102,7 +2208,21 @@ class SlurmClient(Connection):
         """
         model_path = self.slurm_model_paths[workflow.lower()]
         job_script = self.slurm_model_jobs[workflow.lower()]
-        job_params = self.slurm_model_jobs_params[workflow.lower()]
+        job_params = list(self.slurm_model_jobs_params[workflow.lower()])
+        use_gpu_value = kwargs.get("use_gpu")
+        use_gpu = str(use_gpu_value).lower() in ("true", "1", "yes", "y", "on")
+        if use_gpu:
+            # ini sets the base values; env vars allow runtime override
+            gpu_partition = os.getenv("GPU_PARTITION", self.gpu_partition or "")
+            gpu_gres = os.getenv("GPU_GRES", self.gpu_gres or "")
+            if gpu_partition and not any(
+                p.startswith(" --partition=") for p in job_params
+            ):
+                job_params.append(f" --partition={gpu_partition}")
+            if gpu_gres and not any(
+                p.startswith(" --gres=") for p in job_params
+            ):
+                job_params.append(f" --gres={gpu_gres}")
         # grab only the image name, not the group/creator
         image = self.slurm_model_images[workflow.lower()].split("/")[1]
 
@@ -2113,7 +2233,7 @@ class SlurmClient(Connection):
             "SINGULARITY_IMAGE": f"\"{image}_{workflow_version}.sif\"",
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
         }
-        if self.slurm_data_bind_path is not None:
+        if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         workflow_env = self.workflow_params_to_envvars(**kwargs)
         env = {**sbatch_env, **workflow_env}
@@ -2123,9 +2243,27 @@ class SlurmClient(Connection):
         job_params.append(time_param)
         job_params.append(email_param)
         job_param = "".join(job_params)
+
+        if self.env_file_submission:
+            env_file = f"{self.slurm_data_path}/{input_data}/biomero_job_env.sh"
+            env_lines = "\n".join(
+                f"export {key}={shlex.quote(str(value).strip(chr(34)))}"
+                for key, value in env.items()
+            )
+            write_env_cmd = (
+                f"cat > {shlex.quote(env_file)} <<'BIOMERO_ENV'\n"
+                f"{env_lines}\n"
+                "BIOMERO_ENV\n"
+            )
+            sbatch_cmd = (
+                f"{write_env_cmd}"
+                f"sbatch{job_param} --output=omero-%j.log "
+                f"\"{self.slurm_script_path}/{job_script}\" {shlex.quote(env_file)}"
+            )
+            return sbatch_cmd, {}
+
         sbatch_cmd = f"sbatch{job_param} --output=omero-%j.log \
             \"{self.slurm_script_path}/{job_script}\""
-
         return sbatch_cmd, env
 
     def get_conversion_command(self, data_path: str,
@@ -2176,9 +2314,9 @@ class SlurmClient(Connection):
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
             "CONFIG_FILE": f"\"{config_file}\"",
         }
-        if self.slurm_data_bind_path is not None:
+        if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
-        if self.slurm_conversion_partition is not None:
+        if self.slurm_conversion_partition:
             sbatch_env["CONVERSION_PARTITION"] = f"\"{self.slurm_conversion_partition}\""
 
         conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
@@ -2296,6 +2434,17 @@ class SlurmClient(Connection):
         logger.info(f"Zipping {data_location} as {filename} on Slurm")
         return self.run_commands([zip_cmd], env=env)
 
+    @property
+    def _zip_shell_cmd(self) -> str:
+        """Shell expression that resolves to the zip utility on the cluster.
+
+        Uses the value of ``slurm_zip_cmd`` from the config when set;
+        otherwise falls back to auto-detecting ``7z`` or ``7za`` at runtime.
+        """
+        if self.slurm_zip_cmd:
+            return self.slurm_zip_cmd
+        return "$(command -v 7z || command -v 7za)"
+
     def get_zip_command(self, data_location: str, filename: str) -> str:
         """
         Generate a command string for zipping the data on Slurm.
@@ -2308,8 +2457,10 @@ class SlurmClient(Connection):
         Returns:
             str: The command to create the zip file.
         """
-        return self._ZIP_CMD.format(filename=filename,
-                                    data_location=data_location)
+        return (
+            f"cd \"{data_location}/data/out\" && "
+            f"{self._zip_shell_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
+        )
 
     def get_logfile_from_slurm(self,
                                slurm_job_id: str,
@@ -2369,13 +2520,16 @@ class SlurmClient(Connection):
                 The command to extract the specified
                 filetypes from the zip file.
         """
-        unzip_cmd = f"mkdir \"{self.slurm_data_path}/{zipfile}\" \
-                    \"{self.slurm_data_path}/{zipfile}/data\" \
-                    \"{self.slurm_data_path}/{zipfile}/data/in\" \
-                    \"{self.slurm_data_path}/{zipfile}/data/out\" \
-                    \"{self.slurm_data_path}/{zipfile}/data/gt\"; \
-                    7z x -y -o\"{self.slurm_data_path}/{zipfile}/data/in\" \
-                    \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
+        unzip_cmd = (
+            f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
+            f" \"{self.slurm_data_path}/{zipfile}/data\""
+            f" \"{self.slurm_data_path}/{zipfile}/data/in\""
+            f" \"{self.slurm_data_path}/{zipfile}/data/out\""
+            f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
+            f" {self._zip_shell_cmd} x -y"
+            f" -o\"{self.slurm_data_path}/{zipfile}/data/in\""
+            f" \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
+        )
 
         return unzip_cmd
 

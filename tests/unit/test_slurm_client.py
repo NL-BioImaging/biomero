@@ -1,6 +1,10 @@
 import logging
 from uuid import uuid4
-from biomero.slurm_client import SlurmClient
+from biomero.slurm_client import (
+    SlurmClient,
+    _inject_env_file_sourcing,
+    _make_gpu_flag_conditional,
+)
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
 import pytest
@@ -147,24 +151,43 @@ def test_get_unzip_command(slurm_client):
     # GIVEN
     slurm_data_path = "/path/to/slurm/data"
     slurm_client.slurm_data_path = slurm_data_path
+    slurm_client.slurm_zip_cmd = None  # auto-detect
     zipfile = "example"
     filter_filetypes = "*.zarr *.ome.zarr *.tiff *.tif"
+    auto = "$(command -v 7z || command -v 7za)"
     expected_command = (
-        f"mkdir \"{slurm_data_path}/{zipfile}\" \
-                    \"{slurm_data_path}/{zipfile}/data\" \
-                    \"{slurm_data_path}/{zipfile}/data/in\" \
-                    \"{slurm_data_path}/{zipfile}/data/out\" \
-                    \"{slurm_data_path}/{zipfile}/data/gt\"; \
-                    7z x -y -o\"{slurm_data_path}/{zipfile}/data/in\" \
-                    \"{slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
+        f'mkdir -p "{slurm_data_path}/{zipfile}"'
+        f' "{slurm_data_path}/{zipfile}/data"'
+        f' "{slurm_data_path}/{zipfile}/data/in"'
+        f' "{slurm_data_path}/{zipfile}/data/out"'
+        f' "{slurm_data_path}/{zipfile}/data/gt";'
+        f' {auto} x -y'
+        f' -o"{slurm_data_path}/{zipfile}/data/in"'
+        f' "{slurm_data_path}/{zipfile}.zip" {filter_filetypes}'
     )
 
     # WHEN
-    unzip_command = slurm_client.get_unzip_command(
-        zipfile, filter_filetypes)
+    unzip_command = slurm_client.get_unzip_command(zipfile, filter_filetypes)
 
     # THEN
     assert unzip_command == expected_command
+
+
+def test_get_unzip_command_explicit_zip_cmd(slurm_client):
+    # GIVEN: cluster only has 7za
+    slurm_data_path = "/path/to/slurm/data"
+    slurm_client.slurm_data_path = slurm_data_path
+    slurm_client.slurm_zip_cmd = "7za"
+    zipfile = "example"
+    filter_filetypes = "*.zarr *.ome.zarr *.tiff *.tif"
+
+    # WHEN
+    unzip_command = slurm_client.get_unzip_command(zipfile, filter_filetypes)
+
+    # THEN: explicit command is used, not the auto-detect expression
+    assert "7za x -y" in unzip_command
+    assert "command -v" not in unzip_command
+    assert "mkdir -p" in unzip_command
 
 
 @patch.object(SlurmClient, 'get')
@@ -206,9 +229,10 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # WHEN
     result = slurm_client.zip_data_on_slurm_server(data_location, filename)
 
-    # THEN - cd into data/out so archive entries are relative, zip at absolute path
+    # THEN - auto-detect expression used; cd into data/out so entries are relative
+    auto = "$(command -v 7z || command -v 7za)"
     mock_run_commands.assert_called_once_with(
-        [f'cd "{data_location}/data/out" && 7z a -y "{data_location}/{filename}.zip" -tzip .'], env=None)
+        [f'cd "{data_location}/data/out" && {auto} a -y "{data_location}/{filename}.zip" -tzip .'], env=None)
     assert result.ok is True
     assert result.stdout == ""
     mock_logger.info.assert_called_with(
@@ -1869,3 +1893,331 @@ def test_init_invalid_workflow_url():
                 "workflow1": invalid_url},
             slurm_script_repo="https://github.com/nl-bioimaging/slurm-scripts",
         )
+
+
+# ---------------------------------------------------------------------------
+# Tests for _inject_env_file_sourcing
+# ---------------------------------------------------------------------------
+
+def test_inject_env_file_sourcing_inserts_after_last_sbatch():
+    script = (
+        "#!/bin/bash\n"
+        "#SBATCH --job-name=test\n"
+        "#SBATCH --ntasks=1\n"
+        "singularity run image.sif\n"
+    )
+    result = _inject_env_file_sourcing(script)
+    lines = result.splitlines()
+    # sourcing block should appear right after the last #SBATCH line (index 2)
+    assert 'BIOMERO_ENV_FILE="${1:-}"' in result
+    sbatch_indices = [i for i, l in enumerate(lines) if l.startswith("#SBATCH")]
+    env_file_index = next(i for i, l in enumerate(lines) if "BIOMERO_ENV_FILE" in l)
+    assert env_file_index == max(sbatch_indices) + 1
+
+
+def test_inject_env_file_sourcing_idempotent():
+    script = (
+        "#!/bin/bash\n"
+        "#SBATCH --job-name=test\n"
+        'BIOMERO_ENV_FILE="${1:-}"\n'
+        "singularity run image.sif\n"
+    )
+    result = _inject_env_file_sourcing(script)
+    assert result == script
+    assert result.count("BIOMERO_ENV_FILE") == 1
+
+
+def test_inject_env_file_sourcing_no_sbatch():
+    # If there are no #SBATCH directives, block is inserted at position 0
+    script = "#!/bin/bash\nsingularity run image.sif\n"
+    result = _inject_env_file_sourcing(script)
+    assert 'BIOMERO_ENV_FILE="${1:-}"' in result
+    assert result.index("BIOMERO_ENV_FILE") < result.index("singularity")
+
+
+# ---------------------------------------------------------------------------
+# Tests for _make_gpu_flag_conditional
+# ---------------------------------------------------------------------------
+
+def test_make_gpu_flag_conditional_replaces_nv():
+    script = (
+        "#!/bin/bash\n"
+        "#SBATCH --job-name=test\n"
+        "singularity run --nv image.sif\n"
+    )
+    result = _make_gpu_flag_conditional(script)
+    assert "GPU_FLAG=" in result
+    assert 'case "${USE_GPU:-}"' in result
+    assert "singularity run $GPU_FLAG" in result
+    assert "singularity run --nv" not in result
+
+
+def test_make_gpu_flag_conditional_no_nv_unchanged():
+    script = (
+        "#!/bin/bash\n"
+        "singularity run image.sif\n"
+    )
+    result = _make_gpu_flag_conditional(script)
+    assert result == script
+
+
+def test_make_gpu_flag_conditional_idempotent():
+    script = (
+        "#!/bin/bash\n"
+        'GPU_FLAG=""\n'
+        "singularity run $GPU_FLAG image.sif\n"
+    )
+    result = _make_gpu_flag_conditional(script)
+    assert result == script
+    assert result.count("GPU_FLAG=") == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests for generate_slurm_job_for_workflow flags (env_file + gpu_flag)
+# ---------------------------------------------------------------------------
+
+@patch('biomero.slurm_client.files')
+def test_generate_job_no_flags(mock_files, slurm_client):
+    """Both flags off: generated script is returned unchanged."""
+    raw = (
+        "#!/bin/bash\n"
+        "#SBATCH --job-name=test\n"
+        "singularity run --nv image.sif\n"
+    )
+    mock_files.return_value.joinpath.return_value.open.return_value.__enter__ \
+        .return_value.read.return_value = raw
+
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+
+    result = slurm_client.generate_slurm_job_for_workflow("wf", {})
+    assert "BIOMERO_ENV_FILE" not in result
+    assert "GPU_FLAG=" not in result
+    assert "singularity run --nv" in result
+
+
+@patch('biomero.slurm_client.files')
+def test_generate_job_env_file_flag(mock_files, slurm_client):
+    """env_file_submission=True injects sourcing; GPU unchanged."""
+    raw = (
+        "#!/bin/bash\n"
+        "#SBATCH --job-name=test\n"
+        "singularity run --nv image.sif\n"
+    )
+    mock_files.return_value.joinpath.return_value.open.return_value.__enter__ \
+        .return_value.read.return_value = raw
+
+    slurm_client.env_file_submission = True
+    slurm_client.inject_gpu_flag = False
+
+    result = slurm_client.generate_slurm_job_for_workflow("wf", {})
+    assert "BIOMERO_ENV_FILE" in result
+    assert "singularity run --nv" in result  # GPU not touched
+
+
+@patch('biomero.slurm_client.files')
+def test_generate_job_gpu_flag(mock_files, slurm_client):
+    """inject_gpu_flag=True replaces --nv; env sourcing unchanged."""
+    raw = (
+        "#!/bin/bash\n"
+        "#SBATCH --job-name=test\n"
+        "singularity run --nv image.sif\n"
+    )
+    mock_files.return_value.joinpath.return_value.open.return_value.__enter__ \
+        .return_value.read.return_value = raw
+
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = True
+
+    result = slurm_client.generate_slurm_job_for_workflow("wf", {})
+    assert "GPU_FLAG=" in result
+    assert "BIOMERO_ENV_FILE" not in result  # env sourcing not touched
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_workflow_command: env_file_submission path
+# ---------------------------------------------------------------------------
+
+def test_get_workflow_command_env_file_submission(slurm_client):
+    """env_file_submission=True: write-env block prepended, sbatch gets file arg, env=={}."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = True
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+
+    cmd, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
+
+    assert env == {}
+    assert "cat >" in cmd                          # env file write block
+    assert "BIOMERO_ENV" in cmd                    # heredoc marker
+    assert "sbatch" in cmd
+    assert "run1/biomero_job_env.sh" in cmd        # file path in sbatch arg
+
+
+def test_get_workflow_command_no_env_file_submission(slurm_client):
+    """env_file_submission=False (default): plain sbatch, env dict returned."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+
+    cmd, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
+
+    assert env != {}                               # env dict populated
+    assert "cat >" not in cmd                      # no env file write block
+    assert "sbatch" in cmd
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_workflow_command: GPU sbatch params
+# ---------------------------------------------------------------------------
+
+def test_get_workflow_command_use_gpu_appends_params(slurm_client):
+    """use_gpu=True + gpu_partition/gpu_gres → both appended to sbatch params."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = "gpu_a100"
+    slurm_client.gpu_gres = "gpu:a100:1"
+
+    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "",
+                                               use_gpu=True)
+    assert "--partition=gpu_a100" in cmd
+    assert "--gres=gpu:a100:1" in cmd
+
+
+def test_get_workflow_command_use_gpu_false_no_gpu_params(slurm_client):
+    """use_gpu=False → no GPU sbatch params injected even if configured."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = "gpu_a100"
+    slurm_client.gpu_gres = "gpu:a100:1"
+
+    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "",
+                                               use_gpu=False)
+    assert "--partition=" not in cmd
+    assert "--gres=" not in cmd
+
+
+def test_get_workflow_command_use_gpu_respects_per_workflow_partition(slurm_client):
+    """Per-workflow --partition in job_params takes precedence; no duplicate."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": [" --partition=my_gpu"]}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = "gpu_a100"
+    slurm_client.gpu_gres = None
+
+    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "",
+                                               use_gpu=True)
+    assert cmd.count("--partition=") == 1
+    assert "--partition=my_gpu" in cmd
+    assert "--partition=gpu_a100" not in cmd
+
+
+# ---------------------------------------------------------------------------
+# Tests for _zip_shell_cmd / get_zip_command
+# ---------------------------------------------------------------------------
+
+def test_zip_shell_cmd_auto_detect(slurm_client):
+    slurm_client.slurm_zip_cmd = None
+    assert slurm_client._zip_shell_cmd == "$(command -v 7z || command -v 7za)"
+
+
+def test_zip_shell_cmd_explicit(slurm_client):
+    slurm_client.slurm_zip_cmd = "7za"
+    assert slurm_client._zip_shell_cmd == "7za"
+
+
+def test_get_zip_command_auto_detect(slurm_client):
+    slurm_client.slurm_zip_cmd = None
+    cmd = slurm_client.get_zip_command("/data/loc", "result")
+    assert "$(command -v 7z || command -v 7za)" in cmd
+    assert 'cd "/data/loc/data/out"' in cmd
+    assert '"/data/loc/result.zip"' in cmd
+
+
+def test_get_zip_command_explicit(slurm_client):
+    slurm_client.slurm_zip_cmd = "7za"
+    cmd = slurm_client.get_zip_command("/data/loc", "result")
+    assert cmd.startswith('cd "/data/loc/data/out" && 7za a -y')
+    assert "command -v" not in cmd
+
+
+# ---------------------------------------------------------------------------
+# Tests for slurm_data_bind_path optional (no ValueError)
+# ---------------------------------------------------------------------------
+
+def test_get_workflow_command_no_bind_path_no_error(slurm_client):
+    """slurm_data_bind_path=None is allowed; APPTAINER_BINDPATH not set."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+
+    cmd, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert "APPTAINER_BINDPATH" not in env
+
+
+def test_get_workflow_command_with_bind_path(slurm_client):
+    """slurm_data_bind_path set → APPTAINER_BINDPATH included in env."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = "/scratch/my-data"
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+
+    _, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert env.get("APPTAINER_BINDPATH") == '"/scratch/my-data"'

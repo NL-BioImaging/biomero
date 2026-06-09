@@ -1566,6 +1566,11 @@ def test_from_config(mock_ConfigParser,
         slurm_conversion_partition=mv,
         sacct_start_time=None,
         sacct_days_ago=None,
+        env_file_submission=False,
+        inject_gpu_flag=False,
+        gpu_partition=mv,
+        gpu_gres=mv,
+        slurm_zip_cmd=mv,
     )
 
 
@@ -1912,7 +1917,7 @@ def test_inject_env_file_sourcing_inserts_after_last_sbatch():
     assert 'BIOMERO_ENV_FILE="${1:-}"' in result
     sbatch_indices = [i for i, l in enumerate(lines) if l.startswith("#SBATCH")]
     env_file_index = next(i for i, l in enumerate(lines) if "BIOMERO_ENV_FILE" in l)
-    assert env_file_index == max(sbatch_indices) + 1
+    assert env_file_index == max(sbatch_indices) + 2
 
 
 def test_inject_env_file_sourcing_idempotent():

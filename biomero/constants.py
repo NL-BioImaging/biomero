@@ -30,6 +30,17 @@ RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 CLEANUP = "Cleanup?"
 
 
+class slurm_env:
+    BIOMERO_SACCT_START_TIME = "BIOMERO_SACCT_START_TIME"
+    BIOMERO_SACCT_START_DAYS_AGO = "BIOMERO_SACCT_START_DAYS_AGO"
+    BIOMERO_ENV_FILE_SUBMISSION = "BIOMERO_ENV_FILE_SUBMISSION"
+    BIOMERO_INJECT_GPU_FLAG = "BIOMERO_INJECT_GPU_FLAG"
+    BIOMERO_GPU_PARTITION = "BIOMERO_GPU_PARTITION"
+    BIOMERO_GPU_GRES = "BIOMERO_GPU_GRES"
+    GPU_PARTITION = "GPU_PARTITION"
+    GPU_GRES = "GPU_GRES"
+
+
 class conversion:
     # ------------------------------------------------------------
     # SLURM_Remote_Conversion script constants

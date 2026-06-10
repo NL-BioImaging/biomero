@@ -32,6 +32,7 @@ import io
 import os
 import yaml
 import shlex
+from biomero.constants import slurm_env
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
@@ -42,65 +43,6 @@ from sqlalchemy.sql import text
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
-
-
-
-def _inject_env_file_sourcing(job_script: str) -> str:
-    """Insert an env-file sourcing block into a generated Slurm job script.
-
-    Reads an optional path from the first positional argument (``$1``) and
-    sources it before the job body runs.  This allows the caller to write
-    environment variables to a file and pass the path on the ``sbatch``
-    command line, which works on clusters that do not propagate the SSH
-    session environment into batch jobs.
-
-    Idempotent: does nothing when the marker ``BIOMERO_ENV_FILE`` is already
-    present.
-    """
-    if "BIOMERO_ENV_FILE" in job_script:
-        return job_script
-    env_loader = (
-        "\n"
-        'BIOMERO_ENV_FILE="${1:-}"\n'
-        'if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then\n'
-        '    . "$BIOMERO_ENV_FILE"\n'
-        "fi\n"
-    )
-    lines = job_script.splitlines(keepends=True)
-    insert_at = 0
-    for idx, line in enumerate(lines):
-        if line.startswith("#SBATCH"):
-            insert_at = idx + 1
-    lines.insert(insert_at, env_loader)
-    return "".join(lines)
-
-
-def _make_gpu_flag_conditional(job_script: str) -> str:
-    """Replace a hard-coded ``singularity run --nv`` with a USE_GPU-gated flag.
-
-    Converts scripts that unconditionally request a GPU device (``--nv``) into
-    ones that only pass the flag when ``USE_GPU`` is set to a truthy value.
-    This lets the same script run on both CPU and GPU partitions without
-    modification.
-
-    Idempotent: does nothing when ``GPU_FLAG=`` is already present.
-    """
-    if "GPU_FLAG=" in job_script:
-        return job_script
-    singularity_call = "singularity run --nv "
-    if singularity_call not in job_script:
-        return job_script
-    gpu_flag = (
-        'GPU_FLAG=""\n'
-        'case "${USE_GPU:-}" in\n'
-        '  true|True|TRUE|1|yes|Yes|YES|y|Y|on|On|ON) GPU_FLAG="--nv" ;;\n'
-        "esac\n\n"
-    )
-    return job_script.replace(
-        singularity_call,
-        gpu_flag + "singularity run $GPU_FLAG ",
-        1,
-    )
 
 
 class SlurmJob:
@@ -337,7 +279,8 @@ class SlurmClient(Connection):
     # Data could legit be empty.
     _DATA_CMD = "ls -h \"{slurm_data_path}\" | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
-    _ZIP_CMD = "cd \"{data_location}/data/out\" && ZIP_CMD=$(command -v 7z || command -v 7za) && \"$ZIP_CMD\" a -y \"{data_location}/{filename}.zip\" -tzip ."  # default; overridden by slurm_zip_cmd
+    # default; overridden by slurm_zip_cmd
+    _ZIP_CMD = "cd \"{data_location}/data/out\" && ZIP_CMD=$(command -v 7z || command -v 7za) && \"$ZIP_CMD\" a -y \"{data_location}/{filename}.zip\" -tzip ."
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
     # TODO move all commands to a similar format.
@@ -346,6 +289,95 @@ class SlurmClient(Connection):
     _CONVERTER_LOGFILE = "\"slurm-{slurm_job_id}\"_*.out"
     _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
     _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"
+
+    @staticmethod
+    def _get_config_value(configs,
+                          section: str,
+                          option: str,
+                          default,
+                          env_vars: list[str] = None,
+                          value_type=str,
+                          empty_is_none: bool = False):
+        """
+        Helper method to get a configuration value with support for type conversion,
+        environment variable override, and default value handling.
+
+        Args:
+            configs: The ConfigParser object containing the configurations.
+            section: The section in the config file to look for the option.
+            option: The option name in the config file. 
+            default: The default value to use if the option is not found in the config file.
+            env_vars: A list of environment variable names to check for an override. The first one found will be used. Defaults to None (no environment variable override).
+            value_type: The expected type of the configuration value (e.g., str, int, bool). Defaults to str.
+            empty_is_none: If True, treats empty string values as None. Defaults to False.
+        Returns:
+            The configuration value, potentially overridden by an environment variable and converted to the specified type.
+
+        """
+
+        if value_type is bool:
+            value = configs.getboolean(section, option, fallback=default)
+        else:
+            value = configs.get(section, option, fallback=default)
+
+        if value_type is int:
+            if value is None:
+                typed_value = None
+            else:
+                try:
+                    typed_value = int(value)
+                except (TypeError, ValueError):
+                    logger.warning(
+                        f"Invalid value '{value}' for config option {section}.{option}, using fallback."
+                    )
+                    typed_value = default
+        else:
+            typed_value = value
+
+        if empty_is_none and value == "":
+            value = None
+            typed_value = None
+
+        # ---- ENV OVERRIDE (first match wins) ----
+        env_value = None
+        used_env_var = None
+
+        if env_vars:
+            for var in env_vars:
+                env_value = os.getenv(var)
+                if env_value is not None:
+                    used_env_var = var
+                    break
+
+        if env_value is not None:
+            if value_type is bool:
+                truthy_values = ("true", "1", "yes", "y", "on")
+                falsy_values = ("false", "0", "no", "n", "off")
+                lowered = env_value.lower()
+                if lowered in truthy_values:
+                    return True
+                if lowered in falsy_values:
+                    return False
+                logger.warning(
+                    f"Invalid value '{env_value}' for environment variable {used_env_var}, using fallback."
+                )
+                return typed_value
+
+            if value_type is int:
+                try:
+                    return int(env_value)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid value '{env_value}' for environment variable {used_env_var}, using fallback."
+                    )
+                    return typed_value
+
+            if empty_is_none and env_value == "":
+                return None
+
+            return env_value
+
+        return typed_value
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -538,6 +570,13 @@ class SlurmClient(Connection):
         else:
             logger.warning("Setup SlurmClient for config only")
 
+    def _template_with_env_file_support(self, template: str) -> str:
+        if template == "job_template.sh":
+            return "job_template_envfile.sh"
+        if template == "job_template_bilayers.sh":
+            return "job_template_bilayers_envfile.sh"
+        return template   
+    
     def initialize_analytics_system(self, reset_tables=False):
         """
         Initialize the analytics system based on the analytics configuration
@@ -768,7 +807,8 @@ class SlurmClient(Connection):
                     # If the image already includes a tag (e.g. "org/image:v1.2"),
                     # use that tag and strip it from the image name to avoid
                     # producing docker://org/image:v1.2:v1.2.
-                    image_tag, image_name = self.parse_docker_image_version(image)
+                    image_tag, image_name = self.parse_docker_image_version(
+                        image)
                     if image_tag:
                         image = image_name
                         version = image_tag
@@ -1015,63 +1055,114 @@ class SlurmClient(Connection):
 
         # Read the required parameters from the configuration file,
         # fallback to defaults
-        host = configs.get("SSH", "host", fallback=cls._DEFAULT_HOST)
-        inline_ssh_env = configs.getboolean(
-            "SSH", "inline_ssh_env", fallback=cls._DEFAULT_INLINE_SSH_ENV)
-        slurm_data_path = configs.get(
-            "SLURM", "slurm_data_path", fallback=cls._DEFAULT_SLURM_DATA_PATH)
-        slurm_images_path = configs.get(
-            "SLURM", "slurm_images_path",
-            fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
-        slurm_converters_path = configs.get(
-            "SLURM", "slurm_converters_path",
-            fallback=cls._DEFAULT_SLURM_CONVERTERS_PATH)
-        slurm_data_bind_path = configs.get(
-            "SLURM", "slurm_data_bind_path",
-            fallback=None)
-        slurm_conversion_partition = configs.get(
-            "SLURM", "slurm_conversion_partition",
-            fallback=None)
-        sacct_start_time = configs.get(
-            "SLURM", "sacct_start_time",
-            fallback=None) or None  # treat empty string as None
-        sacct_days_ago_raw = configs.get(
-            "SLURM", "sacct_days_ago",
-            fallback=None)
-        try:
-            sacct_days_ago = int(
-                sacct_days_ago_raw) if sacct_days_ago_raw else None
-        except ValueError:
-            logger.warning(
-                f"Invalid sacct_days_ago value '{sacct_days_ago_raw}', ignoring.")
-            sacct_days_ago = None
+        host = cls._get_config_value(
+            configs,
+            section="SSH",
+            option="host",
+            default=cls._DEFAULT_HOST,
+        )
+        inline_ssh_env = cls._get_config_value(
+            configs,
+            section="SSH",
+            option="inline_ssh_env",
+            default=cls._DEFAULT_INLINE_SSH_ENV,
+            value_type=bool,
+        )
+        slurm_data_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_data_path",
+            default=cls._DEFAULT_SLURM_DATA_PATH,
+        )
+        slurm_images_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_images_path",
+            default=cls._DEFAULT_SLURM_IMAGES_PATH,
+        )
+        slurm_converters_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_converters_path",
+            default=cls._DEFAULT_SLURM_CONVERTERS_PATH,
+        )
+        slurm_data_bind_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_data_bind_path",
+            default=None,
+            empty_is_none=True,
+        )
+        slurm_conversion_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_conversion_partition",
+            default=None,
+            empty_is_none=True,
+        )
+        sacct_start_time = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="sacct_start_time",
+            default=cls._DEFAULT_SACCT_START_TIME,
+            env_vars=[slurm_env.BIOMERO_SACCT_START_TIME],
+            empty_is_none=True,
+        )
+        sacct_days_ago = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="sacct_days_ago",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_SACCT_START_DAYS_AGO],
+            value_type=int,
+            empty_is_none=True,
+        )
 
         # Processing settings: env-file submission and GPU defaults.
-        # INI supplies the base; environment variables allow runtime override.
-        env_file_submission = configs.getboolean(
-            "SLURM", "env_file_submission", fallback=False)
-        env_override = os.getenv("BIOMERO_ENV_FILE_SUBMISSION")
-        if env_override is not None:
-            env_file_submission = env_override.lower() in (
-                "true", "1", "yes", "y", "on")
+        env_file_submission = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="env_file_submission",
+            default=False,
+            env_vars=[slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
+            value_type=bool,
+        )
 
-        inject_gpu_flag = configs.getboolean(
-            "SLURM", "inject_gpu_flag", fallback=False)
-        gpu_flag_override = os.getenv("BIOMERO_INJECT_GPU_FLAG")
-        if gpu_flag_override is not None:
-            inject_gpu_flag = gpu_flag_override.lower() in (
-                "true", "1", "yes", "y", "on")
+        inject_gpu_flag = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="inject_gpu_flag",
+            default=False,
+            env_vars=[slurm_env.BIOMERO_INJECT_GPU_FLAG],
+            value_type=bool,
+        )
 
-        gpu_partition = configs.get(
-            "SLURM", "gpu_partition", fallback=None) or None
-        gpu_partition = os.getenv("GPU_PARTITION", gpu_partition or "") or None
+        gpu_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="gpu_partition",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_GPU_PARTITION,
+                      slurm_env.GPU_PARTITION],
+            empty_is_none=True,
+        )
 
-        gpu_gres = configs.get(
-            "SLURM", "gpu_gres", fallback=None) or None
-        gpu_gres = os.getenv("GPU_GRES", gpu_gres or "") or None
+        gpu_gres = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="gpu_gres",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_GPU_GRES, slurm_env.GPU_GRES],
+            empty_is_none=True,
+        )
 
-        slurm_zip_cmd = configs.get(
-            "SLURM", "slurm_zip_cmd", fallback=None) or None
+        slurm_zip_cmd = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_zip_cmd",
+            default=None,
+            empty_is_none=True,
+        )
 
         # Split the MODELS into paths, repos and images
         models_dict = dict(configs.items("MODELS"))
@@ -1523,23 +1614,13 @@ class SlurmClient(Connection):
         if start_time is None:
             # Priority (low to high):
             # 1. class default  -> "2023-01-01" (backward compatible)
-            # 2. sacct_start_time from slurm-config.ini  (absolute date)
-            # 3. sacct_days_ago  from slurm-config.ini  (relative, overrides #2)
-            # 4. BIOMERO_SACCT_START_TIME  env var       (absolute)
-            # 5. BIOMERO_SACCT_START_DAYS_AGO env var    (relative, highest priority)
-            start_time = self._DEFAULT_SACCT_START_TIME
-            if self.sacct_start_time:
-                start_time = self.sacct_start_time
+            # 2. resolved instance sacct_start_time (config/env absolute)
+            # 3. resolved instance sacct_days_ago (config/env relative, highest)
+            start_time = self.sacct_start_time
             if self.sacct_days_ago is not None:
                 start_time = (
-                    datetime.now() - timedelta(days=int(self.sacct_days_ago))).strftime("%Y-%m-%d")
-            env_start = os.getenv("BIOMERO_SACCT_START_TIME")
-            if env_start:
-                start_time = env_start
-            env_days = os.getenv("BIOMERO_SACCT_START_DAYS_AGO")
-            if env_days:
-                start_time = (
-                    datetime.now() - timedelta(days=int(env_days))).strftime("%Y-%m-%d")
+                    datetime.now() - timedelta(days=int(self.sacct_days_ago))
+                ).strftime("%Y-%m-%d")
         return self._ALL_JOBS_CMD.format(start_time=start_time,
                                          end_time=end_time,
                                          states=states,
@@ -1599,15 +1680,15 @@ class SlurmClient(Connection):
         """
         # add workflow to substitutes
         substitutes['jobname'] = workflow
+        if not self.inject_gpu_flag:
+            substitutes['GPU_FLAG'] = "--nv"
+        if self.env_file_submission:
+            template = self._template_with_env_file_support(template)
         # grab job template
         template_f = files("resources").joinpath(template)
         with template_f.open('r') as f:
             src = Template(f.read())
             job_script = src.safe_substitute(substitutes)
-        if self.env_file_submission:
-            job_script = _inject_env_file_sourcing(job_script)
-        if self.inject_gpu_flag:
-            job_script = _make_gpu_flag_conditional(job_script)
         return job_script
 
     def workflow_params_to_subs(self, params) -> Dict[str, str]:
@@ -1630,7 +1711,8 @@ class SlurmClient(Connection):
         subs['PARAMS'] = " ".join(flags)
         return subs
 
-    _FOLDER_INPUT_TYPES = ('image', 'file', 'array', 'measurement', 'executable')
+    _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
+                           'measurement', 'executable')
 
     # Folder-type inputs that the user can supply as OMERO file-annotation IDs
     # (i.e. not images — those are handled by Image_Transfer).
@@ -1784,7 +1866,8 @@ class SlurmClient(Connection):
                 # so the job script uses $VAR placeholders, not typed defaults.
                 all_params = self.get_workflow_parameters(wf)
                 merged_params = {
-                    k: ({**v, 'type': 'string'} if v.get('file_attachment') else v)
+                    k: ({**v, 'type': 'string'}
+                        if v.get('file_attachment') else v)
                     for k, v in all_params.items()
                 }
                 descriptor = self.generic_descriptor_from_github(wf)
@@ -1855,8 +1938,10 @@ class SlurmClient(Connection):
             )
         # Enrich stored params with server-managed CLI args so the full
         # command is reproducible from task metadata alone.
-        server_params = self._get_server_managed_params(workflow_name, input_data)
-        recorded_params = {**server_params, **kwargs}  # user kwargs take precedence
+        server_params = self._get_server_managed_params(
+            workflow_name, input_data)
+        # user kwargs take precedence
+        recorded_params = {**server_params, **kwargs}
 
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
@@ -2242,7 +2327,8 @@ class SlurmClient(Connection):
             ghfile = github_session.get(f"{base}/{filename}")
             if not ghfile.ok:
                 continue
-            logger.debug(f"Descriptor found: {filename} (cached={ghfile.from_cache})")
+            logger.debug(
+                f"Descriptor found: {filename} (cached={ghfile.from_cache})")
             raw = (ghfile.json() if filename.endswith(".json")
                    else yaml.safe_load(ghfile.text))
             return DescriptorParserFactory.parse_descriptor(
@@ -2410,20 +2496,7 @@ class SlurmClient(Connection):
         model_path = self.slurm_model_paths[workflow.lower()]
         job_script = self.slurm_model_jobs[workflow.lower()]
         job_params = list(self.slurm_model_jobs_params[workflow.lower()])
-        use_gpu_value = kwargs.get("use_gpu")
-        use_gpu = str(use_gpu_value).lower() in ("true", "1", "yes", "y", "on")
-        if use_gpu:
-            # ini sets the base values; env vars allow runtime override
-            gpu_partition = os.getenv("GPU_PARTITION", self.gpu_partition or "")
-            gpu_gres = os.getenv("GPU_GRES", self.gpu_gres or "")
-            if gpu_partition and not any(
-                p.startswith(" --partition=") for p in job_params
-            ):
-                job_params.append(f" --partition={gpu_partition}")
-            if gpu_gres and not any(
-                p.startswith(" --gres=") for p in job_params
-            ):
-                job_params.append(f" --gres={gpu_gres}")
+
         # grab only the image name, not the group/creator
         image = self.slurm_model_images[workflow.lower()].split("/")[1]
 
@@ -2434,6 +2507,26 @@ class SlurmClient(Connection):
             "SINGULARITY_IMAGE": f"\"{image}_{workflow_version}.sif\"",
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
         }
+
+        if self.inject_gpu_flag:
+            # Determine whether to use GPU based on the 'use_gpu' parameter in kwargs
+            # Only if dynamic inject_gpu_flag is enabled
+            use_gpu_value = kwargs.get("use_gpu")
+            use_gpu = str(use_gpu_value).lower() in (
+                "true", "1", "yes", "y", "on")
+
+            if use_gpu:
+                if self.gpu_partition and not any(
+                    p.startswith(" --partition=") for p in job_params
+                ):
+                    job_params.append(f" --partition={self.gpu_partition}")
+                if self.gpu_gres and not any(
+                    p.startswith(" --gres=") for p in job_params
+                ):
+                    job_params.append(f" --gres={self.gpu_gres}")
+                sbatch_env["GPU_FLAG"] = "--nv"
+            else:
+                sbatch_env["GPU_FLAG"] = ""
         if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         workflow_env = self.workflow_params_to_envvars(**kwargs)

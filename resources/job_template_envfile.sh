@@ -14,7 +14,7 @@
 # Define, how long the job will run in real time. This is a hard cap meaning
 # that if the job runs longer than what is written here, it will be
 # force-stopped by the server. If you make the expected time too long, it will
-# take longer for the job to start. 
+# take longer for the job to start.
 # Here, we say the job will get a timeout after 45 minutes.
 #              d-hh:mm:ss
 #SBATCH --time=00:45:00
@@ -36,24 +36,26 @@
 
 # You may not place any commands before the last SBATCH directive
 
+BIOMERO_ENV_FILE="${1:-}"
+if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then
+    . "$BIOMERO_ENV_FILE"
+fi
+
 ##############################
-#       Job script 	         #
+#       Job script           #
 ##############################
 
-# Std out will get parsed into the logfile, so it is useful to log all your steps and variables
 echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | $SCRIPT_PATH | $DO_CONVERT | \
-	$PARAMS" 
+	$PARAMS"
 
-# Load singularity module if needed
 echo "Loading Singularity/Apptainer if needed..."
 module load singularity > /dev/null 2>&1 || true
 
-# We run a (singularity) container with the provided ENV variables.
-# The container is already downloaded as a .simg file at $IMAGE_PATH.
-echo "Running bilayers workflow..."
+echo "Running workflow..."
 singularity run $GPU_FLAG "$IMAGE_PATH/$SINGULARITY_IMAGE" \
-	$INPARAMS \
-	$OUTPARAMS \
+	--infolder "$DATA_PATH/data/in" \
+	--outfolder "$DATA_PATH/data/out" \
+	--gtfolder "$DATA_PATH/data/gt" \
+	--local \
 	$PARAMS \
-	&& echo "Job completed successfully."
-
+	-nmc && echo "Job completed successfully."

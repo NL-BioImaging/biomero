@@ -37,31 +37,35 @@ Out of scope:
 
 ## 1. Configuration Pattern And Precedence
 
-- [ ] Add or refactor a shared internal helper for reading config values with precedence rules.
+- [x] Add or refactor a shared internal helper for reading config values with precedence rules.
   Notes:
   - Goal is to avoid duplicating the same `default -> ini -> env override` logic in multiple places.
   - This likely applies not only to new options, but also to existing options like `sacct_start_time` / `sacct_days_ago`.
   - Helper should support at least: string, boolean, integer, optional-empty-as-None, and possibly custom parsers.
   - Helper should make precedence explicit and testable.
 
-- [ ] Decide and document one consistent precedence model for cluster-specific options.
+- [x] Decide and document one consistent precedence model for cluster-specific options.
   Proposed pattern:
   - code default
   - `slurm-config.ini`
   - environment variable override
   - explicit method argument still wins when applicable
 
-- [ ] Review existing `SACCT_START_TIME` implementation and align newer options with the same pattern.
+- [x] Review existing `SACCT_START_TIME` implementation and align newer options with the same pattern.
   Current implementation anchor:
   - `biomero/slurm_client.py`, `get_jobs_info_command()`
 
-- [ ] Add tests for the shared helper once introduced.
+- [x] Add tests for the shared helper once introduced.
   Include:
   - default only
   - ini only
   - env only
   - ini + env where env wins
   - invalid values falling back safely where appropriate
+  Note:
+  - Current unit suite is green at `314 passed`.
+  - For future test changes in this area, prefer reusing existing fixtures instead
+    of adding more narrowly scoped fixture variants unless there is a clear payoff.
 
 ## 2. SACCT Window Support
 
@@ -70,9 +74,9 @@ Status:
 - Already partially covered by tests.
 - Still needs review as part of the broader patch-removal work.
 
-- [ ] Review the current `sacct_start_time` / `sacct_days_ago` implementation for consistency with the intended extension pattern.
+- [x] Review the current `sacct_start_time` / `sacct_days_ago` implementation for consistency with the intended extension pattern.
 
-- [ ] Review the current test coverage for precedence and keep it green.
+- [x] Review the current test coverage for precedence and keep it green.
   Existing tests already cover:
   - ini absolute date
   - ini relative days
@@ -122,11 +126,29 @@ Status:
 - Started and mostly implemented for generated scripts and workflow command generation.
 - Needs upstream hardening, review, documentation, and explicit support policy.
 
+Open design concern:
+- This may not need runtime script injection at all.
+- For clusters where env propagation into `sbatch` is known at init/config time,
+  a cleaner design may be to deploy an env-file-enabled job template variant
+  during `setup_slurm()` / `update_slurm_scripts()` instead of mutating the
+  generated script text at runtime.
+- Keep runtime behavior only if there is a clear need for per-submission
+  switching on a stable cluster setup.
+
 - [ ] Review `env_file_submission` config parsing in `SlurmClient.from_config()`.
 
 - [ ] Review generated-script env-file injection helper.
   Current implementation anchor:
   - `_inject_env_file_sourcing()` in `biomero/slurm_client.py`
+
+- [ ] Decide whether `env_file_submission` should be a deploy-time template
+  selection instead of a runtime script mutation.
+  Preferred direction to evaluate first:
+  - generate/deploy the correct job template during Slurm init / script update
+  - keep command-side env-file writing in `get_workflow_command()` only when
+    the deployed template expects it
+  - avoid runtime patch-style text injection unless a concrete cluster/runtime
+    use case requires per-job switching
 
 - [ ] Review generated-script use in `generate_slurm_job_for_workflow()`.
 
@@ -167,13 +189,47 @@ Patch intent:
 Status:
 - Started and mostly implemented for generated scripts.
 
+Open design concern:
+- Unlike env-file sourcing, GPU handling has a stronger runtime case because
+  users may toggle `use_gpu` per workflow submission.
+- Even so, prefer evaluating a template-driven approach first
+  (for example, a template path that already uses `$GPU_FLAG` / `USE_GPU`)
+  before keeping runtime text rewriting as the long-term design.
+- Current implementation direction:
+  - template-side runtime bash logic was removed
+  - `$GPU_FLAG` is now intended to be decided by BIOMERO during generation /
+    submission-time substitution
+  - one remaining TODO is to finish the BIOMERO-side substitution path so
+    `inject_gpu_flag` can map to `GPU_FLAG=""` by default and later to
+    user-gated runtime behavior via `USE_GPU`
+
 - [ ] Review `inject_gpu_flag` config parsing in `SlurmClient.from_config()`.
 
-- [ ] Review generated-script GPU normalization helper.
+- [x] Review generated-script GPU normalization helper.
   Current implementation anchor:
   - `_make_gpu_flag_conditional()` in `biomero/slurm_client.py`
+  Note:
+  - the old helper-based test dependency was removed from the active path
+  - current coverage should target generated-template behavior instead of
+    importing the removed helper directly
+
+- [ ] Decide whether GPU support should remain runtime text rewriting or move
+  to a deployed template variant with built-in `USE_GPU` handling.
+  Notes:
+  - runtime need is more defensible here than for env-file sourcing
+  - still prefer template-based deployment if it keeps per-run GPU toggling
+    without patch-style mutation
 
 - [ ] Review generated-script use in `generate_slurm_job_for_workflow()`.
+
+- [x] Complete BIOMERO-side `GPU_FLAG` substitution logic.
+  Desired direction:
+  - backward-compatible default remains `GPU_FLAG="--nv"`
+  - when the dynamic GPU feature is enabled, BIOMERO should substitute
+    `GPU_FLAG` based on runtime workflow intent instead of relying on bash
+    logic embedded in the template
+  - the likely anchor for this is `get_workflow_command()` / the normal
+    workflow submission path, not a template self-check
 
 - [ ] Confirm behavior is idempotent and only affects generated scripts when enabled.
 
@@ -186,6 +242,19 @@ Status:
   - interaction with env-file sourcing when both flags are enabled
 
 - [ ] Document `inject_gpu_flag` in the main docs, not only the sample ini.
+
+- [ ] Evaluate collapsing the generated workflow templates into a single
+  BIOMERO-owned template with substitutions for workflow family differences.
+  Candidate substitutions:
+  - `GPU_FLAG`
+  - `INPARAMS`
+  - `OUTPARAMS`
+  - `PARAMS`
+  - BIAFLOWS-only fixed args such as `--local` and `-nmc`
+  Goal:
+  - avoid maintaining four near-duplicate templates
+  - keep the generated sbatch scripts fully testable and inspectable
+  - keep the logic in BIOMERO generation/substitution, not as runtime patching
 
 ## 6. Dynamic GPU SBATCH Defaults When `use_gpu=true`
 
@@ -206,7 +275,7 @@ Status:
   - then fallback GPU defaults
   - and only when `use_gpu=true`
 
-- [ ] Decide and standardize environment variable naming for GPU fallback overrides.
+- [x] Decide and standardize environment variable naming for GPU fallback overrides.
   Current mismatch:
   - sample patch docstring refers to `BIOMERO_GPU_PARTITION` / `BIOMERO_GPU_GRES`
   - current implementation uses `GPU_PARTITION` / `GPU_GRES`
@@ -215,7 +284,7 @@ Status:
   - optionally accept old names too if already shipped
   - document precedence if both exist
 
-- [ ] Refactor GPU env override parsing through the same shared config helper as other options.
+- [x] Refactor GPU env override parsing through the same shared config helper as other options.
 
 - [ ] Review tests for:
   - `use_gpu=True` adds fallback params
@@ -408,16 +477,16 @@ Likely already implemented but must still be reviewed and treated as real delive
 
 Still genuinely unresolved and requiring design or policy work:
 
-- [ ] shared config/env precedence helper
-- [ ] canonical GPU env var naming
+- [x] shared config/env precedence helper
+- [x] canonical GPU env var naming
 - [ ] official policy for post-processing cloned external job scripts
 - [ ] explicit non-goal documentation for missing external script injection
 - [ ] docs alignment across README, sample config, and prose docs
 
 ## 16. Suggested Implementation Order
 
-- [ ] Step 1: Introduce shared config/env precedence helper and refactor sacct + newer options onto it.
-- [ ] Step 2: Finalize and test canonical env var names, especially GPU-related ones.
+- [x] Step 1: Introduce shared config/env precedence helper and refactor sacct + newer options onto it.
+- [x] Step 2: Finalize and test canonical env var names, especially GPU-related ones.
 - [ ] Step 3: Review and harden env-file submission path for generated scripts and workflow submission.
 - [ ] Step 4: Review and harden generated-script GPU flag injection.
 - [ ] Step 5: Complete docs for all supported optional settings.

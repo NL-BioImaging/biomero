@@ -1,9 +1,7 @@
 import logging
 from uuid import uuid4
 from biomero.slurm_client import (
-    SlurmClient,
-    _inject_env_file_sourcing,
-    _make_gpu_flag_conditional,
+    SlurmClient
 )
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
@@ -36,6 +34,120 @@ class SerializableMagicMock(MagicMock, dict):
         
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+
+
+def test_get_config_value_prefers_env_over_ini():
+    config = MagicMock()
+    config.get.return_value = "ini-value"
+
+    with patch.dict(os.environ, {"TEST_ENV_KEY": "env-value"}, clear=False):
+        value = SlurmClient._get_config_value(
+            config,
+            section="SLURM",
+            option="test_option",
+            default="default-value",
+            env_vars=["TEST_ENV_KEY"],
+        )
+
+    assert value == "env-value"
+
+
+def test_get_config_value_uses_ini_when_env_missing():
+    config = MagicMock()
+    config.get.return_value = "ini-value"
+
+    value = SlurmClient._get_config_value(
+        config,
+        section="SLURM",
+        option="test_option",
+        default="default-value",
+        env_vars=["TEST_ENV_KEY"],
+    )
+
+    assert value == "ini-value"
+
+
+def test_get_config_value_treats_empty_as_none():
+    config = MagicMock()
+    config.get.return_value = ""
+
+    value = SlurmClient._get_config_value(
+        config,
+        section="SLURM",
+        option="test_option",
+        default="default-value",
+        env_vars=None,
+        empty_is_none=True,
+    )
+
+    assert value is None
+
+
+@pytest.mark.parametrize(
+    "ini_value, env_value, expected",
+    [
+        (True, None, True),
+        (False, None, False),
+        (False, "Yes", True),
+        (True, "no", False),
+        (True, "definitely-not-bool", True),
+        (False, "definitely-not-bool", False),
+    ],
+)
+def test_get_config_value_bool_precedence(ini_value, env_value, expected):
+    config = MagicMock()
+    config.getboolean.return_value = ini_value
+
+    env_patch = {}
+    if env_value is not None:
+        env_patch["TEST_BOOL_ENV"] = env_value
+
+    with patch.dict(os.environ, env_patch, clear=False):
+        value = SlurmClient._get_config_value(
+            config,
+            section="SLURM",
+            option="test_bool",
+            default=False,
+            env_vars=["TEST_BOOL_ENV"],
+            value_type=bool,
+        )
+
+    assert value is expected
+
+
+def test_get_config_value_int_invalid_falls_back_to_default():
+    config = MagicMock()
+    config.get.return_value = "not-an-int"
+
+    value = SlurmClient._get_config_value(
+        config,
+        section="SLURM",
+        option="test_int",
+        default=7,
+        env_vars=None,
+        value_type=int,
+    )
+
+    assert value == 7
+
+
+def test_get_config_value_int_invalid_env_falls_back_to_ini_value():
+    config = MagicMock()
+    config.get.return_value = "9"
+
+    with patch.dict(os.environ, {"TEST_INT_ENV": "not-an-int"}, clear=False):
+        value = SlurmClient._get_config_value(
+            config,
+            section="SLURM",
+            option="test_int",
+            default=7,
+            env_vars=["TEST_INT_ENV"],
+            value_type=int,
+        )
+
+    assert value == 9
+
+
 
 @pytest.fixture
 @patch('biomero.slurm_client.Connection.create_session')
@@ -1599,13 +1711,121 @@ def test_workflow_tracker_and_listeners_no_op(
 # Tests for get_jobs_info_command sacct start-time resolution
 # ---------------------------------------------------------------------------
 
-def test_get_jobs_info_command_default_start_time(slurm_client):
+@pytest.fixture
+def slurm_client_from_config_factory():
+    def make_client(config_values=None, env_values=None):
+        configparser_instance = MagicMock()
+        configparser_instance.read.return_value = None
+
+        config_values = config_values or {}
+        env_values = env_values or {}
+
+        value_map = {
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+        }
+
+        for key, value in config_values.items():
+            value_map[('SLURM', key)] = value
+
+        def get_side_effect(section, option, fallback=None):
+            return value_map.get(
+                (section, option),
+                fallback if fallback is not None else 'configvalue',
+            )
+
+        def parse_bool(val):
+            if isinstance(val, bool):
+                return val
+            if isinstance(val, str):
+                return val.strip().lower() in ("1", "true", "yes", "on")
+            return bool(val)
+
+        def getboolean_side_effect(section, option, fallback=None):
+            val = value_map.get((section, option), None)
+            if val is None:
+                return fallback if fallback is not None else False
+            return parse_bool(val)
+
+        configparser_instance.get.side_effect = get_side_effect
+        configparser_instance.getboolean.side_effect = getboolean_side_effect
+        configparser_instance.items.side_effect = lambda section: {
+            k: v for (s, k), v in value_map.items() if s == section
+        }.items()
+
+        env_patch = dict(env_values)
+
+        with patch.dict(os.environ, env_patch, clear=False), \
+             patch('biomero.slurm_client.Connection.create_session'), \
+             patch('biomero.slurm_client.Connection.open'), \
+             patch('biomero.slurm_client.Connection.put'), \
+             patch('biomero.slurm_client.Connection.run'), \
+             patch('biomero.slurm_client.configparser.ConfigParser',
+                   return_value=configparser_instance):
+
+            client = SlurmClient.from_config(
+                configfile='test_config.ini',
+                init_slurm=False,
+                config_only=True,
+            )
+
+            if not getattr(client, "slurm_model_jobs", None):
+                client.slurm_model_jobs = {'cellpose': 'jobs/cellpose.sh'}
+
+            if not getattr(client, "slurm_script_repo", None):
+                client.slurm_script_repo = "gitrepo"
+
+            if not getattr(client, "slurm_script_path", None):
+                client.slurm_script_path = "scriptpath"
+
+            return client
+
+    return make_client
+
+
+@pytest.fixture
+def slurm_configparser_factory():
+    def make_configparser(
+        get_values=None,
+        boolean_values=None,
+        model_items=None,
+        converter_items=None,
+        default_value="configvalue",
+    ):
+        configparser_instance = MagicMock()
+        configparser_instance.read.return_value = None
+        get_values = get_values or {}
+        boolean_values = boolean_values or {}
+        model_items = model_items or {}
+        converter_items = converter_items or {}
+
+        def get_side_effect(section, option, fallback=None):
+            if (section, option) in get_values:
+                return get_values[(section, option)]
+            return default_value
+
+        def getboolean_side_effect(section, option, fallback):
+            return boolean_values.get(option, fallback)
+
+        def items_side_effect(section):
+            if section == "MODELS":
+                return model_items.items()
+            if section == "CONVERTERS":
+                return converter_items.items()
+            return {}.items()
+
+        configparser_instance.get.side_effect = get_side_effect
+        configparser_instance.getboolean.side_effect = getboolean_side_effect
+        configparser_instance.items.side_effect = items_side_effect
+        return configparser_instance
+
+    return make_configparser
+
+def test_get_jobs_info_command_default_start_time(slurm_client_from_config_factory):
     """
     No config, no env vars → backward-compatible default "2023-01-01".
     """
     # GIVEN
-    slurm_client.sacct_start_time = None
-    slurm_client.sacct_days_ago = None
+    slurm_client = slurm_client_from_config_factory()
 
     # WHEN
     cmd = slurm_client.get_jobs_info_command()
@@ -1614,13 +1834,14 @@ def test_get_jobs_info_command_default_start_time(slurm_client):
     assert "--starttime 2023-01-01" in cmd
 
 
-def test_get_jobs_info_command_ini_absolute_date(slurm_client):
+def test_get_jobs_info_command_ini_absolute_date(slurm_client_from_config_factory):
     """
     sacct_start_time set (e.g. from slurm-config.ini) overrides class default.
     """
     # GIVEN
-    slurm_client.sacct_start_time = "2025-01-01"
-    slurm_client.sacct_days_ago = None
+    slurm_client = slurm_client_from_config_factory(
+        config_values={"sacct_start_time": "2025-01-01"}
+    )
 
     # WHEN
     cmd = slurm_client.get_jobs_info_command()
@@ -1630,15 +1851,16 @@ def test_get_jobs_info_command_ini_absolute_date(slurm_client):
     assert "2023-01-01" not in cmd
 
 
-def test_get_jobs_info_command_ini_days_ago_only(slurm_client):
+def test_get_jobs_info_command_ini_days_ago_only(slurm_client_from_config_factory):
     """
     sacct_days_ago alone computes a rolling window from today.
     """
     # GIVEN
-    slurm_client.sacct_start_time = None
-    slurm_client.sacct_days_ago = 30
     from datetime import datetime, timedelta
     expected_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    slurm_client = slurm_client_from_config_factory(
+        config_values={"sacct_days_ago": 30}
+    )
 
     # WHEN
     cmd = slurm_client.get_jobs_info_command()
@@ -1648,15 +1870,16 @@ def test_get_jobs_info_command_ini_days_ago_only(slurm_client):
     assert "2023-01-01" not in cmd
 
 
-def test_get_jobs_info_command_ini_days_ago_overrides_absolute(slurm_client):
+def test_get_jobs_info_command_ini_days_ago_overrides_absolute(slurm_client_from_config_factory):
     """
     sacct_days_ago overrides sacct_start_time when both are set.
     """
     # GIVEN
-    slurm_client.sacct_start_time = "2025-01-01"
-    slurm_client.sacct_days_ago = 7
     from datetime import datetime, timedelta
     expected_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    slurm_client = slurm_client_from_config_factory(
+        config_values={"sacct_start_time": "2025-01-01", "sacct_days_ago": 7},
+    )
 
     # WHEN
     cmd = slurm_client.get_jobs_info_command()
@@ -1666,81 +1889,63 @@ def test_get_jobs_info_command_ini_days_ago_overrides_absolute(slurm_client):
     assert "2025-01-01" not in cmd
 
 
-@patch.dict(os.environ, {"BIOMERO_SACCT_START_TIME": "2024-06-01"})
-def test_get_jobs_info_command_env_absolute_overrides_ini(slurm_client):
-    """
-    BIOMERO_SACCT_START_TIME env var overrides ini absolute date.
-    """
-    # GIVEN
-    slurm_client.sacct_start_time = "2025-01-01"
-    slurm_client.sacct_days_ago = None
-
-    # WHEN
-    cmd = slurm_client.get_jobs_info_command()
-
-    # THEN
-    assert "--starttime 2024-06-01" in cmd
-    assert "2025-01-01" not in cmd
-
-
-@patch.dict(os.environ, {"BIOMERO_SACCT_START_TIME": "2024-06-01"})
-def test_get_jobs_info_command_env_absolute_overrides_days_ago(slurm_client):
-    """
-    BIOMERO_SACCT_START_TIME env var overrides sacct_days_ago.
-    """
-    # GIVEN
-    slurm_client.sacct_start_time = None
-    slurm_client.sacct_days_ago = 7
-
-    # WHEN
-    cmd = slurm_client.get_jobs_info_command()
-
-    # THEN
-    assert "--starttime 2024-06-01" in cmd
-
-
-@patch.dict(os.environ, {
-    "BIOMERO_SACCT_START_TIME": "2024-06-01",
-    "BIOMERO_SACCT_START_DAYS_AGO": "3",
-})
-def test_get_jobs_info_command_env_days_ago_highest_priority(slurm_client):
-    """
-    BIOMERO_SACCT_START_DAYS_AGO has the highest priority, overriding
-    sacct_start_time, sacct_days_ago, and BIOMERO_SACCT_START_TIME.
-    """
-    # GIVEN
-    slurm_client.sacct_start_time = "2025-01-01"
-    slurm_client.sacct_days_ago = 30
-    from datetime import datetime, timedelta
-    expected_date = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
-
-    # WHEN
-    cmd = slurm_client.get_jobs_info_command()
-
-    # THEN
-    assert f"--starttime {expected_date}" in cmd
-    assert "2024-06-01" not in cmd
-    assert "2025-01-01" not in cmd
-
-
-@patch.dict(os.environ, {
-    "BIOMERO_SACCT_START_TIME": "2024-06-01",
-    "BIOMERO_SACCT_START_DAYS_AGO": "3",
-})
-def test_get_jobs_info_command_explicit_arg_bypasses_all(slurm_client):
+def test_get_jobs_info_command_explicit_arg_bypasses_all(slurm_client_from_config_factory):
     """
     An explicit start_time argument always wins over all config and env vars.
     """
     # GIVEN
-    slurm_client.sacct_start_time = "2025-01-01"
-    slurm_client.sacct_days_ago = 7
+    slurm_client = slurm_client_from_config_factory(
+        config_values={"sacct_start_time": "2025-01-01", "sacct_days_ago": 7},
+    )
 
     # WHEN
     cmd = slurm_client.get_jobs_info_command(start_time="2022-03-15")
 
     # THEN
     assert "--starttime 2022-03-15" in cmd
-    assert "2024-06-01" not in cmd
+    assert "2025-01-01" not in cmd
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
+    "BIOMERO_SACCT_START_TIME": "2024-06-01",
+    "BIOMERO_SACCT_START_DAYS_AGO": "not-an-int",
+}, clear=False)
+def test_from_config_invalid_env_days_ago_falls_back(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """Invalid BIOMERO_SACCT_START_DAYS_AGO should preserve the resolved absolute date."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): '2025-01-01',
+            ('SLURM', 'sacct_days_ago'): None,
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+            'env_file_submission': False,
+            'inject_gpu_flag': False,
+        },
+    )
+    
+    # WHEN
+    SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+    
+    # THEN
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['sacct_start_time'] == '2024-06-01'
+    assert kwargs['sacct_days_ago'] is None
 
 
 @patch('biomero.slurm_client.Connection.create_session')
@@ -1751,7 +1956,8 @@ def test_get_jobs_info_command_explicit_arg_bypasses_all(slurm_client):
 @patch('biomero.slurm_client.configparser.ConfigParser')
 def test_from_config(mock_ConfigParser,
                      mock_SlurmClient,
-                     _mock_run, _mock_put, _mock_open, _mock_session):
+                     _mock_run, _mock_put, _mock_open, _mock_session,
+                     slurm_configparser_factory):
     """
     Test the creation of SlurmClient object from a configuration file.
     """
@@ -1760,66 +1966,33 @@ def test_from_config(mock_ConfigParser,
     init_slurm = True
     mock_SlurmClient.return_value = None
     config_only = False
-
-    # Create a MagicMock instance to represent the ConfigParser object
-    mock_configparser_instance = MagicMock()
-
-    # Set the behavior or attributes of the mock_configparser_instance as needed
-    mock_configparser_instance.read.return_value = None
     mv = "configvalue"
-    mock_configparser_instance.get.return_value = mv
-    mock_configparser_instance.getboolean.side_effect = lambda section, option, fallback: {
-        'track_workflows': True,
-        'enable_job_accounting': True,
-        'enable_job_progress': True,
-        'enable_workflow_analytics': True
-    }.get(option, fallback)
-    
-    # Set up mock for 'sqlalchemy_url' and new sacct options
-    mock_configparser_instance.get.side_effect = lambda section, option, fallback=None: {
-        ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
-        ('SLURM', 'sacct_start_time'): None,
-        ('SLURM', 'sacct_days_ago'): None,
-    }.get((section, option), mv)
-    
-    model_dict = {
-        "m1": "v1"
-    }
-    repo_dict = {
-        "m1_repo": "v2"
-    }
-    repo_dict_out = {
-        "m1": "v2"
-    }
-    job_dict = {
-        "m1_job": "v3"
-    }
-    job_dict_out = {
-        "m1": "v3"
-    }
-    jp_dict = {
-        "m1_job_param": "v4"
-    }
-    jp_dict_out = {
-        "m1": [" --param=v4"]
-    }
-    conv_dict = {
-        "zarr_to_tiff": "myconverter"
-    }
+    model_dict = {"m1": "v1"}
+    repo_dict_out = {"m1": "v2"}
+    job_dict_out = {"m1": "v3"}
+    jp_dict_out = {"m1": [" --param=v4"]}
+    conv_dict = {"zarr_to_tiff": "myconverter"}
 
-    # Define a side effect function
-    def items_side_effect(section):
-        if section == "MODELS":
-            return {**model_dict, **repo_dict,
-                    **job_dict, **jp_dict}
-        if section == "CONVERTERS":
-            return conv_dict
-        else:
-            return {}.items()
-
-    mock_configparser_instance.items.side_effect = items_side_effect
-
-    # Configure the MagicMock to return the mock_configparser_instance when called
+    mock_configparser_instance = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): None,
+            ('SLURM', 'sacct_days_ago'): None,
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+        model_items={
+            **model_dict,
+            "m1_repo": "v2",
+            "m1_job": "v3",
+            "m1_job_param": "v4",
+        },
+        converter_items=conv_dict,
+    )
     mock_ConfigParser.return_value = mock_configparser_instance
 
     # WHEN
@@ -2877,142 +3050,104 @@ def test_get_active_job_progress_run_exception(slurm_client):
 
 
 # ---------------------------------------------------------------------------
-# Tests for _inject_env_file_sourcing
-# ---------------------------------------------------------------------------
-
-def test_inject_env_file_sourcing_inserts_after_last_sbatch():
-    script = (
-        "#!/bin/bash\n"
-        "#SBATCH --job-name=test\n"
-        "#SBATCH --ntasks=1\n"
-        "singularity run image.sif\n"
-    )
-    result = _inject_env_file_sourcing(script)
-    lines = result.splitlines()
-    # sourcing block should appear right after the last #SBATCH line (index 2)
-    assert 'BIOMERO_ENV_FILE="${1:-}"' in result
-    sbatch_indices = [i for i, l in enumerate(lines) if l.startswith("#SBATCH")]
-    env_file_index = next(i for i, l in enumerate(lines) if "BIOMERO_ENV_FILE" in l)
-    assert env_file_index == max(sbatch_indices) + 2
-
-
-def test_inject_env_file_sourcing_idempotent():
-    script = (
-        "#!/bin/bash\n"
-        "#SBATCH --job-name=test\n"
-        'BIOMERO_ENV_FILE="${1:-}"\n'
-        "singularity run image.sif\n"
-    )
-    result = _inject_env_file_sourcing(script)
-    assert result == script
-    assert result.count("BIOMERO_ENV_FILE") == 1
-
-
-def test_inject_env_file_sourcing_no_sbatch():
-    # If there are no #SBATCH directives, block is inserted at position 0
-    script = "#!/bin/bash\nsingularity run image.sif\n"
-    result = _inject_env_file_sourcing(script)
-    assert 'BIOMERO_ENV_FILE="${1:-}"' in result
-    assert result.index("BIOMERO_ENV_FILE") < result.index("singularity")
-
-
-# ---------------------------------------------------------------------------
-# Tests for _make_gpu_flag_conditional
-# ---------------------------------------------------------------------------
-
-def test_make_gpu_flag_conditional_replaces_nv():
-    script = (
-        "#!/bin/bash\n"
-        "#SBATCH --job-name=test\n"
-        "singularity run --nv image.sif\n"
-    )
-    result = _make_gpu_flag_conditional(script)
-    assert "GPU_FLAG=" in result
-    assert 'case "${USE_GPU:-}"' in result
-    assert "singularity run $GPU_FLAG" in result
-    assert "singularity run --nv" not in result
-
-
-def test_make_gpu_flag_conditional_no_nv_unchanged():
-    script = (
-        "#!/bin/bash\n"
-        "singularity run image.sif\n"
-    )
-    result = _make_gpu_flag_conditional(script)
-    assert result == script
-
-
-def test_make_gpu_flag_conditional_idempotent():
-    script = (
-        "#!/bin/bash\n"
-        'GPU_FLAG=""\n'
-        "singularity run $GPU_FLAG image.sif\n"
-    )
-    result = _make_gpu_flag_conditional(script)
-    assert result == script
-    assert result.count("GPU_FLAG=") == 1
-
-
-# ---------------------------------------------------------------------------
 # Tests for generate_slurm_job_for_workflow flags (env_file + gpu_flag)
 # ---------------------------------------------------------------------------
 
-@patch('biomero.slurm_client.files')
-def test_generate_job_no_flags(mock_files, slurm_client):
-    """Both flags off: generated script is returned unchanged."""
-    raw = (
-        "#!/bin/bash\n"
-        "#SBATCH --job-name=test\n"
-        "singularity run --nv image.sif\n"
+import pytest
+from unittest.mock import patch
+
+@pytest.mark.parametrize(
+    "inject_gpu_flag, expected",
+    [
+        (False, "--nv"),
+        (True, "$GPU_FLAG"),
+    ],
+)
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
+@patch('biomero.slurm_client.io.StringIO')
+def test_generate_slurm_job_gpu_flag(
+    mock_stringio,
+    mock_descriptor,
+    mock_run,
+    mock_put,
+    _open,
+    _session,
+    slurm_client_from_config_factory,
+    bilayers_descriptor,
+    inject_gpu_flag,
+    expected,
+):
+    descriptor = DescriptorParserFactory.parse_descriptor(
+        bilayers_descriptor
+    ).model_dump(by_alias=True)
+
+    mock_descriptor.return_value = descriptor
+    mock_put.return_value = SerializableMagicMock(ok=True)
+    mock_run.return_value = SerializableMagicMock(ok=True)
+
+    client = slurm_client_from_config_factory(
+        config_values={"inject_gpu_flag": inject_gpu_flag}
     )
-    mock_files.return_value.joinpath.return_value.open.return_value.__enter__ \
-        .return_value.read.return_value = raw
 
-    slurm_client.env_file_submission = False
-    slurm_client.inject_gpu_flag = False
+    client.update_slurm_scripts(generate_jobs=True)
 
-    result = slurm_client.generate_slurm_job_for_workflow("wf", {})
-    assert "BIOMERO_ENV_FILE" not in result
-    assert "GPU_FLAG=" not in result
-    assert "singularity run --nv" in result
+    script = mock_stringio.call_args[0][0]
 
+    assert expected in script
+    
+import pytest
+from unittest.mock import patch
 
-@patch('biomero.slurm_client.files')
-def test_generate_job_env_file_flag(mock_files, slurm_client):
-    """env_file_submission=True injects sourcing; GPU unchanged."""
-    raw = (
-        "#!/bin/bash\n"
-        "#SBATCH --job-name=test\n"
-        "singularity run --nv image.sif\n"
+@pytest.mark.parametrize(
+    "env_file_submission, expected_snippet",
+    [
+        (True, ". \"$BIOMERO_ENV_FILE\""),
+        (False, None),
+    ],
+)
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
+@patch('biomero.slurm_client.io.StringIO')
+def test_generate_slurm_job_env_file_template(
+    mock_stringio,
+    mock_descriptor,
+    mock_run,
+    mock_put,
+    _open,
+    _session,
+    slurm_client_from_config_factory,
+    bilayers_descriptor,
+    env_file_submission,
+    expected_snippet,
+):
+    descriptor = DescriptorParserFactory.parse_descriptor(
+        bilayers_descriptor
+    ).model_dump(by_alias=True)
+
+    mock_descriptor.return_value = descriptor
+    mock_put.return_value = SerializableMagicMock(ok=True)
+    mock_run.return_value = SerializableMagicMock(ok=True)
+
+    client = slurm_client_from_config_factory(
+        config_values={"env_file_submission": env_file_submission}
     )
-    mock_files.return_value.joinpath.return_value.open.return_value.__enter__ \
-        .return_value.read.return_value = raw
 
-    slurm_client.env_file_submission = True
-    slurm_client.inject_gpu_flag = False
+    client.update_slurm_scripts(generate_jobs=True)
 
-    result = slurm_client.generate_slurm_job_for_workflow("wf", {})
-    assert "BIOMERO_ENV_FILE" in result
-    assert "singularity run --nv" in result  # GPU not touched
+    script = mock_stringio.call_args[0][0]
 
-
-@patch('biomero.slurm_client.files')
-def test_generate_job_gpu_flag(mock_files, slurm_client):
-    """inject_gpu_flag=True replaces --nv; env sourcing unchanged."""
-    raw = (
-        "#!/bin/bash\n"
-        "#SBATCH --job-name=test\n"
-        "singularity run --nv image.sif\n"
-    )
-    mock_files.return_value.joinpath.return_value.open.return_value.__enter__ \
-        .return_value.read.return_value = raw
-
-    slurm_client.env_file_submission = False
-    slurm_client.inject_gpu_flag = True
-
-    result = slurm_client.generate_slurm_job_for_workflow("wf", {})
-    assert "GPU_FLAG=" in result
-    assert "BIOMERO_ENV_FILE" not in result  # env sourcing not touched
+    if expected_snippet:
+        assert "BIOMERO_ENV_FILE" in script
+        assert expected_snippet in script
+    else:
+        assert "BIOMERO_ENV_FILE" not in script
 
 
 # ---------------------------------------------------------------------------
@@ -3080,7 +3215,7 @@ def test_get_workflow_command_use_gpu_appends_params(slurm_client):
     slurm_client.slurm_script_path = "/scripts"
     slurm_client.slurm_data_bind_path = None
     slurm_client.env_file_submission = False
-    slurm_client.inject_gpu_flag = False
+    slurm_client.inject_gpu_flag = True
     slurm_client.gpu_partition = "gpu_a100"
     slurm_client.gpu_gres = "gpu:a100:1"
 
@@ -3133,6 +3268,43 @@ def test_get_workflow_command_use_gpu_respects_per_workflow_partition(slurm_clie
     assert "--partition=gpu_a100" not in cmd
 
 
+@patch.dict(os.environ, {
+    "BIOMERO_GPU_PARTITION": "gpu_h100",
+    "BIOMERO_GPU_GRES": "gpu:h100:1",
+}, clear=False)
+def test_get_workflow_command_use_gpu_prefers_biomero_envvars(slurm_client_from_config_factory):
+    """BIOMERO-prefixed GPU env vars should override configured GPU defaults."""
+    # GIVEN
+    slurm_client = slurm_client_from_config_factory(
+        config_values={
+            "sacct_start_time": "2025-01-01",
+            "gpu_partition": "gpu_a100",
+            "gpu_gres": "gpu:a100:1",
+            "slurm_script_path": "/scripts",
+            "slurm_images_path": "/images",
+            "slurm_data_path": "/data",
+            "inject_gpu_flag": True,
+            }
+    )
+    
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    
+    cmd, _ = slurm_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True
+    )
+
+    assert slurm_client.gpu_partition == "gpu_h100"
+    assert slurm_client.gpu_gres == "gpu:h100:1"
+    assert slurm_client.inject_gpu_flag == True
+    assert "--partition=gpu_h100" in cmd
+    assert "--gres=gpu:h100:1" in cmd
+    assert "--partition=gpu_a100" not in cmd
+    assert "--gres=gpu:a100:1" not in cmd
+
+
 # ---------------------------------------------------------------------------
 # Tests for _zip_shell_cmd / get_zip_command
 # ---------------------------------------------------------------------------
@@ -3140,6 +3312,95 @@ def test_get_workflow_command_use_gpu_respects_per_workflow_partition(slurm_clie
 def test_zip_shell_cmd_auto_detect(slurm_client):
     slurm_client.slurm_zip_cmd = None
     assert slurm_client._zip_shell_cmd == "$(command -v 7z || command -v 7za)"
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
+    "BIOMERO_GPU_PARTITION": "gpu_h100",
+    "BIOMERO_GPU_GRES": "gpu:h100:2",
+}, clear=False)
+def test_from_config_biomero_gpu_envvars_override_ini(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """BIOMERO-prefixed GPU env vars should override INI GPU defaults."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): None,
+            ('SLURM', 'sacct_days_ago'): None,
+            ('SLURM', 'gpu_partition'): 'gpu_a100',
+            ('SLURM', 'gpu_gres'): 'gpu:a100:1',
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+    )
+
+    SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['gpu_partition'] == 'gpu_h100'
+    assert kwargs['gpu_gres'] == 'gpu:h100:2'
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
+    "BIOMERO_ENV_FILE_SUBMISSION": "yes",
+}, clear=False)
+def test_from_config_new_option_parsing_uses_helper(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """Newer config options should follow shared parsing semantics."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): '',
+            ('SLURM', 'sacct_days_ago'): '',
+            ('SLURM', 'slurm_data_bind_path'): '',
+            ('SLURM', 'slurm_conversion_partition'): '',
+            ('SLURM', 'slurm_zip_cmd'): '',
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+            'env_file_submission': False,
+            'inject_gpu_flag': False,
+        },
+    )
+    
+    # WHEN
+    # Call the class method that uses configparser
+    SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    # THEN
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['sacct_start_time'] is None
+    assert kwargs['sacct_days_ago'] is None
+    assert kwargs['slurm_data_bind_path'] is None
+    assert kwargs['slurm_conversion_partition'] is None
+    assert kwargs['slurm_zip_cmd'] is None
+    assert kwargs['env_file_submission'] is True
 
 
 def test_zip_shell_cmd_explicit(slurm_client):

@@ -48,33 +48,10 @@ echo "Running $jobname Job w/ $IMAGE_PATH | $SINGULARITY_IMAGE | $DATA_PATH | $S
 echo "Loading Singularity/Apptainer if needed..."
 module load singularity > /dev/null 2>&1 || true
 
-# WE MOVED THIS CONVERSION LOGIC TO A SEPARATE BIOMERO FUNCTION
-# APPLYING IT HERE HAS A POSSIBILITY TO CLOG THE QUEUE AND TIMEOUT WHILE WAITING
-# SEE https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO/issues/6
-# # Convert datatype if needed
-# echo "Preprocessing data..."
-# if $DO_CONVERT; then
-#     # Generate a unique config file name using job ID
-#     CONFIG_FILE="config_${SLURM_JOB_ID}.txt"
-
-#     # Find all .zarr files and generate a config file
-#     find "$DATA_PATH/data/in" -name "*.zarr" | awk '{print NR, $0}' > "$CONFIG_FILE"
-
-#     # Get the total number of .zarr files
-#     N=$(wc -l < "$CONFIG_FILE")
-#     echo "Number of .zarr files: $N"
-
-#     # Submit the conversion job array and wait for it to complete
-#     sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh
-
-#     # Remove the config file after the conversion is done
-#     rm "$CONFIG_FILE"
-# fi
-
 # We run a (singularity) container with the provided ENV variables.
 # The container is already downloaded as a .simg file at $IMAGE_PATH.
 echo "Running workflow..."
-singularity run --nv "$IMAGE_PATH/$SINGULARITY_IMAGE" \
+singularity run $GPU_FLAG "$IMAGE_PATH/$SINGULARITY_IMAGE" \
 	--infolder "$DATA_PATH/data/in" \
 	--outfolder "$DATA_PATH/data/out" \
 	--gtfolder "$DATA_PATH/data/gt" \

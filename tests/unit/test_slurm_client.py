@@ -264,7 +264,7 @@ def test_get_unzip_command(slurm_client):
     # GIVEN
     slurm_data_path = "/path/to/slurm/data"
     slurm_client.slurm_data_path = slurm_data_path
-    slurm_client.slurm_zip_cmd = None  # auto-detect
+    slurm_client.slurm_zip_cmd = SlurmClient._DEFAULT_SLURM_ZIP_CMD
     zipfile = "example"
     filter_filetypes = "*.zarr *.ome.zarr *.tiff *.tif"
     auto = "$(command -v 7z || command -v 7za)"
@@ -338,6 +338,7 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # GIVEN
     data_location = "/local/path/to/store"
     filename = "example_zip"
+    slurm_client.slurm_zip_cmd = SlurmClient._DEFAULT_SLURM_ZIP_CMD
 
     # WHEN
     result = slurm_client.zip_data_on_slurm_server(data_location, filename)
@@ -3356,9 +3357,40 @@ def test_get_workflow_command_use_gpu_prefers_biomero_envvars(slurm_client_from_
 # Tests for _zip_shell_cmd / get_zip_command
 # ---------------------------------------------------------------------------
 
-def test_zip_shell_cmd_auto_detect(slurm_client):
-    slurm_client.slurm_zip_cmd = None
-    assert slurm_client._zip_shell_cmd == "$(command -v 7z || command -v 7za)"
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
+    "BIOMERO_SLURM_ZIP_CMD": "7za",
+}, clear=False)
+def test_from_config_biomero_slurm_zip_cmd_env_override(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """BIOMERO-prefixed zip env var should override INI/default zip command."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'slurm_zip_cmd'): '',
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+    )
+
+    SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['slurm_zip_cmd'] == '7za'
 
 
 @patch('biomero.slurm_client.Connection.create_session')
@@ -3450,23 +3482,86 @@ def test_from_config_new_option_parsing_uses_helper(
     assert kwargs['env_file_submission'] is True
 
 
-def test_zip_shell_cmd_explicit(slurm_client):
-    slurm_client.slurm_zip_cmd = "7za"
-    assert slurm_client._zip_shell_cmd == "7za"
+@pytest.mark.parametrize(
+    "ini_value, env_value, expected",
+    [
+        (None, None, SlurmClient._DEFAULT_SLURM_ZIP_CMD),
+        ("7za", None, "7za"),
+        ("7za", "7z", "7z"),
+    ],
+)
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+def test_from_config_slurm_zip_cmd_precedence(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        ini_value, env_value, expected,
+        slurm_configparser_factory):
+    """slurm_zip_cmd resolves by default, then INI, then BIOMERO env override."""
+    mock_SlurmClient.return_value = None
+
+    get_values = {
+        ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+    }
+    if ini_value is not None:
+        get_values[('SLURM', 'slurm_zip_cmd')] = ini_value
+
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values=get_values,
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+        default_value=SlurmClient._DEFAULT_SLURM_ZIP_CMD,
+    )
+
+    env_patch = {}
+    if env_value is not None:
+        env_patch['BIOMERO_SLURM_ZIP_CMD'] = env_value
+
+    with patch.dict(os.environ, env_patch, clear=False):
+        SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['slurm_zip_cmd'] == expected
 
 
 def test_get_zip_command_auto_detect(slurm_client):
-    slurm_client.slurm_zip_cmd = None
+    slurm_client.slurm_zip_cmd = SlurmClient._DEFAULT_SLURM_ZIP_CMD
     cmd = slurm_client.get_zip_command("/data/loc", "result")
     assert "$(command -v 7z || command -v 7za)" in cmd
     assert 'cd "/data/loc/data/out"' in cmd
     assert '"/data/loc/result.zip"' in cmd
 
 
+def test_get_unzip_command_auto_detect_uses_resolved_default(slurm_client):
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_zip_cmd = SlurmClient._DEFAULT_SLURM_ZIP_CMD
+    cmd = slurm_client.get_unzip_command("batch1")
+    assert "$(command -v 7z || command -v 7za) x -y" in cmd
+    assert 'mkdir -p "/data/batch1"' in cmd
+    assert '"/data/batch1.zip"' in cmd
+
+
 def test_get_zip_command_explicit(slurm_client):
     slurm_client.slurm_zip_cmd = "7za"
     cmd = slurm_client.get_zip_command("/data/loc", "result")
     assert cmd.startswith('cd "/data/loc/data/out" && 7za a -y')
+    assert "command -v" not in cmd
+
+
+def test_get_unzip_command_explicit_uses_configured_zip_cmd(slurm_client):
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_zip_cmd = "7za"
+    cmd = slurm_client.get_unzip_command("batch1")
+    assert "7za x -y" in cmd
     assert "command -v" not in cmd
 
 

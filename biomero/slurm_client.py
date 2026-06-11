@@ -269,6 +269,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
+    _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -279,8 +280,6 @@ class SlurmClient(Connection):
     # Data could legit be empty.
     _DATA_CMD = "ls -h \"{slurm_data_path}\" | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
-    # default; overridden by slurm_zip_cmd
-    _ZIP_CMD = "cd \"{data_location}/data/out\" && ZIP_CMD=$(command -v 7z || command -v 7za) && \"$ZIP_CMD\" a -y \"{data_location}/{filename}.zip\" -tzip ."
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
     # TODO move all commands to a similar format.
@@ -1153,7 +1152,8 @@ class SlurmClient(Connection):
             configs,
             section="SLURM",
             option="slurm_zip_cmd",
-            default=None,
+            default=cls._DEFAULT_SLURM_ZIP_CMD,
+            env_vars=[slurm_env.BIOMERO_SLURM_ZIP_CMD],
             empty_is_none=True,
         )
 
@@ -2747,17 +2747,6 @@ class SlurmClient(Connection):
         logger.info(f"Zipping {data_location} as {filename} on Slurm")
         return self.run_commands([zip_cmd], env=env)
 
-    @property
-    def _zip_shell_cmd(self) -> str:
-        """Shell expression that resolves to the zip utility on the cluster.
-
-        Uses the value of ``slurm_zip_cmd`` from the config when set;
-        otherwise falls back to auto-detecting ``7z`` or ``7za`` at runtime.
-        """
-        if self.slurm_zip_cmd:
-            return self.slurm_zip_cmd
-        return "$(command -v 7z || command -v 7za)"
-
     def get_zip_command(self, data_location: str, filename: str) -> str:
         """
         Generate a command string for zipping the data on Slurm.
@@ -2772,7 +2761,7 @@ class SlurmClient(Connection):
         """
         return (
             f"cd \"{data_location}/data/out\" && "
-            f"{self._zip_shell_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
+            f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
         )
 
     def get_logfile_from_slurm(self,
@@ -2839,7 +2828,7 @@ class SlurmClient(Connection):
             f" \"{self.slurm_data_path}/{zipfile}/data/in\""
             f" \"{self.slurm_data_path}/{zipfile}/data/out\""
             f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
-            f" {self._zip_shell_cmd} x -y"
+            f" {self.slurm_zip_cmd} x -y"
             f" -o\"{self.slurm_data_path}/{zipfile}/data/in\""
             f" \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
         )

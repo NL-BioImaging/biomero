@@ -288,6 +288,11 @@ class SlurmClient(Connection):
     _CONVERTER_LOGFILE = "\"slurm-{slurm_job_id}\"_*.out"
     _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
     _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"
+    _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
+                           'measurement', 'executable')
+    # Folder-type inputs that the user can supply as OMERO file-annotation IDs
+    # (i.e. not images — those are handled by Image_Transfer).
+    _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
 
     @staticmethod
     def _get_config_value(configs,
@@ -883,9 +888,27 @@ class SlurmClient(Connection):
         r = self.run_commands(convert_cmds)
 
         # copy generic job array script over to slurm
+        new_var = "convert_job_array.sh"
         convert_job_local = files("resources").joinpath(
-            "convert_job_array.sh")
-        _ = self.put(local=convert_job_local,
+            new_var)
+        
+        optional_env = ""
+        if self.env_file_submission:
+            optional_env = (
+                'BIOMERO_ENV_FILE="${1:-}"\n'
+                'if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then\n'
+                '    . "$BIOMERO_ENV_FILE"\n'
+                'fi'
+            )
+        substitutes = {
+            'OPTIONAL_ENV': optional_env,
+        }
+        with convert_job_local.open('r') as f:
+            src = Template(f.read())
+            convert_script = src.safe_substitute(substitutes)
+            logger.debug(f"substituted: {convert_script}")
+        
+        _ = self.put(local=io.StringIO(convert_script),
                      remote=self.slurm_script_path)
 
         # PULL converter if provided in config
@@ -1734,13 +1757,6 @@ class SlurmClient(Connection):
             'EXTRAPARAMS': '--local -nmc',
         }
 
-    _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
-                           'measurement', 'executable')
-
-    # Folder-type inputs that the user can supply as OMERO file-annotation IDs
-    # (i.e. not images — those are handled by Image_Transfer).
-    _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
-
     def get_file_attachment_params(self, workflow: str) -> Dict[str, Dict[str, Any]]:
         """Return only the file-attachment params for a workflow.
 
@@ -2558,6 +2574,7 @@ class SlurmClient(Connection):
         job_param = "".join(job_params)
 
         if self.env_file_submission:
+            logger.debug(f"Using env file submission for workflow {workflow}: {env}")
             env_file = f"{self.slurm_data_path}/{input_data}/biomero_job_env.sh"
             env_lines = "\n".join(
                 f"export {key}={shlex.quote(str(value).strip(chr(34)))}"
@@ -2631,9 +2648,26 @@ class SlurmClient(Connection):
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         if self.slurm_conversion_partition:
             sbatch_env["CONVERSION_PARTITION"] = f"\"{self.slurm_conversion_partition}\""
-
+        
         conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
-        # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
+        
+        if self.env_file_submission:
+            logger.debug(f"Using env file submission for conversion with env: {sbatch_env}")
+            env_file = f"{data_path}/biomero_job_env.sh"
+            env_lines = "\n".join(
+                f"export {key}={shlex.quote(str(value).strip(chr(34)))}"
+                for key, value in sbatch_env.items()
+            )
+            write_env_cmd = (
+                f"cat > {shlex.quote(env_file)} <<'BIOMERO_ENV'\n"
+                f"{env_lines}\n"
+                "BIOMERO_ENV\n"
+            )
+            env_conversion_cmd = (
+                f"{write_env_cmd}"
+                f"{conversion_cmd} {shlex.quote(env_file)}"
+            )
+            return env_conversion_cmd, {}, chosen_converter, version
 
         return conversion_cmd, sbatch_env, chosen_converter, version
 

@@ -506,7 +506,56 @@ def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_clien
     assert slurm_job.job_id == -1
     assert slurm_job.submit_result.ok
     assert slurm_job.job_state is None
-    
+
+@pytest.mark.parametrize(
+    "env_file_submission",
+    [False, True],
+)
+def test_get_conversion_command(slurm_client, env_file_submission):
+    # GIVEN
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.slurm_data_bind_path = "/bind/path"
+    slurm_client.slurm_conversion_partition = "gpu"
+    slurm_client.env_file_submission = env_file_submission
+
+    data_path = "/data"
+    config_file = "config.cfg"
+
+    # WHEN
+    cmd, env, image, version = slurm_client.get_conversion_command(
+        data_path,
+        config_file,
+    )
+
+    # THEN
+    assert image == "convert_zarr_to_tiff_latest.sif"
+    assert version == "latest"
+
+    if env_file_submission:
+        assert env == {}
+        assert "cat > /data/biomero_job_env.sh" in cmd
+        assert "export DATA_PATH=/data" in cmd
+        assert "export CONVERSION_PATH=/path/to/converters" in cmd
+        assert "export CONVERSION_PARTITION=gpu" in cmd
+        assert "--array=1-$N" in cmd
+        assert 'sbatch --job-name=conversion' in cmd
+        assert '/data/biomero_job_env.sh' in cmd
+    else:
+        assert cmd == (
+            'sbatch --job-name=conversion '
+            '--export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" '
+            '--array=1-$N "$SCRIPT_PATH/convert_job_array.sh"'
+        )
+        assert env == {
+            "DATA_PATH": '"/data"',
+            "CONVERSION_PATH": '"/path/to/converters"',
+            "CONVERTER_IMAGE": "convert_zarr_to_tiff_latest.sif",
+            "SCRIPT_PATH": '"/path/to/scripts"',
+            "CONFIG_FILE": '"config.cfg"',
+            "APPTAINER_BINDPATH": '"/bind/path"',
+            "CONVERSION_PARTITION": '"gpu"',
+        }    
     
 @pytest.mark.parametrize(
     "source_format, target_format, data_bind_path, conversion_partition",
@@ -2207,6 +2256,59 @@ def test_setup_slurm(_mock_CachedSession,
         local=mock_stringio(), remote=f'{ipath}/{script_name}')
     mock_run.assert_any_call([f"time sh {script_name}"])
 
+
+@pytest.mark.parametrize(
+    "env_file_submission, expected",
+    [
+        (False, False),
+        (True, True),
+    ],
+)
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.cd')   # <-- IMPORTANT
+@patch('biomero.slurm_client.io.StringIO')
+def test_setup_converters_env_file_template(
+    mock_stringio,
+    mock_cd,
+    mock_run,
+    mock_run2,
+    mock_put,
+    _open,
+    _session,
+    env_file_submission,
+    expected,
+):
+    # make cd a no-op context manager
+    mock_cd.return_value.__enter__.return_value = None
+    mock_cd.return_value.__exit__.return_value = None
+
+    client = SlurmClient(
+        "localhost",
+        8022,
+        "slurm",
+        slurm_script_path="scriptpath",
+        slurm_converters_path="converterspath",
+    )
+
+    client.env_file_submission = env_file_submission
+
+    mock_run.return_value = MagicMock(ok=True)
+    mock_run2.return_value.ok = True
+    mock_put.return_value = MagicMock(ok=True)
+
+    client.setup_converters()
+
+    script = mock_stringio.call_args_list[0][0][0]
+    print(script)
+    if expected:
+        assert "BIOMERO_ENV_FILE" in script
+        assert '. "$BIOMERO_ENV_FILE"' in script
+    else:
+        assert "BIOMERO_ENV_FILE" not in script
 
 @patch('biomero.slurm_client.SlurmClient.run')
 @patch('biomero.slurm_client.SlurmClient.setup_slurm')

@@ -96,17 +96,17 @@ Patch intent:
 Status:
 - Largely implemented already.
 
-- [ ] Review `_zip_shell_cmd`, `get_zip_command()`, and `get_unzip_command()` for completeness.
+- [x] Review `_zip_shell_cmd`, `get_zip_command()`, and `get_unzip_command()` for completeness.
   Current implementation anchors:
   - `_zip_shell_cmd` property in `biomero/slurm_client.py`
   - `get_zip_command()` in `biomero/slurm_client.py`
   - `get_unzip_command()` in `biomero/slurm_client.py`
 
-- [ ] Confirm every zip/unzip call site uses the helper instead of embedding `7z` directly.
+- [x] Confirm every zip/unzip call site uses the helper instead of embedding `7z` directly.
 
-- [ ] Keep `mkdir -p` idempotent extraction behavior as the canonical implementation.
+- [x] Keep `mkdir -p` idempotent extraction behavior as the canonical implementation.
 
-- [ ] Review and keep tests for:
+- [x] Review and keep tests for:
   - auto-detect expression
   - explicit `slurm_zip_cmd`
   - unzip command assembly
@@ -142,7 +142,7 @@ Open design concern:
   Current implementation anchor:
   - `_inject_env_file_sourcing()` in `biomero/slurm_client.py`
 
-- [ ] Decide whether `env_file_submission` should be a deploy-time template
+- [x] Decide whether `env_file_submission` should be a deploy-time template
   selection instead of a runtime script mutation.
   Preferred direction to evaluate first:
   - generate/deploy the correct job template during Slurm init / script update
@@ -160,13 +160,14 @@ Open design concern:
   - argument passing to `sbatch`
   - returned env dict behavior
 
-- [ ] Decide and document the relationship between:
+- [x] Decide and document the relationship between:
   - `inline_ssh_env`
   - `env_file_submission`
   Notes:
-  - default backward-compatible behavior should remain unchanged
-  - `env_file_submission=false` should continue to preserve existing behavior
-  - when both are conceptually available, docs should explain which transport is used
+  - default backward-compatible behavior should remain unchanged -> inline defaults to true, env_file false
+  - `env_file_submission=false` should continue to preserve existing behavior -> yes
+  - when both are conceptually available, docs should explain which transport is used -> env_file wins. 
+  Part of documentation perhaps.
 
 - [ ] Add or review tests for values that need shell quoting in env-file mode.
   Include examples with:
@@ -179,7 +180,10 @@ Open design concern:
   - current tests cover the env-file submission path and basic command generation
   - targeted quoting edge-case coverage still looks worth adding
 
-- [ ] Verify whether conversion jobs also need an env-file-based path, or whether current conversion handling is sufficient.
+- [x] Verify whether conversion jobs also need an env-file-based path, or whether current conversion handling is sufficient.
+  - Seems needed to me. Added the new features gated by env_file_submission. Writes also BIOMERO_ENV_FILE stuff into the $OPTIONAL_ENV of the script on setup.
+  - On runtime at get_conversion_command, it also puts the envs into a file and provides that as part of the command - instead of giving the env to connection. gated by env_file_submission.
+  - Should have backwards compatible equal old behavior.
 
 - [ ] Document `env_file_submission` in the main docs, not only the sample ini.
 

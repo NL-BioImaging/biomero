@@ -1070,9 +1070,19 @@ def test_update_slurm_scripts(mock_generic_descriptor, mock_is_bilayers,
     mock_workflow_params_to_subs.assert_called_once_with(
         {'param1': {'cmd_flag': '--param1', 'name': 'param1_name'}})
 
-    # Assert that the job script is generated (non-bilayers uses default template)
+    # Assert that the job script is generated from the shared template with
+    # biaflows-style substitutions.
     mock_generate_job.assert_called_once_with(
-        "workflow_name", {'PARAMS': '--param1 $PARAM1_NAME'}, "job_template.sh")
+        "workflow_name",
+        {
+            'PARAMS': '--param1 $PARAM1_NAME',
+            'OPTIONAL_ENV': '',
+            'WF_TYPE': 'biaflows',
+            'INPARAMS': '--infolder "$DATA_PATH/data/in" --gtfolder "$DATA_PATH/data/gt"',
+            'OUTPARAMS': '--outfolder "$DATA_PATH/data/out"',
+            'EXTRAPARAMS': '--local -nmc',
+        },
+        "job_template.sh")
 
     # Assert that the remote directories are created
     mock_run.assert_called_with("mkdir -p \"scriptpath\"")
@@ -1297,7 +1307,7 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
                                        mock_put, mock_run, _mock_open,
                                        _mock_session, mock_stringio,
                                        bilayers_descriptor):
-    """Bilayers workflow: uses job_template_bilayers.sh, INPARAMS/OUTPARAMS substituted,
+    """Bilayers workflow: uses the shared job template with INPARAMS/OUTPARAMS substituted,
     image/file folder inputs excluded from PARAMS.
 
     Only SSH and GitHub calls are mocked; all template/param logic runs for real
@@ -1317,7 +1327,7 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
 
     # WHEN — _is_bilayers_workflow, workflow_bilayers_folder_params_to_subs,
     # workflow_params_to_subs, get_workflow_parameters, and
-    # generate_slurm_job_for_workflow (reads real job_template_bilayers.sh) all run
+    # generate_slurm_job_for_workflow (reads real shared job_template.sh) all run
     slurm_client.update_slurm_scripts(generate_jobs=True)
 
     generated_script = mock_stringio.call_args[0][0]
@@ -1333,15 +1343,52 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
     # output 'omezarr_images' has cli_tag "None" → no OUTPARAMS from outputs[]
     # but save_dir has output_dir_set=True → routed to OUTPARAMS
     assert '--savedir="$DATA_PATH/data/out"' in generated_script
+    assert 'Running bilayers' in generated_script
 
     # regular params are present; image/file inputs are NOT in PARAMS
     assert '--diameter="$DIAMETER"' in generated_script
     assert '--dir="$DIR"' not in generated_script
     assert '--savedir="$SAVE_DIR"' not in generated_script
+    assert '--local -nmc' not in generated_script
 
     # script pushed to correct remote path
     mock_put.assert_called_once_with(
         local=mock_stringio(generated_script), remote="scriptpath/jobs/cellpose.sh")
+
+
+@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
+def test_update_slurm_scripts_bilayers_with_env_file(mock_generic_descriptor,
+                                                     mock_put, mock_run, _mock_open,
+                                                     _mock_session, mock_stringio,
+                                                     bilayers_descriptor):
+    """Bilayers workflow with env-file submission should render the shared
+    OPTIONAL_ENV block into the single shared template."""
+    descriptor = DescriptorParserFactory.parse_descriptor(
+        bilayers_descriptor).model_dump(by_alias=True)
+    mock_generic_descriptor.return_value = descriptor
+    mock_put.return_value = SerializableMagicMock(ok=True)
+    mock_run.return_value = SerializableMagicMock(ok=True)
+
+    slurm_client = SlurmClient(
+        "localhost", 8022, "slurm", slurm_script_repo="gitrepo",
+        slurm_script_path="scriptpath",
+        slurm_model_jobs={'cellpose': 'jobs/cellpose.sh'},
+        env_file_submission=True)
+
+    slurm_client.update_slurm_scripts(generate_jobs=True)
+
+    generated_script = mock_stringio.call_args[0][0]
+
+    assert 'BIOMERO_ENV_FILE="${1:-}"' in generated_script
+    assert '. "$BIOMERO_ENV_FILE"' in generated_script
+    assert 'Running bilayers workflow...' in generated_script
+    assert '--dir="$DATA_PATH/data/in"' in generated_script
+    assert '--savedir="$DATA_PATH/data/out"' in generated_script
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')

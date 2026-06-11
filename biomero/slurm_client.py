@@ -570,13 +570,6 @@ class SlurmClient(Connection):
         else:
             logger.warning("Setup SlurmClient for config only")
 
-    def _template_with_env_file_support(self, template: str) -> str:
-        if template == "job_template.sh":
-            return "job_template_envfile.sh"
-        if template == "job_template_bilayers.sh":
-            return "job_template_bilayers_envfile.sh"
-        return template   
-    
     def initialize_analytics_system(self, reset_tables=False):
         """
         Initialize the analytics system based on the analytics configuration
@@ -1682,8 +1675,6 @@ class SlurmClient(Connection):
         substitutes['jobname'] = workflow
         if not self.inject_gpu_flag:
             substitutes['GPU_FLAG'] = "--nv"
-        if self.env_file_submission:
-            template = self._template_with_env_file_support(template)
         # grab job template
         template_f = files("resources").joinpath(template)
         with template_f.open('r') as f:
@@ -1710,6 +1701,38 @@ class SlurmClient(Connection):
             flags.append(flag)
         subs['PARAMS'] = " ".join(flags)
         return subs
+
+    def workflow_template_subs(self, descriptor: Dict) -> Dict[str, str]:
+        """Build shared-template substitutions for workflow family differences."""
+        optional_env = ""
+        if self.env_file_submission:
+            optional_env = (
+                'BIOMERO_ENV_FILE="${1:-}"\n'
+                'if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then\n'
+                '    . "$BIOMERO_ENV_FILE"\n'
+                'fi'
+            )
+
+        if self._is_bilayers_workflow(descriptor):
+            folder_subs = self.workflow_bilayers_folder_params_to_subs(descriptor)
+            return {
+                'OPTIONAL_ENV': optional_env,
+                'WF_TYPE': 'bilayers',
+                'INPARAMS': folder_subs['INPARAMS'],
+                'OUTPARAMS': folder_subs['OUTPARAMS'],
+                'EXTRAPARAMS': '',
+            }
+
+        return {
+            'OPTIONAL_ENV': optional_env,
+            'WF_TYPE': 'biaflows',
+            'INPARAMS': ' '.join([
+                '--infolder "$DATA_PATH/data/in"',
+                '--gtfolder "$DATA_PATH/data/gt"',
+            ]),
+            'OUTPARAMS': '--outfolder "$DATA_PATH/data/out"',
+            'EXTRAPARAMS': '--local -nmc',
+        }
 
     _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
                            'measurement', 'executable')
@@ -1871,15 +1894,11 @@ class SlurmClient(Connection):
                     for k, v in all_params.items()
                 }
                 descriptor = self.generic_descriptor_from_github(wf)
-                if self._is_bilayers_workflow(descriptor):
-                    template = "job_template_bilayers.sh"
-                    folder_subs = self.workflow_bilayers_folder_params_to_subs(
-                        descriptor)
-                    subs = {**self.workflow_params_to_subs(merged_params),
-                            **folder_subs}
-                else:
-                    template = "job_template.sh"
-                    subs = self.workflow_params_to_subs(merged_params)
+                template = "job_template.sh"
+                subs = {
+                    **self.workflow_params_to_subs(merged_params),
+                    **self.workflow_template_subs(descriptor),
+                }
                 job_script = self.generate_slurm_job_for_workflow(
                     wf, subs, template)
                 # ensure all dirs exist remotely

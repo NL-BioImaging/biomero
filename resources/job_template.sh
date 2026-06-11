@@ -36,6 +36,8 @@
 
 # You may not place any commands before the last SBATCH directive
 
+$OPTIONAL_ENV
+
 ##############################
 #       Job script 	         #
 ##############################
@@ -50,12 +52,10 @@ module load singularity > /dev/null 2>&1 || true
 
 # We run a (singularity) container with the provided ENV variables.
 # The container is already downloaded as a .simg file at $IMAGE_PATH.
-echo "Running workflow..."
+echo "Running $WF_TYPE workflow..."
 singularity run $GPU_FLAG "$IMAGE_PATH/$SINGULARITY_IMAGE" \
-	--infolder "$DATA_PATH/data/in" \
-	--outfolder "$DATA_PATH/data/out" \
-	--gtfolder "$DATA_PATH/data/gt" \
-	--local \
+	$INPARAMS \
+	$OUTPARAMS \
 	$PARAMS \
-	-nmc && echo "Job completed successfully."
+	$EXTRAPARAMS && echo "Job completed successfully."
 

@@ -123,8 +123,9 @@ Patch intent:
 - Must remain off by default.
 
 Status:
-- Started and mostly implemented for generated scripts and workflow command generation.
-- Needs upstream hardening, review, documentation, and explicit support policy.
+- Implemented in core for generated scripts and workflow command generation.
+- Test coverage exists for generated template injection and submission command generation.
+- Remaining work is review, docs alignment, and explicit support policy.
 
 Open design concern:
 - This may not need runtime script injection at all.
@@ -135,9 +136,9 @@ Open design concern:
 - Keep runtime behavior only if there is a clear need for per-submission
   switching on a stable cluster setup.
 
-- [ ] Review `env_file_submission` config parsing in `SlurmClient.from_config()`.
+- [x] Review `env_file_submission` config parsing in `SlurmClient.from_config()`.
 
-- [ ] Review generated-script env-file injection helper.
+- [x] Review generated-script env-file injection helper.
   Current implementation anchor:
   - `_inject_env_file_sourcing()` in `biomero/slurm_client.py`
 
@@ -150,9 +151,9 @@ Open design concern:
   - avoid runtime patch-style text injection unless a concrete cluster/runtime
     use case requires per-job switching
 
-- [ ] Review generated-script use in `generate_slurm_job_for_workflow()`.
+- [x] Review generated-script use in `generate_slurm_job_for_workflow()`.
 
-- [ ] Review `get_workflow_command()` env-file submission path.
+- [x] Review `get_workflow_command()` env-file submission path.
   Verify:
   - env file path location
   - quoting
@@ -174,6 +175,9 @@ Open design concern:
   - hyphens
   - booleans
   - numeric values
+  Status note:
+  - current tests cover the env-file submission path and basic command generation
+  - targeted quoting edge-case coverage still looks worth adding
 
 - [ ] Verify whether conversion jobs also need an env-file-based path, or whether current conversion handling is sufficient.
 
@@ -187,7 +191,8 @@ Patch intent:
 - Must remain off by default.
 
 Status:
-- Started and mostly implemented for generated scripts.
+- Implemented in core for generated scripts and submission-time GPU flag substitution.
+- Test coverage exists for generated template behavior and workflow command GPU handling.
 
 Open design concern:
 - Unlike env-file sourcing, GPU handling has a stronger runtime case because
@@ -203,7 +208,7 @@ Open design concern:
     `inject_gpu_flag` can map to `GPU_FLAG=""` by default and later to
     user-gated runtime behavior via `USE_GPU`
 
-- [ ] Review `inject_gpu_flag` config parsing in `SlurmClient.from_config()`.
+- [x] Review `inject_gpu_flag` config parsing in `SlurmClient.from_config()`.
 
 - [x] Review generated-script GPU normalization helper.
   Current implementation anchor:
@@ -220,7 +225,7 @@ Open design concern:
   - still prefer template-based deployment if it keeps per-run GPU toggling
     without patch-style mutation
 
-- [ ] Review generated-script use in `generate_slurm_job_for_workflow()`.
+- [x] Review generated-script use in `generate_slurm_job_for_workflow()`.
 
 - [x] Complete BIOMERO-side `GPU_FLAG` substitution logic.
   Desired direction:
@@ -231,19 +236,22 @@ Open design concern:
   - the likely anchor for this is `get_workflow_command()` / the normal
     workflow submission path, not a template self-check
 
-- [ ] Confirm behavior is idempotent and only affects generated scripts when enabled.
+- [x] Confirm behavior is idempotent and only affects generated scripts when enabled.
 
-- [ ] Keep default fully backward compatible when `inject_gpu_flag=false`.
+- [x] Keep default fully backward compatible when `inject_gpu_flag=false`.
 
-- [ ] Review tests for:
+- [x] Review tests for:
   - replacement of `--nv`
   - unchanged scripts when `--nv` absent
   - idempotence
   - interaction with env-file sourcing when both flags are enabled
+  Status note:
+  - current suite covers generated-template replacement and default `--nv` fallback
+  - direct coverage for every listed edge case should still be re-checked if behavior changes again
 
 - [ ] Document `inject_gpu_flag` in the main docs, not only the sample ini.
 
-- [ ] Evaluate collapsing the generated workflow templates into a single
+- [x] Evaluate collapsing the generated workflow templates into a single
   BIOMERO-owned template with substitutions for workflow family differences.
   Candidate substitutions:
   - `GPU_FLAG`
@@ -255,6 +263,11 @@ Open design concern:
   - avoid maintaining four near-duplicate templates
   - keep the generated sbatch scripts fully testable and inspectable
   - keep the logic in BIOMERO generation/substitution, not as runtime patching
+  Status note:
+  - implemented with one shared `job_template.sh`
+  - env-file handling is injected via `OPTIONAL_ENV`
+  - workflow-family differences are injected via `WF_TYPE`, `INPARAMS`, `OUTPARAMS`, and `EXTRAPARAMS`
+  - narrow test slice covering shared-template generation passed (`5 passed`)
 
 ## 6. Dynamic GPU SBATCH Defaults When `use_gpu=true`
 
@@ -266,11 +279,12 @@ Patch intent:
   - per-workflow job params do not already define them
 
 Status:
-- Started and mostly implemented.
+- Implemented in core with fallback injection gated by `use_gpu=true`.
+- Canonical BIOMERO-prefixed env var overrides are wired through the shared config helper.
 
-- [ ] Review `get_workflow_command()` GPU fallback injection logic.
+- [x] Review `get_workflow_command()` GPU fallback injection logic.
 
-- [ ] Confirm precedence remains:
+- [x] Confirm precedence remains:
   - explicit per-workflow `*_job_partition` / `*_job_gres`
   - then fallback GPU defaults
   - and only when `use_gpu=true`
@@ -286,7 +300,7 @@ Status:
 
 - [x] Refactor GPU env override parsing through the same shared config helper as other options.
 
-- [ ] Review tests for:
+- [x] Review tests for:
   - `use_gpu=True` adds fallback params
   - `use_gpu=False` does not add them
   - per-workflow params suppress duplicate fallback params
@@ -467,11 +481,11 @@ Likely already implemented but must still be reviewed and treated as real delive
 - [ ] `slurm_zip_cmd`
 - [ ] `7z` / `7za` auto-detection
 - [ ] idempotent unzip directory creation with `mkdir -p`
-- [ ] `env_file_submission` config parsing
-- [ ] generated-script env-file sourcing helper
-- [ ] `inject_gpu_flag` config parsing
-- [ ] generated-script GPU flag helper
-- [ ] fallback GPU parameter injection in `get_workflow_command()`
+- [x] `env_file_submission` config parsing
+- [x] generated-script env-file sourcing helper
+- [x] `inject_gpu_flag` config parsing
+- [x] generated-script GPU flag helper
+- [x] fallback GPU parameter injection in `get_workflow_command()`
 - [ ] `slurm_data_bind_path` optional export
 - [ ] `slurm_conversion_partition` optional export
 
@@ -487,8 +501,8 @@ Still genuinely unresolved and requiring design or policy work:
 
 - [x] Step 1: Introduce shared config/env precedence helper and refactor sacct + newer options onto it.
 - [x] Step 2: Finalize and test canonical env var names, especially GPU-related ones.
-- [ ] Step 3: Review and harden env-file submission path for generated scripts and workflow submission.
-- [ ] Step 4: Review and harden generated-script GPU flag injection.
+- [x] Step 3: Review and harden env-file submission path for generated scripts and workflow submission.
+- [x] Step 4: Review and harden generated-script GPU flag injection.
 - [ ] Step 5: Complete docs for all supported optional settings.
 - [ ] Step 6: Decide policy for cloned external script normalization.
 - [ ] Step 7: Explicitly document external-repo responsibilities and non-goals.

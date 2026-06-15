@@ -888,9 +888,9 @@ class SlurmClient(Connection):
         r = self.run_commands(convert_cmds)
 
         # copy generic job array script over to slurm
-        new_var = "convert_job_array.sh"
+        convert_script_file = "convert_job_array.sh"
         convert_job_local = files("resources").joinpath(
-            new_var)
+            convert_script_file)
         
         optional_env = ""
         if self.env_file_submission:
@@ -907,9 +907,10 @@ class SlurmClient(Connection):
             src = Template(f.read())
             convert_script = src.safe_substitute(substitutes)
             logger.debug(f"substituted: {convert_script}")
-        
+
+        convert_script_remote = f"{self.slurm_script_path}/{convert_script_file}"
         _ = self.put(local=io.StringIO(convert_script),
-                     remote=self.slurm_script_path)
+                     remote=convert_script_remote)
 
         # PULL converter if provided in config
         if self.converter_images:

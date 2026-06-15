@@ -2649,13 +2649,14 @@ class SlurmClient(Connection):
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         if self.slurm_conversion_partition:
             sbatch_env["CONVERSION_PARTITION"] = f"\"{self.slurm_conversion_partition}\""
-        
+
+        config_path = f'"$PWD/{config_file}"'
         conversion_script = (
             f'"{self.slurm_script_path}/convert_job_array.sh"'
         )
         conversion_cmd = (
             "sbatch --job-name=conversion "
-            "--export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" "
+            f"--export=ALL,CONFIG_PATH={config_path} "
             f"--array=1-$N {conversion_script}"
         )
         

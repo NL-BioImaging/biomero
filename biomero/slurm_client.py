@@ -2650,7 +2650,14 @@ class SlurmClient(Connection):
         if self.slurm_conversion_partition:
             sbatch_env["CONVERSION_PARTITION"] = f"\"{self.slurm_conversion_partition}\""
         
-        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
+        conversion_script = (
+            f'"{self.slurm_script_path}/convert_job_array.sh"'
+        )
+        conversion_cmd = (
+            "sbatch --job-name=conversion "
+            "--export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" "
+            f"--array=1-$N {conversion_script}"
+        )
         
         if self.env_file_submission:
             logger.debug(f"Using env file submission for conversion with env: {sbatch_env}")

@@ -43,6 +43,7 @@ biomero = []
 
 
 [tool.setuptools_scm]
+write_to = "biomero/_version.py"
 
 [project.optional-dependencies]
 test = [

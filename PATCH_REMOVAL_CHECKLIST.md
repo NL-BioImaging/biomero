@@ -222,7 +222,7 @@ Open design concern:
   - current coverage should target generated-template behavior instead of
     importing the removed helper directly
 
-- [ ] Decide whether GPU support should remain runtime text rewriting or move
+- [x] Decide whether GPU support should remain runtime text rewriting or move
   to a deployed template variant with built-in `USE_GPU` handling.
   Notes:
   - runtime need is more defensible here than for env-file sourcing
@@ -324,11 +324,11 @@ Upstream recommendation:
 Status:
 - Current upstream-started implementation keeps it optional, which is the correct backward-compatible behavior.
 
-- [ ] Keep `slurm_data_bind_path` optional in core BIOMERO.
+- [x] Keep `slurm_data_bind_path` optional in core BIOMERO.
 
-- [ ] Review where `APPTAINER_BINDPATH` is exported for workflow and conversion commands.
+- [x] Review where `APPTAINER_BINDPATH` is exported for workflow and conversion commands.
 
-- [ ] Review tests covering:
+- [x] Review tests covering:
   - unset bind path: no error, no env var
   - configured bind path: env var added
 
@@ -336,7 +336,7 @@ Status:
   - when it is needed
   - that leaving it unset is valid on clusters where default container bind behavior is sufficient
 
-- [ ] Do not upstream the patch behavior that raises a `ValueError` globally when it is missing.
+- [x] Do not upstream the patch behavior that raises a `ValueError` globally when it is missing.
 
 ## 8. `slurm_conversion_partition`
 
@@ -347,13 +347,13 @@ Patch intent:
 Status:
 - Started in current code.
 
-- [ ] Review config parsing for `slurm_conversion_partition`.
+- [x] Review config parsing for `slurm_conversion_partition`.
 
-- [ ] Review conversion environment export in `get_conversion_command()`.
+- [x] Review conversion environment export in `get_conversion_command()`.
 
-- [ ] Confirm behavior when unset is unchanged from historical default.
+- [x] Confirm behavior when unset is unchanged from historical default.
 
-- [ ] Add or review tests for set vs unset behavior.
+- [x] Add or review tests for set vs unset behavior.
 
 - [ ] Document this in the main docs and sample config consistently.
 
@@ -371,22 +371,20 @@ Patch behavior:
 Upstream decision needed:
 - Decide whether BIOMERO officially supports post-processing cloned external scripts.
 
-- [ ] Decide whether cloned external scripts are:
-  - an external contract that must already be compatible, or
-  - something BIOMERO is allowed to normalize after clone
+- [x] Decide whether cloned external scripts are:
+  - an external contract that must already be compatible, 
 
-- [ ] If normalization is supported, define a minimal, opt-in, well-documented policy.
+- [x] If normalization is supported, define a minimal, opt-in, well-documented policy.
   Constraints:
-  - should be off by default
-  - should be idempotent
-  - should not silently create missing scripts
-  - should avoid deployment-specific assumptions where possible
+  - nope
 
-- [ ] If normalization is not supported, document that:
+- [x] If normalization is not supported, document that:
   - `slurm_script_repo` contents must already support required behavior
   - external script repo versioning is the supported mechanism
+  - this should already be documented for that option. nobody should use that option unless they know better than us
 
-- [ ] Review `setup_job_scripts()` and align implementation with the chosen policy.
+- [x] Review `setup_job_scripts()` and align implementation with the chosen policy.
+  - just a clone or we do our jobs
 
 ## 10. Missing External Job Scripts: Explicit Non-Goal For Core BIOMERO
 
@@ -394,11 +392,13 @@ Patch behavior that should stay out of core BIOMERO:
 - adding missing `convert_job_array.sh`
 - adding missing workflow job scripts such as CellExpansion variants
 
-- [ ] Keep this out of upstream `biomero`.
+- [x] Keep this out of upstream `biomero`.
 
-- [ ] Document this as an external repository responsibility.
+- [x] Document this as an external repository responsibility.
+  - it's just part of switching to a repo of scripts -> then its not our responsbility. 
 
-- [ ] If needed, create follow-up work outside this repo for updating the external `slurm-scripts` repository.
+- [x] If needed, create follow-up work outside this repo for updating the external `slurm-scripts` repository.
+  - nah, out of date, intiial mvp, will not update.
 
 ## 11. Hard-Coded GPU Directives In External Scripts
 
@@ -408,11 +408,14 @@ Patch behavior:
 
 This is potentially too invasive for default upstream behavior.
 
-- [ ] Decide whether BIOMERO should ever rewrite external scripts' SBATCH directives.
+- [x] Decide whether BIOMERO should ever rewrite external scripts' SBATCH directives.
+  - no
 
-- [ ] Prefer handling this in the external script repository instead of in core BIOMERO where possible.
+- [x] Prefer handling this in the external script repository instead of in core BIOMERO where possible.
+  - yes
 
-- [ ] If BIOMERO keeps any normalization for external scripts, limit it to clearly documented, opt-in transformations.
+- [x] If BIOMERO keeps any normalization for external scripts, limit it to clearly documented, opt-in transformations.
+  - nothing. external scripts are on their own and not supported.
 
 ## 12. Docs Alignment
 
@@ -481,24 +484,24 @@ Status:
 
 Likely already implemented but must still be reviewed and treated as real deliverables:
 
-- [ ] `sacct_start_time` / `sacct_days_ago`
-- [ ] `slurm_zip_cmd`
-- [ ] `7z` / `7za` auto-detection
-- [ ] idempotent unzip directory creation with `mkdir -p`
+- [x] `sacct_start_time` / `sacct_days_ago`
+- [x] `slurm_zip_cmd`
+- [x] `7z` / `7za` auto-detection
+- [x] idempotent unzip directory creation with `mkdir -p`
 - [x] `env_file_submission` config parsing
 - [x] generated-script env-file sourcing helper
 - [x] `inject_gpu_flag` config parsing
 - [x] generated-script GPU flag helper
 - [x] fallback GPU parameter injection in `get_workflow_command()`
-- [ ] `slurm_data_bind_path` optional export
-- [ ] `slurm_conversion_partition` optional export
+- [x] `slurm_data_bind_path` optional export
+- [x] `slurm_conversion_partition` optional export
 
 Still genuinely unresolved and requiring design or policy work:
 
 - [x] shared config/env precedence helper
 - [x] canonical GPU env var naming
-- [ ] official policy for post-processing cloned external job scripts
-- [ ] explicit non-goal documentation for missing external script injection
+- [x] official policy for post-processing cloned external job scripts
+- [x] explicit non-goal documentation for missing external script injection
 - [ ] docs alignment across README, sample config, and prose docs
 
 ## 16. Suggested Implementation Order
@@ -508,6 +511,6 @@ Still genuinely unresolved and requiring design or policy work:
 - [x] Step 3: Review and harden env-file submission path for generated scripts and workflow submission.
 - [x] Step 4: Review and harden generated-script GPU flag injection.
 - [ ] Step 5: Complete docs for all supported optional settings.
-- [ ] Step 6: Decide policy for cloned external script normalization.
+- [x] Step 6: Decide policy for cloned external script normalization.
 - [ ] Step 7: Explicitly document external-repo responsibilities and non-goals.
 - [ ] Step 8: Reconcile patch behavior vs core behavior and remove obsolete patches.

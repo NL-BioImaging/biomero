@@ -36,6 +36,7 @@ Welcome to BIOMERO's documentation!
    :maxdepth: 2
 
    slurm-configuration
+   configuration-reference
 
 .. Package
 

@@ -84,7 +84,7 @@ Status:
   - env relative override
   - explicit arg override
 
-- [ ] Confirm docs and sample config match the actual precedence behavior.
+- [x] Confirm docs and sample config match the actual precedence behavior.
 
 ## 3. ZIP / UNZIP Command Abstraction (`7z` vs `7za`)
 
@@ -112,7 +112,7 @@ Status:
   - unzip command assembly
   - zip command assembly
 
-- [ ] Update README language from generic `7zip installed` to reflect actual supported behavior (`7z` or `7za`, optional explicit override).
+- [x] Update README language from generic `7zip installed` to reflect actual supported behavior (`7z` or `7za`, optional explicit override).
 
 ## 4. Env-File Submission For Workflow Jobs
 
@@ -185,7 +185,7 @@ Open design concern:
   - On runtime at get_conversion_command, it also puts the envs into a file and provides that as part of the command - instead of giving the env to connection. gated by env_file_submission.
   - Should have backwards compatible equal old behavior.
 
-- [ ] Document `env_file_submission` in the main docs, not only the sample ini.
+- [x] Document `env_file_submission` in the main docs, not only the sample ini.
 
 ## 5. Generated Script Post-Processing For GPU Flag Injection
 
@@ -253,7 +253,7 @@ Open design concern:
   - current suite covers generated-template replacement and default `--nv` fallback
   - direct coverage for every listed edge case should still be re-checked if behavior changes again
 
-- [ ] Document `inject_gpu_flag` in the main docs, not only the sample ini.
+- [x] Document `inject_gpu_flag` in the main docs, not only the sample ini.
 
 - [x] Evaluate collapsing the generated workflow templates into a single
   BIOMERO-owned template with substitutions for workflow family differences.
@@ -309,7 +309,7 @@ Status:
   - `use_gpu=False` does not add them
   - per-workflow params suppress duplicate fallback params
 
-- [ ] Document fallback GPU behavior and clarify that it is opt-in and backward compatible.
+- [x] Document fallback GPU behavior and clarify that it is opt-in and backward compatible.
 
 ## 7. `slurm_data_bind_path` Behavior
 
@@ -332,7 +332,7 @@ Status:
   - unset bind path: no error, no env var
   - configured bind path: env var added
 
-- [ ] Improve docs to clearly state:
+- [x] Improve docs to clearly state:
   - when it is needed
   - that leaving it unset is valid on clusters where default container bind behavior is sufficient
 
@@ -355,7 +355,7 @@ Status:
 
 - [x] Add or review tests for set vs unset behavior.
 
-- [ ] Document this in the main docs and sample config consistently.
+- [x] Document this in the main docs and sample config consistently.
 
 ## 9. Policy For Repository-Provided Job Scripts (`slurm_script_repo`)
 
@@ -423,7 +423,7 @@ Status:
 - `resources/slurm-config.ini` is more complete than the prose docs.
 - Main docs and README still lag behind actual code in some places.
 
-- [ ] Expand `docs/slurm-configuration.rst` to cover all supported optional settings with the same pattern used for sacct window settings.
+- [x] Expand `docs/slurm-configuration.rst` to cover all supported optional settings with the same pattern used for sacct window settings.
   Add sections for:
   - `sacct_start_time`
   - `sacct_days_ago`
@@ -435,16 +435,16 @@ Status:
   - `slurm_data_bind_path`
   - `slurm_conversion_partition`
 
-- [ ] For each supported setting, document:
+- [x] For each supported setting, document:
   - default behavior
   - `slurm-config.ini` key
   - environment variable override
   - precedence
   - backward compatibility expectations
 
-- [ ] Update README cluster requirements and setup text to match actual code behavior.
+- [x] Update README cluster requirements and setup text to match actual code behavior.
 
-- [ ] Make docs explicit about what is core BIOMERO behavior versus what belongs in external workflow script repos.
+- [x] Make docs explicit about what is core BIOMERO behavior versus what belongs in external workflow script repos.
 
 ## 13. Tests And Validation Pass
 
@@ -502,7 +502,7 @@ Still genuinely unresolved and requiring design or policy work:
 - [x] canonical GPU env var naming
 - [x] official policy for post-processing cloned external job scripts
 - [x] explicit non-goal documentation for missing external script injection
-- [ ] docs alignment across README, sample config, and prose docs
+- [x] docs alignment across README, sample config, and prose docs
 
 ## 16. Suggested Implementation Order
 
@@ -510,7 +510,7 @@ Still genuinely unresolved and requiring design or policy work:
 - [x] Step 2: Finalize and test canonical env var names, especially GPU-related ones.
 - [x] Step 3: Review and harden env-file submission path for generated scripts and workflow submission.
 - [x] Step 4: Review and harden generated-script GPU flag injection.
-- [ ] Step 5: Complete docs for all supported optional settings.
+- [x] Step 5: Complete docs for all supported optional settings.
 - [x] Step 6: Decide policy for cloned external script normalization.
-- [ ] Step 7: Explicitly document external-repo responsibilities and non-goals.
+- [x] Step 7: Explicitly document external-repo responsibilities and non-goals.
 - [ ] Step 8: Reconcile patch behavior vs core behavior and remove obsolete patches.

@@ -544,8 +544,8 @@ def test_get_conversion_command(slurm_client, env_file_submission):
     else:
         assert cmd == (
             'sbatch --job-name=conversion '
-            '--export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" '
-            '--array=1-$N "$SCRIPT_PATH/convert_job_array.sh"'
+            '--export=ALL,CONFIG_PATH="$PWD/config.cfg" '
+            '--array=1-$N "/path/to/scripts/convert_job_array.sh"'
         )
         assert env == {
             "DATA_PATH": '"/data"',
@@ -608,7 +608,11 @@ def test_run_conversion_workflow_job(
     if conversion_partition is not None:
         expected_sbatch_env["CONVERSION_PARTITION"] = f'"{conversion_partition}"'
 
-    expected_conversion_cmd = 'sbatch --job-name=conversion --export=ALL,CONFIG_PATH="$PWD/$CONFIG_FILE" --array=1-$N "$SCRIPT_PATH/convert_job_array.sh"'
+    expected_conversion_cmd = (
+        'sbatch --job-name=conversion '
+        f'--export=ALL,CONFIG_PATH="$PWD/{expected_config_file}" --array=1-$N '
+        f'"{slurm_client.slurm_script_path}/convert_job_array.sh"'
+    )
     
     # Handle special case for zarr format (.zarr and .ome.zarr)
     if source_format == 'zarr':

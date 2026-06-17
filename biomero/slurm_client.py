@@ -527,6 +527,56 @@ class SlurmClient(Connection):
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
+            sacct_start_time (str, optional): Absolute start date for sacct
+                job history queries, format ``YYYY-MM-DD``. Overridable via
+                ``BIOMERO_SACCT_START_TIME``. Defaults to ``2023-01-01``.
+            sacct_days_ago (int, optional): Rolling history window in days for
+                sacct queries; overrides ``sacct_start_time`` when set.
+                Overridable via ``BIOMERO_SACCT_START_DAYS_AGO``.
+                Defaults to None.
+            env_file_submission (bool, optional): When True, BIOMERO writes
+                workflow environment variables to a per-job file and passes it
+                as ``$1`` to the job script instead of relying on SSH session
+                env propagation. Use when the cluster does not reliably
+                forward env vars into sbatch jobs. Defaults to False.
+            inject_gpu_flag (bool, optional): When True, BIOMERO uses a
+                ``GPU_FLAG`` substitution in generated job scripts so CPU and
+                GPU execution can be toggled at submission time via
+                ``use_gpu``. Defaults to False.
+            gpu_partition (str, optional): Shared fallback ``--partition``
+                appended to GPU workflow submissions when ``inject_gpu_flag``
+                is enabled and no per-workflow partition is configured.
+                Overridable via ``BIOMERO_GPU_PARTITION``. Defaults to None.
+            gpu_gres (str, optional): Shared fallback GPU resource request
+                appended to GPU workflow submissions when ``inject_gpu_flag``
+                is enabled and no per-workflow gres is configured.
+                Overridable via ``BIOMERO_GPU_GRES``. Defaults to None.
+            gpu_resource_flag (str, optional): Controls whether shared GPU
+                fallback params are emitted as ``--gres`` or ``--gpus``.
+                Overridable via ``BIOMERO_GPU_RESOURCE_FLAG``.
+                Defaults to ``gres``.
+            slurm_image_pull_via_sbatch (bool, optional): When True, workflow
+                and converter image pulls/builds are submitted as sbatch jobs
+                instead of running directly on the login node. Defaults to
+                False.
+            image_pull_cpus (str, optional): CPU request for sbatch-based
+                image pull jobs. Overridable via ``BIOMERO_PULL_CPUS``.
+                Defaults to ``8``.
+            image_pull_mem (str, optional): Memory request for sbatch-based
+                image pull jobs. Overridable via ``BIOMERO_PULL_MEM``.
+                Defaults to ``32G``.
+            apptainer_tmpdir (str, optional): Exported as
+                ``APPTAINER_TMPDIR`` and ``SINGULARITY_TMPDIR`` for image
+                pull/build commands when set. Use when the default tmp
+                location is too small. Overridable via
+                ``BIOMERO_APPTAINER_TMPDIR``. Defaults to None.
+            apptainer_cachedir (str, optional): Exported as
+                ``APPTAINER_CACHEDIR`` and ``SINGULARITY_CACHEDIR`` for image
+                pull/build commands when set. Overridable via
+                ``BIOMERO_APPTAINER_CACHEDIR``. Defaults to None.
+            slurm_zip_cmd (str, optional): Command used to zip job output on
+                the cluster. Defaults to auto-detecting ``7z`` or ``7za``.
+                Overridable via ``BIOMERO_SLURM_ZIP_CMD``.
         """
 
         super(SlurmClient, self).__init__(host,

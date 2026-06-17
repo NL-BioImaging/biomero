@@ -492,15 +492,15 @@ Status:
     - adding missing external repo job scripts into core behavior
   - external repo / deployment responsibility:
     - custom `slurm_script_repo` contents
-    - cluster-specific web bundle Metabase link patch
+  - applied upstream to OMERO.biomero surf branch:
+    - Metabase localhost/127.0.0.1 link rewrite (`BiomeroApp.js`)
 
 - [x] Remove obsolete Slurm runtime patches after the above comparison is complete.
-  Kept intentionally:
-  - `patch_biomero_web_runtime.py`
-  - `metabase_link_old.js`
-  - `metabase_link_new.js`
-  Rationale:
-  - these patch OMERO.biomero web bundle behavior and are not covered by current core `biomero` changes.
+  All web-runtime patch files removed:
+  - `patch_biomero_web_runtime.py` — deleted; fix applied to OMERO.biomero surf branch directly
+  - `metabase_link_old.js` — deleted
+  - `metabase_link_new.js` — deleted
+  Fix location: `OMERO.biomero/webapp/src/biomero/BiomeroApp.js`, iframe click handler — localhost/127.0.0.1 links now rewritten to current public origin.
 
 - [x] Ensure release notes / PR summary clearly state:
   - what behavior moved into core BIOMERO
@@ -511,7 +511,8 @@ Status:
   PR summary notes:
   - moved into core BIOMERO: config/env precedence helper, env-file submission, GPU fallback handling, zip command abstraction, optional conversion/bind settings, sbatch-based image pulling, apptainer tmp/cache settings, and output verification in generated job templates
   - remains opt-in: env-file submission, inject_gpu_flag, shared GPU defaults, sbatch-based image pulling, apptainer tmp/cache overrides
-  - remains external responsibility: custom script repositories and the separate OMERO.biomero web Metabase link patch
+  - remains external responsibility: custom script repositories
+  - applied to OMERO.biomero surf branch: Metabase localhost link rewrite (no longer a deployment patch)
   - backward-compatible defaults remain unchanged unless the new options are explicitly enabled
 
 ## 15. Quick Status Snapshot

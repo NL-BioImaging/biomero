@@ -3873,7 +3873,9 @@ def test_setup_converters_uses_configured_apptainer_dirs_without_sbatch(
 
     script = mock_stringio.call_args_list[-1][0][0]
     assert "APPTAINER_TMPDIR=/scratch/user/.apptainer-tmp" in script
+    assert "SINGULARITY_TMPDIR=/scratch/user/.apptainer-tmp" in script
     assert "APPTAINER_CACHEDIR=/scratch/user/.apptainer-cache" in script
+    assert "SINGULARITY_CACHEDIR=/scratch/user/.apptainer-cache" in script
 
 
 @pytest.mark.parametrize(
@@ -3962,6 +3964,96 @@ def test_get_unzip_command_explicit_uses_configured_zip_cmd(slurm_client):
 # ---------------------------------------------------------------------------
 # Tests for slurm_data_bind_path optional (no ValueError)
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Direct unit tests for _apptainer_pull_env_prefix
+# ---------------------------------------------------------------------------
+
+def test_apptainer_pull_env_prefix_empty(slurm_client):
+    """No dirs configured → empty string."""
+    slurm_client.apptainer_tmpdir = None
+    slurm_client.apptainer_cachedir = None
+    assert slurm_client._apptainer_pull_env_prefix() == ""
+
+
+def test_apptainer_pull_env_prefix_tmpdir_only(slurm_client):
+    """Only tmpdir set → both APPTAINER_TMPDIR and SINGULARITY_TMPDIR emitted."""
+    slurm_client.apptainer_tmpdir = "/scratch/tmp"
+    slurm_client.apptainer_cachedir = None
+    result = slurm_client._apptainer_pull_env_prefix()
+    assert "APPTAINER_TMPDIR=/scratch/tmp" in result
+    assert "SINGULARITY_TMPDIR=/scratch/tmp" in result
+    assert "CACHEDIR" not in result
+    assert result.endswith(" ")
+
+
+def test_apptainer_pull_env_prefix_both(slurm_client):
+    """Both dirs set → all four env vars emitted."""
+    slurm_client.apptainer_tmpdir = "/tmp/app"
+    slurm_client.apptainer_cachedir = "/cache/app"
+    result = slurm_client._apptainer_pull_env_prefix()
+    assert "APPTAINER_TMPDIR=/tmp/app" in result
+    assert "SINGULARITY_TMPDIR=/tmp/app" in result
+    assert "APPTAINER_CACHEDIR=/cache/app" in result
+    assert "SINGULARITY_CACHEDIR=/cache/app" in result
+    assert result.endswith(" ")
+
+
+def test_apptainer_pull_env_prefix_quotes_paths_with_spaces(slurm_client):
+    """Paths with spaces are shell-quoted."""
+    slurm_client.apptainer_tmpdir = "/my scratch/tmp"
+    slurm_client.apptainer_cachedir = None
+    result = slurm_client._apptainer_pull_env_prefix()
+    assert "'/my scratch/tmp'" in result
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.cd')
+@patch('biomero.slurm_client.io.StringIO')
+def test_setup_converters_sbatch_with_apptainer_dirs(
+    mock_stringio,
+    mock_cd,
+    mock_run,
+    mock_run_commands,
+    mock_put,
+    _open,
+    _session,
+):
+    """When both slurm_image_pull_via_sbatch and apptainer dirs are set,
+    the pull script should contain the Apptainer env vars."""
+    mock_cd.return_value.__enter__.return_value = None
+    mock_cd.return_value.__exit__.return_value = None
+
+    client = SlurmClient(
+        "localhost",
+        user="slurm",
+        port=8022,
+        slurm_script_path="scriptpath",
+        slurm_converters_path="converterspath",
+        converter_images={"zarr_to_tiff": "repo/conv:1.2.3"},
+        apptainer_tmpdir="/scratch/.apptainer-tmp",
+        apptainer_cachedir="/scratch/.apptainer-cache",
+    )
+    client.slurm_image_pull_via_sbatch = True
+    client.image_pull_cpus = "8"
+    client.image_pull_mem = "32G"
+
+    mock_run.return_value = MagicMock(ok=True)
+    mock_run_commands.return_value = MagicMock(ok=True, stdout="12345\n")
+    mock_put.return_value = MagicMock(ok=True)
+
+    client.setup_converters()
+
+    script = mock_stringio.call_args_list[-1][0][0]
+    assert "APPTAINER_TMPDIR=/scratch/.apptainer-tmp" in script
+    assert "SINGULARITY_TMPDIR=/scratch/.apptainer-tmp" in script
+    assert "APPTAINER_CACHEDIR=/scratch/.apptainer-cache" in script
+    assert "SINGULARITY_CACHEDIR=/scratch/.apptainer-cache" in script
+
 
 def test_get_workflow_command_no_bind_path_no_error(slurm_client):
     """slurm_data_bind_path=None is allowed; APPTAINER_BINDPATH not set."""

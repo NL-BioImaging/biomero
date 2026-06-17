@@ -132,7 +132,7 @@ Your Slurm cluster/login node needs to have:
 2. SCP access (generally comes with SSH)
 3. A compatible zip command available for result archiving: `7z` or `7za`
 4. Singularity/Apptainer installed
-5. (Optional) Git installed, only if you intentionally use an external `slurm_script_repo`
+5. (Optional) Git installed, only if you intentionally use an external `slurm_script_repo` (not recommended)
 6. Slurm accounting enabled
 
 If your cluster exposes only one archive binary or auto-detection is unreliable,

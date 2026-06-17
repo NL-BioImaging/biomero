@@ -1,0 +1,1 @@
+new URL(e.href).hostname===window.location.hostname&&(window.top.location.href=e.href,n.preventDefault())

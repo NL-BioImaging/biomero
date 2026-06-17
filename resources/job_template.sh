@@ -36,6 +36,8 @@
 
 # You may not place any commands before the last SBATCH directive
 
+set -eo pipefail
+
 $OPTIONAL_ENV
 
 ##############################
@@ -58,4 +60,16 @@ singularity run $GPU_FLAG "$IMAGE_PATH/$SINGULARITY_IMAGE" \
 	$OUTPARAMS \
 	$PARAMS \
 	$EXTRAPARAMS && echo "Job completed successfully."
+
+if [ -n "${DATA_PATH:-}" ]; then
+	output_dir="$DATA_PATH/data/out"
+	if [ ! -d "$output_dir" ]; then
+		echo "ERROR: Workflow output directory does not exist: $output_dir" >&2
+		exit 2
+	fi
+	if [ -z "$(find "$output_dir" -mindepth 1 -print -quit)" ]; then
+		echo "ERROR: Workflow completed without producing files in $output_dir" >&2
+		exit 2
+	fi
+fi
 

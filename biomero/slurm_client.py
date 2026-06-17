@@ -270,6 +270,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
+    _DEFAULT_GPU_RESOURCE_FLAG = "gres"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -402,6 +403,7 @@ class SlurmClient(Connection):
                  converter_images: dict = None,
                  slurm_model_jobs: dict = None,
                  slurm_model_jobs_params: dict = None,
+                 slurm_model_use_gpu: dict = None,
                  slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
                  slurm_script_repo: str = None,
                  init_slurm: bool = False,
@@ -419,6 +421,12 @@ class SlurmClient(Connection):
                  inject_gpu_flag: bool = False,
                  gpu_partition: str = None,
                  gpu_gres: str = None,
+                 gpu_resource_flag: str = _DEFAULT_GPU_RESOURCE_FLAG,
+                 slurm_image_pull_via_sbatch: bool = False,
+                 image_pull_cpus: str = "8",
+                 image_pull_mem: str = "32G",
+                 apptainer_tmpdir: str = None,
+                 apptainer_cachedir: str = None,
                  slurm_zip_cmd: str = None):
         """
         Initializes a new instance of the SlurmClient class.
@@ -541,6 +549,7 @@ class SlurmClient(Connection):
         self.converter_images = converter_images
         self.slurm_model_jobs = slurm_model_jobs
         self.slurm_model_jobs_params = slurm_model_jobs_params
+        self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
         self.slurm_conversion_partition = slurm_conversion_partition
         self.sacct_start_time = sacct_start_time
@@ -549,6 +558,12 @@ class SlurmClient(Connection):
         self.inject_gpu_flag = inject_gpu_flag
         self.gpu_partition = gpu_partition
         self.gpu_gres = gpu_gres
+        self.gpu_resource_flag = gpu_resource_flag or self._DEFAULT_GPU_RESOURCE_FLAG
+        self.slurm_image_pull_via_sbatch = slurm_image_pull_via_sbatch
+        self.image_pull_cpus = image_pull_cpus
+        self.image_pull_mem = image_pull_mem
+        self.apptainer_tmpdir = apptainer_tmpdir
+        self.apptainer_cachedir = apptainer_cachedir
         self.slurm_zip_cmd = slurm_zip_cmd
 
         # Init cache. Keep responses for 360 seconds
@@ -573,6 +588,21 @@ class SlurmClient(Connection):
             self.initialize_analytics_system(reset_tables=init_slurm)
         else:
             logger.warning("Setup SlurmClient for config only")
+
+    def _apptainer_pull_env_prefix(self) -> str:
+        """Return shell env assignments for Apptainer/Singularity pull/build commands."""
+        env_parts = []
+        if self.apptainer_tmpdir:
+            quoted_tmpdir = shlex.quote(self.apptainer_tmpdir)
+            env_parts.append(f"APPTAINER_TMPDIR={quoted_tmpdir}")
+            env_parts.append(f"SINGULARITY_TMPDIR={quoted_tmpdir}")
+        if self.apptainer_cachedir:
+            quoted_cachedir = shlex.quote(self.apptainer_cachedir)
+            env_parts.append(f"APPTAINER_CACHEDIR={quoted_cachedir}")
+            env_parts.append(f"SINGULARITY_CACHEDIR={quoted_cachedir}")
+        if not env_parts:
+            return ""
+        return " ".join(env_parts) + " "
 
     def initialize_analytics_system(self, reset_tables=False):
         """
@@ -801,6 +831,7 @@ class SlurmClient(Connection):
                 for wf, image in self.slurm_model_images.items():
                     repo = self.slurm_model_repos[wf]
                     path = self.slurm_model_paths[wf]
+                    apptainer_env_prefix = self._apptainer_pull_env_prefix()
                     # If the image already includes a tag (e.g. "org/image:v1.2"),
                     # use that tag and strip it from the image name to avoid
                     # producing docker://org/image:v1.2:v1.2.
@@ -813,9 +844,24 @@ class SlurmClient(Connection):
                         _, version = self.extract_parts_from_url(repo)
                         if version == "master":
                             version = "latest"
-                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                    if self.slurm_image_pull_via_sbatch:
+                        pull_template = (
+                            "echo 'starting $path $version' >> sing.log\n"
+                            "mkdir -p $path $TMPDIR_CREATE $CACHEDIR_CREATE\n"
+                            "image_name=$(basename \"$image\")\n"
+                            "output=\"$path/${image_name}_$version.sif\"\n"
+                            "if [ -s \"$output\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
+                            "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" \"$output\" docker://$image:$version >> sing.log 2>&1; fi\n"
+                            "rc=$?\n"
+                            "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
+                        )
+                    else:
+                        pull_template = "echo 'starting $path $version' >> sing.log\nmkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\nnohup sh -c \"${APPTAINER_ENV}singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
+                    substitutes['APPTAINER_ENV'] = apptainer_env_prefix
+                    substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
+                    substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version
@@ -833,7 +879,15 @@ class SlurmClient(Connection):
                 full_path = self.slurm_images_path+"/"+script_name
                 _ = self.put(local=io.StringIO(job_script),
                              remote=full_path)
-                cmd = f"time sh {script_name}"
+                if self.slurm_image_pull_via_sbatch:
+                    cmd = (
+                        "sbatch --parsable --job-name=biomero-pull-images "
+                        f"--cpus-per-task={self.image_pull_cpus} --mem={self.image_pull_mem} "
+                        f"--export=ALL,BIOMERO_PULL_CPUS={self.image_pull_cpus} "
+                        f"--output=pull_images-%j.log {script_name}"
+                    )
+                else:
+                    cmd = f"time sh {script_name}"
                 r = self.run_commands([cmd])
                 if not r.ok:
                     raise SSHException(r)
@@ -916,6 +970,7 @@ class SlurmClient(Connection):
         if self.converter_images:
             pull_commands = []
             for path, image in self.converter_images.items():
+                apptainer_env_prefix = self._apptainer_pull_env_prefix()
                 version, image = self.parse_docker_image_version(image)
                 if version:
                     chosen_converter = f"convert_{path}_{version}.sif"
@@ -925,9 +980,22 @@ class SlurmClient(Connection):
                         f"Pulling 'latest' as no version was provided for {image}")
                     chosen_converter = f"convert_{path}_latest.sif"
                 with self.cd(self.slurm_converters_path):
-                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                    if self.slurm_image_pull_via_sbatch:
+                        pull_template = (
+                            "echo 'starting $path $version' >> sing.log\n"
+                            "mkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\n"
+                            "if [ -s \"$conv_name\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
+                            "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" $conv_name docker://$image:$version >> sing.log 2>&1; fi\n"
+                            "rc=$?\n"
+                            "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
+                        )
+                    else:
+                        pull_template = "echo 'starting $path $version' >> sing.log\nmkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\nnohup sh -c \"${APPTAINER_ENV}singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
+                    substitutes['APPTAINER_ENV'] = apptainer_env_prefix
+                    substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
+                    substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version
@@ -945,7 +1013,15 @@ class SlurmClient(Connection):
             # copy to remote file
             full_path = self.slurm_converters_path+"/"+script_name
             _ = self.put(local=io.StringIO(job_script), remote=full_path)
-            cmd = f"time sh {script_name}"
+            if self.slurm_image_pull_via_sbatch:
+                cmd = (
+                    "sbatch --parsable --job-name=biomero-pull-converters "
+                    f"--cpus-per-task={self.image_pull_cpus} --mem={self.image_pull_mem} "
+                    f"--export=ALL,BIOMERO_PULL_CPUS={self.image_pull_cpus} "
+                    f"--output=pull_converters-%j.log {script_name}"
+                )
+            else:
+                cmd = f"time sh {script_name}"
             with self.cd(self.slurm_converters_path):
                 r = self.run_commands([cmd])
                 if not r.ok:
@@ -1172,6 +1248,57 @@ class SlurmClient(Connection):
             empty_is_none=True,
         )
 
+        gpu_resource_flag = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="gpu_resource_flag",
+            default=cls._DEFAULT_GPU_RESOURCE_FLAG,
+            env_vars=[slurm_env.BIOMERO_GPU_RESOURCE_FLAG],
+        )
+
+        slurm_image_pull_via_sbatch = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_image_pull_via_sbatch",
+            default=False,
+            env_vars=[slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
+            value_type=bool,
+        )
+
+        image_pull_cpus = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_cpus",
+            default="8",
+            env_vars=[slurm_env.BIOMERO_PULL_CPUS],
+        )
+
+        image_pull_mem = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_mem",
+            default="32G",
+            env_vars=[slurm_env.BIOMERO_PULL_MEM],
+        )
+
+        apptainer_tmpdir = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="apptainer_tmpdir",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_APPTAINER_TMPDIR],
+            empty_is_none=True,
+        )
+
+        apptainer_cachedir = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="apptainer_cachedir",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_APPTAINER_CACHEDIR],
+            empty_is_none=True,
+        )
+
         slurm_zip_cmd = cls._get_config_value(
             configs,
             section="SLURM",
@@ -1187,9 +1314,11 @@ class SlurmClient(Connection):
         slurm_model_repos = {}
         slurm_model_jobs = {}
         slurm_model_jobs_params = {}
+        slurm_model_use_gpu = {}
         for k, v in models_dict.items():
             suffix_repo = '_repo'
             suffix_job = '_job'
+            suffix_use_gpu = '_use_gpu'
             job_param_pattern = "(.+)_job_(.+)"
             job_param_match = re.match(job_param_pattern, k)
             if k.endswith(suffix_repo):
@@ -1197,6 +1326,10 @@ class SlurmClient(Connection):
             elif k.endswith(suffix_job):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
                 slurm_model_jobs_params[k[:-len(suffix_job)]] = []
+            elif k.endswith(suffix_use_gpu):
+                slurm_model_use_gpu[k[:-len(suffix_use_gpu)]] = str(v).lower() in (
+                    "true", "1", "yes", "y", "on"
+                )
             elif job_param_match:
                 slurm_model_jobs_params[job_param_match.group(1)].append(
                     f" --{job_param_match.group(2)}={v}")
@@ -1255,6 +1388,7 @@ class SlurmClient(Connection):
                    converter_images=converter_images,
                    slurm_model_jobs=slurm_model_jobs,
                    slurm_model_jobs_params=slurm_model_jobs_params,
+                   slurm_model_use_gpu=slurm_model_use_gpu,
                    slurm_script_path=slurm_script_path,
                    slurm_script_repo=slurm_script_repo,
                    init_slurm=init_slurm,
@@ -1273,6 +1407,12 @@ class SlurmClient(Connection):
                    inject_gpu_flag=inject_gpu_flag,
                    gpu_partition=gpu_partition,
                    gpu_gres=gpu_gres,
+                   gpu_resource_flag=gpu_resource_flag,
+                   slurm_image_pull_via_sbatch=slurm_image_pull_via_sbatch,
+                   image_pull_cpus=image_pull_cpus,
+                   image_pull_mem=image_pull_mem,
+                   apptainer_tmpdir=apptainer_tmpdir,
+                   apptainer_cachedir=apptainer_cachedir,
                    slurm_zip_cmd=slurm_zip_cmd)
 
     def cleanup_tmp_files(self,
@@ -2544,25 +2684,49 @@ class SlurmClient(Connection):
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
         }
 
-        if self.inject_gpu_flag:
-            # Determine whether to use GPU based on the 'use_gpu' parameter in kwargs
-            # Only if dynamic inject_gpu_flag is enabled
-            use_gpu_value = kwargs.get("use_gpu")
+        config_use_gpu = self.slurm_model_use_gpu.get(workflow.lower(), False)
+        use_gpu_value = kwargs.get("use_gpu")
+        if use_gpu_value is None:
+            use_gpu = config_use_gpu
+        else:
             use_gpu = str(use_gpu_value).lower() in (
-                "true", "1", "yes", "y", "on")
+                "true", "1", "yes", "y", "on"
+            )
 
+        gpu_flag_prefix = f" --{self.gpu_resource_flag}="
+
+        if self.inject_gpu_flag:
             if use_gpu:
                 if self.gpu_partition and not any(
                     p.startswith(" --partition=") for p in job_params
                 ):
                     job_params.append(f" --partition={self.gpu_partition}")
                 if self.gpu_gres and not any(
-                    p.startswith(" --gres=") for p in job_params
+                    p.startswith(gpu_flag_prefix) for p in job_params
                 ):
-                    job_params.append(f" --gres={self.gpu_gres}")
+                    job_params.append(f"{gpu_flag_prefix}{self.gpu_gres}")
+                if not self.gpu_partition and not self.gpu_gres:
+                    logger.warning(
+                        "Workflow %s requested GPU defaults but no generic gpu_partition or gpu_gres is configured.",
+                        workflow,
+                    )
                 sbatch_env["GPU_FLAG"] = "--nv"
             else:
                 sbatch_env["GPU_FLAG"] = ""
+        elif config_use_gpu:
+            if self.gpu_partition and not any(
+                p.startswith(" --partition=") for p in job_params
+            ):
+                job_params.append(f" --partition={self.gpu_partition}")
+            if self.gpu_gres and not any(
+                p.startswith(gpu_flag_prefix) for p in job_params
+            ):
+                job_params.append(f"{gpu_flag_prefix}{self.gpu_gres}")
+            if not self.gpu_partition and not self.gpu_gres:
+                logger.warning(
+                    "Workflow %s requested GPU defaults but no generic gpu_partition or gpu_gres is configured.",
+                    workflow,
+                )
         if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         workflow_env = self.workflow_params_to_envvars(**kwargs)

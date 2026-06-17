@@ -1,0 +1,1 @@
+(()=>{const o=new URL(e.href);["localhost","127.0.0.1"].includes(o.hostname)?(window.top.location.href=window.location.origin+o.pathname+o.search+o.hash,n.preventDefault()):o.hostname===window.location.hostname&&(window.top.location.href=e.href,n.preventDefault())})()

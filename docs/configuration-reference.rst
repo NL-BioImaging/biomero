@@ -52,6 +52,30 @@ Environment Variable Lookup Table
      - ``gpu_gres``
      - string
      - Default fallback GPU GRES for workflow submissions when GPU mode is requested
+   * - ``BIOMERO_GPU_RESOURCE_FLAG``
+     - ``gpu_resource_flag``
+     - string
+     - Selects whether BIOMERO emits shared GPU fallback params as ``--gres`` or ``--gpus``
+   * - ``BIOMERO_IMAGE_PULL_VIA_SBATCH``
+     - ``slurm_image_pull_via_sbatch``
+     - boolean
+     - Switches workflow/converter image pulls from direct remote execution to sbatch jobs
+   * - ``BIOMERO_PULL_CPUS``
+     - ``image_pull_cpus``
+     - string
+     - CPU request used for sbatch-based image pull/build jobs
+   * - ``BIOMERO_PULL_MEM``
+     - ``image_pull_mem``
+     - string
+     - Memory request used for sbatch-based image pull/build jobs
+   * - ``BIOMERO_APPTAINER_TMPDIR``
+     - ``apptainer_tmpdir``
+     - string
+     - Tmp directory exported for Apptainer/Singularity image pull/build commands
+   * - ``BIOMERO_APPTAINER_CACHEDIR``
+     - ``apptainer_cachedir``
+     - string
+     - Cache directory exported for Apptainer/Singularity image pull/build commands
    * - ``BIOMERO_SLURM_ZIP_CMD``
      - ``slurm_zip_cmd``
      - string
@@ -127,6 +151,30 @@ Environment Variable Lookup Table
      - string or empty
      - unset
      - Shared fallback gres appended for GPU workflow runs when needed
+   * - ``gpu_resource_flag``
+     - string
+     - ``gres``
+     - Chooses whether BIOMERO appends shared GPU fallback params as ``--gres`` or ``--gpus``
+   * - ``slurm_image_pull_via_sbatch``
+     - boolean
+     - ``false``
+     - Uses sbatch jobs instead of direct remote execution for workflow/converter image pulls
+   * - ``image_pull_cpus``
+     - string
+     - ``8``
+     - CPU request for sbatch-based image pull/build jobs
+   * - ``image_pull_mem``
+     - string
+     - ``32G``
+     - Memory request for sbatch-based image pull/build jobs
+   * - ``apptainer_tmpdir``
+     - string or empty
+     - unset
+     - Tmp directory exported for Apptainer/Singularity image pull/build commands
+   * - ``apptainer_cachedir``
+     - string or empty
+     - unset
+     - Cache directory exported for Apptainer/Singularity image pull/build commands
    * - ``slurm_zip_cmd``
      - string or empty
      - ``$(command -v 7z || command -v 7za)``
@@ -174,14 +222,16 @@ GPU precedence
 
 For workflow submissions, GPU-related settings are applied in this order:
 
-1. per-workflow sbatch parameters from ``[MODELS]`` such as ``cellpose_job_partition`` and ``cellpose_job_gres``
-2. shared runtime defaults from ``gpu_partition`` and ``gpu_gres``
+1. per-workflow sbatch parameters from ``[MODELS]`` such as ``cellpose_job_partition``, ``cellpose_job_gres``, and ``cellpose_job_gpus``
+2. shared runtime defaults from ``gpu_partition`` and ``gpu_gres``, rendered with the configured ``gpu_resource_flag``
 3. no BIOMERO-added GPU resource arguments
 
-Shared defaults are only considered when both conditions hold:
+Shared defaults are considered when either condition holds:
 
-* ``inject_gpu_flag`` is enabled
 * the workflow is submitted with ``use_gpu=true``
+* the workflow has ``<name>_use_gpu=true`` in ``[MODELS]``
+
+An explicit submission-time ``use_gpu`` argument still overrides the per-workflow ``<name>_use_gpu`` default.
 
 Search Hints
 ------------

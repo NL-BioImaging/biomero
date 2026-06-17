@@ -11,6 +11,7 @@ import mock
 from mock import patch, MagicMock
 from paramiko import SSHException
 import os
+import shlex
 from sqlalchemy import inspect
 
 
@@ -2120,6 +2121,7 @@ def test_from_config(mock_ConfigParser,
         converter_images=conv_dict,  # expected converter_images
         slurm_model_jobs=job_dict_out,  # expected slurm_model_jobs value,
         slurm_model_jobs_params=jp_dict_out,  # expected slurm_model_jobs_params value,
+        slurm_model_use_gpu={},
         slurm_script_path=mv,  # expected slurm_script_path value,
         slurm_script_repo=mv,  # expected slurm_script_repo value,
         init_slurm=init_slurm,
@@ -2137,6 +2139,12 @@ def test_from_config(mock_ConfigParser,
         inject_gpu_flag=False,
         gpu_partition=mv,
         gpu_gres=mv,
+        gpu_resource_flag=mv,
+        slurm_image_pull_via_sbatch=False,
+        image_pull_cpus=mv,
+        image_pull_mem=mv,
+        apptainer_tmpdir=mv,
+        apptainer_cachedir=mv,
         slurm_zip_cmd=mv,
     )
 
@@ -3332,6 +3340,38 @@ def test_get_workflow_command_env_file_submission(slurm_client):
     assert "run1/biomero_job_env.sh" in cmd        # file path in sbatch arg
 
 
+def test_get_workflow_command_env_file_submission_shell_quotes_values(slurm_client):
+    """env_file_submission should shell-quote tricky values in the generated env file."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = True
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+
+    cmd, env = slurm_client.get_workflow_command(
+        "wf",
+        "1.0",
+        "run1",
+        comment="value with spaces",
+        label="it's-here",
+        use_gpu=True,
+        count=7,
+    )
+
+    assert env == {}
+    assert "export COMMENT='value with spaces'" in cmd
+    assert "export LABEL=" + shlex.quote("it's-here") in cmd
+    assert "export USE_GPU=True" in cmd
+    assert "export COUNT=7" in cmd
+
+
 def test_get_workflow_command_no_env_file_submission(slurm_client):
     """env_file_submission=False (default): plain sbatch, env dict returned."""
     slurm_client.slurm_model_paths = {"wf": "wf_path"}
@@ -3457,6 +3497,79 @@ def test_get_workflow_command_use_gpu_prefers_biomero_envvars(slurm_client_from_
     assert "--gres=gpu:h100:1" in cmd
     assert "--partition=gpu_a100" not in cmd
     assert "--gres=gpu:a100:1" not in cmd
+
+
+def test_get_workflow_command_model_use_gpu_defaults_to_gpu(slurm_client):
+    """Per-workflow *_use_gpu should apply generic GPU defaults even without runtime use_gpu."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_use_gpu = {"wf": True}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = "gpu_a100"
+    slurm_client.gpu_gres = "gpu:a100:1"
+    slurm_client.gpu_resource_flag = "gres"
+
+    cmd, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
+
+    assert "--partition=gpu_a100" in cmd
+    assert "--gres=gpu:a100:1" in cmd
+    assert env.get("GPU_FLAG") is None
+
+
+def test_get_workflow_command_model_use_gpu_with_inject_can_disable(slurm_client):
+    """Submission-time use_gpu=false should override *_use_gpu when inject_gpu_flag is enabled."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_use_gpu = {"wf": True}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = True
+    slurm_client.gpu_partition = "gpu_a100"
+    slurm_client.gpu_gres = "gpu:a100:1"
+    slurm_client.gpu_resource_flag = "gres"
+
+    cmd, env = slurm_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=False
+    )
+
+    assert "--partition=" not in cmd
+    assert "--gres=" not in cmd
+    assert env["GPU_FLAG"] == ""
+
+
+def test_get_workflow_command_gpu_resource_flag_gpus(slurm_client):
+    """Generic GPU fallback should use configurable --gpus when requested."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_use_gpu = {"wf": True}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = "a100:1"
+    slurm_client.gpu_resource_flag = "gpus"
+
+    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
+
+    assert "--gpus=a100:1" in cmd
+    assert "--gres=" not in cmd
 
 
 # ---------------------------------------------------------------------------
@@ -3586,6 +3699,181 @@ def test_from_config_new_option_parsing_uses_helper(
     assert kwargs['slurm_conversion_partition'] is None
     assert kwargs['slurm_zip_cmd'] is None
     assert kwargs['env_file_submission'] is True
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
+    "BIOMERO_GPU_RESOURCE_FLAG": "gpus",
+    "BIOMERO_IMAGE_PULL_VIA_SBATCH": "true",
+    "BIOMERO_PULL_CPUS": "12",
+    "BIOMERO_PULL_MEM": "64G",
+}, clear=False)
+def test_from_config_gpu_resource_and_pull_env_override(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """New GPU resource flag and sbatch pull settings should use the shared config helper."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): None,
+            ('SLURM', 'sacct_days_ago'): None,
+            ('SLURM', 'gpu_resource_flag'): 'gres',
+            ('SLURM', 'image_pull_cpus'): '8',
+            ('SLURM', 'image_pull_mem'): '32G',
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+            'slurm_image_pull_via_sbatch': False,
+        },
+    )
+
+    SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    _, kwargs = mock_SlurmClient.call_args_list[-1]
+    assert kwargs['gpu_resource_flag'] == 'gpus'
+    assert kwargs['slurm_image_pull_via_sbatch'] is True
+    assert kwargs['image_pull_cpus'] == '12'
+    assert kwargs['image_pull_mem'] == '64G'
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
+    "BIOMERO_APPTAINER_TMPDIR": "/scratch/user/.apptainer-tmp",
+    "BIOMERO_APPTAINER_CACHEDIR": "/scratch/user/.apptainer-cache",
+}, clear=False)
+def test_from_config_apptainer_cache_dirs_env_override(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """Apptainer tmp/cache settings should support ini values with BIOMERO env overrides."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): None,
+            ('SLURM', 'sacct_days_ago'): None,
+            ('SLURM', 'apptainer_tmpdir'): '/ini/tmp',
+            ('SLURM', 'apptainer_cachedir'): '/ini/cache',
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+    )
+
+    SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    _, kwargs = mock_SlurmClient.call_args_list[-1]
+    assert kwargs['apptainer_tmpdir'] == '/scratch/user/.apptainer-tmp'
+    assert kwargs['apptainer_cachedir'] == '/scratch/user/.apptainer-cache'
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.cd')
+@patch('biomero.slurm_client.io.StringIO')
+def test_setup_converters_image_pull_via_sbatch(
+    mock_stringio,
+    mock_cd,
+    mock_run,
+    mock_run_commands,
+    mock_put,
+    _open,
+    _session,
+):
+    """Converter image pulls should submit via sbatch when the opt-in flag is enabled."""
+    mock_cd.return_value.__enter__.return_value = None
+    mock_cd.return_value.__exit__.return_value = None
+
+    client = SlurmClient(
+        "localhost",
+        user="slurm",
+        port=8022,
+        slurm_script_path="scriptpath",
+        slurm_converters_path="converterspath",
+        converter_images={"zarr_to_tiff": "repo/conv:1.2.3"},
+    )
+    client.slurm_image_pull_via_sbatch = True
+    client.image_pull_cpus = "12"
+    client.image_pull_mem = "64G"
+
+    mock_run.return_value = MagicMock(ok=True)
+    mock_run_commands.return_value = MagicMock(ok=True, stdout="12345\n")
+    mock_put.return_value = MagicMock(ok=True)
+
+    client.setup_converters()
+
+    script = mock_stringio.call_args_list[-1][0][0]
+    assert "singularity build --force --disable-cache" in script
+    assert "BIOMERO_PULL_CPUS" in script
+    mock_run_commands.assert_any_call([
+        "sbatch --parsable --job-name=biomero-pull-converters --cpus-per-task=12 --mem=64G --export=ALL,BIOMERO_PULL_CPUS=12 --output=pull_converters-%j.log pull_images.sh"
+    ])
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.SlurmClient.put')
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.cd')
+@patch('biomero.slurm_client.io.StringIO')
+def test_setup_converters_uses_configured_apptainer_dirs_without_sbatch(
+    mock_stringio,
+    mock_cd,
+    mock_run,
+    mock_run_commands,
+    mock_put,
+    _open,
+    _session,
+):
+    """Standard background pulls should still honor configured Apptainer tmp/cache dirs."""
+    mock_cd.return_value.__enter__.return_value = None
+    mock_cd.return_value.__exit__.return_value = None
+
+    client = SlurmClient(
+        "localhost",
+        user="slurm",
+        port=8022,
+        slurm_script_path="scriptpath",
+        slurm_converters_path="converterspath",
+        converter_images={"zarr_to_tiff": "repo/conv:1.2.3"},
+        apptainer_tmpdir="/scratch/user/.apptainer-tmp",
+        apptainer_cachedir="/scratch/user/.apptainer-cache",
+    )
+    client.slurm_image_pull_via_sbatch = False
+
+    mock_run.return_value = MagicMock(ok=True)
+    mock_run_commands.return_value = MagicMock(ok=True, stdout="started\n")
+    mock_put.return_value = MagicMock(ok=True)
+
+    client.setup_converters()
+
+    script = mock_stringio.call_args_list[-1][0][0]
+    assert "APPTAINER_TMPDIR=/scratch/user/.apptainer-tmp" in script
+    assert "APPTAINER_CACHEDIR=/scratch/user/.apptainer-cache" in script
 
 
 @pytest.mark.parametrize(

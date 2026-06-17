@@ -169,7 +169,7 @@ Open design concern:
   - when both are conceptually available, docs should explain which transport is used -> env_file wins. 
   Part of documentation perhaps.
 
-- [ ] Add or review tests for values that need shell quoting in env-file mode.
+- [x] Add or review tests for values that need shell quoting in env-file mode.
   Include examples with:
   - spaces
   - quotes
@@ -452,33 +452,67 @@ Status:
 - Many unit tests already exist for newer behavior.
 - They should be treated as part of the patch-removal deliverable, not as optional extras.
 
-- [ ] Review existing new tests in `tests/unit/test_slurm_client.py` and keep them passing.
+- [x] Review existing new tests in `tests/unit/test_slurm_client.py` and keep them passing.
 
-- [ ] Add tests for any newly introduced shared config helper.
+- [x] Add tests for any newly introduced shared config helper.
 
-- [ ] Add tests for any finalized environment variable naming decisions.
+- [x] Add tests for any finalized environment variable naming decisions.
 
-- [ ] Add tests for doc/example alignment where practical via config parsing tests.
+- [x] Add tests for doc/example alignment where practical via config parsing tests.
 
-- [ ] Run the narrow unit test slice for `slurm_client` after each implementation batch.
+- [x] Run the narrow unit test slice for `slurm_client` after each implementation batch.
 
-- [ ] Run a broader repo test pass once the checklist items affecting public behavior are complete.
+- [x] Run a broader repo test pass once the checklist items affecting public behavior are complete.
 
 ## 14. Cleanup Before Removing Patches
 
-- [ ] Compare each behavior in `patches/patch_biomero_runtime.py` with upstream code and mark it as one of:
+- [x] Compare each behavior in `patches/patch_biomero_runtime.py` with upstream code and mark it as one of:
   - implemented in core
   - implemented but still needs docs/tests/review
   - intentionally rejected for core
   - external repo responsibility
 
-- [ ] Remove runtime patches only after the above comparison is complete.
+  Review summary:
+  - implemented in core:
+    - shared config/env precedence helper
+    - sacct window support
+    - zip/unzip command abstraction
+    - env-file submission for workflow and conversion jobs
+    - generated-script GPU flag handling
+    - shared GPU fallback params with configurable resource flag
+    - optional `slurm_data_bind_path`
+    - optional `slurm_conversion_partition`
+    - apptainer tmp/cache env support for image pulls
+    - optional sbatch-based image pull/build path
+    - job template output verification
+  - intentionally rejected for core:
+    - forcing `slurm_data_bind_path` globally
+    - mutating cloned external script repositories
+    - adding/removing hard-coded GPU directives in external scripts
+    - adding missing external repo job scripts into core behavior
+  - external repo / deployment responsibility:
+    - custom `slurm_script_repo` contents
+    - cluster-specific web bundle Metabase link patch
 
-- [ ] Ensure release notes / PR summary clearly state:
+- [x] Remove obsolete Slurm runtime patches after the above comparison is complete.
+  Kept intentionally:
+  - `patch_biomero_web_runtime.py`
+  - `metabase_link_old.js`
+  - `metabase_link_new.js`
+  Rationale:
+  - these patch OMERO.biomero web bundle behavior and are not covered by current core `biomero` changes.
+
+- [x] Ensure release notes / PR summary clearly state:
   - what behavior moved into core BIOMERO
   - what remains opt-in
   - what remains external-repo responsibility
   - what backward-compatible defaults remain unchanged
+
+  PR summary notes:
+  - moved into core BIOMERO: config/env precedence helper, env-file submission, GPU fallback handling, zip command abstraction, optional conversion/bind settings, sbatch-based image pulling, apptainer tmp/cache settings, and output verification in generated job templates
+  - remains opt-in: env-file submission, inject_gpu_flag, shared GPU defaults, sbatch-based image pulling, apptainer tmp/cache overrides
+  - remains external responsibility: custom script repositories and the separate OMERO.biomero web Metabase link patch
+  - backward-compatible defaults remain unchanged unless the new options are explicitly enabled
 
 ## 15. Quick Status Snapshot
 
@@ -513,4 +547,4 @@ Still genuinely unresolved and requiring design or policy work:
 - [x] Step 5: Complete docs for all supported optional settings.
 - [x] Step 6: Decide policy for cloned external script normalization.
 - [x] Step 7: Explicitly document external-repo responsibilities and non-goals.
-- [ ] Step 8: Reconcile patch behavior vs core behavior and remove obsolete patches.
+- [x] Step 8: Reconcile patch behavior vs core behavior and remove obsolete patches.

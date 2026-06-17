@@ -162,6 +162,54 @@ Use this when:
 * you want one generated job script to run in both CPU and GPU modes
 * your generated scripts contain the standard singularity/apptainer GPU flag pattern
 
+``gpu_resource_flag``
+
+Impact:
+
+* Controls which sbatch GPU resource flag BIOMERO appends for shared GPU defaults.
+* Typical values are ``gres`` and ``gpus``.
+* This affects only BIOMERO-added fallback GPU params; explicit per-workflow job params still win.
+
+Use this when:
+
+* your cluster expects ``--gpus=...`` instead of ``--gres=...``
+* you want shared GPU fallback injection to match local scheduler conventions
+
+Image pull execution mode
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``slurm_image_pull_via_sbatch``
+
+Impact:
+
+* When ``false``: BIOMERO starts image pulls/builds via the existing remote shell path.
+* When ``true``: BIOMERO submits image pulls/builds through ``sbatch`` instead.
+* This applies to both workflow image setup and configured converter image setup.
+
+Use this when:
+
+* container pulls/builds are too heavy for the login node
+* your cluster requires build work to run as scheduled jobs
+
+``image_pull_cpus`` and ``image_pull_mem``
+
+Impact:
+
+* Control the resources requested when ``slurm_image_pull_via_sbatch=true``.
+* These values are passed to the pull/build submission jobs for workflow and converter images.
+
+Apptainer temp and cache directories
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use ``apptainer_tmpdir`` and ``apptainer_cachedir`` when the default temporary
+or cache location is too small for large image pulls/builds.
+
+Impact:
+
+* If set, BIOMERO exports the corresponding Apptainer/Singularity env vars into pull/build commands.
+* The same settings apply to both image setup modes: direct and sbatch-based.
+* If unset, BIOMERO leaves Apptainer/Singularity at the cluster defaults.
+
 Default GPU fallback settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -248,6 +296,12 @@ client-level options introduced, including:
 * ``inject_gpu_flag``
 * ``gpu_partition``
 * ``gpu_gres``
+* ``gpu_resource_flag``
+* ``slurm_image_pull_via_sbatch``
+* ``image_pull_cpus``
+* ``image_pull_mem``
+* ``apptainer_tmpdir``
+* ``apptainer_cachedir``
 * ``slurm_zip_cmd``
 
 

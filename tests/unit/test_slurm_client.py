@@ -2146,6 +2146,8 @@ def test_from_config(mock_ConfigParser,
         apptainer_tmpdir=mv,
         apptainer_cachedir=mv,
         slurm_zip_cmd=mv,
+        analytics_rebuild_start_time=mv,
+        analytics_rebuild_days_ago=None,
     )
 
 

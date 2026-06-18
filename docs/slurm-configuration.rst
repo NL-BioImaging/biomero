@@ -30,8 +30,14 @@ BIOMERO uses these sections in ``slurm-config.ini``:
 
 * ``[SSH]`` for the Fabric SSH host alias
 * ``[SLURM]`` for shared paths and client-level runtime behaviour
+* ``[ANALYTICS]`` for BIOMERO 2.x workflow tracking and provenance (database integration)
 * ``[CONVERTERS]`` for external converter container images
 * ``[MODELS]`` for workflow repositories, job scripts, and per-workflow sbatch overrides
+
+The ``[ANALYTICS]`` section enables BIOMERO 2.x provenance and workflow tracking.
+See the `Analytics and Provenance Settings`_ section below for details.
+
+See :doc:`developer/eventsourcing` for the event model and view table details.
 
 Minimal Working Example
 -----------------------
@@ -242,6 +248,64 @@ Use this when:
 * your cluster exposes only ``7za`` or only ``7z``
 * auto-detection is not reliable in your environment
 
+Analytics and Provenance Settings
+----------------------------------
+
+The ``[ANALYTICS]`` section in ``slurm-config.ini`` controls BIOMERO 2.x provenance
+and workflow tracking. When enabled, BIOMERO records every workflow and job event into
+a PostgreSQL event store (via eventsourcing_sqlalchemy). Lightweight view tables are
+then derived from those events and exposed to Metabase dashboards in OMERO.biomero —
+showing live workflow status, per-user job accounting (who ran what, useful for Slurm
+resource accounting), timing, and failures across the full OMERO → Slurm → OMERO
+lifecycle.
+
+This is on by default since BIOMERO 2.x. The individual listeners can be enabled or
+disabled independently. Turn off ``track_workflows=False`` only if you are running a
+basic 1.x-style deployment without a PostgreSQL analytics database, in which case none
+of the Metabase dashboard views will be populated.
+
+See :doc:`developer/eventsourcing` for the event model and view table details.
+
+Analytics view table rebuild window
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+
+   This is an advanced opt-in feature. Enabling it means jobs outside the cutoff
+   window will **not appear** in analytics views. Only use it when full rebuilds
+   are genuinely too slow for your installation.
+
+When the SLURM Init script resets analytics view tables, BIOMERO replays the full
+event history to rebuild the views. On large installations with thousands of events
+this can take several minutes. By default, BIOMERO always does a full rebuild.
+
+Two settings allow capping how far back the replay goes. They are configured under
+``[ANALYTICS]``, not ``[SLURM]``:
+
+* ``analytics_rebuild_start_time``: absolute cutoff date, format ``YYYY-MM-DD``
+* ``analytics_rebuild_days_ago``: rolling window in days
+
+Effective precedence:
+
+1. built-in default: full rebuild from event ID 1
+2. resolved ``analytics_rebuild_start_time``
+3. resolved ``analytics_rebuild_days_ago`` (overrides absolute date when both are set)
+4. values set via environment variables (highest priority)
+
+Environment variable overrides:
+
+* ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
+* ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO`` (takes highest priority; falls back gracefully on invalid input)
+
+These settings can also be overridden for a single run via the **Rebuild From Days Ago**
+and **Rebuild From Date** inputs on the SLURM Init OMERO script.
+
+.. note::
+
+   These settings only affect view table rebuilds during ``reset_tables=True`` init runs.
+   They do not affect ``sacct`` history queries or what jobs appear in the Monitor.
+   View tables built from a partial event history will not include older jobs.
+
 Workflow And Model Configuration
 --------------------------------
 
@@ -303,6 +367,8 @@ client-level options introduced, including:
 * ``apptainer_tmpdir``
 * ``apptainer_cachedir``
 * ``slurm_zip_cmd``
+* ``analytics_rebuild_start_time``
+* ``analytics_rebuild_days_ago``
 
 
 Troubleshooting

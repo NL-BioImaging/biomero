@@ -80,6 +80,14 @@ Environment Variable Lookup Table
      - ``slurm_zip_cmd``
      - string
      - Overrides the zip command used on the cluster for packaging results
+   * - ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
+     - ``analytics_rebuild_start_time``
+     - string date
+     - Absolute cutoff date (``YYYY-MM-DD``) from which events are replayed when resetting analytics view tables; leave unset to replay all events
+   * - ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``
+     - ``analytics_rebuild_days_ago``
+     - integer
+     - Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set
    * - ``GPU_PARTITION``
      - ``gpu_partition``
      - string
@@ -179,6 +187,14 @@ Environment Variable Lookup Table
      - string or empty
      - ``$(command -v 7z || command -v 7za)``
      - Command used for result zipping on the HPC
+   * - ``analytics_rebuild_start_time``
+     - string date or empty
+     - unset
+     - Absolute cutoff date (``YYYY-MM-DD``) from which events are replayed when resetting analytics view tables; leave unset to replay all events. Configured under ``[ANALYTICS]``.
+   * - ``analytics_rebuild_days_ago``
+     - integer or empty
+     - unset
+     - Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set. Configured under ``[ANALYTICS]``.
 
 Behaviour Notes
 ---------------
@@ -251,5 +267,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_APPTAINER_TMPDIR``
 * ``BIOMERO_APPTAINER_CACHEDIR``
 * ``BIOMERO_SLURM_ZIP_CMD``
+* ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
+* ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``
 * ``GPU_PARTITION``
 * ``GPU_GRES``

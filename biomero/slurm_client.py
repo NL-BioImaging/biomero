@@ -40,7 +40,7 @@ from biomero.database import EngineManager, JobProgressView, JobView, TaskExecut
 from eventsourcing.system import System, SingleThreadedRunner
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -427,7 +427,9 @@ class SlurmClient(Connection):
                  image_pull_mem: str = "32G",
                  apptainer_tmpdir: str = None,
                  apptainer_cachedir: str = None,
-                 slurm_zip_cmd: str = None):
+                 slurm_zip_cmd: str = None,
+                 analytics_rebuild_start_time: str = None,
+                 analytics_rebuild_days_ago: int = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -577,6 +579,16 @@ class SlurmClient(Connection):
             slurm_zip_cmd (str, optional): Command used to zip job output on
                 the cluster. Defaults to auto-detecting ``7z`` or ``7za``.
                 Overridable via ``BIOMERO_SLURM_ZIP_CMD``.
+            analytics_rebuild_start_time (str, optional): Absolute cutoff date
+                (``YYYY-MM-DD``) from which events are replayed when resetting
+                analytics view tables. Overrides the full-history default.
+                Overridable via ``BIOMERO_ANALYTICS_REBUILD_START_TIME``.
+                Defaults to None (full rebuild).
+            analytics_rebuild_days_ago (int, optional): Rolling cutoff window
+                in days for analytics view table rebuilds. Overrides
+                ``analytics_rebuild_start_time`` when both are set.
+                Overridable via ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``.
+                Defaults to None (full rebuild).
         """
 
         super(SlurmClient, self).__init__(host,
@@ -615,6 +627,8 @@ class SlurmClient(Connection):
         self.apptainer_tmpdir = apptainer_tmpdir
         self.apptainer_cachedir = apptainer_cachedir
         self.slurm_zip_cmd = slurm_zip_cmd
+        self.analytics_rebuild_start_time = analytics_rebuild_start_time
+        self.analytics_rebuild_days_ago = analytics_rebuild_days_ago
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
@@ -756,14 +770,15 @@ class SlurmClient(Connection):
             EngineManager.close_engine()  # close current sql session
             # restart runner, listeners and recreate views
             self.initialize_analytics_system(reset_tables=False)
-            # Update the view tables again
+            # Update the view tables again, optionally from a cutoff event ID
+            start_id = self._find_analytics_start_id()
             listeners = [self.jobAccounting,
                          self.jobProgress,
                          self.wfProgress,
                          self.workflowAnalytics]
             for listener in listeners:
                 if listener:
-                    self.bring_listener_uptodate(listener)
+                    self.bring_listener_uptodate(listener, start=start_id)
 
     def get_listeners(self, runner):
         if self.track_workflows and self.enable_job_accounting:
@@ -782,6 +797,57 @@ class SlurmClient(Connection):
             self.workflowAnalytics = runner.get(WorkflowAnalytics)
         else:
             self.workflowAnalytics = NoOpWorkflowTracker()
+
+    def _find_analytics_start_id(self) -> int:
+        """Return the lowest event ID to start replaying from when rebuilding
+        analytics view tables, based on ``analytics_rebuild_days_ago`` or
+        ``analytics_rebuild_start_time`` configuration.
+
+        Priority (low to high):
+        1. ``analytics_rebuild_start_time`` — absolute date string ``YYYY-MM-DD``
+        2. ``analytics_rebuild_days_ago`` — rolling window in days (overrides absolute)
+        Both default to ``None``, meaning replay from event ID 1 (full rebuild).
+
+        The timestamp is decoded from the eventsourcing JSON state blob:
+        ``{"timestamp": {"_type_": "datetime_iso", "_data_": "<iso-string>"}, ...}``
+
+        Returns:
+            int: The event ID to pass as ``start`` to ``pull_and_process``.
+                 Returns 1 if no cutoff is configured or if the query fails.
+        """
+        cutoff = None
+        if self.analytics_rebuild_start_time is not None:
+            cutoff = self.analytics_rebuild_start_time
+        if self.analytics_rebuild_days_ago is not None:
+            cutoff = (
+                datetime.now(tz=timezone.utc)
+                - timedelta(days=int(self.analytics_rebuild_days_ago))
+            ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        if cutoff is None:
+            return 1
+
+        try:
+            with EngineManager.get_session() as session:
+                result = session.execute(
+                    text(
+                        "SELECT MIN(id) FROM workflowtracker_events "
+                        "WHERE (convert_from(state, 'UTF8')::json->>'timestamp')"
+                        "::json->>'_data_' >= :cutoff"
+                    ),
+                    {"cutoff": cutoff},
+                ).scalar()
+            start_id = int(result) if result is not None else 1
+            logger.info(
+                f"Analytics rebuild cutoff: {cutoff} → starting from event ID {start_id}"
+            )
+            return start_id
+        except Exception as e:
+            logger.warning(
+                f"Could not determine analytics rebuild start ID from cutoff "
+                f"'{cutoff}': {e}. Falling back to full rebuild (start=1)."
+            )
+            return 1
 
     def bring_listener_uptodate(self, listener, start=1):
         with EngineManager.get_session() as session:
@@ -1259,6 +1325,23 @@ class SlurmClient(Connection):
             value_type=int,
             empty_is_none=True,
         )
+        analytics_rebuild_start_time = cls._get_config_value(
+            configs,
+            section="ANALYTICS",
+            option="analytics_rebuild_start_time",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
+            empty_is_none=True,
+        )
+        analytics_rebuild_days_ago = cls._get_config_value(
+            configs,
+            section="ANALYTICS",
+            option="analytics_rebuild_days_ago",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
+            value_type=int,
+            empty_is_none=True,
+        )
 
         # Processing settings: env-file submission and GPU defaults.
         env_file_submission = cls._get_config_value(
@@ -1463,7 +1546,9 @@ class SlurmClient(Connection):
                    image_pull_mem=image_pull_mem,
                    apptainer_tmpdir=apptainer_tmpdir,
                    apptainer_cachedir=apptainer_cachedir,
-                   slurm_zip_cmd=slurm_zip_cmd)
+                   slurm_zip_cmd=slurm_zip_cmd,
+                   analytics_rebuild_start_time=analytics_rebuild_start_time,
+                   analytics_rebuild_days_ago=analytics_rebuild_days_ago)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,

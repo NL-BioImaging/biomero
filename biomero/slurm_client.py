@@ -1225,6 +1225,11 @@ class SlurmClient(Connection):
             # c. workflows
         if self.slurm_images_path:
             dir_cmds.append(f"mkdir -p \"{self.slurm_images_path}\"")
+        # d. apptainer tmp/cache dirs (used during image pulls)
+        if self.apptainer_tmpdir:
+            dir_cmds.append(f"mkdir -p {shlex.quote(self.apptainer_tmpdir)}")
+        if self.apptainer_cachedir:
+            dir_cmds.append(f"mkdir -p {shlex.quote(self.apptainer_cachedir)}")
         r = self.run_commands(dir_cmds)
         if not r.ok:
             raise SSHException(r)

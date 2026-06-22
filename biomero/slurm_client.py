@@ -38,6 +38,7 @@ from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
 from eventsourcing.system import System, SingleThreadedRunner
+from eventsourcing.persistence import IntegrityError as ESIntegrityError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta, timezone
@@ -856,10 +857,10 @@ class SlurmClient(Connection):
                 listener.pull_and_process(
                     leader_name=WorkflowTracker.__name__, start=start)
                 session.commit()
-            except IntegrityError as e:
+            except (IntegrityError, ESIntegrityError) as e:
                 session.rollback()
                 error_msg = str(e).lower()
-                if 'unique constraint' in error_msg or 'duplicate key' in error_msg:
+                if 'unique constraint' in error_msg or 'duplicate key' in error_msg or isinstance(e, ESIntegrityError):
                     # Already processed by another worker - this is expected and harmless.
                     # The listener is already up to date.
                     logger.debug(

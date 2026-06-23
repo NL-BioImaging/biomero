@@ -620,8 +620,8 @@ class SlurmClient(Connection):
         self.env_file_submission = env_file_submission
         self.inject_gpu_flag = inject_gpu_flag
         self.gpu_partition = gpu_partition
-        self.gpu_gres = gpu_gres
         self.gpu_resource_flag = gpu_resource_flag or self._DEFAULT_GPU_RESOURCE_FLAG
+        self.gpu_gres = self._format_gpu_resource_value(gpu_gres)
         self.slurm_image_pull_via_sbatch = slurm_image_pull_via_sbatch
         self.image_pull_cpus = image_pull_cpus
         self.image_pull_mem = image_pull_mem
@@ -2782,6 +2782,48 @@ class SlurmClient(Connection):
         s.mount('http://github.com/', HTTPAdapter(max_retries=retry_strategy))
         return s
 
+    def _format_gpu_resource_value(self, gpu_value: str) -> str:
+        """Normalize configured GPU resource values for the selected Slurm flag.
+
+        ``--gres`` expects values like ``gpu:a100:1`` while ``--gpus`` expects
+        ``a100:1`` or ``1``. BIOMERO keeps a single config field for backward
+        compatibility, so normalize between the two common formats here.
+        """
+        if gpu_value is None:
+            return None
+
+        normalized_value = str(gpu_value).strip()
+        if not normalized_value:
+            return normalized_value
+
+        if self.gpu_resource_flag == "gpus":
+            if normalized_value.startswith("gpu:"):
+                logger.warning(
+                    "gpu_gres value '%s' looks like a --gres resource but gpu_resource_flag is 'gpus'; removing the 'gpu:' prefix.",
+                    normalized_value,
+                )
+                return normalized_value[4:]
+            return normalized_value
+
+        if self.gpu_resource_flag == "gres":
+            if normalized_value.startswith("gpu:"):
+                return normalized_value
+            if re.fullmatch(r"\d+", normalized_value):
+                raise ValueError(
+                    "gpu_gres value '%s' is not valid for gpu_resource_flag='gres'. "
+                    "Use a gres resource like 'gpu:<type>:<count>'."
+                    % normalized_value
+                )
+            if re.fullmatch(r"[^:]+:\d+", normalized_value):
+                logger.warning(
+                    "gpu_gres value '%s' looks like a --gpus resource but gpu_resource_flag is 'gres'; adding the 'gpu:' prefix.",
+                    normalized_value,
+                )
+                return f"gpu:{normalized_value}"
+            return normalized_value
+
+        return normalized_value
+
     def get_workflow_command(self,
                              workflow: str,
                              workflow_version: str,
@@ -2898,8 +2940,10 @@ class SlurmClient(Connection):
             )
             return sbatch_cmd, {}
 
-        sbatch_cmd = f"sbatch{job_param} --output=omero-%j.log \
-            \"{self.slurm_script_path}/{job_script}\""
+        sbatch_cmd = (
+            f"sbatch{job_param} --output=omero-%j.log "
+            f'"{self.slurm_script_path}/{job_script}"'
+        )
         return sbatch_cmd, env
 
     def get_conversion_command(self, data_path: str,

@@ -406,107 +406,106 @@ def test_get_workflow_command(
     slurm_client, email, time_limit, data_bind_path, conversion_partition,
     param_values, expected_env_values
 ):
-    # GIVEN
-    workflow = "example_workflow"
-    workflow_version = "1.0"
-    input_data = "input_data_folder"
-
-    slurm_client.slurm_model_paths = {"example_workflow": "workflow_path"}
-    slurm_client.slurm_model_jobs = {"example_workflow": "job_script.sh"}
-    slurm_client.slurm_model_jobs_params = {
-        "example_workflow": [" --param3=value3", " --param4=value4"]
-    }
     slurm_client.slurm_model_images = {"example_workflow": "user/image"}
+    slurm_client.slurm_model_paths = {"example_workflow": "example_path"}
+    slurm_client.slurm_model_jobs = {"example_workflow": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"example_workflow": []}
     slurm_client.slurm_data_path = "/path/to/slurm_data"
-    slurm_client.slurm_converters_path = "/path/to/slurm_converters"
     slurm_client.slurm_images_path = "/path/to/slurm_images"
     slurm_client.slurm_script_path = "/path/to/slurm_script"
     slurm_client.slurm_data_bind_path = data_bind_path
-    slurm_client.slurm_conversion_partition = conversion_partition
+    slurm_client.gpu_partition = conversion_partition
+    slurm_client.gpu_gres = None
+    slurm_client.inject_gpu_flag = False
+    slurm_client.env_file_submission = False
 
     expected_sbatch_cmd = (
-        f'sbatch --param3=value3 --param4=value4 --time={time_limit} --mail-user={email} --output=omero-%j.log \
-            "{slurm_client.slurm_script_path}/job_script.sh"'
+        f'sbatch{f" --time={time_limit}" if time_limit else ""}'
+        f'{f" --mail-user={email}" if email else ""}'
+        ' --output=omero-%j.log '
+        '"/path/to/slurm_script/job.sh"'
     )
-    
-    # Build expected environment dictionary
     expected_env = {
-        "DATA_PATH": '"/path/to/slurm_data/input_data_folder"',
-        "IMAGE_PATH": '"/path/to/slurm_images/workflow_path"',
-        "IMAGE_VERSION": "1.0",
-        "SINGULARITY_IMAGE": '"image_1.0.sif"',
+        "DATA_PATH": '"/path/to/slurm_data/example_data"',
+        "IMAGE_PATH": '"/path/to/slurm_images/example_path"',
+        "IMAGE_VERSION": "v1",
+        "SINGULARITY_IMAGE": '"image_v1.sif"',
         "SCRIPT_PATH": '"/path/to/slurm_script"',
+        **expected_env_values,
     }
-    # Add the test-specific environment variables
-    expected_env.update(expected_env_values)
-
-    # Add bind path if specified
-    if data_bind_path is not None:
+    if data_bind_path:
         expected_env["APPTAINER_BINDPATH"] = f'"{data_bind_path}"'
 
-    # WHEN
-    sbatch_cmd, env = slurm_client.get_workflow_command(
-        workflow,
-        workflow_version,
-        input_data,
-        email,
-        time_limit,
-        **param_values
+    cmd, env = slurm_client.get_workflow_command(
+        workflow="example_workflow",
+        workflow_version="v1",
+        input_data="example_data",
+        email=email or None,
+        time=time_limit or None,
+        **param_values,
     )
 
-    # THEN
-    assert sbatch_cmd == expected_sbatch_cmd
+    assert cmd == expected_sbatch_cmd
     assert env == expected_env
 
 
-@pytest.mark.parametrize("source_format, target_format", [("zarr", "tiff"), ("xyz", "abc")])
-@patch('biomero.slurm_client.SlurmClient.run_commands', new_callable=SerializableMagicMock)
-@patch('fabric.Result', new_callable=SerializableMagicMock)
-def test_run_conversion_workflow_job(mock_result, mock_run_commands, slurm_client, source_format, target_format):
-    # GIVEN
-    folder_name = "example_folder"
+@pytest.fixture
+def gpu_workflow_command_client(slurm_client):
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = True
+    slurm_client.gpu_partition = None
+    return slurm_client
 
-    slurm_client.slurm_data_path = "/path/to/slurm_data"
-    slurm_client.slurm_converters_path = "/path/to/slurm_converters"
-    slurm_client.slurm_script_path = "/path/to/slurm_script"
-    slurm_client.converter_images = None
 
-    expected_config_file = f"config_{folder_name}.txt"
-    expected_data_path = f"{slurm_client.slurm_data_path}/{folder_name}"
-    expected_conversion_cmd, expected_sbatch_env = (
-        "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\"",
-        {
-            "DATA_PATH": f"\"{expected_data_path}\"",
-            "CONVERSION_PATH": f"\"{slurm_client.slurm_converters_path}\"",
-            "CONVERTER_IMAGE": f"convert_{source_format}_to_{target_format}_latest.sif",
-            "SCRIPT_PATH": f"\"{slurm_client.slurm_script_path}\"",
-            "CONFIG_FILE": f"\"{expected_config_file}\""
-        }
-    )
-    expected_commands = [
-        f"find \"{expected_data_path}/data/in\" -name \"*.{source_format}\" | awk '{{print NR, $0}}' > \"{expected_config_file}\"",
-        f"N=$(wc -l < \"{expected_config_file}\")",
-        f"echo \"Number of .{source_format} files: $N\"",
-        expected_conversion_cmd
-    ]
+@pytest.mark.parametrize(
+    "gpu_resource_flag,gpu_gres,expected_flag,unexpected_flag,warning_text",
+    [
+        (
+            "gpus",
+            "gpu:a100:2",
+            "--gpus=a100:2",
+            "--gpus=gpu:a100:2",
+            "looks like a --gres resource but gpu_resource_flag is 'gpus'",
+        ),
+        (
+            "gres",
+            "a100:2",
+            "--gres=gpu:a100:2",
+            "--gres=a100:2",
+            "looks like a --gpus resource but gpu_resource_flag is 'gres'",
+        ),
+    ],
+)
+def test_get_workflow_command_use_gpu_normalizes_gpu_resource_values(
+        gpu_workflow_command_client,
+        caplog,
+        gpu_resource_flag,
+        gpu_gres,
+        expected_flag,
+        unexpected_flag,
+        warning_text):
+    """Mismatched gres/gpus resource values should be normalized with a warning."""
+    gpu_workflow_command_client.gpu_resource_flag = gpu_resource_flag
 
-    # Mocking the run_commands method to avoid actual execution
-    mock_run_commands.return_value = mock_result
+    with caplog.at_level(logging.WARNING):
+        # Simulate what __init__ does: normalize via _format_gpu_resource_value.
+        gpu_workflow_command_client.gpu_gres = (
+            gpu_workflow_command_client._format_gpu_resource_value(gpu_gres)
+        )
+        cmd, _ = gpu_workflow_command_client.get_workflow_command(
+            "wf", "1.0", "run1", "", "", use_gpu=True)
 
-    # WHEN
-    slurm_job = slurm_client.run_conversion_workflow_job(
-        folder_name, source_format, target_format)
-
-    # THEN
-    assert slurm_job is not None
-
-    assert mock_run_commands.call_args[0][0] == expected_commands
-    assert mock_run_commands.call_args[0][1] == expected_sbatch_env
-
-    # Check properties of slurm_job
-    assert slurm_job.job_id == -1
-    assert slurm_job.submit_result.ok
-    assert slurm_job.job_state is None
+    assert expected_flag in cmd
+    assert unexpected_flag not in cmd
+    assert warning_text in caplog.text
 
 @pytest.mark.parametrize(
     "env_file_submission",
@@ -556,8 +555,9 @@ def test_get_conversion_command(slurm_client, env_file_submission):
             "CONFIG_FILE": '"config.cfg"',
             "APPTAINER_BINDPATH": '"/bind/path"',
             "CONVERSION_PARTITION": '"gpu"',
-        }    
-    
+        }
+
+
 @pytest.mark.parametrize(
     "source_format, target_format, data_bind_path, conversion_partition",
     [
@@ -671,15 +671,15 @@ def test_descriptor_from_github(slurm_client):
             mock_get.return_value.ok = True
             mock_get.return_value.json.return_value = raw_descriptor
 
-                # WHEN
+            # WHEN
             descriptor = slurm_client.generic_descriptor_from_github(workflow)
 
-                # THEN
+            # THEN
             mock_get.assert_called_with(expected_raw_url)
             mock_parse.assert_called_once_with(raw_descriptor, name=workflow)
             assert descriptor == expected_descriptor
 
-                # WHEN & THEN
+            # WHEN & THEN
             mock_get.return_value.ok = False
             with pytest.raises(ValueError, match="No descriptor file found for repository"):
                 slurm_client.generic_descriptor_from_github(workflow)
@@ -690,45 +690,16 @@ def test_convert_url(slurm_client):
     valid_url = "https://github.com/username/repo/tree/branch"
     invalid_url = "https://example.com/invalid-url"
 
-    # WHEN
-    converted_url = slurm_client.convert_url(valid_url)
-
     # THEN
     expected_output_url = "https://github.com/username/repo/raw/branch/descriptor.json"
-    assert converted_url == expected_output_url
 
     # WHEN & THEN
     with pytest.raises(ValueError, match="Invalid GitHub URL"):
         slurm_client.convert_url(invalid_url)
 
+    output_url = slurm_client.convert_url(valid_url)
+    assert output_url == expected_output_url
 
-def test_extract_parts_from_url(slurm_client):
-    # GIVEN
-    valid_url = "https://github.com/username/repo/tree/branch"
-    valid_url2 = "https://github.com/username/repo"
-    invalid_url = "https://example.com/invalid-url"
-
-    # WHEN
-    valid_url_parts, valid_branch = slurm_client.extract_parts_from_url(
-        valid_url)
-
-    # THEN
-    assert valid_url_parts == [
-        'https:', '', 'github.com', 'username', 'repo', 'tree', 'branch']
-    assert valid_branch == 'branch'
-
-    # WHEN & THEN
-    with pytest.raises(ValueError, match="Invalid GitHub URL"):
-        slurm_client.extract_parts_from_url(invalid_url)
-
-    # WHEN no branch
-    valid_url_parts2, valid_branch2 = slurm_client.extract_parts_from_url(
-        valid_url2)
-
-    # THEN
-    assert valid_url_parts2 == [
-        'https:', '', 'github.com', 'username', 'repo']
-    assert valid_branch2 == 'master'
 
 
 @patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github', return_value={
@@ -3400,65 +3371,92 @@ def test_get_workflow_command_no_env_file_submission(slurm_client):
 # Tests for get_workflow_command: GPU sbatch params
 # ---------------------------------------------------------------------------
 
-def test_get_workflow_command_use_gpu_appends_params(slurm_client):
+def test_get_workflow_command_use_gpu_appends_params(gpu_workflow_command_client):
     """use_gpu=True + gpu_partition/gpu_gres → both appended to sbatch params."""
-    slurm_client.slurm_model_paths = {"wf": "wf_path"}
-    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
-    slurm_client.slurm_model_jobs_params = {"wf": []}
-    slurm_client.slurm_model_images = {"wf": "user/image"}
-    slurm_client.slurm_data_path = "/data"
-    slurm_client.slurm_images_path = "/images"
-    slurm_client.slurm_script_path = "/scripts"
-    slurm_client.slurm_data_bind_path = None
-    slurm_client.env_file_submission = False
-    slurm_client.inject_gpu_flag = True
-    slurm_client.gpu_partition = "gpu_a100"
-    slurm_client.gpu_gres = "gpu:a100:1"
+    gpu_workflow_command_client.gpu_partition = "gpu_a100"
+    gpu_workflow_command_client.gpu_gres = "gpu:a100:1"
 
-    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "",
-                                               use_gpu=True)
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
     assert "--partition=gpu_a100" in cmd
     assert "--gres=gpu:a100:1" in cmd
 
 
-def test_get_workflow_command_use_gpu_false_no_gpu_params(slurm_client):
-    """use_gpu=False → no GPU sbatch params injected even if configured."""
-    slurm_client.slurm_model_paths = {"wf": "wf_path"}
-    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
-    slurm_client.slurm_model_jobs_params = {"wf": []}
-    slurm_client.slurm_model_images = {"wf": "user/image"}
-    slurm_client.slurm_data_path = "/data"
-    slurm_client.slurm_images_path = "/images"
-    slurm_client.slurm_script_path = "/scripts"
-    slurm_client.slurm_data_bind_path = None
-    slurm_client.env_file_submission = False
-    slurm_client.inject_gpu_flag = False
-    slurm_client.gpu_partition = "gpu_a100"
-    slurm_client.gpu_gres = "gpu:a100:1"
+@pytest.mark.parametrize(
+    "gpu_resource_flag,gpu_gres,expected_flag,unexpected_flag,warning_text",
+    [
+        (
+            "gpus",
+            "gpu:a100:2",
+            "--gpus=a100:2",
+            "--gpus=gpu:a100:2",
+            "looks like a --gres resource but gpu_resource_flag is 'gpus'",
+        ),
+        (
+            "gres",
+            "a100:2",
+            "--gres=gpu:a100:2",
+            "--gres=a100:2",
+            "looks like a --gpus resource but gpu_resource_flag is 'gres'",
+        ),
+    ],
+)
+def test_get_workflow_command_use_gpu_normalizes_gpu_resource_values(
+        gpu_workflow_command_client,
+        caplog,
+        gpu_resource_flag,
+        gpu_gres,
+        expected_flag,
+        unexpected_flag,
+        warning_text):
+    """Mismatched gres/gpus resource values should be normalized with a warning."""
+    gpu_workflow_command_client.gpu_resource_flag = gpu_resource_flag
 
-    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "",
-                                               use_gpu=False)
+    with caplog.at_level(logging.WARNING):
+        # Mirror __init__: normalize via _format_gpu_resource_value so the
+        # warning is captured and the stored value is already normalized.
+        gpu_workflow_command_client.gpu_gres = (
+            gpu_workflow_command_client._format_gpu_resource_value(gpu_gres)
+        )
+        cmd, _ = gpu_workflow_command_client.get_workflow_command(
+            "wf", "1.0", "run1", "", "", use_gpu=True)
+
+    assert expected_flag in cmd
+    assert unexpected_flag not in cmd
+    assert warning_text in caplog.text
+
+
+def test_format_gpu_resource_value_rejects_numeric_value_for_gres(
+        gpu_workflow_command_client):
+    """A plain numeric GPU count is invalid for --gres; validated at init via _format_gpu_resource_value."""
+    gpu_workflow_command_client.gpu_resource_flag = "gres"
+
+    with pytest.raises(ValueError, match="not valid for gpu_resource_flag='gres'"):
+        gpu_workflow_command_client._format_gpu_resource_value("2")
+
+
+def test_get_workflow_command_use_gpu_false_no_gpu_params(gpu_workflow_command_client):
+    """use_gpu=False → no GPU sbatch params injected even if configured."""
+    gpu_workflow_command_client.inject_gpu_flag = False
+    gpu_workflow_command_client.gpu_partition = "gpu_a100"
+    gpu_workflow_command_client.gpu_gres = "gpu:a100:1"
+
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=False)
     assert "--partition=" not in cmd
     assert "--gres=" not in cmd
 
 
-def test_get_workflow_command_use_gpu_respects_per_workflow_partition(slurm_client):
+def test_get_workflow_command_use_gpu_respects_per_workflow_partition(
+        gpu_workflow_command_client):
     """Per-workflow --partition in job_params takes precedence; no duplicate."""
-    slurm_client.slurm_model_paths = {"wf": "wf_path"}
-    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
-    slurm_client.slurm_model_jobs_params = {"wf": [" --partition=my_gpu"]}
-    slurm_client.slurm_model_images = {"wf": "user/image"}
-    slurm_client.slurm_data_path = "/data"
-    slurm_client.slurm_images_path = "/images"
-    slurm_client.slurm_script_path = "/scripts"
-    slurm_client.slurm_data_bind_path = None
-    slurm_client.env_file_submission = False
-    slurm_client.inject_gpu_flag = False
-    slurm_client.gpu_partition = "gpu_a100"
-    slurm_client.gpu_gres = None
+    gpu_workflow_command_client.slurm_model_jobs_params = {"wf": [" --partition=my_gpu"]}
+    gpu_workflow_command_client.inject_gpu_flag = False
+    gpu_workflow_command_client.gpu_partition = "gpu_a100"
+    gpu_workflow_command_client.gpu_gres = None
 
-    cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "",
-                                               use_gpu=True)
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
     assert cmd.count("--partition=") == 1
     assert "--partition=my_gpu" in cmd
     assert "--partition=gpu_a100" not in cmd

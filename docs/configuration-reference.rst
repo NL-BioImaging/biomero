@@ -51,11 +51,11 @@ Environment Variable Lookup Table
    * - ``BIOMERO_GPU_GRES``
      - ``gpu_gres``
      - string
-     - Default fallback GPU GRES for workflow submissions when GPU mode is requested
-   * - ``BIOMERO_GPU_RESOURCE_FLAG``
-     - ``gpu_resource_flag``
+     - Default fallback ``--gres=`` value appended to GPU workflow submissions; mutually exclusive with ``gpu_gpus``
+   * - ``BIOMERO_GPU_GPUS``
+     - ``gpu_gpus``
      - string
-     - Selects whether BIOMERO emits shared GPU fallback params as ``--gres`` or ``--gpus``
+     - Default fallback ``--gpus=`` value appended to GPU workflow submissions; mutually exclusive with ``gpu_gres``
    * - ``BIOMERO_IMAGE_PULL_VIA_SBATCH``
      - ``slurm_image_pull_via_sbatch``
      - boolean
@@ -96,6 +96,10 @@ Environment Variable Lookup Table
      - ``gpu_gres``
      - string
      - Legacy fallback env var for GPU gres; lower priority than ``BIOMERO_GPU_GRES``
+   * - ``GPU_GPUS``
+     - ``gpu_gpus``
+     - string
+     - Legacy fallback env var for GPU gpus; lower priority than ``BIOMERO_GPU_GPUS``
 
 ``slurm-config.ini`` Lookup Table
 ---------------------------------
@@ -158,11 +162,15 @@ Environment Variable Lookup Table
    * - ``gpu_gres``
      - string or empty
      - unset
-     - Shared fallback gres appended for GPU workflow runs when needed
-   * - ``gpu_resource_flag``
-     - string
-     - ``gres``
-     - Chooses whether BIOMERO appends shared GPU fallback params as ``--gres`` or ``--gpus``
+     - Shared fallback ``--gres=`` value appended for GPU workflow runs; mutually exclusive with ``gpu_gpus``
+   * - ``gpu_gpus``
+     - string or empty
+     - unset
+     - Shared fallback ``--gpus=`` value appended for GPU workflow runs; mutually exclusive with ``gpu_gres``
+   * - ``sbatch_<key>``
+     - string or empty
+     - unset
+     - Any ``[SLURM]`` key starting with ``sbatch_`` adds ``--<key>=<value>`` to every workflow submission; per-workflow sbatch overrides always take precedence
    * - ``slurm_image_pull_via_sbatch``
      - boolean
      - ``false``
@@ -195,6 +203,10 @@ Environment Variable Lookup Table
      - integer or empty
      - unset
      - Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set. Configured under ``[ANALYTICS]``.
+   * - ``<name>_use_gpu``
+     - boolean
+     - ``false``
+     - Per-workflow GPU default in ``[MODELS]``; e.g. ``cellpose_use_gpu=true`` marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit ``use_gpu`` argument at submission time
 
 Behaviour Notes
 ---------------
@@ -231,7 +243,7 @@ Empty-string handling
 
 Some optional string settings treat an empty value as unset rather than as a literal empty string.
 This is relevant for values such as ``slurm_data_bind_path``, ``slurm_conversion_partition``,
-``gpu_partition``, ``gpu_gres``, and the optional ``sacct`` window settings.
+``gpu_partition``, ``gpu_gres``, ``gpu_gpus``, and the optional ``sacct`` window settings.
 
 GPU precedence
 ~~~~~~~~~~~~~~
@@ -239,15 +251,16 @@ GPU precedence
 For workflow submissions, GPU-related settings are applied in this order:
 
 1. per-workflow sbatch parameters from ``[MODELS]`` such as ``cellpose_job_partition``, ``cellpose_job_gres``, and ``cellpose_job_gpus``
-2. shared runtime defaults from ``gpu_partition`` and ``gpu_gres``, rendered with the configured ``gpu_resource_flag``
-3. no BIOMERO-added GPU resource arguments
+2. global sbatch defaults from ``sbatch_<key>`` entries in ``[SLURM]``
+3. shared runtime GPU defaults: ``gpu_partition`` and either ``gpu_gres`` (``--gres=``) or ``gpu_gpus`` (``--gpus=``); these two are mutually exclusive — set one or the other, never both
+4. no BIOMERO-added GPU resource arguments
 
-Shared defaults are considered when either condition holds:
+Shared GPU defaults (level 3) are considered when GPU mode is active.  GPU mode is activated by one of two code paths:
 
-* the workflow is submitted with ``use_gpu=true``
-* the workflow has ``<name>_use_gpu=true`` in ``[MODELS]``
+* **Dynamic path** (``inject_gpu_flag=true``): ``use_gpu`` is resolved at submission time — explicit ``use_gpu`` argument wins, otherwise falls back to ``<name>_use_gpu`` from ``[MODELS]``.  ``GPU_FLAG`` env var is set (``--nv`` or empty) at submission time so the script can toggle the container runtime flag.
+* **Static path** (``inject_gpu_flag=false``): ``--nv`` is baked into the generated script at script-generation time; only ``<name>_use_gpu=true`` in ``[MODELS]`` triggers GPU sbatch resource param injection, and it cannot be overridden at submission time.  No ``GPU_FLAG`` env var is set.
 
-An explicit submission-time ``use_gpu`` argument still overrides the per-workflow ``<name>_use_gpu`` default.
+See :doc:`slurm-configuration` for a full explanation of the interaction between these settings.
 
 Search Hints
 ------------
@@ -260,7 +273,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_INJECT_GPU_FLAG``
 * ``BIOMERO_GPU_PARTITION``
 * ``BIOMERO_GPU_GRES``
-* ``BIOMERO_GPU_RESOURCE_FLAG``
+* ``BIOMERO_GPU_GPUS``
 * ``BIOMERO_IMAGE_PULL_VIA_SBATCH``
 * ``BIOMERO_PULL_CPUS``
 * ``BIOMERO_PULL_MEM``
@@ -271,3 +284,4 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``
 * ``GPU_PARTITION``
 * ``GPU_GRES``
+* ``GPU_GPUS``

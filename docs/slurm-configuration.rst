@@ -157,29 +157,24 @@ Use this when:
 
 ``inject_gpu_flag``
 
-Impact:
+This setting controls two related but distinct behaviours:
 
-* When ``false``: generated job scripts keep their normal GPU handling.
-* When ``true``: BIOMERO uses a ``GPU_FLAG`` mechanism so generated scripts can switch between CPU and GPU execution at submission time.
-* This only affects generated scripts and workflow submission logic that uses the ``use_gpu`` parameter.
+1. **``--nv`` in the generated script** — when ``false``, ``--nv`` is baked directly into the generated job script at script-generation time (``singularity run --nv ...``).  The script always passes ``--nv`` to the container runtime regardless of what happens at submission time.  When ``true``, the generated script instead contains a shell variable reference ``$GPU_FLAG``, and BIOMERO sets that variable to ``--nv`` or an empty string at submission time based on ``use_gpu``.
 
-Use this when:
+2. **Runtime toggling** — when ``false``, whether GPU sbatch resource params (``--partition``, ``--gres`` / ``--gpus``) are added is decided at config time via ``<name>_use_gpu=true`` in ``[MODELS]``.  This cannot be changed per-run.  When ``true``, the caller can pass ``use_gpu=true`` or ``use_gpu=false`` at submission time to switch between GPU and CPU mode on a per-run basis.
 
-* you want one generated job script to run in both CPU and GPU modes
-* your generated scripts contain the standard singularity/apptainer GPU flag pattern
-
-``gpu_resource_flag``
+In short: without ``inject_gpu_flag``, GPU is either always on (hardcoded ``--nv``) or never injected — the two are controlled independently at script generation and submission time.  With ``inject_gpu_flag``, one script covers both modes and the caller decides per run.
 
 Impact:
 
-* Controls which sbatch GPU resource flag BIOMERO appends for shared GPU defaults.
-* Typical values are ``gres`` and ``gpus``.
-* This affects only BIOMERO-added fallback GPU params; explicit per-workflow job params still win.
+* When ``false``: ``--nv`` is hardcoded in the generated script.  ``<name>_use_gpu=true`` in ``[MODELS]`` adds GPU sbatch resource params at submission, but the container flag is already fixed in the script.  No runtime override is possible.
+* When ``true``: the script contains ``$GPU_FLAG``.  BIOMERO sets it to ``--nv`` (GPU) or empty string (CPU) at submission time based on the resolved ``use_gpu`` value.
 
 Use this when:
 
-* your cluster expects ``--gpus=...`` instead of ``--gres=...``
-* you want shared GPU fallback injection to match local scheduler conventions
+* you want one generated job script to run in both CPU and GPU modes without maintaining two separate scripts
+* you need to submit the same workflow to GPU or CPU resources depending on the dataset or queue availability
+* your generated scripts use the standard ``singularity run $GPU_FLAG`` or ``apptainer run $GPU_FLAG`` pattern
 
 Image pull execution mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -219,19 +214,61 @@ Impact:
 Default GPU fallback settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``gpu_partition`` and ``gpu_gres`` are shared client defaults, not per-workflow settings.
+``gpu_partition``, ``gpu_gres``, and ``gpu_gpus`` are shared client defaults used when adding GPU sbatch params to a workflow submission.  They are relevant in **both** GPU code paths:
+
+* **Static path** (``inject_gpu_flag=false``, ``<name>_use_gpu=true`` in ``[MODELS]``): BIOMERO always adds these params for that workflow.  The caller cannot override it at submission time.
+* **Dynamic path** (``inject_gpu_flag=true``): BIOMERO adds these params only when ``use_gpu`` resolves to true — either because the caller passed ``use_gpu=true``, or because ``<name>_use_gpu=true`` is set in ``[MODELS]`` and no explicit ``use_gpu`` argument was given.
+
+``gpu_gres`` and ``gpu_gpus`` are mutually exclusive.  Set one or the other:
+
+* ``gpu_gres`` — BIOMERO appends ``--gres=<value>`` to GPU workflow submissions.
+  Use this when your cluster schedules GPUs via Generic RESources (``--gres``).
+* ``gpu_gpus`` — BIOMERO appends ``--gpus=<value>`` to GPU workflow submissions.
+  Use this when your cluster uses the ``--gpus`` flag (common on newer Slurm versions).
+
+Setting both raises a ``ValueError`` at startup.
 
 Impact:
 
-* They are only considered when ``inject_gpu_flag`` is enabled and the workflow is submitted with ``use_gpu=true``.
-* If a workflow already has per-workflow sbatch overrides such as ``cellpose_job_partition`` or ``cellpose_job_gres``, those per-workflow settings take precedence.
-* If no per-workflow ``--partition`` or ``--gres`` is already present, BIOMERO appends these defaults to the submission command.
+* If a workflow already has per-workflow sbatch overrides such as ``cellpose_job_partition``, ``cellpose_job_gres``, or ``cellpose_job_gpus``, those per-workflow settings take precedence over these shared defaults.
+* If no per-workflow ``--partition``, ``--gres``, or ``--gpus`` is already present, BIOMERO appends these defaults to the submission command.
 
-This gives a clear precedence order for GPU resource requests:
+Full precedence order for GPU resource params:
 
-1. explicit per-workflow ``[MODELS]`` sbatch overrides
-2. shared ``gpu_partition`` and ``gpu_gres`` defaults
-3. no GPU partition or gres added by BIOMERO
+1. explicit per-workflow ``[MODELS]`` sbatch overrides (e.g. ``cellpose_job_gres``)
+2. shared ``gpu_partition`` and ``gpu_gres`` / ``gpu_gpus`` defaults
+3. nothing — BIOMERO adds no GPU resource arguments
+
+Global sbatch parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Any ``[SLURM]`` key that starts with ``sbatch_`` is treated as a global sbatch parameter
+that BIOMERO adds to every workflow submission.
+
+The key pattern is ``sbatch_<flag>=<value>``, which produces ``--<flag>=<value>`` on the
+sbatch command line.
+
+Examples:
+
+.. code-block:: ini
+
+   [SLURM]
+   sbatch_reservation=biomero
+   sbatch_nice=1
+
+This appends ``--reservation=biomero`` and ``--nice=1`` to every workflow job.
+
+Impact:
+
+* Global params are applied after per-workflow ``[MODELS]`` sbatch overrides.
+* If a per-workflow override already sets the same flag (e.g. ``cellpose_job_reservation``), the global default for that flag is skipped.
+* Global params with empty values are ignored.
+* There is no environment variable override for these — they are intentionally admin-only at config time.
+
+Use this when:
+
+* you want to apply a cluster-specific constraint (e.g. a reservation or QOS) to all workflow jobs
+* you need a cluster-wide ``--nice`` or ``--account`` that applies unless overridden per workflow
 
 ZIP command
 ~~~~~~~~~~~
@@ -337,6 +374,7 @@ Example:
    cellpose_job_gres=gpu:1g.10gb:1
    cellpose_job_partition=gpu
    cellpose_job_mem=16GB
+   cellpose_use_gpu=true
 
 How BIOMERO interprets these keys:
 
@@ -344,6 +382,7 @@ How BIOMERO interprets these keys:
 * ``cellpose_repo`` points to the workflow repository and descriptor metadata
 * ``cellpose_job`` points to the job script inside ``slurm_script_path`` or the cloned scripts repository
 * any ``cellpose_job_<name>=<value>`` entry is translated to `` --<name>=<value>`` on the sbatch command line
+* ``cellpose_use_gpu=true`` marks this workflow as GPU-enabled by default, so BIOMERO activates GPU handling even without an explicit ``use_gpu`` argument at submission time
 
 Those per-workflow sbatch parameters override script defaults and also override
 shared GPU fallback defaults when they set the same concept such as ``partition`` or ``gres``.
@@ -360,7 +399,8 @@ client-level options introduced, including:
 * ``inject_gpu_flag``
 * ``gpu_partition``
 * ``gpu_gres``
-* ``gpu_resource_flag``
+* ``gpu_gpus``
+* ``sbatch_<key>`` (global sbatch params pattern)
 * ``slurm_image_pull_via_sbatch``
 * ``image_pull_cpus``
 * ``image_pull_mem``
@@ -525,7 +565,12 @@ A: Enable it when workflow jobs start correctly but do not receive the expected 
 
 **Q: Why do ``gpu_partition`` and ``gpu_gres`` seem to do nothing?**
 
-A: They are only used for workflow submissions when ``inject_gpu_flag`` is enabled and the workflow is submitted with ``use_gpu=true``. They also lose precedence to per-workflow ``*_job_partition`` and ``*_job_gres`` settings.
+A: There are two conditions that trigger GPU sbatch param injection:
+
+* ``inject_gpu_flag=true`` and the workflow is submitted with ``use_gpu=true`` (or ``<name>_use_gpu=true`` in ``[MODELS]`` with no explicit ``use_gpu`` argument)
+* ``inject_gpu_flag=false`` but ``<name>_use_gpu=true`` is set in ``[MODELS]`` — the static path
+
+In both cases, per-workflow ``*_job_partition``, ``*_job_gres``, and ``*_job_gpus`` settings in ``[MODELS]`` take precedence and will suppress the shared defaults for those flags.
 
 **Q: Should I prefer ``sacct_start_time`` or ``sacct_days_ago``?**
 

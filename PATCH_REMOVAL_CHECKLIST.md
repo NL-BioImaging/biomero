@@ -2,6 +2,10 @@
 
 This file is a working checklist for upstreaming the behavior currently covered by the local runtime patches in `patches/` so those patches can be removed.
 
+**Status: COMPLETE.** All runtime patch files have been removed.
+- `patch_biomero_runtime.py` — deleted; all behaviors either upstreamed into core BIOMERO or intentionally excluded (see section 14)
+- `patch_biomero_web_runtime.py` — deleted earlier; fix applied to OMERO.biomero surf branch directly
+
 Scope:
 - Focus on behavior currently patched in this clone of `biomero`.
 - Keep all changes backward compatible by default.
@@ -496,11 +500,16 @@ Status:
     - Metabase localhost/127.0.0.1 link rewrite (`BiomeroApp.js`)
 
 - [x] Remove obsolete Slurm runtime patches after the above comparison is complete.
-  All web-runtime patch files removed:
+  All runtime patch files removed:
   - `patch_biomero_web_runtime.py` — deleted; fix applied to OMERO.biomero surf branch directly
   - `metabase_link_old.js` — deleted
   - `metabase_link_new.js` — deleted
-  Fix location: `OMERO.biomero/webapp/src/biomero/BiomeroApp.js`, iframe click handler — localhost/127.0.0.1 links now rewritten to current public origin.
+  - `patch_biomero_runtime.py` — deleted; all behaviors upstreamed into core BIOMERO or superseded:
+    - `BIOMERO_FORCE_GPU_WORKFLOWS` env var logic → superseded by `<name>_use_gpu=true` in `[MODELS]` and the `gpu_gres`/`gpu_gpus` shared fallback config
+    - `_nl_biomero_normalize_generated_job_script` hookup → superseded by behaviors built directly into `job_template.sh` (`set -eo pipefail`, `$OPTIONAL_ENV`, `$GPU_FLAG`)
+    - required `slurm_data_bind_path` → intentionally kept optional in core (cluster-specific requirement stays in deployment config)
+    - all other behaviors (zip/unzip, env-file submission, GPU fallback params, sbatch-based image pulls, apptainer tmp/cache) → implemented in core BIOMERO
+  - `patches/` directory — removed when patch source files were upstreamed
 
 - [x] Ensure release notes / PR summary clearly state:
   - what behavior moved into core BIOMERO

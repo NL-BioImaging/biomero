@@ -271,7 +271,6 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
-    _DEFAULT_GPU_RESOURCE_FLAG = "gres"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -422,7 +421,8 @@ class SlurmClient(Connection):
                  inject_gpu_flag: bool = False,
                  gpu_partition: str = None,
                  gpu_gres: str = None,
-                 gpu_resource_flag: str = _DEFAULT_GPU_RESOURCE_FLAG,
+                 gpu_gpus: str = None,
+                 slurm_global_job_params: list = None,
                  slurm_image_pull_via_sbatch: bool = False,
                  image_pull_cpus: str = "8",
                  image_pull_mem: str = "32G",
@@ -550,14 +550,19 @@ class SlurmClient(Connection):
                 appended to GPU workflow submissions when ``inject_gpu_flag``
                 is enabled and no per-workflow partition is configured.
                 Overridable via ``BIOMERO_GPU_PARTITION``. Defaults to None.
-            gpu_gres (str, optional): Shared fallback GPU resource request
-                appended to GPU workflow submissions when ``inject_gpu_flag``
-                is enabled and no per-workflow gres is configured.
+            gpu_gres (str, optional): Shared fallback ``--gres`` resource
+                appended to GPU workflow submissions (e.g. ``gpu:a100:1``).
+                Mutually exclusive with ``gpu_gpus``.
                 Overridable via ``BIOMERO_GPU_GRES``. Defaults to None.
-            gpu_resource_flag (str, optional): Controls whether shared GPU
-                fallback params are emitted as ``--gres`` or ``--gpus``.
-                Overridable via ``BIOMERO_GPU_RESOURCE_FLAG``.
-                Defaults to ``gres``.
+            gpu_gpus (str, optional): Shared fallback ``--gpus`` resource
+                appended to GPU workflow submissions (e.g. ``1`` or
+                ``a100:1``). Mutually exclusive with ``gpu_gres``.
+                Overridable via ``BIOMERO_GPU_GPUS``. Defaults to None.
+            slurm_global_job_params (list, optional): Extra sbatch parameters
+                applied to every workflow submission as a fallback, e.g.
+                ``[" --reservation=biomero"]``. Per-workflow job params always
+                take precedence. Configured via ``sbatch_<key>=<value>`` keys
+                in the ``[SLURM]`` config section. Defaults to None (empty).
             slurm_image_pull_via_sbatch (bool, optional): When True, workflow
                 and converter image pulls/builds are submitted as sbatch jobs
                 instead of running directly on the login node. Defaults to
@@ -620,8 +625,13 @@ class SlurmClient(Connection):
         self.env_file_submission = env_file_submission
         self.inject_gpu_flag = inject_gpu_flag
         self.gpu_partition = gpu_partition
-        self.gpu_resource_flag = gpu_resource_flag or self._DEFAULT_GPU_RESOURCE_FLAG
-        self.gpu_gres = self._format_gpu_resource_value(gpu_gres)
+        if gpu_gres and gpu_gpus:
+            raise ValueError(
+                "gpu_gres and gpu_gpus are mutually exclusive; set one or the other, not both."
+            )
+        self.gpu_gres = gpu_gres
+        self.gpu_gpus = gpu_gpus
+        self.slurm_global_job_params = slurm_global_job_params or []
         self.slurm_image_pull_via_sbatch = slurm_image_pull_via_sbatch
         self.image_pull_cpus = image_pull_cpus
         self.image_pull_mem = image_pull_mem
@@ -1387,12 +1397,13 @@ class SlurmClient(Connection):
             empty_is_none=True,
         )
 
-        gpu_resource_flag = cls._get_config_value(
+        gpu_gpus = cls._get_config_value(
             configs,
             section="SLURM",
-            option="gpu_resource_flag",
-            default=cls._DEFAULT_GPU_RESOURCE_FLAG,
-            env_vars=[slurm_env.BIOMERO_GPU_RESOURCE_FLAG],
+            option="gpu_gpus",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_GPU_GPUS, slurm_env.GPU_GPUS],
+            empty_is_none=True,
         )
 
         slurm_image_pull_via_sbatch = cls._get_config_value(
@@ -1476,6 +1487,21 @@ class SlurmClient(Connection):
                 slurm_model_paths[k] = v
         logger.info(f"Using job params: {slurm_model_jobs_params}")
 
+        # Parse global sbatch params from [SLURM] section (sbatch_<key>=<value>).
+        # These are applied as a fallback to all workflow submissions; per-workflow
+        # job params always take precedence.
+        slurm_global_job_params = []
+        try:
+            slurm_items = dict(configs.items("SLURM"))
+            for k, v in slurm_items.items():
+                if k.startswith("sbatch_") and v:
+                    param_name = k[len("sbatch_"):]
+                    slurm_global_job_params.append(f" --{param_name}={v}")
+        except configparser.NoSectionError:
+            pass
+        if slurm_global_job_params:
+            logger.info(f"Using global sbatch params: {slurm_global_job_params}")
+
         slurm_script_path = configs.get(
             "SLURM", "slurm_script_path",
             fallback=cls._DEFAULT_SLURM_GIT_SCRIPT_PATH)
@@ -1546,7 +1572,8 @@ class SlurmClient(Connection):
                    inject_gpu_flag=inject_gpu_flag,
                    gpu_partition=gpu_partition,
                    gpu_gres=gpu_gres,
-                   gpu_resource_flag=gpu_resource_flag,
+                   gpu_gpus=gpu_gpus,
+                   slurm_global_job_params=slurm_global_job_params,
                    slurm_image_pull_via_sbatch=slurm_image_pull_via_sbatch,
                    image_pull_cpus=image_pull_cpus,
                    image_pull_mem=image_pull_mem,
@@ -2782,48 +2809,6 @@ class SlurmClient(Connection):
         s.mount('http://github.com/', HTTPAdapter(max_retries=retry_strategy))
         return s
 
-    def _format_gpu_resource_value(self, gpu_value: str) -> str:
-        """Normalize configured GPU resource values for the selected Slurm flag.
-
-        ``--gres`` expects values like ``gpu:a100:1`` while ``--gpus`` expects
-        ``a100:1`` or ``1``. BIOMERO keeps a single config field for backward
-        compatibility, so normalize between the two common formats here.
-        """
-        if gpu_value is None:
-            return None
-
-        normalized_value = str(gpu_value).strip()
-        if not normalized_value:
-            return normalized_value
-
-        if self.gpu_resource_flag == "gpus":
-            if normalized_value.startswith("gpu:"):
-                logger.warning(
-                    "gpu_gres value '%s' looks like a --gres resource but gpu_resource_flag is 'gpus'; removing the 'gpu:' prefix.",
-                    normalized_value,
-                )
-                return normalized_value[4:]
-            return normalized_value
-
-        if self.gpu_resource_flag == "gres":
-            if normalized_value.startswith("gpu:"):
-                return normalized_value
-            if re.fullmatch(r"\d+", normalized_value):
-                raise ValueError(
-                    "gpu_gres value '%s' is not valid for gpu_resource_flag='gres'. "
-                    "Use a gres resource like 'gpu:<type>:<count>'."
-                    % normalized_value
-                )
-            if re.fullmatch(r"[^:]+:\d+", normalized_value):
-                logger.warning(
-                    "gpu_gres value '%s' looks like a --gpus resource but gpu_resource_flag is 'gres'; adding the 'gpu:' prefix.",
-                    normalized_value,
-                )
-                return f"gpu:{normalized_value}"
-            return normalized_value
-
-        return normalized_value
-
     def get_workflow_command(self,
                              workflow: str,
                              workflow_version: str,
@@ -2876,8 +2861,6 @@ class SlurmClient(Connection):
                 "true", "1", "yes", "y", "on"
             )
 
-        gpu_flag_prefix = f" --{self.gpu_resource_flag}="
-
         if self.inject_gpu_flag:
             if use_gpu:
                 if self.gpu_partition and not any(
@@ -2885,12 +2868,16 @@ class SlurmClient(Connection):
                 ):
                     job_params.append(f" --partition={self.gpu_partition}")
                 if self.gpu_gres and not any(
-                    p.startswith(gpu_flag_prefix) for p in job_params
+                    p.startswith(" --gres=") for p in job_params
                 ):
-                    job_params.append(f"{gpu_flag_prefix}{self.gpu_gres}")
-                if not self.gpu_partition and not self.gpu_gres:
+                    job_params.append(f" --gres={self.gpu_gres}")
+                if self.gpu_gpus and not any(
+                    p.startswith(" --gpus=") for p in job_params
+                ):
+                    job_params.append(f" --gpus={self.gpu_gpus}")
+                if not self.gpu_partition and not self.gpu_gres and not self.gpu_gpus:
                     logger.warning(
-                        "Workflow %s requested GPU defaults but no generic gpu_partition or gpu_gres is configured.",
+                        "Workflow %s requested GPU defaults but no generic gpu_partition, gpu_gres, or gpu_gpus is configured.",
                         workflow,
                     )
                 sbatch_env["GPU_FLAG"] = "--nv"
@@ -2902,16 +2889,25 @@ class SlurmClient(Connection):
             ):
                 job_params.append(f" --partition={self.gpu_partition}")
             if self.gpu_gres and not any(
-                p.startswith(gpu_flag_prefix) for p in job_params
+                p.startswith(" --gres=") for p in job_params
             ):
-                job_params.append(f"{gpu_flag_prefix}{self.gpu_gres}")
-            if not self.gpu_partition and not self.gpu_gres:
+                job_params.append(f" --gres={self.gpu_gres}")
+            if self.gpu_gpus and not any(
+                p.startswith(" --gpus=") for p in job_params
+            ):
+                job_params.append(f" --gpus={self.gpu_gpus}")
+            if not self.gpu_partition and not self.gpu_gres and not self.gpu_gpus:
                 logger.warning(
-                    "Workflow %s requested GPU defaults but no generic gpu_partition or gpu_gres is configured.",
+                    "Workflow %s requested GPU defaults but no generic gpu_partition, gpu_gres, or gpu_gpus is configured.",
                     workflow,
                 )
         if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
+        # Apply global sbatch params as fallback; per-workflow params take precedence.
+        for global_param in self.slurm_global_job_params:
+            flag_prefix = global_param.split("=")[0] + "="
+            if not any(p.startswith(flag_prefix) for p in job_params):
+                job_params.append(global_param)
         workflow_env = self.workflow_params_to_envvars(**kwargs)
         env = {**sbatch_env, **workflow_env}
 

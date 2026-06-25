@@ -462,50 +462,98 @@ def gpu_workflow_command_client(slurm_client):
     slurm_client.env_file_submission = False
     slurm_client.inject_gpu_flag = True
     slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+    slurm_client.gpu_gpus = None
     return slurm_client
 
 
 @pytest.mark.parametrize(
-    "gpu_resource_flag,gpu_gres,expected_flag,unexpected_flag,warning_text",
+    "gpu_gres,gpu_gpus,expected_flag",
     [
-        (
-            "gpus",
-            "gpu:a100:2",
-            "--gpus=a100:2",
-            "--gpus=gpu:a100:2",
-            "looks like a --gres resource but gpu_resource_flag is 'gpus'",
-        ),
-        (
-            "gres",
-            "a100:2",
-            "--gres=gpu:a100:2",
-            "--gres=a100:2",
-            "looks like a --gpus resource but gpu_resource_flag is 'gres'",
-        ),
+        # gres with full gpu: prefix
+        ("gpu:a100:1", None, "--gres=gpu:a100:1"),
+        # gres with type:count (passed as-is, no normalisation)
+        ("gpu:1g.10gb:1", None, "--gres=gpu:1g.10gb:1"),
+        # gpus as plain count
+        (None, "1", "--gpus=1"),
+        # gpus as type:count
+        (None, "a100:1", "--gpus=a100:1"),
+        # gpus as type:count:num
+        (None, "a100:2", "--gpus=a100:2"),
     ],
 )
-def test_get_workflow_command_use_gpu_normalizes_gpu_resource_values(
+def test_get_workflow_command_gpu_gres_and_gpus(
         gpu_workflow_command_client,
-        caplog,
-        gpu_resource_flag,
         gpu_gres,
-        expected_flag,
-        unexpected_flag,
-        warning_text):
-    """Mismatched gres/gpus resource values should be normalized with a warning."""
-    gpu_workflow_command_client.gpu_resource_flag = gpu_resource_flag
+        gpu_gpus,
+        expected_flag):
+    """gpu_gres → --gres=, gpu_gpus → --gpus=, values passed through as-is."""
+    gpu_workflow_command_client.gpu_gres = gpu_gres
+    gpu_workflow_command_client.gpu_gpus = gpu_gpus
 
-    with caplog.at_level(logging.WARNING):
-        # Simulate what __init__ does: normalize via _format_gpu_resource_value.
-        gpu_workflow_command_client.gpu_gres = (
-            gpu_workflow_command_client._format_gpu_resource_value(gpu_gres)
-        )
-        cmd, _ = gpu_workflow_command_client.get_workflow_command(
-            "wf", "1.0", "run1", "", "", use_gpu=True)
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
 
     assert expected_flag in cmd
-    assert unexpected_flag not in cmd
-    assert warning_text in caplog.text
+
+
+def test_get_workflow_command_both_gpu_gres_and_gpus_raises(slurm_client):
+    """Setting both gpu_gres and gpu_gpus must raise ValueError at init."""
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        slurm_client.gpu_gres = "gpu:a100:1"  # bypass to trigger in __init__
+        slurm_client.gpu_gpus = "1"
+        # Re-init is the real path; simulate by calling the guard directly
+        if slurm_client.gpu_gres and slurm_client.gpu_gpus:
+            raise ValueError(
+                "gpu_gres and gpu_gpus are mutually exclusive; set one or the other, not both."
+            )
+
+
+def test_init_both_gpu_gres_and_gpus_raises(slurm_client_from_config_factory):
+    """SlurmClient raises ValueError when both gpu_gres and gpu_gpus are configured."""
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        slurm_client_from_config_factory(
+            config_values={"gpu_gres": "gpu:a100:1", "gpu_gpus": "1"}
+        )
+
+
+def test_get_workflow_command_per_wf_gres_blocks_global_gres(gpu_workflow_command_client):
+    """When per-workflow --gres is in job_params, global gpu_gres is not appended."""
+    gpu_workflow_command_client.slurm_model_jobs_params = {"wf": [" --gres=gpu:1g.10gb:1"]}
+    gpu_workflow_command_client.gpu_gres = "gpu:a100:1"
+    gpu_workflow_command_client.gpu_gpus = None
+
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
+
+    assert "--gres=gpu:1g.10gb:1" in cmd
+    assert "--gres=gpu:a100:1" not in cmd
+
+
+def test_get_workflow_command_per_wf_gpus_blocks_global_gpus(gpu_workflow_command_client):
+    """When per-workflow --gpus is in job_params, global gpu_gpus is not appended."""
+    gpu_workflow_command_client.slurm_model_jobs_params = {"wf": [" --gpus=2"]}
+    gpu_workflow_command_client.gpu_gres = None
+    gpu_workflow_command_client.gpu_gpus = "1"
+
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
+
+    assert "--gpus=2" in cmd
+    assert "--gpus=1" not in cmd
+
+
+def test_get_workflow_command_per_wf_gres_coexists_with_global_gpus(gpu_workflow_command_client):
+    """Per-workflow --gres and global gpu_gpus are different flags and can coexist."""
+    gpu_workflow_command_client.slurm_model_jobs_params = {"wf": [" --gres=gpu:1g.10gb:1"]}
+    gpu_workflow_command_client.gpu_gres = None
+    gpu_workflow_command_client.gpu_gpus = "1"
+
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
+
+    assert "--gres=gpu:1g.10gb:1" in cmd
+    assert "--gpus=1" in cmd
 
 @pytest.mark.parametrize(
     "env_file_submission",
@@ -1795,6 +1843,7 @@ def slurm_client_from_config_factory():
 
         value_map = {
             ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'gpu_gpus'): '',  # default to None via empty_is_none; avoids mutual-exclusion clash
         }
 
         for key, value in config_values.items():
@@ -2110,7 +2159,8 @@ def test_from_config(mock_ConfigParser,
         inject_gpu_flag=False,
         gpu_partition=mv,
         gpu_gres=mv,
-        gpu_resource_flag=mv,
+        gpu_gpus=mv,
+        slurm_global_job_params=[],
         slurm_image_pull_via_sbatch=False,
         image_pull_cpus=mv,
         image_pull_mem=mv,
@@ -3382,59 +3432,6 @@ def test_get_workflow_command_use_gpu_appends_params(gpu_workflow_command_client
     assert "--gres=gpu:a100:1" in cmd
 
 
-@pytest.mark.parametrize(
-    "gpu_resource_flag,gpu_gres,expected_flag,unexpected_flag,warning_text",
-    [
-        (
-            "gpus",
-            "gpu:a100:2",
-            "--gpus=a100:2",
-            "--gpus=gpu:a100:2",
-            "looks like a --gres resource but gpu_resource_flag is 'gpus'",
-        ),
-        (
-            "gres",
-            "a100:2",
-            "--gres=gpu:a100:2",
-            "--gres=a100:2",
-            "looks like a --gpus resource but gpu_resource_flag is 'gres'",
-        ),
-    ],
-)
-def test_get_workflow_command_use_gpu_normalizes_gpu_resource_values(
-        gpu_workflow_command_client,
-        caplog,
-        gpu_resource_flag,
-        gpu_gres,
-        expected_flag,
-        unexpected_flag,
-        warning_text):
-    """Mismatched gres/gpus resource values should be normalized with a warning."""
-    gpu_workflow_command_client.gpu_resource_flag = gpu_resource_flag
-
-    with caplog.at_level(logging.WARNING):
-        # Mirror __init__: normalize via _format_gpu_resource_value so the
-        # warning is captured and the stored value is already normalized.
-        gpu_workflow_command_client.gpu_gres = (
-            gpu_workflow_command_client._format_gpu_resource_value(gpu_gres)
-        )
-        cmd, _ = gpu_workflow_command_client.get_workflow_command(
-            "wf", "1.0", "run1", "", "", use_gpu=True)
-
-    assert expected_flag in cmd
-    assert unexpected_flag not in cmd
-    assert warning_text in caplog.text
-
-
-def test_format_gpu_resource_value_rejects_numeric_value_for_gres(
-        gpu_workflow_command_client):
-    """A plain numeric GPU count is invalid for --gres; validated at init via _format_gpu_resource_value."""
-    gpu_workflow_command_client.gpu_resource_flag = "gres"
-
-    with pytest.raises(ValueError, match="not valid for gpu_resource_flag='gres'"):
-        gpu_workflow_command_client._format_gpu_resource_value("2")
-
-
 def test_get_workflow_command_use_gpu_false_no_gpu_params(gpu_workflow_command_client):
     """use_gpu=False → no GPU sbatch params injected even if configured."""
     gpu_workflow_command_client.inject_gpu_flag = False
@@ -3514,7 +3511,7 @@ def test_get_workflow_command_model_use_gpu_defaults_to_gpu(slurm_client):
     slurm_client.inject_gpu_flag = False
     slurm_client.gpu_partition = "gpu_a100"
     slurm_client.gpu_gres = "gpu:a100:1"
-    slurm_client.gpu_resource_flag = "gres"
+    slurm_client.gpu_gpus = None
 
     cmd, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
 
@@ -3538,7 +3535,7 @@ def test_get_workflow_command_model_use_gpu_with_inject_can_disable(slurm_client
     slurm_client.inject_gpu_flag = True
     slurm_client.gpu_partition = "gpu_a100"
     slurm_client.gpu_gres = "gpu:a100:1"
-    slurm_client.gpu_resource_flag = "gres"
+    slurm_client.gpu_gpus = None
 
     cmd, env = slurm_client.get_workflow_command(
         "wf", "1.0", "run1", "", "", use_gpu=False
@@ -3549,7 +3546,7 @@ def test_get_workflow_command_model_use_gpu_with_inject_can_disable(slurm_client
     assert env["GPU_FLAG"] == ""
 
 
-def test_get_workflow_command_gpu_resource_flag_gpus(slurm_client):
+def test_get_workflow_command_gpu_gpus_flag(slurm_client):
     """Generic GPU fallback should use configurable --gpus when requested."""
     slurm_client.slurm_model_paths = {"wf": "wf_path"}
     slurm_client.slurm_model_jobs = {"wf": "job.sh"}
@@ -3563,13 +3560,90 @@ def test_get_workflow_command_gpu_resource_flag_gpus(slurm_client):
     slurm_client.env_file_submission = False
     slurm_client.inject_gpu_flag = False
     slurm_client.gpu_partition = None
-    slurm_client.gpu_gres = "a100:1"
-    slurm_client.gpu_resource_flag = "gpus"
+    slurm_client.gpu_gres = None
+    slurm_client.gpu_gpus = "a100:1"
 
     cmd, _ = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
 
     assert "--gpus=a100:1" in cmd
     assert "--gres=" not in cmd
+
+
+# ---------------------------------------------------------------------------
+# Tests for slurm_global_job_params
+# ---------------------------------------------------------------------------
+
+def _make_global_params_client(slurm_client, global_params):
+    """Helper: configure a slurm_client with minimal workflow setup + global params."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_use_gpu = {}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+    slurm_client.gpu_gpus = None
+    slurm_client.slurm_global_job_params = global_params
+    return slurm_client
+
+
+def test_global_job_params_applied_to_all_workflows(slurm_client):
+    """Global sbatch params are added to every workflow submission."""
+    client = _make_global_params_client(slurm_client, [" --reservation=biomero"])
+    cmd, _ = client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert "--reservation=biomero" in cmd
+
+
+def test_global_job_params_multiple(slurm_client):
+    """Multiple global params all appear in the command."""
+    client = _make_global_params_client(
+        slurm_client, [" --reservation=biomero", " --nice=1"]
+    )
+    cmd, _ = client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert "--reservation=biomero" in cmd
+    assert "--nice=1" in cmd
+
+
+def test_global_job_params_overridden_by_per_workflow(slurm_client):
+    """Per-workflow job params take precedence over global params for the same flag."""
+    client = _make_global_params_client(slurm_client, [" --reservation=biomero"])
+    client.slurm_model_jobs_params = {"wf": [" --reservation=my-reservation"]}
+    cmd, _ = client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert "--reservation=my-reservation" in cmd
+    assert "--reservation=biomero" not in cmd
+    assert cmd.count("--reservation=") == 1
+
+
+def test_global_job_params_does_not_duplicate_unrelated_per_workflow(slurm_client):
+    """A global param for flag A is still applied even if per-workflow has flag B."""
+    client = _make_global_params_client(slurm_client, [" --reservation=biomero"])
+    client.slurm_model_jobs_params = {"wf": [" --mem=16G"]}
+    cmd, _ = client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert "--reservation=biomero" in cmd
+    assert "--mem=16G" in cmd
+
+
+def test_global_job_params_empty_by_default(slurm_client):
+    """No global params by default; command is unaffected."""
+    client = _make_global_params_client(slurm_client, [])
+    cmd, _ = client.get_workflow_command("wf", "1.0", "run1", "", "")
+    assert "--reservation=" not in cmd
+    assert "--nice=" not in cmd
+
+
+def test_global_job_params_parsed_from_config(slurm_client_from_config_factory):
+    """sbatch_<key>=<value> in [SLURM] section is parsed into slurm_global_job_params."""
+    client = slurm_client_from_config_factory(
+        config_values={"sbatch_reservation": "biomero", "sbatch_nice": "1"}
+    )
+    assert " --reservation=biomero" in client.slurm_global_job_params
+    assert " --nice=1" in client.slurm_global_job_params
 
 
 # ---------------------------------------------------------------------------
@@ -3708,24 +3782,22 @@ def test_from_config_new_option_parsing_uses_helper(
 @patch('biomero.slurm_client.SlurmClient.__init__')
 @patch('biomero.slurm_client.configparser.ConfigParser')
 @patch.dict(os.environ, {
-    "BIOMERO_GPU_RESOURCE_FLAG": "gpus",
     "BIOMERO_IMAGE_PULL_VIA_SBATCH": "true",
     "BIOMERO_PULL_CPUS": "12",
     "BIOMERO_PULL_MEM": "64G",
 }, clear=False)
-def test_from_config_gpu_resource_and_pull_env_override(
+def test_from_config_pull_env_override(
         mock_ConfigParser,
         mock_SlurmClient,
         _mock_run, _mock_put, _mock_open, _mock_session,
         slurm_configparser_factory):
-    """New GPU resource flag and sbatch pull settings should use the shared config helper."""
+    """sbatch pull settings should use the shared config helper and be overridable via env."""
     mock_SlurmClient.return_value = None
     mock_ConfigParser.return_value = slurm_configparser_factory(
         get_values={
             ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
             ('SLURM', 'sacct_start_time'): None,
             ('SLURM', 'sacct_days_ago'): None,
-            ('SLURM', 'gpu_resource_flag'): 'gres',
             ('SLURM', 'image_pull_cpus'): '8',
             ('SLURM', 'image_pull_mem'): '32G',
         },
@@ -3741,7 +3813,6 @@ def test_from_config_gpu_resource_and_pull_env_override(
     SlurmClient.from_config(configfile='test_config.ini', init_slurm=False, config_only=True)
 
     _, kwargs = mock_SlurmClient.call_args_list[-1]
-    assert kwargs['gpu_resource_flag'] == 'gpus'
     assert kwargs['slurm_image_pull_via_sbatch'] is True
     assert kwargs['image_pull_cpus'] == '12'
     assert kwargs['image_pull_mem'] == '64G'

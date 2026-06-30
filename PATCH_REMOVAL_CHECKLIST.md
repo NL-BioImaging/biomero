@@ -2,8 +2,23 @@
 
 This file is a working checklist for upstreaming the behavior currently covered by the local runtime patches in `patches/` so those patches can be removed.
 
-**Status: COMPLETE.** All runtime patch files have been removed.
-- `patch_biomero_runtime.py` — deleted; all behaviors either upstreamed into core BIOMERO or intentionally excluded (see section 14)
+**Status: RE-OPENED for the latest frozen deployment.** A previous round upstreamed
+most patches (see sections 1–14). Re-auditing against the latest frozen workshop
+deployment (`NL-BIOMERO-clone`, which pins released versions + `patch_biomero_runtime.py`)
+surfaced one genuine remaining gap and two template behaviors that were implemented but
+never documented as their own checklist sections:
+- **Section 17 — Default / Fallback Partition:** NOT yet in core. The frozen deployment's
+  `BIOMERO_DEFAULT_PARTITION` routing was bundled inside the same patch hunk as the
+  (now-superseded) force-GPU logic, so it was missed. This is the only new code item.
+- **Section 18 — Script Hardening (`set -eo pipefail`):** already shipped in
+  `resources/job_template.sh`; documented here for completeness.
+- **Section 19 — Output Verification:** already shipped in `resources/job_template.sh`;
+  documented here for completeness.
+- **Section 20 — Force-GPU Workflows:** confirmed NO core code needed; equivalent to
+  per-workflow `<name>_use_gpu=true` in `[MODELS]`. Migration note only.
+
+Prior round (still valid):
+- `patch_biomero_runtime.py` — deleted in core; most behaviors upstreamed or intentionally excluded (see section 14)
 - `patch_biomero_web_runtime.py` — deleted earlier; fix applied to OMERO.biomero surf branch directly
 
 Scope:
@@ -558,3 +573,79 @@ Still genuinely unresolved and requiring design or policy work:
 - [x] Step 6: Decide policy for cloned external script normalization.
 - [x] Step 7: Explicitly document external-repo responsibilities and non-goals.
 - [x] Step 8: Reconcile patch behavior vs core behavior and remove obsolete patches.
+
+## 17. Default / Fallback Partition (NEW — re-opened)
+
+Context:
+- The frozen workshop deployment (`NL-BIOMERO-clone/biomeroworker/patch_biomero_runtime.py`)
+  injects a cluster-wide default partition via `BIOMERO_DEFAULT_PARTITION`:
+  when set, and when a job does not already carry a `--partition=` directive,
+  the patch appends ` --partition=<default>` to the job parameters.
+- For GPU jobs the patch strips any prior partition and re-adds the GPU partition,
+  i.e. **the GPU partition always wins** over the generic default.
+- This routing was bundled in the same patch hunk as the force-GPU logic (section 20),
+  which is why it was missed when the force-GPU behavior was superseded by `_use_gpu`.
+- Core BIOMERO currently has **no** equivalent. Grep for `default_partition` in
+  `biomero/slurm_client.py` returns nothing.
+
+Why it matters:
+- Some clusters have no usable system default partition. Without this, every workflow
+  and every `[MODELS]` entry must hard-code `--partition=` in its job params, which is
+  exactly the per-deployment duplication the config pattern is meant to remove.
+
+Design (follows the `slurm_conversion_partition` / `SACCT_START_TIME` pattern):
+- New optional config `slurm_default_partition`:
+  - stable default behavior: `None` → no `--partition=` injected (byte-for-byte identical
+    to current surf output)
+  - optional `[SLURM]` ini setting `slurm_default_partition`
+  - optional env var override `BIOMERO_DEFAULT_PARTITION`
+  - precedence handled by the existing `_get_config_value()` helper
+- Applied in `get_workflow_command()` **after** the GPU block so ordering is correct:
+  - per-workflow `--partition=` in `[MODELS]` job params → wins (guard: only append if no
+    `--partition=` already present)
+  - GPU partition added by `inject_gpu_flag` / `config_use_gpu` path → wins (same guard)
+  - otherwise, if `slurm_default_partition` is set → append ` --partition=<default>`
+
+Tasks:
+- [ ] Add `BIOMERO_DEFAULT_PARTITION` to `biomero/constants.py` `slurm_env`.
+- [ ] Add `slurm_default_partition: str = None` param + docstring + attribute in `__init__`.
+- [ ] Parse it in `from_config()` via `_get_config_value()` and pass to the constructor.
+- [ ] Append the fallback in `get_workflow_command()` after the GPU block, guarded so any
+      existing `--partition=` (per-workflow or GPU) takes precedence.
+- [ ] Tests: appended when set + no static partition; NOT appended when a per-workflow
+      partition exists; GPU partition still wins for GPU jobs; all-off reproduces current
+      surf output byte-for-byte.
+- [ ] Docs: `resources/slurm-config.ini` sample + `docs/slurm-configuration.rst`.
+
+## 18. Script Hardening: `set -eo pipefail` (already shipped)
+
+- [x] `resources/job_template.sh` begins with `set -eo pipefail` so a failure in any
+      stage of a pipeline (e.g. the `singularity run ... | tee` chain) fails the job
+      instead of being masked by the exit status of the last command.
+- The master `biomero` repo ships templates **without** this; surf already has it.
+- No further code change required. Documented here because the prior round only recorded
+  it inside section 14's summary, not as a first-class item.
+
+## 19. Output Verification In Generated Job Script (already shipped)
+
+- [x] `resources/job_template.sh` ends with a verification tail that checks
+      `$DATA_PATH/data/out` exists and is non-empty, exiting `2` otherwise, so a workflow
+      that produces no output is reported as failed rather than silently "succeeding".
+- The master `biomero` repo ships templates **without** this; surf already has it.
+- No further code change required. Documented here for the same reason as section 18.
+
+## 20. Force-GPU Workflows (config migration only — no core code)
+
+- The frozen patch's `BIOMERO_FORCE_GPU_WORKFLOWS` / `BIOMERO_FORCE_GPU_WORKFLOWS_ALL`
+  flags forced specific (or all) workflows down the GPU path at runtime.
+- Core BIOMERO already supports this declaratively: a `<name>_use_gpu=true` entry in the
+  `[MODELS]` section sets `slurm_model_use_gpu[name]`, and `get_workflow_command()` uses
+  it as the default for `use_gpu`, then applies the shared `gpu_partition` / `gpu_gres` /
+  `gpu_gpus` fallback params.
+- **Decision:** no core code change. Migrate each previously-forced workflow to
+  `<name>_use_gpu=true` in the deployment's `slurm-config.ini` (`[MODELS]`). This is a
+  runtime-configurable setting via init-slurm and does not require a container restart,
+  unlike an env var.
+- [x] Confirmed equivalence against `slurm_model_use_gpu` handling in
+      `get_workflow_command()` and the `_use_gpu` parsing in `from_config()`.
+- [ ] Capture the per-workflow migration mapping in the `NL-BIOMERO-clone` cutover notes.

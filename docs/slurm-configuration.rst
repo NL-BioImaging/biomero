@@ -116,6 +116,27 @@ Impact:
 * The conversion submission path then passes that partition information through the job script.
 * If unset, conversion jobs use the cluster default partitioning behaviour.
 
+Default (fallback) partition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use ``slurm_default_partition`` on clusters that have no usable system default
+partition, so you do not have to hard-code ``--partition`` into every workflow's
+``[MODELS]`` job parameters.
+
+Impact:
+
+* If set, BIOMERO appends ``--partition=<value>`` to a workflow submission only
+  when the job does not already carry a ``--partition`` directive.
+* Precedence: a per-workflow ``--partition`` in ``[MODELS]`` wins, and the GPU
+  partition (from ``inject_gpu_flag`` or a per-workflow ``_use_gpu``) wins. The
+  default partition is a last-resort fallback.
+* If unset (default), no ``--partition`` is injected and the cluster default is
+  used, so existing deployments are unaffected.
+
+Overridable via the ``BIOMERO_DEFAULT_PARTITION`` environment variable
+(precedence: code default ``None`` → ``slurm_default_partition`` in
+``slurm-config.ini`` → ``BIOMERO_DEFAULT_PARTITION``).
+
 Sacct history window
 ~~~~~~~~~~~~~~~~~~~~
 

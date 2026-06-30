@@ -415,6 +415,7 @@ class SlurmClient(Connection):
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
                  slurm_conversion_partition: str = None,
+                 slurm_default_partition: str = None,
                  sacct_start_time: str = None,
                  sacct_days_ago: int = None,
                  env_file_submission: bool = False,
@@ -530,6 +531,13 @@ class SlurmClient(Connection):
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
+            slurm_default_partition (str, optional): Generic fallback SLURM
+                partition appended to workflow jobs that do not already carry a
+                ``--partition=`` directive (from per-workflow ``[MODELS]`` params
+                or the GPU partition path). Useful on clusters without a usable
+                system default partition. Overridable via
+                ``BIOMERO_DEFAULT_PARTITION``. Defaults to None (no partition
+                injected; system default is used).
             sacct_start_time (str, optional): Absolute start date for sacct
                 job history queries, format ``YYYY-MM-DD``. Overridable via
                 ``BIOMERO_SACCT_START_TIME``. Defaults to ``2023-01-01``.
@@ -620,6 +628,7 @@ class SlurmClient(Connection):
         self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
         self.slurm_conversion_partition = slurm_conversion_partition
+        self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
         self.sacct_days_ago = sacct_days_ago
         self.env_file_submission = env_file_submission
@@ -1324,6 +1333,14 @@ class SlurmClient(Connection):
             default=None,
             empty_is_none=True,
         )
+        slurm_default_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_default_partition",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_DEFAULT_PARTITION],
+            empty_is_none=True,
+        )
         sacct_start_time = cls._get_config_value(
             configs,
             section="SLURM",
@@ -1566,6 +1583,7 @@ class SlurmClient(Connection):
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
                    slurm_conversion_partition=slurm_conversion_partition,
+                   slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,
                    sacct_days_ago=sacct_days_ago,
                    env_file_submission=env_file_submission,
@@ -2901,6 +2919,13 @@ class SlurmClient(Connection):
                     "Workflow %s requested GPU defaults but no generic gpu_partition, gpu_gres, or gpu_gpus is configured.",
                     workflow,
                 )
+        # Generic fallback partition: only applied when the job does not already
+        # carry a --partition= directive (per-workflow params or the GPU path),
+        # so per-workflow and GPU partitions always win.
+        if self.slurm_default_partition and not any(
+            p.startswith(" --partition=") for p in job_params
+        ):
+            job_params.append(f" --partition={self.slurm_default_partition}")
         if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
         # Apply global sbatch params as fallback; per-workflow params take precedence.

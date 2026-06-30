@@ -555,6 +555,75 @@ def test_get_workflow_command_per_wf_gres_coexists_with_global_gpus(gpu_workflow
     assert "--gres=gpu:1g.10gb:1" in cmd
     assert "--gpus=1" in cmd
 
+
+# --- slurm_default_partition (fallback partition) -----------------------------
+
+@pytest.fixture
+def default_partition_client(slurm_client):
+    """Minimal non-GPU client for exercising slurm_default_partition fallback."""
+    slurm_client.slurm_model_paths = {"wf": "wf_path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": []}
+    slurm_client.slurm_model_images = {"wf": "user/image"}
+    slurm_client.slurm_model_use_gpu = {}
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_images_path = "/images"
+    slurm_client.slurm_script_path = "/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.env_file_submission = False
+    slurm_client.inject_gpu_flag = False
+    slurm_client.gpu_partition = None
+    slurm_client.gpu_gres = None
+    slurm_client.gpu_gpus = None
+    slurm_client.slurm_default_partition = None
+    return slurm_client
+
+
+def test_default_partition_appended_when_set(default_partition_client):
+    """When slurm_default_partition is set and no static partition exists, it is appended."""
+    default_partition_client.slurm_default_partition = "cpu_short"
+
+    cmd, _ = default_partition_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "")
+
+    assert "--partition=cpu_short" in cmd
+
+
+def test_default_partition_not_appended_when_unset(default_partition_client):
+    """Default behavior (None) appends no --partition, preserving current output."""
+    default_partition_client.slurm_default_partition = None
+
+    cmd, _ = default_partition_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "")
+
+    assert "--partition=" not in cmd
+
+
+def test_default_partition_not_appended_when_per_workflow_partition_exists(
+        default_partition_client):
+    """A per-workflow --partition in job_params takes precedence over the default."""
+    default_partition_client.slurm_default_partition = "cpu_short"
+    default_partition_client.slurm_model_jobs_params = {"wf": [" --partition=special"]}
+
+    cmd, _ = default_partition_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "")
+
+    assert "--partition=special" in cmd
+    assert "--partition=cpu_short" not in cmd
+
+
+def test_default_partition_gpu_partition_wins(gpu_workflow_command_client):
+    """For GPU jobs the GPU partition wins over the generic default partition."""
+    gpu_workflow_command_client.slurm_default_partition = "cpu_short"
+    gpu_workflow_command_client.gpu_partition = "gpu_a100"
+
+    cmd, _ = gpu_workflow_command_client.get_workflow_command(
+        "wf", "1.0", "run1", "", "", use_gpu=True)
+
+    assert "--partition=gpu_a100" in cmd
+    assert "--partition=cpu_short" not in cmd
+
+
 @pytest.mark.parametrize(
     "env_file_submission",
     [False, True],
@@ -2153,6 +2222,7 @@ def test_from_config(mock_ConfigParser,
         config_only=config_only,
         slurm_data_bind_path=mv,
         slurm_conversion_partition=mv,
+        slurm_default_partition=mv,
         sacct_start_time=None,
         sacct_days_ago=None,
         env_file_submission=False,
@@ -3644,6 +3714,31 @@ def test_global_job_params_parsed_from_config(slurm_client_from_config_factory):
     )
     assert " --reservation=biomero" in client.slurm_global_job_params
     assert " --nice=1" in client.slurm_global_job_params
+
+
+def test_default_partition_defaults_to_none(slurm_client_from_config_factory):
+    """slurm_default_partition is None by default (empty ini value)."""
+    client = slurm_client_from_config_factory(
+        config_values={"slurm_default_partition": ""}
+    )
+    assert client.slurm_default_partition is None
+
+
+def test_default_partition_parsed_from_config(slurm_client_from_config_factory):
+    """slurm_default_partition in [SLURM] is parsed onto the client."""
+    client = slurm_client_from_config_factory(
+        config_values={"slurm_default_partition": "cpu_short"}
+    )
+    assert client.slurm_default_partition == "cpu_short"
+
+
+def test_default_partition_env_overrides_ini(slurm_client_from_config_factory):
+    """BIOMERO_DEFAULT_PARTITION env var overrides the ini value."""
+    client = slurm_client_from_config_factory(
+        config_values={"slurm_default_partition": "cpu_short"},
+        env_values={"BIOMERO_DEFAULT_PARTITION": "cpu_long"},
+    )
+    assert client.slurm_default_partition == "cpu_long"
 
 
 # ---------------------------------------------------------------------------

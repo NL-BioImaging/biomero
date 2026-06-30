@@ -94,7 +94,8 @@ class SlurmJob:
                  job_id: int,
                  wf_id: UUID,
                  task_id: UUID,
-                 slurm_polling_interval: int = SLURM_POLLING_INTERVAL):
+                 slurm_polling_interval: int = SLURM_POLLING_INTERVAL,
+                 log_file: str = None):
         """
         Initialize a SlurmJob instance.
 
@@ -105,12 +106,19 @@ class SlurmJob:
             task_id (UUID): The task ID within the workflow.
             slurm_polling_interval (int, optional): The interval in seconds for 
                 polling the job status. Defaults to SLURM_POLLING_INTERVAL.
+            log_file (str, optional): The explicit Slurm output log file (or
+                glob, e.g. ``omero-<jobid>_*.log`` for an array job) that this
+                job was told to write to via ``sbatch --output``. Used to
+                fetch/upload and clean up exactly the file(s) the job
+                produced. Defaults to None, in which case the default
+                ``omero-<jobid>.log`` workflow convention is used.
         """
         self.job_id = job_id
         self.wf_id = wf_id
         self.task_id = task_id
         self.slurm_polling_interval = slurm_polling_interval
         self.submit_result = submit_result
+        self.log_file = log_file
         self.ok = self.submit_result.ok
         self.job_state = None
         self.progress = None
@@ -167,7 +175,8 @@ class SlurmJob:
         Returns:
             Result: The result of the cleanup operation.
         """
-        return slurmClient.cleanup_tmp_files(self.job_id)
+        return slurmClient.cleanup_tmp_files(self.job_id,
+                                             logfile=self.log_file)
 
     def completed(self):
         """
@@ -286,7 +295,7 @@ class SlurmClient(Connection):
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
-    _CONVERTER_LOGFILE = "\"slurm-{slurm_job_id}\"_*.out"
+    _CONVERTER_LOGFILE = "\"omero-{slurm_job_id}\"_*.log"
     _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
     _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"
     _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
@@ -1476,7 +1485,15 @@ class SlurmClient(Connection):
         )
 
         # Split the MODELS into paths, repos and images
-        models_dict = dict(configs.items("MODELS"))
+        # The section may be named either [MODELS] (legacy) or [WORKFLOWS]
+        # (preferred). Both are supported and merged; [MODELS] is read first so
+        # [WORKFLOWS] entries take precedence on key collisions.
+        models_dict = {}
+        for section_name in ("MODELS", "WORKFLOWS"):
+            try:
+                models_dict.update(dict(configs.items(section_name)))
+            except configparser.NoSectionError:
+                pass
         slurm_model_paths = {}
         slurm_model_repos = {}
         slurm_model_jobs = {}
@@ -1638,12 +1655,15 @@ class SlurmClient(Connection):
         if logfile is None:
             logfile = self._LOGFILE
             logfile = logfile.format(slurm_job_id=slurm_job_id)
-        rmlog = f"rm \"{logfile}\""
+        # -f so cleanup never errors when a job wrote to a different log
+        # convention (e.g. a conversion array job writes omero-<id>_*.log
+        # rather than the single omero-<id>.log).
+        rmlog = f"rm -f \"{logfile}\""
         cmds.append(rmlog)
         # converter logs
         clog = self._CONVERTER_LOGFILE
         clog = clog.format(slurm_job_id=slurm_job_id)
-        rmclog = f"rm {clog}"
+        rmclog = f"rm -f {clog}"
         cmds.append(rmclog)
 
         # data
@@ -2431,7 +2451,15 @@ class SlurmClient(Connection):
             self.workflowTracker.add_job_id(task_id, slurm_job_id)
             self.workflowTracker.add_result(task_id, res)
 
-        return SlurmJob(res, slurm_job_id, wf_id, task_id)
+        # The conversion is submitted with --output=omero-%A_%a.log, so its
+        # log(s) live next to the workflow logs as omero-<jobid>_*.log. Track
+        # that glob so cleanup removes exactly those files and the OMERO
+        # scripts can fetch/upload the conversion log (also on failure).
+        conversion_log = self._CONVERTER_LOGFILE.format(
+            slurm_job_id=slurm_job_id).replace('"', '')
+
+        return SlurmJob(res, slurm_job_id, wf_id, task_id,
+                        log_file=conversion_log)
 
     def extract_job_id(self, result: Result) -> int:
         """
@@ -3026,6 +3054,7 @@ class SlurmClient(Connection):
         )
         conversion_cmd = (
             "sbatch --job-name=conversion "
+            "--output=omero-%A_%a.log "
             f"--export=ALL,CONFIG_PATH={config_path} "
             f"--array=1-$N {conversion_script}"
         )
@@ -3212,6 +3241,51 @@ class SlurmClient(Connection):
             remote=logfile,
             local=local_tmp_storage)
         export_file = local_tmp_storage+logfile
+        return local_tmp_storage, export_file, result
+
+    def get_conversion_logfile_from_slurm(self,
+                                          slurm_job_id: str,
+                                          local_tmp_storage: str = "/tmp/",
+                                          logfile: str = None
+                                          ) -> Tuple[str, str, Any]:
+        """Copy a conversion job's log(s) to local storage as one combined file.
+
+        A conversion is submitted as a Slurm array job with
+        ``--output=omero-%A_%a.log``, so it produces one log per array task
+        (``omero-<jobid>_1.log``, ``omero-<jobid>_2.log``, ...). This reads all
+        matching logs on the Slurm side and writes a single combined log file
+        locally, so it can be attached to OMERO exactly like a workflow log --
+        including when the conversion failed and the logs are the only clue.
+
+        Unlike :meth:`get_logfile_from_slurm` (which sftp-copies a single named
+        file) this resolves the array glob via ``cat`` and tolerates the case
+        where no log files exist (writes an empty file rather than erroring).
+
+        Args:
+            slurm_job_id (str): The ID of the conversion (array) Slurm job.
+            local_tmp_storage (str, optional): Local directory to write the
+                combined log to. Defaults to "/tmp/".
+            logfile (str, optional): Explicit log glob to read (e.g.
+                ``SlurmJob.log_file``). Defaults to the converter glob
+                ``omero-<jobid>_*.log``.
+
+        Returns:
+            Tuple[str, str, Any]: local directory, combined log file path, and
+                the raw ``cat`` Result.
+        """
+        if logfile is None:
+            logfile = self._CONVERTER_LOGFILE.format(
+                slurm_job_id=slurm_job_id).replace('"', '')
+        # cat all matching array-task logs; tolerate none existing so this
+        # never raises while trying to surface a failure log.
+        cat_cmd = f"cat {logfile} 2>/dev/null || true"
+        result = self.run(cat_cmd)
+        export_file = os.path.join(
+            local_tmp_storage, self._LOGFILE.format(slurm_job_id=slurm_job_id))
+        content = result.stdout if result and getattr(
+            result, "stdout", None) else ""
+        with open(export_file, "w") as f:
+            f.write(content)
         return local_tmp_storage, export_file, result
 
     def get_unzip_command(self, zipfile: str,

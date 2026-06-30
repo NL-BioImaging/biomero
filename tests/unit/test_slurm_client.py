@@ -333,6 +333,37 @@ def test_get_logfile_from_slurm(mock_get, slurm_client):
         remote=custom_logfile, local=f"{local_tmp_storage}")
 
 
+@patch('builtins.open', new_callable=mock.mock_open)
+@patch.object(SlurmClient, 'run')
+def test_get_conversion_logfile_from_slurm(mock_run, m_open, slurm_client):
+    """Conversion array logs (omero-<id>_*.log) are cat'd on Slurm and written
+    as a single combined local file so they can be attached to OMERO."""
+    # GIVEN
+    slurm_job_id = "12345"
+    mock_run.return_value = SerializableMagicMock(stdout="combined log", ok=True)
+
+    # WHEN (default: uses converter glob)
+    local_dir, path, result = slurm_client.get_conversion_logfile_from_slurm(
+        slurm_job_id, "/tmp/")
+
+    # THEN
+    cat_cmd = mock_run.call_args[0][0]
+    assert cat_cmd.startswith("cat omero-12345_*.log")
+    assert path == "/tmp/omero-12345.log"
+    m_open.assert_called_once_with("/tmp/omero-12345.log", "w")
+    m_open().write.assert_called_once_with("combined log")
+
+
+@patch('builtins.open', new_callable=mock.mock_open)
+@patch.object(SlurmClient, 'run')
+def test_get_conversion_logfile_from_slurm_explicit(mock_run, m_open, slurm_client):
+    """An explicit logfile glob (e.g. from SlurmJob.log_file) is honored."""
+    mock_run.return_value = SerializableMagicMock(stdout="", ok=True)
+    slurm_client.get_conversion_logfile_from_slurm(
+        "999", "/tmp/", logfile="omero-999_*.log")
+    assert mock_run.call_args[0][0].startswith("cat omero-999_*.log")
+
+
 @patch('biomero.slurm_client.logger')
 @patch.object(SlurmClient, 'run_commands', return_value=SerializableMagicMock(ok=True, stdout=""))
 def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
@@ -661,6 +692,7 @@ def test_get_conversion_command(slurm_client, env_file_submission):
     else:
         assert cmd == (
             'sbatch --job-name=conversion '
+            '--output=omero-%A_%a.log '
             '--export=ALL,CONFIG_PATH="$PWD/config.cfg" '
             '--array=1-$N "/path/to/scripts/convert_job_array.sh"'
         )
@@ -728,6 +760,7 @@ def test_run_conversion_workflow_job(
 
     expected_conversion_cmd = (
         'sbatch --job-name=conversion '
+        '--output=omero-%A_%a.log '
         f'--export=ALL,CONFIG_PATH="$PWD/{expected_config_file}" --array=1-$N '
         f'"{slurm_client.slurm_script_path}/convert_job_array.sh"'
     )
@@ -767,6 +800,54 @@ def test_run_conversion_workflow_job(
     assert slurm_job.job_id == -1
     assert slurm_job.submit_result.ok
     assert slurm_job.job_state is None
+    # Conversion job tracks its explicit log file (per array task)
+    assert slurm_job.log_file == f"omero-{slurm_job.job_id}_*.log"
+
+
+def test_get_conversion_command_sets_explicit_output(slurm_client):
+    """Conversion sbatch must pin its output to omero-%A_%a.log so the
+    conversion log lands next to the workflow logs (omero-<jobid>...) and can
+    be cleaned up / uploaded reliably."""
+    # GIVEN
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.env_file_submission = False
+
+    # WHEN
+    cmd, _env, _image, _version = slurm_client.get_conversion_command(
+        "/data", "config.cfg")
+
+    # THEN
+    assert "--output=omero-%A_%a.log" in cmd
+
+
+@patch(
+    "biomero.slurm_client.SlurmClient.run_commands", new_callable=SerializableMagicMock
+)
+@patch("fabric.Result", new_callable=SerializableMagicMock)
+def test_get_conversion_command_env_file_sets_explicit_output(
+    mock_result, mock_run_commands, slurm_client
+):
+    """Even in env-file submission mode the conversion job pins its output."""
+    # GIVEN
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.env_file_submission = True
+
+    # WHEN
+    cmd, _env, _image, _version = slurm_client.get_conversion_command(
+        "/data", "config.cfg")
+
+    # THEN
+    assert "--output=omero-%A_%a.log" in cmd
+
+
+def test_slurm_job_default_log_file_is_none():
+    """A plain SlurmJob (workflow) has no explicit log_file; cleanup falls back
+    to the default omero-<jobid>.log convention."""
+    job = _make_slurm_job()
+    assert job.log_file is None
+
 
 def test_descriptor_from_github(slurm_client):
     # GIVEN
@@ -1669,8 +1750,8 @@ def test_cleanup_tmp_files_loc(mock_extract_data_location, mock_run_commands,
     mock_extract_data_location.assert_not_called()
     mock_run_commands.assert_called_once_with([
         f"rm \"{filename}\".*",
-        f"rm \"{logfile}\"",
-        f"rm \"slurm-{slurm_job_id}\"_*.out",
+        f"rm -f \"{logfile}\"",
+        f"rm -f \"omero-{slurm_job_id}\"_*.log",
         f"rm -rf \"{data_location}\" \"{data_location}\".*",
         f"rm \"config_path.txt\""
     ], sep=' ; ')
@@ -1703,8 +1784,8 @@ def test_cleanup_tmp_files(mock_extract_data_location, mock_run_commands,
     mock_extract_data_location.assert_called_once_with(logfile)
     mock_run_commands.assert_called_once_with([
         f"rm \"{filename}\".*",
-        f"rm \"{logfile}\"",
-        f"rm \"slurm-{slurm_job_id}\"_*.out",
+        f"rm -f \"{logfile}\"",
+        f"rm -f \"omero-{slurm_job_id}\"_*.log",
         f"rm -rf \"{found_location}\" \"{found_location}\".*",
         f"rm \"config_path.txt\""
     ], sep=' ; ')
@@ -1980,6 +2061,7 @@ def slurm_configparser_factory():
         boolean_values=None,
         model_items=None,
         converter_items=None,
+        workflow_items=None,
         default_value="configvalue",
     ):
         configparser_instance = MagicMock()
@@ -1988,6 +2070,7 @@ def slurm_configparser_factory():
         boolean_values = boolean_values or {}
         model_items = model_items or {}
         converter_items = converter_items or {}
+        workflow_items = workflow_items or {}
 
         def get_side_effect(section, option, fallback=None):
             if (section, option) in get_values:
@@ -2000,6 +2083,8 @@ def slurm_configparser_factory():
         def items_side_effect(section):
             if section == "MODELS":
                 return model_items.items()
+            if section == "WORKFLOWS":
+                return workflow_items.items()
             if section == "CONVERTERS":
                 return converter_items.items()
             return {}.items()
@@ -2242,7 +2327,85 @@ def test_from_config(mock_ConfigParser,
     )
 
 
-   
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+def test_from_config_workflows_section_alias(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """A [WORKFLOWS] section should be parsed exactly like [MODELS]."""
+    # GIVEN a config with only a [WORKFLOWS] section (no [MODELS])
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db'},
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+        workflow_items={
+            "cellpose": "cellpose",
+            "cellpose_repo": "https://github.com/example/W_Cellpose/tree/v1.0.0",
+            "cellpose_job": "jobs/cellpose.sh",
+            "cellpose_job_param": "v4",
+        },
+    )
+
+    # WHEN
+    SlurmClient.from_config(
+        configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    # THEN entries from [WORKFLOWS] populate the model dicts
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['slurm_model_paths'] == {"cellpose": "cellpose"}
+    assert kwargs['slurm_model_repos'] == {
+        "cellpose": "https://github.com/example/W_Cellpose/tree/v1.0.0"}
+    assert kwargs['slurm_model_jobs'] == {"cellpose": "jobs/cellpose.sh"}
+    assert kwargs['slurm_model_jobs_params'] == {"cellpose": [" --param=v4"]}
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+def test_from_config_models_and_workflows_merge(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """When both [MODELS] and [WORKFLOWS] exist their entries are merged."""
+    # GIVEN a config with both sections defining different workflows
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db'},
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+        model_items={"legacy": "legacy"},
+        workflow_items={"cellpose": "cellpose"},
+    )
+
+    # WHEN
+    SlurmClient.from_config(
+        configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    # THEN both workflows appear in the parsed paths
+    _, kwargs = mock_SlurmClient.call_args
+    assert kwargs['slurm_model_paths'] == {
+        "legacy": "legacy", "cellpose": "cellpose"}
+
+
 def test_parse_docker_image_with_version(slurm_client):
     version, image_name = slurm_client.parse_docker_image_version("example_image:1.0")
     assert version == "1.0"
@@ -2939,13 +3102,28 @@ def test_slurm_job_str():
 
 
 def test_slurm_job_cleanup_delegates():
-    """cleanup() calls slurmClient.cleanup_tmp_files with the job_id."""
+    """cleanup() calls slurmClient.cleanup_tmp_files with the job_id and the
+    job's explicit log_file (None for a default workflow job)."""
     job = _make_slurm_job()
     mock_client = MagicMock()
     mock_client.cleanup_tmp_files.return_value = MagicMock(ok=True)
     result = job.cleanup(mock_client)
-    mock_client.cleanup_tmp_files.assert_called_once_with(42)
+    mock_client.cleanup_tmp_files.assert_called_once_with(42, logfile=None)
     assert result is not None
+
+
+def test_slurm_job_cleanup_passes_explicit_log_file():
+    """A conversion job carries its array-task log glob; cleanup forwards it."""
+    from biomero.slurm_client import SlurmJob
+    result = MagicMock()
+    result.ok = True
+    result.stderr = ''
+    job = SlurmJob(result, 42, uuid4(), uuid4(), log_file="omero-42_*.log")
+    mock_client = MagicMock()
+    mock_client.cleanup_tmp_files.return_value = MagicMock(ok=True)
+    job.cleanup(mock_client)
+    mock_client.cleanup_tmp_files.assert_called_once_with(
+        42, logfile="omero-42_*.log")
 
 
 def test_slurm_job_wait_for_completion_single_poll():

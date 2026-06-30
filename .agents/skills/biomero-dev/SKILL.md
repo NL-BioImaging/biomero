@@ -35,8 +35,10 @@ Read only the relevant reference before acting:
 - [references/config-pattern.md](references/config-pattern.md): the
   `_get_config_value()` precedence helper and the full checklist of touch points
   for adding or migrating a config option.
-- [references/docs.md](references/docs.md): where settings are documented and how
-  to build the Sphinx site.
+- [references/docs.md](references/docs.md): every place a setting must be
+  documented (sample ini, both Sphinx rst files, deployment inis, and the
+  OMERO.biomero admin UI), the cross-surface consistency checklist, and how to
+  build the Sphinx site.
 
 ## Core Rules
 
@@ -51,3 +53,11 @@ Read only the relevant reference before acting:
 - Keep `pep8`/line-length style consistent with the file you edit; the module
   already carries many pre-existing long-line lints, so do not reflow unrelated
   code.
+- Any change to an ini setting (new option, migration, or a change to its
+  scope/precedence/meaning) is not done until every documentation and config
+  surface is updated to match: the sample `resources/slurm-config.ini`, both
+  Sphinx docs (`slurm-configuration.rst`, `configuration-reference.rst`), the
+  deployment inis (e.g. `NL-BIOMERO/web/slurm-config.ini`), and the
+  OMERO.biomero admin UI (`SettingsForm.js`) when the setting is editable there.
+  See [references/docs.md](references/docs.md) for the full cross-surface
+  checklist.

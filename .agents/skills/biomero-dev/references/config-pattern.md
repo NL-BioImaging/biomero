@@ -46,8 +46,13 @@ examples. A new `[SLURM]` option requires edits in these places, in order:
    more-specific value is already present (e.g.
    `not any(p.startswith(" --partition=") for p in job_params)`).
 5. Tests in `tests/unit/test_slurm_client.py` (see references/testing.md).
-6. Docs: `resources/slurm-config.ini` sample and the Sphinx docs (see
-   references/docs.md).
+6. Docs and config surfaces — keep ALL of these in sync (see references/docs.md):
+   `resources/slurm-config.ini` sample, `docs/slurm-configuration.rst`,
+   `docs/configuration-reference.rst`, any deployment ini (e.g.
+   `NL-BIOMERO/web/slurm-config.ini`), and the OMERO.biomero admin UI
+   (`OMERO.biomero/webapp/src/biomero/components/SettingsForm.js`) when the
+   setting is editable there. If you change a setting's scope or precedence, the
+   ini comments, rst prose, and UI field text must all say the same thing.
 
 ## Ordering / precedence guards
 

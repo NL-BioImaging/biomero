@@ -109,27 +109,34 @@ Conversion partition
 ~~~~~~~~~~~~~~~~~~~~
 
 Use ``slurm_conversion_partition`` when conversion jobs need an explicit partition.
+The data conversion job is always submitted via ``sbatch``, so it honours the same
+generic sbatch settings as workflow jobs.
 
 Impact:
 
-* If set, BIOMERO adds ``CONVERSION_PARTITION`` to the conversion environment.
-* The conversion submission path then passes that partition information through the job script.
-* If unset, conversion jobs use the cluster default partitioning behaviour.
+* If set, BIOMERO injects ``--partition=<value>`` as a real flag on the conversion
+  ``sbatch`` command (and also exports ``CONVERSION_PARTITION`` to the conversion
+  environment for custom scripts that read it).
+* Precedence: ``slurm_conversion_partition`` wins over the generic
+  ``slurm_default_partition`` fallback for conversion jobs.
+* If unset, conversion falls back to ``slurm_default_partition`` (if configured),
+  otherwise the cluster default partitioning behaviour.
 
 Default (fallback) partition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``slurm_default_partition`` on clusters that have no usable system default
 partition, so you do not have to hard-code ``--partition`` into every workflow's
-``[MODELS]`` job parameters.
+``[MODELS]`` job parameters. It applies to both workflow and conversion jobs.
 
 Impact:
 
-* If set, BIOMERO appends ``--partition=<value>`` to a workflow submission only
-  when the job does not already carry a ``--partition`` directive.
-* Precedence: a per-workflow ``--partition`` in ``[MODELS]`` wins, and the GPU
-  partition (from ``inject_gpu_flag`` or a per-workflow ``_use_gpu``) wins. The
-  default partition is a last-resort fallback.
+* If set, BIOMERO appends ``--partition=<value>`` to a workflow **or conversion**
+  submission only when the job does not already carry a ``--partition`` directive.
+* Precedence: for workflows, a per-workflow ``--partition`` in ``[MODELS]`` wins,
+  and the GPU partition (from ``inject_gpu_flag`` or a per-workflow ``_use_gpu``)
+  wins. For conversion, ``slurm_conversion_partition`` wins. The default partition
+  is a last-resort fallback in both cases.
 * If unset (default), no ``--partition`` is injected and the cluster default is
   used, so existing deployments are unaffected.
 
@@ -264,7 +271,7 @@ Global sbatch parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Any ``[SLURM]`` key that starts with ``sbatch_`` is treated as a global sbatch parameter
-that BIOMERO adds to every workflow submission.
+that BIOMERO adds to every workflow **and conversion** submission.
 
 The key pattern is ``sbatch_<flag>=<value>``, which produces ``--<flag>=<value>`` on the
 sbatch command line.
@@ -277,12 +284,14 @@ Examples:
    sbatch_reservation=biomero
    sbatch_nice=1
 
-This appends ``--reservation=biomero`` and ``--nice=1`` to every workflow job.
+This appends ``--reservation=biomero`` and ``--nice=1`` to every workflow job and to
+each data conversion job.
 
 Impact:
 
 * Global params are applied after per-workflow ``[MODELS]`` sbatch overrides.
 * If a per-workflow override already sets the same flag (e.g. ``cellpose_job_reservation``), the global default for that flag is skipped.
+* For conversion jobs, a ``--partition`` set via ``slurm_conversion_partition`` (or the ``slurm_default_partition`` fallback) takes precedence over a global ``sbatch_partition``.
 * Global params with empty values are ignored.
 * There is no environment variable override for these — they are intentionally admin-only at config time.
 

@@ -138,7 +138,11 @@ Environment Variable Lookup Table
    * - ``slurm_conversion_partition``
      - string or empty
      - unset
-     - Provides a partition hint for conversion jobs
+     - Partition for data conversion jobs; injected as a real ``--partition`` flag on the conversion sbatch (and exported as ``CONVERSION_PARTITION``). Takes precedence over ``slurm_default_partition`` for conversion jobs
+   * - ``slurm_default_partition``
+     - string or empty
+     - unset
+     - Generic fallback ``--partition`` appended to workflow **and** conversion jobs that do not already set a partition; per-workflow params, the GPU partition, and ``slurm_conversion_partition`` take precedence. Overridable via ``BIOMERO_DEFAULT_PARTITION``
    * - ``sacct_start_time``
      - string date or empty
      - ``2023-01-01``
@@ -170,7 +174,7 @@ Environment Variable Lookup Table
    * - ``sbatch_<key>``
      - string or empty
      - unset
-     - Any ``[SLURM]`` key starting with ``sbatch_`` adds ``--<key>=<value>`` to every workflow submission; per-workflow sbatch overrides always take precedence
+     - Any ``[SLURM]`` key starting with ``sbatch_`` adds ``--<key>=<value>`` to every workflow **and conversion** submission; per-workflow sbatch overrides (and ``slurm_conversion_partition`` for the conversion ``--partition``) always take precedence
    * - ``slurm_image_pull_via_sbatch``
      - boolean
      - ``false``
@@ -243,7 +247,7 @@ Empty-string handling
 
 Some optional string settings treat an empty value as unset rather than as a literal empty string.
 This is relevant for values such as ``slurm_data_bind_path``, ``slurm_conversion_partition``,
-``gpu_partition``, ``gpu_gres``, ``gpu_gpus``, and the optional ``sacct`` window settings.
+``slurm_default_partition``, ``gpu_partition``, ``gpu_gres``, ``gpu_gpus``, and the optional ``sacct`` window settings.
 
 GPU precedence
 ~~~~~~~~~~~~~~

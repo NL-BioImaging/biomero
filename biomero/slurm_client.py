@@ -3052,8 +3052,24 @@ class SlurmClient(Connection):
         conversion_script = (
             f'"{self.slurm_script_path}/convert_job_array.sh"'
         )
+        # The conversion job is always submitted via sbatch, so it honours the
+        # same generic sbatch settings as workflow jobs: a partition (its own
+        # slurm_conversion_partition, otherwise the generic
+        # slurm_default_partition fallback) and any global sbatch params
+        # (e.g. --reservation). The conversion-specific partition wins over the
+        # generic default, and an explicit partition flag wins over a global one.
+        conversion_params = []
+        partition = (
+            self.slurm_conversion_partition or self.slurm_default_partition)
+        if partition:
+            conversion_params.append(f" --partition={partition}")
+        for global_param in self.slurm_global_job_params:
+            flag_prefix = global_param.split("=")[0] + "="
+            if not any(p.startswith(flag_prefix) for p in conversion_params):
+                conversion_params.append(global_param)
+        conversion_param = "".join(conversion_params)
         conversion_cmd = (
-            "sbatch --job-name=conversion "
+            f"sbatch{conversion_param} --job-name=conversion "
             "--output=omero-%A_%a.log "
             f"--export=ALL,CONFIG_PATH={config_path} "
             f"--array=1-$N {conversion_script}"

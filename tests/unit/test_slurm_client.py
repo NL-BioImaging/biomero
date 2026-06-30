@@ -687,11 +687,11 @@ def test_get_conversion_command(slurm_client, env_file_submission):
         assert "export CONVERSION_PATH=/path/to/converters" in cmd
         assert "export CONVERSION_PARTITION=gpu" in cmd
         assert "--array=1-$N" in cmd
-        assert 'sbatch --job-name=conversion' in cmd
+        assert 'sbatch --partition=gpu --job-name=conversion' in cmd
         assert '/data/biomero_job_env.sh' in cmd
     else:
         assert cmd == (
-            'sbatch --job-name=conversion '
+            'sbatch --partition=gpu --job-name=conversion '
             '--output=omero-%A_%a.log '
             '--export=ALL,CONFIG_PATH="$PWD/config.cfg" '
             '--array=1-$N "/path/to/scripts/convert_job_array.sh"'
@@ -705,6 +705,87 @@ def test_get_conversion_command(slurm_client, env_file_submission):
             "APPTAINER_BINDPATH": '"/bind/path"',
             "CONVERSION_PARTITION": '"gpu"',
         }
+
+
+def test_get_conversion_command_applies_global_job_params(slurm_client):
+    """Global sbatch params (e.g. --reservation) are applied to conversion."""
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.slurm_conversion_partition = None
+    slurm_client.slurm_default_partition = None
+    slurm_client.env_file_submission = False
+    slurm_client.slurm_global_job_params = [" --reservation=biomero"]
+
+    cmd, _, _, _ = slurm_client.get_conversion_command("/data", "config.cfg")
+
+    assert "--reservation=biomero" in cmd
+    assert cmd.startswith("sbatch --reservation=biomero --job-name=conversion")
+
+
+def test_get_conversion_command_default_partition_fallback(slurm_client):
+    """When no conversion partition is set, the generic default partition is used."""
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.slurm_conversion_partition = None
+    slurm_client.slurm_default_partition = "cpu_short"
+    slurm_client.env_file_submission = False
+    slurm_client.slurm_global_job_params = []
+
+    cmd, _, _, _ = slurm_client.get_conversion_command("/data", "config.cfg")
+
+    assert "--partition=cpu_short" in cmd
+
+
+def test_get_conversion_command_conversion_partition_wins_over_default(slurm_client):
+    """The conversion-specific partition takes precedence over the default."""
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.slurm_conversion_partition = "conv_part"
+    slurm_client.slurm_default_partition = "cpu_short"
+    slurm_client.env_file_submission = False
+    slurm_client.slurm_global_job_params = []
+
+    cmd, _, _, _ = slurm_client.get_conversion_command("/data", "config.cfg")
+
+    assert "--partition=conv_part" in cmd
+    assert "--partition=cpu_short" not in cmd
+
+
+def test_get_conversion_command_partition_flag_wins_over_global(slurm_client):
+    """An explicit conversion --partition flag is not overridden by a global one."""
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.slurm_conversion_partition = "conv_part"
+    slurm_client.slurm_default_partition = None
+    slurm_client.env_file_submission = False
+    slurm_client.slurm_global_job_params = [" --partition=global_part"]
+
+    cmd, _, _, _ = slurm_client.get_conversion_command("/data", "config.cfg")
+
+    assert "--partition=conv_part" in cmd
+    assert "--partition=global_part" not in cmd
+    assert cmd.count("--partition=") == 1
+
+
+def test_get_conversion_command_no_global_params_by_default(slurm_client):
+    """Without global params and without a partition, no extra flags are added."""
+    slurm_client.slurm_converters_path = "/path/to/converters"
+    slurm_client.slurm_script_path = "/path/to/scripts"
+    slurm_client.slurm_data_bind_path = None
+    slurm_client.slurm_conversion_partition = None
+    slurm_client.slurm_default_partition = None
+    slurm_client.env_file_submission = False
+    slurm_client.slurm_global_job_params = []
+
+    cmd, _, _, _ = slurm_client.get_conversion_command("/data", "config.cfg")
+
+    assert cmd.startswith("sbatch --job-name=conversion")
+    assert "--partition=" not in cmd
+    assert "--reservation=" not in cmd
 
 
 @pytest.mark.parametrize(
@@ -758,8 +839,14 @@ def test_run_conversion_workflow_job(
     if conversion_partition is not None:
         expected_sbatch_env["CONVERSION_PARTITION"] = f'"{conversion_partition}"'
 
+    # When a conversion partition is set it is also injected as a real sbatch
+    # --partition flag (in addition to the CONVERSION_PARTITION env var).
+    partition_flag = (
+        f' --partition={conversion_partition}'
+        if conversion_partition is not None else ''
+    )
     expected_conversion_cmd = (
-        'sbatch --job-name=conversion '
+        f'sbatch{partition_flag} --job-name=conversion '
         '--output=omero-%A_%a.log '
         f'--export=ALL,CONFIG_PATH="$PWD/{expected_config_file}" --array=1-$N '
         f'"{slurm_client.slurm_script_path}/convert_job_array.sh"'

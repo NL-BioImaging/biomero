@@ -128,6 +128,13 @@ class results:
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
     OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
+    # Guaranteed container the SLURM job log is force-linked to when no richer
+    # attachment target was resolved, so the log is always findable in OMERO
+    # (unlinked annotations are effectively invisible to users). Forwarded by
+    # SLURM_Run_Workflow as a "DataType:id" string (e.g. "Plate:123" or
+    # "Dataset:45"); the import scripts also derive this from the workflow's
+    # input objects when the parameter is absent (standalone manual runs).
+    LOG_FALLBACK_TARGET = "Log_Fallback_Target"
 
 
 class transfer:

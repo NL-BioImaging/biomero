@@ -2441,10 +2441,40 @@ class SlurmClient(Connection):
             sbatch_env
         )
 
-        # Run all commands consecutively
-        res = self.run_commands(commands, sbatch_env)
+        # Run all commands consecutively.
+        # The final command is the sbatch submission. If sbatch rejects the
+        # job (e.g. an invalid --reservation/--partition) or an earlier command
+        # in the chain fails, run_commands raises UnexpectedExit. In that case
+        # NO Slurm job is created, so there is NO Slurm log file to fetch
+        # later: the only diagnostic is the failed command's own stderr/stdout
+        # (e.g. "sbatch: error: Batch job submission failed: Requested
+        # reservation is invalid"). Catch it, log it explicitly, and fall
+        # through with the failed Result so we return a SlurmJob with ok=False
+        # (job_id=-1) instead of a raw traceback. The caller can then surface
+        # the reason via slurmJob.get_error().
+        try:
+            res = self.run_commands(commands, sbatch_env)
+        except UnexpectedExit as e:
+            res = e.result
+            logger.error(
+                "Conversion submission failed before a Slurm job was created "
+                "(exit code %s). No Slurm job was submitted, so there is no "
+                "Slurm log file to retrieve; the error is in the command "
+                "output below. Common cause: an invalid sbatch parameter such "
+                "as a non-existent --reservation or --partition.",
+                getattr(res, "exited", "unknown"))
+            logger.error("Failed conversion command:\n%s",
+                         getattr(res, "command", None) or " && ".join(commands))
+            logger.error("stderr:\n%s", getattr(res, "stderr", ""))
+            logger.error("stdout:\n%s", getattr(res, "stdout", ""))
 
         slurm_job_id = self.extract_job_id(res)
+        if slurm_job_id < 0:
+            logger.error(
+                "No Slurm job id could be extracted from the conversion "
+                "submission (job was not submitted). Conversion task %s will "
+                "be marked failed; there is no Slurm-side log for this job.",
+                task_id)
 
         if task_id:
             self.workflowTracker.start_task(task_id)

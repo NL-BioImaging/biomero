@@ -891,6 +891,45 @@ def test_run_conversion_workflow_job(
     assert slurm_job.log_file == f"omero-{slurm_job.job_id}_*.log"
 
 
+@patch("biomero.slurm_client.SlurmClient.run_commands")
+def test_run_conversion_workflow_job_submission_rejected(
+    mock_run_commands, slurm_client
+):
+    """When sbatch rejects the submission (e.g. invalid --reservation),
+    run_commands raises UnexpectedExit. The method must NOT propagate that:
+    it should capture the failed Result, and return a SlurmJob with ok=False
+    and job_id=-1 so the caller can surface the submission error to OMERO.
+    """
+    from invoke.exceptions import UnexpectedExit
+
+    slurm_client.slurm_data_path = "/path/to/slurm_data"
+    slurm_client.slurm_converters_path = "/path/to/slurm_converters"
+    slurm_client.slurm_script_path = "/path/to/slurm_script"
+    slurm_client.converter_images = None
+
+    # GIVEN a failed sbatch submission Result carried by UnexpectedExit
+    failed_result = SerializableMagicMock()
+    failed_result.ok = False
+    failed_result.exited = 1
+    failed_result.command = "sbatch --reservation=biomero ..."
+    failed_result.stdout = "Number of .zarr files: 1\n"
+    failed_result.stderr = (
+        "sbatch: error: Batch job submission failed: "
+        "Requested reservation is invalid"
+    )
+    mock_run_commands.side_effect = UnexpectedExit(failed_result)
+
+    # WHEN
+    slurm_job = slurm_client.run_conversion_workflow_job("example_folder")
+
+    # THEN it does not raise, and reports a failed, unsubmitted job
+    assert slurm_job is not None
+    assert slurm_job.ok is False
+    assert slurm_job.job_id == -1
+    # The submission error is surfaced via get_error()
+    assert "Requested reservation is invalid" in slurm_job.get_error()
+
+
 def test_get_conversion_command_sets_explicit_output(slurm_client):
     """Conversion sbatch must pin its output to omero-%A_%a.log so the
     conversion log lands next to the workflow logs (omero-<jobid>...) and can

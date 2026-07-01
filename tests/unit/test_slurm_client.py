@@ -4561,3 +4561,84 @@ def test_get_workflow_command_with_bind_path(slurm_client):
 
     _, env = slurm_client.get_workflow_command("wf", "1.0", "run1", "", "")
     assert env.get("APPTAINER_BINDPATH") == '"/scratch/my-data"'
+
+
+# ---------------------------------------------------------------------------
+# Tests for _parse_descriptor_from_repo: direct descriptor URL support
+# ---------------------------------------------------------------------------
+
+@patch('biomero.slurm_client.SlurmClient.get_or_create_github_session')
+def test_parse_descriptor_direct_config_yaml_skips_auto_discovery(
+        mock_session_fn, slurm_client):
+    """When URL ends with a file path (e.g. config.yaml), that exact file is fetched
+    without attempting auto-discovery (descriptor.json must NOT be tried first)."""
+    url = "https://github.com/org/repo/tree/v0.0.3/config.yaml"
+
+    # Both descriptor.json and config.yaml would return ok — old code picks
+    # descriptor.json first; new code must fetch only config.yaml.
+    ok_resp = MagicMock(ok=True, from_cache=False)
+    ok_resp.text = "schema-version: bilayers-0.1\nname: wf\ninputs: []\noutputs: []"
+    session = MagicMock()
+    session.get.return_value = ok_resp  # any URL → ok
+    mock_session_fn.return_value = session
+
+    with patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor') as mock_parse:
+        mock_parse.return_value.model_dump.return_value = {"schema-version": "bilayers-0.1"}
+        result = slurm_client._parse_descriptor_from_repo(url, "wf")
+
+    # Must call session.get exactly once with the raw URL for config.yaml
+    session.get.assert_called_once_with(
+        "https://github.com/org/repo/raw/v0.0.3/config.yaml"
+    )
+    assert result == {"schema-version": "bilayers-0.1"}
+
+
+@patch('biomero.slurm_client.SlurmClient.get_or_create_github_session')
+def test_parse_descriptor_direct_subpath_url_uses_full_path(
+        mock_session_fn, slurm_client):
+    """A URL with a subdirectory path (schemas/descriptor.json) fetches that
+    exact nested path, not the root descriptor.json."""
+    url = "https://github.com/org/repo/tree/v0.0.3/schemas/descriptor.json"
+
+    ok_resp = MagicMock(ok=True, from_cache=False)
+    ok_resp.json.return_value = {"schema-version": "biomero-0.1", "inputs": []}
+    session = MagicMock()
+    session.get.return_value = ok_resp
+    mock_session_fn.return_value = session
+
+    with patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor') as mock_parse:
+        mock_parse.return_value.model_dump.return_value = {"schema-version": "biomero-0.1"}
+        slurm_client._parse_descriptor_from_repo(url, "wf")
+
+    # Must fetch the nested path, not the root descriptor.json
+    session.get.assert_called_once_with(
+        "https://github.com/org/repo/raw/v0.0.3/schemas/descriptor.json"
+    )
+
+
+@patch('biomero.slurm_client.SlurmClient.get_or_create_github_session')
+def test_parse_descriptor_plain_tree_url_still_uses_auto_discovery(
+        mock_session_fn, slurm_client):
+    """Backward compat: a plain tree URL (no file suffix) still tries
+    descriptor.json → descriptor.yaml → config.yaml in that order."""
+    url = "https://github.com/org/repo/tree/v0.0.3"
+
+    json_resp = MagicMock(ok=False)
+    yaml_resp = MagicMock(ok=False)
+    config_resp = MagicMock(ok=True, from_cache=False)
+    config_resp.text = "schema-version: bilayers-0.1\nname: wf\ninputs: []\noutputs: []"
+    session = MagicMock()
+    session.get.side_effect = [json_resp, yaml_resp, config_resp]
+    mock_session_fn.return_value = session
+
+    with patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor') as mock_parse:
+        mock_parse.return_value.model_dump.return_value = {"schema-version": "bilayers-0.1"}
+        result = slurm_client._parse_descriptor_from_repo(url, "wf")
+
+    # Auto-discovery: three calls in the correct order
+    assert session.get.call_count == 3
+    calls = [c[0][0] for c in session.get.call_args_list]
+    assert calls[0] == "https://github.com/org/repo/raw/v0.0.3/descriptor.json"
+    assert calls[1] == "https://github.com/org/repo/raw/v0.0.3/descriptor.yaml"
+    assert calls[2] == "https://github.com/org/repo/raw/v0.0.3/config.yaml"
+    assert result is not None

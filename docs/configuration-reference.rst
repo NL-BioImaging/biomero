@@ -211,6 +211,10 @@ Environment Variable Lookup Table
      - boolean
      - ``false``
      - Per-workflow GPU default in ``[WORKFLOWS]`` (or ``[MODELS]`` for legacy configs); e.g. ``cellpose_use_gpu=true`` marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit ``use_gpu`` argument at submission time
+   * - ``<name>_repo``
+     - string URL
+     - —
+     - GitHub URL for a workflow in ``[WORKFLOWS]`` (or ``[MODELS]``). Accepts either a repository tree URL (``…/tree/vX.Y.Z``) or a direct URL to a specific descriptor file (``…/tree/vX.Y.Z/descriptor.json``, ``…/tree/vX.Y.Z/config.yaml``). With a plain tree URL, BIOMERO auto-discovers the descriptor (tries ``descriptor.json`` → ``descriptor.yaml`` → ``config.yaml`` in order). With a direct URL, only that exact file is fetched — useful when a repository contains both a BIAflows ``descriptor.json`` and a bilayers ``config.yaml`` and you want to choose which interface to expose.
 
 Behaviour Notes
 ---------------

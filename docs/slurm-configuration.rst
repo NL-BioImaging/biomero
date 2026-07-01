@@ -417,8 +417,27 @@ How BIOMERO interprets these keys:
 * any ``cellpose_job_<name>=<value>`` entry is translated to `` --<name>=<value>`` on the sbatch command line
 * ``cellpose_use_gpu=true`` marks this workflow as GPU-enabled by default, so BIOMERO activates GPU handling even without an explicit ``use_gpu`` argument at submission time
 
-Those per-workflow sbatch parameters override script defaults and also override
-shared GPU fallback defaults when they set the same concept such as ``partition`` or ``gres``.
+**Direct descriptor URL** (optional): ``<key>_repo`` may point directly at a
+specific descriptor file inside the repository instead of the repository root.
+BIOMERO will fetch that exact file rather than auto-discovering one:
+
+.. code-block:: ini
+
+   [WORKFLOWS]
+   # Explicit bilayers config.yaml (repo also has descriptor.json — pick one)
+   mito_bilayers=mito_bilayers
+   mito_bilayers_repo=https://github.com/org/W_MitoSeg/tree/v0.0.3/config.yaml
+   mito_bilayers_job=jobs/mito_bilayers.sh
+
+   # Same repository but using the BIAflows interface
+   mito_biaflows=mito_biaflows
+   mito_biaflows_repo=https://github.com/org/W_MitoSeg/tree/v0.0.3/descriptor.json
+   mito_biaflows_job=jobs/mito_biaflows.sh
+
+This lets you register the same container under two workflow names with
+different parameter interfaces.  Omitting the file suffix (plain ``/tree/vX.Y.Z``)
+keeps the current auto-discovery behaviour (``descriptor.json`` →
+``descriptor.yaml`` → ``config.yaml``).
 
 Example ``slurm-config.ini`` Notes
 -----------------------------------------

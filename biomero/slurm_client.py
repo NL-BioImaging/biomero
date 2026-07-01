@@ -2743,6 +2743,34 @@ class SlurmClient(Connection):
                 f"/raw/{branch}")
         github_session = self.get_or_create_github_session()
 
+        # Detect a direct-descriptor URL: any path segments after the branch.
+        # Example: .../tree/v0.0.3/descriptor.json  → fetch that exact file.
+        # Example: .../tree/v0.0.3/config.yaml       → fetch that exact file.
+        # Plain tree URL (.../tree/v0.0.3) → file_path_parts is empty → fall
+        # through to auto-discovery (backward-compatible).
+        file_path_parts: List[str] = []
+        if "tree" in url_parts:
+            branch_index = url_parts.index("tree") + 1
+            file_path_parts = url_parts[branch_index + 1:]
+
+        if file_path_parts:
+            file_path = "/".join(file_path_parts)
+            direct_url = f"{base}/{file_path}"
+            ghfile = github_session.get(direct_url)
+            if not ghfile.ok:
+                raise ValueError(
+                    f"No descriptor file found for repository: {repo_url}"
+                )
+            filename = file_path_parts[-1]
+            logger.debug(
+                f"Descriptor found: {file_path} (direct URL,"
+                f" cached={ghfile.from_cache})")
+            raw = (ghfile.json() if filename.endswith(".json")
+                   else yaml.safe_load(ghfile.text))
+            return DescriptorParserFactory.parse_descriptor(
+                raw, name=name
+            ).model_dump(by_alias=True)
+
         for filename in ("descriptor.json", "descriptor.yaml", "config.yaml"):
             ghfile = github_session.get(f"{base}/{filename}")
             if not ghfile.ok:

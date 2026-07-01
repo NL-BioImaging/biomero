@@ -17,11 +17,13 @@ they opt in.
 
 ## Environment
 
-Tests and docs run from the repo-local `venvTest`. The terminal cwd can reset
-between calls, so always `Set-Location` first (PowerShell):
+Tests and docs run from the repo-local `venvTest`. Run everything from this
+repository's root (the folder containing this `.agents` directory). The terminal
+cwd can reset between calls, so re-set it to the repo root first if needed
+(PowerShell):
 
 ```powershell
-Set-Location d:\workspace\biomero-clone
+# from the repo root
 .\venvTest\Scripts\python.exe -m pytest tests/unit/test_slurm_client.py -q
 ```
 

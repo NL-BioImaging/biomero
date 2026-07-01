@@ -13,12 +13,13 @@ not stop after editing the code — these are part of "done":
   ini key, and the environment-variable override.
 - `docs/configuration-reference.rst`: the reference table/list of options, if the
   setting belongs there.
-- **Deployment inis** outside this repo that ship real configs, e.g.
-  `d:\workspace\NL-BIOMERO\web\slurm-config.ini`. Update the matching comment
-  there too (note: deployment inis often use `key = value` spacing, unlike the
-  `key=value` sample in `resources/`).
-- **OMERO.biomero admin UI** —
-  `d:\workspace\OMERO.biomero\webapp\src\biomero\components\SettingsForm.js`.
+- **Deployment inis** outside this repo that ship real configs, e.g. the
+  NL-BIOMERO deployment repo's `web/slurm-config.ini` (typically a sibling
+  checkout, if present). Update the matching comment there too (note: deployment
+  inis often use `key = value` spacing, unlike the `key=value` sample in
+  `resources/`).
+- **OMERO.biomero admin UI** — the OMERO.biomero web repo's
+  `webapp/src/biomero/components/SettingsForm.js` (sibling checkout, if present).
   If the setting is editable from the admin UI, update its field helper/
   description (and add the field if it is missing). Keep the UI explanation
   consistent with the ini comment and the rst prose: same default, same env var
@@ -45,10 +46,10 @@ same story (default, env var, scope, precedence):
 
 ## Building the docs
 
-From the repo root with the bundled venv (set cwd first):
+From the repo root with the bundled venv (set cwd to the repo root first):
 
 ```powershell
-Set-Location d:\workspace\biomero-clone
+# from the repo root
 .\venvTest\Scripts\python.exe -m sphinx -b html docs docs\_build
 ```
 

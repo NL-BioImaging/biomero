@@ -3,10 +3,10 @@
 ## Runner
 
 From the repo root, using the bundled venv. The terminal cwd can reset between
-calls — always set it first.
+calls — re-set it to the repo root first if needed.
 
 ```powershell
-Set-Location d:\workspace\biomero-clone
+# from the repo root
 # Full file
 .\venvTest\Scripts\python.exe -m pytest tests/unit/test_slurm_client.py -q
 # Narrow slice by name substring

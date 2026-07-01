@@ -335,8 +335,8 @@ class SlurmClient(Connection):
             value = configs.get(section, option, fallback=default)
 
         if value_type is int:
-            if value is None:
-                typed_value = None
+            if value is None or value == "":
+                typed_value = default
             else:
                 try:
                     typed_value = int(value)

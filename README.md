@@ -687,9 +687,9 @@ If you still want to maintain your own scripts repository, reference it in
 #
 slurm_script_repo=https://github.com/TorecLuik/slurm-scripts
 
-[MODELS]
+[WORKFLOWS]
 # -------------------------------------
-# Model settings
+# Workflow settings (also accepted as [MODELS] for backward compatibility)
 # -------------------------------------
 # ...
 # -------------------------------------

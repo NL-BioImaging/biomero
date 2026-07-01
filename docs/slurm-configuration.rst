@@ -32,7 +32,7 @@ BIOMERO uses these sections in ``slurm-config.ini``:
 * ``[SLURM]`` for shared paths and client-level runtime behaviour
 * ``[ANALYTICS]`` for BIOMERO 2.x workflow tracking and provenance (database integration)
 * ``[CONVERTERS]`` for external converter container images
-* ``[MODELS]`` for workflow repositories, job scripts, and per-workflow sbatch overrides
+* ``[WORKFLOWS]`` (or ``[MODELS]`` for legacy configs) for workflow repositories, job scripts, and per-workflow sbatch overrides
 
 The ``[ANALYTICS]`` section enables BIOMERO 2.x provenance and workflow tracking.
 See the `Analytics and Provenance Settings`_ section below for details.
@@ -53,7 +53,7 @@ Minimal Working Example
    slurm_converters_path=my-scratch/singularity_images/converters
    slurm_script_path=my-scratch/slurm-scripts
 
-   [MODELS]
+   [WORKFLOWS]
    cellpose=cellpose
    cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7
    cellpose_job=jobs/cellpose.sh
@@ -390,14 +390,17 @@ Use ``slurm_script_repo`` only when you explicitly need custom hand-maintained
 job scripts and are prepared to keep them aligned with the BIOMERO version in
 production.
 
-The ``[MODELS]`` section defines each workflow and optionally adds per-workflow
-sbatch overrides.
+The ``[WORKFLOWS]`` section (also accepted as ``[MODELS]`` for backward
+compatibility with existing configurations) defines each workflow and optionally
+adds per-workflow sbatch overrides.  When both sections are present in the same
+file their entries are merged; ``[WORKFLOWS]`` entries take precedence on key
+collisions.
 
 Example:
 
 .. code-block:: ini
 
-   [MODELS]
+   [WORKFLOWS]
    cellpose=cellpose
    cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7
    cellpose_job=jobs/cellpose.sh

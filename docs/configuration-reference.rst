@@ -210,7 +210,7 @@ Environment Variable Lookup Table
    * - ``<name>_use_gpu``
      - boolean
      - ``false``
-     - Per-workflow GPU default in ``[MODELS]``; e.g. ``cellpose_use_gpu=true`` marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit ``use_gpu`` argument at submission time
+     - Per-workflow GPU default in ``[WORKFLOWS]`` (or ``[MODELS]`` for legacy configs); e.g. ``cellpose_use_gpu=true`` marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit ``use_gpu`` argument at submission time
 
 Behaviour Notes
 ---------------
@@ -254,15 +254,15 @@ GPU precedence
 
 For workflow submissions, GPU-related settings are applied in this order:
 
-1. per-workflow sbatch parameters from ``[MODELS]`` such as ``cellpose_job_partition``, ``cellpose_job_gres``, and ``cellpose_job_gpus``
+1. per-workflow sbatch parameters from ``[WORKFLOWS]`` (or ``[MODELS]``) such as ``cellpose_job_partition``, ``cellpose_job_gres``, and ``cellpose_job_gpus``
 2. global sbatch defaults from ``sbatch_<key>`` entries in ``[SLURM]``
 3. shared runtime GPU defaults: ``gpu_partition`` and either ``gpu_gres`` (``--gres=``) or ``gpu_gpus`` (``--gpus=``); these two are mutually exclusive — set one or the other, never both
 4. no BIOMERO-added GPU resource arguments
 
 Shared GPU defaults (level 3) are considered when GPU mode is active.  GPU mode is activated by one of two code paths:
 
-* **Dynamic path** (``inject_gpu_flag=true``): ``use_gpu`` is resolved at submission time — explicit ``use_gpu`` argument wins, otherwise falls back to ``<name>_use_gpu`` from ``[MODELS]``.  ``GPU_FLAG`` env var is set (``--nv`` or empty) at submission time so the script can toggle the container runtime flag.
-* **Static path** (``inject_gpu_flag=false``): ``--nv`` is baked into the generated script at script-generation time; only ``<name>_use_gpu=true`` in ``[MODELS]`` triggers GPU sbatch resource param injection, and it cannot be overridden at submission time.  No ``GPU_FLAG`` env var is set.
+* **Dynamic path** (``inject_gpu_flag=true``): ``use_gpu`` is resolved at submission time — explicit ``use_gpu`` argument wins, otherwise falls back to ``<name>_use_gpu`` from ``[WORKFLOWS]``/``[MODELS]``.  ``GPU_FLAG`` env var is set (``--nv`` or empty) at submission time so the script can toggle the container runtime flag.
+* **Static path** (``inject_gpu_flag=false``): ``--nv`` is baked into the generated script at script-generation time; only ``<name>_use_gpu=true`` in ``[WORKFLOWS]``/``[MODELS]`` triggers GPU sbatch resource param injection, and it cannot be overridden at submission time.  No ``GPU_FLAG`` env var is set.
 
 See :doc:`slurm-configuration` for a full explanation of the interaction between these settings.
 

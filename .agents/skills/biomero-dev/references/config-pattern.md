@@ -59,7 +59,7 @@ examples. A new `[SLURM]` option requires edits in these places, in order:
 When a setting injects an sbatch flag, place the apply logic so that more
 specific configuration wins:
 
-- per-workflow params in `[MODELS]` (already in `job_params`) win over global
+- per-workflow params in `[WORKFLOWS]` (or `[MODELS]` for legacy) (already in `job_params`) win over global
   fallbacks;
 - the GPU path (set by `inject_gpu_flag` / per-workflow `_use_gpu`) wins over a
   generic fallback partition;
@@ -78,7 +78,7 @@ if self.<setting> and not any(
 ## Per-workflow GPU (no env needed)
 
 Forcing GPU per workflow is config, not code: a `<name>_use_gpu=true` entry in
-`[MODELS]` sets `slurm_model_use_gpu[name]`, which `get_workflow_command()` uses
+`[WORKFLOWS]`/`[MODELS]` sets `slurm_model_use_gpu[name]`, which `get_workflow_command()` uses
 as the default for `use_gpu`. This is runtime-configurable via init-slurm and
 does not require a container restart, unlike an environment variable. Prefer it
 over env-var-driven force-GPU flags.

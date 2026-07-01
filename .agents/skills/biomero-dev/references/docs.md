@@ -7,7 +7,7 @@ Whenever you add, migrate, or change the meaning/scope of an ini setting, update
 not stop after editing the code — these are part of "done":
 
 - `resources/slurm-config.ini`: the sample config shipped with the library. Add
-  a commented example line under `[SLURM]` (or `[MODELS]` for per-workflow keys)
+  a commented example line under `[SLURM]` (or `[WORKFLOWS]`/`[MODELS]` for per-workflow keys)
   showing the default and a realistic value.
 - `docs/slurm-configuration.rst`: prose describing the option, its default, the
   ini key, and the environment-variable override.

@@ -2758,8 +2758,14 @@ class SlurmClient(Connection):
             direct_url = f"{base}/{file_path}"
             ghfile = github_session.get(direct_url)
             if not ghfile.ok:
+                if ghfile.status_code in (403, 429):
+                    raise ValueError(
+                        f"GitHub rate limit exceeded (HTTP {ghfile.status_code}) — "
+                        f"please wait a few minutes and try again: {repo_url}"
+                    )
                 raise ValueError(
-                    f"No descriptor file found for repository: {repo_url}"
+                    f"No descriptor file found for repository: {repo_url} "
+                    f"(HTTP {ghfile.status_code})"
                 )
             filename = file_path_parts[-1]
             logger.debug(
@@ -2773,6 +2779,11 @@ class SlurmClient(Connection):
 
         for filename in ("descriptor.json", "descriptor.yaml", "config.yaml"):
             ghfile = github_session.get(f"{base}/{filename}")
+            if ghfile.status_code in (403, 429):
+                raise ValueError(
+                    f"GitHub rate limit exceeded (HTTP {ghfile.status_code}) — "
+                    f"please wait a few minutes and try again: {repo_url}"
+                )
             if not ghfile.ok:
                 continue
             logger.debug(

@@ -2751,7 +2751,7 @@ class SlurmClient(Connection):
         file_path_parts: List[str] = []
         if "tree" in url_parts:
             branch_index = url_parts.index("tree") + 1
-            file_path_parts = url_parts[branch_index + 1:]
+            file_path_parts = [part for part in url_parts[branch_index + 1:] if part]
 
         if file_path_parts:
             file_path = "/".join(file_path_parts)

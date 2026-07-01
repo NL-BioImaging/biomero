@@ -4642,3 +4642,34 @@ def test_parse_descriptor_plain_tree_url_still_uses_auto_discovery(
     assert calls[1] == "https://github.com/org/repo/raw/v0.0.3/descriptor.yaml"
     assert calls[2] == "https://github.com/org/repo/raw/v0.0.3/config.yaml"
     assert result is not None
+
+
+@patch('biomero.slurm_client.SlurmClient.get_or_create_github_session')
+def test_parse_descriptor_trailing_slash_uses_auto_discovery(
+        mock_session_fn, slurm_client):
+    """A plain tree URL with a trailing slash must behave identically to one
+    without — the trailing slash must NOT be treated as a file-path suffix,
+    which would cause a bogus direct-file fetch and a 404."""
+    url = "https://github.com/org/repo/tree/v0.0.3/"
+
+    json_resp = MagicMock(ok=True, from_cache=False)
+    json_resp.json.return_value = {
+        "schema-version": "cytomine-0.1",
+        "name": "wf",
+        "inputs": [],
+        "outputs": [],
+    }
+    session = MagicMock()
+    session.get.return_value = json_resp
+    mock_session_fn.return_value = session
+
+    with patch('biomero.slurm_client.DescriptorParserFactory.parse_descriptor') as mock_parse:
+        mock_parse.return_value.model_dump.return_value = {"schema-version": "cytomine-0.1"}
+        result = slurm_client._parse_descriptor_from_repo(url, "wf")
+
+    # Auto-discovery: first call must be descriptor.json, NOT an empty-filename direct fetch
+    first_call_url = session.get.call_args_list[0][0][0]
+    assert first_call_url == "https://github.com/org/repo/raw/v0.0.3/descriptor.json", (
+        f"Expected auto-discovery to start with descriptor.json, got: {first_call_url}"
+    )
+    assert result is not None

@@ -1001,12 +1001,14 @@ class SlurmClient(Connection):
                             "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
                         )
                     else:
-                        pull_template = "echo 'starting $path $version' >> sing.log\nmkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\nnohup sh -c \"${APPTAINER_ENV}singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                        pull_template = "echo 'starting $path $version' >> sing.log\n$EXTRA_MKDIRS\nnohup sh -c \"${APPTAINER_ENV}singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
                     substitutes['APPTAINER_ENV'] = apptainer_env_prefix
                     substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
                     substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
+                    _extra_dirs = " ".join(shlex.quote(d) for d in [self.apptainer_tmpdir, self.apptainer_cachedir] if d)
+                    substitutes['EXTRA_MKDIRS'] = f"mkdir -p {_extra_dirs}" if _extra_dirs else ":"
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version
@@ -1128,19 +1130,21 @@ class SlurmClient(Connection):
                     if self.slurm_image_pull_via_sbatch:
                         pull_template = (
                             "echo 'starting $path $version' >> sing.log\n"
-                            "mkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\n"
+                            "$EXTRA_MKDIRS\n"
                             "if [ -s \"$conv_name\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
                             "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" $conv_name docker://$image:$version >> sing.log 2>&1; fi\n"
                             "rc=$?\n"
                             "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
                         )
                     else:
-                        pull_template = "echo 'starting $path $version' >> sing.log\nmkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\nnohup sh -c \"${APPTAINER_ENV}singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                        pull_template = "echo 'starting $path $version' >> sing.log\n$EXTRA_MKDIRS\nnohup sh -c \"${APPTAINER_ENV}singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
                     substitutes['APPTAINER_ENV'] = apptainer_env_prefix
                     substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
                     substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
+                    _extra_dirs = " ".join(shlex.quote(d) for d in [self.apptainer_tmpdir, self.apptainer_cachedir] if d)
+                    substitutes['EXTRA_MKDIRS'] = f"mkdir -p {_extra_dirs}" if _extra_dirs else ":"
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version

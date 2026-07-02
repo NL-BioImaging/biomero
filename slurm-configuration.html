@@ -18,7 +18,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="biomero" href="modules.html" />
+    <link rel="next" title="Configuration Reference" href="configuration-reference.html" />
     <link rel="prev" title="Cellprofiler tutorial" href="tutorial_link.html" /> 
 </head>
 
@@ -77,32 +77,48 @@
 <p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">SLURM Configuration Guide</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#configuration-file-overview">Configuration File Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#basic-configuration">Basic Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#ssh-section">SSH Section</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#slurm-paths-section">SLURM Paths Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-biomero-finds-configuration">How BIOMERO Finds Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-sections">Configuration Sections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#minimal-working-example">Minimal Working Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-path-settings">Core Path Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#operational-settings">Operational Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#container-bind-path">Container bind path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conversion-partition">Conversion partition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#default-fallback-partition">Default (fallback) partition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sacct-history-window">Sacct history window</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#processing-settings">Processing settings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#image-pull-execution-mode">Image pull execution mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#apptainer-temp-and-cache-directories">Apptainer temp and cache directories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#default-gpu-fallback-settings">Default GPU fallback settings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#global-sbatch-parameters">Global sbatch parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#zip-command">ZIP command</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#environment-variables-and-container-binding">Environment Variables and Container Binding</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#singularity-apptainer-bind-paths">Singularity/Apptainer Bind Paths</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#partition-configuration">Partition Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#analytics-and-provenance-settings">Analytics and Provenance Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#analytics-view-table-rebuild-window">Analytics view table rebuild window</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#workflow-configuration">Workflow Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-and-model-configuration">Workflow And Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-slurm-config-ini-notes">Example <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-issues-and-solutions">Common Issues and Solutions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#container-access-errors">Container Access Errors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ssh-connection-issues">SSH Connection Issues</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#job-submission-failures">Job Submission Failures</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#path-configuration-issues">Path Configuration Issues</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#common-issues-and-solutions">Common Issues and Solutions</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#container-access-errors">Container Access Errors</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#ssh-connection-issues">SSH Connection Issues</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#job-submission-failures">Job Submission Failures</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#path-configuration-issues">Path Configuration Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jobs-do-not-see-workflow-parameters">Jobs do not see workflow parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#containers-cannot-access-transferred-data">Containers cannot access transferred data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gpu-jobs-land-on-the-wrong-resources">GPU jobs land on the wrong resources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#historical-job-listing-returns-too-much-or-too-little-data">Historical job listing returns too much or too little data</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#faq">FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#further-reading">Further Reading</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#faq">FAQ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#further-reading">Further Reading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -139,112 +155,446 @@
              
   <section id="slurm-configuration-guide">
 <h1>SLURM Configuration Guide<a class="headerlink" href="#slurm-configuration-guide" title="Permalink to this heading"></a></h1>
-<p>This guide covers configuring BIOMERO for High-Performance Computing (HPC) clusters using SLURM.</p>
-<section id="configuration-file-overview">
-<h2>Configuration File Overview<a class="headerlink" href="#configuration-file-overview" title="Permalink to this heading"></a></h2>
-<p>BIOMERO uses a <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file to configure connection and execution parameters for SLURM clusters. The configuration file contains several sections:</p>
-<ul class="simple">
-<li><p><strong>SSH</strong>: Connection settings for the SLURM cluster</p></li>
-<li><p><strong>SLURM</strong>: Paths and execution settings</p></li>
-<li><p><strong>CONVERTERS</strong>: File format conversion settings</p></li>
-<li><p><strong>MODELS</strong>: Workflow and container definitions</p></li>
-</ul>
+<p>This guide covers how the BIOMERO Python client reads <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>,
+which settings affect runtime behaviour, and when environment variables should
+override the file.</p>
+<p>For a full lookup table of all supported configuration environment variables and
+their <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> counterparts, see <a class="reference internal" href="configuration-reference.html"><span class="doc">Configuration Reference</span></a>.</p>
+<section id="how-biomero-finds-configuration">
+<h2>How BIOMERO Finds Configuration<a class="headerlink" href="#how-biomero-finds-configuration" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code> reads configuration from these locations, in this order:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/OMERO/slurm-config.ini</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
+<li><p>the explicit <code class="docutils literal notranslate"><span class="pre">configfile=...</span></code> path passed by the caller</p></li>
+</ol>
+<p>Later files override earlier files.</p>
+<p>For the settings documented on this page, environment variables then override
+the resolved <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> value when supported.</p>
 </section>
-<section id="basic-configuration">
-<h2>Basic Configuration<a class="headerlink" href="#basic-configuration" title="Permalink to this heading"></a></h2>
-<section id="ssh-section">
-<h3>SSH Section<a class="headerlink" href="#ssh-section" title="Permalink to this heading"></a></h3>
-<p>Configure the SSH connection to your SLURM cluster:</p>
+<section id="configuration-sections">
+<h2>Configuration Sections<a class="headerlink" href="#configuration-sections" title="Permalink to this heading"></a></h2>
+<p>BIOMERO uses these sections in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">[SSH]</span></code> for the Fabric SSH host alias</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> for shared paths and client-level runtime behaviour</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code> for BIOMERO 2.x workflow tracking and provenance (database integration)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[CONVERTERS]</span></code> for external converter container images</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> for legacy configs) for workflow repositories, job scripts, and per-workflow sbatch overrides</p></li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code> section enables BIOMERO 2.x provenance and workflow tracking.
+See the <a class="reference internal" href="#analytics-and-provenance-settings">Analytics and Provenance Settings</a> section below for details.</p>
+<p>See <a class="reference internal" href="developer/eventsourcing.html"><span class="doc">Eventsourcing and Views (Developer)</span></a> for the event model and view table details.</p>
+</section>
+<section id="minimal-working-example">
+<h2>Minimal Working Example<a class="headerlink" href="#minimal-working-example" title="Permalink to this heading"></a></h2>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SSH]</span>
-<span class="c1"># The alias for the SLURM SSH connection</span>
 <span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
-<span class="c1"># Configure additional SSH settings in your SSH config file</span>
-</pre></div>
-</div>
-</section>
-<section id="slurm-paths-section">
-<h3>SLURM Paths Section<a class="headerlink" href="#slurm-paths-section" title="Permalink to this heading"></a></h3>
-<p>Configure paths on the SLURM cluster:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
-<span class="c1"># Data storage path (relative to user home or absolute)</span>
+
+<span class="k">[SLURM]</span>
 <span class="na">slurm_data_path</span><span class="o">=</span><span class="s">my-scratch/data</span>
-
-<span class="c1"># Container images path</span>
 <span class="na">slurm_images_path</span><span class="o">=</span><span class="s">my-scratch/singularity_images/workflows</span>
-
-<span class="c1"># Converter images path</span>
 <span class="na">slurm_converters_path</span><span class="o">=</span><span class="s">my-scratch/singularity_images/converters</span>
-
-<span class="c1"># Job scripts path</span>
 <span class="na">slurm_script_path</span><span class="o">=</span><span class="s">my-scratch/slurm-scripts</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="environment-variables-and-container-binding">
-<h2>Environment Variables and Container Binding<a class="headerlink" href="#environment-variables-and-container-binding" title="Permalink to this heading"></a></h2>
-<section id="singularity-apptainer-bind-paths">
-<h3>Singularity/Apptainer Bind Paths<a class="headerlink" href="#singularity-apptainer-bind-paths" title="Permalink to this heading"></a></h3>
-<p>Some HPC environments require explicit directory binding for containers. If your HPC administrator instructs you to set the <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code> environment variable, configure:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
-<span class="c1"># Path to bind to containers via APPTAINER_BINDPATH</span>
-<span class="c1"># Required when default data folder is not bound to container</span>
-<span class="na">slurm_data_bind_path</span><span class="o">=</span><span class="s">/path/to/your/data</span>
-</pre></div>
-</div>
-<p><strong>When to use this setting:</strong></p>
-<ul class="simple">
-<li><p>Your containers cannot access data files</p></li>
-<li><p>HPC documentation mentions setting <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code></p></li>
-<li><p>You receive “file not found” errors during workflow execution</p></li>
-<li><p>Your system administrator recommends explicit path binding</p></li>
-</ul>
-<p><strong>Leave empty (default) when:</strong></p>
-<ul class="simple">
-<li><p>Your HPC automatically binds common directories like <code class="docutils literal notranslate"><span class="pre">/home</span></code>, <code class="docutils literal notranslate"><span class="pre">/tmp</span></code></p></li>
-<li><p>Containers can access data without issues</p></li>
-<li><p>No explicit binding configuration is required</p></li>
-</ul>
-</section>
-<section id="partition-configuration">
-<h3>Partition Configuration<a class="headerlink" href="#partition-configuration" title="Permalink to this heading"></a></h3>
-<p>Specify a SLURM partition for conversion jobs:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
-<span class="c1"># Partition for conversion jobs (optional)</span>
-<span class="na">slurm_conversion_partition</span><span class="o">=</span><span class="s">cpu-short</span>
-</pre></div>
-</div>
-<p>Leave empty to use the system default partition.</p>
-</section>
-</section>
-<section id="workflow-configuration">
-<h2>Workflow Configuration<a class="headerlink" href="#workflow-configuration" title="Permalink to this heading"></a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> section defines available workflows:</p>
-<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[MODELS]</span>
-<span class="c1"># Workflow name and settings</span>
-<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
-<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/example/W_NucleiSegmentation-Cellpose/tree/v1.4.0</span>
-<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 
-<span class="c1"># Override job parameters (optional)</span>
-<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">4GB</span>
-<span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
+<span class="k">[WORKFLOWS]</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 </pre></div>
 </div>
 </section>
+<section id="core-path-settings">
+<h2>Core Path Settings<a class="headerlink" href="#core-path-settings" title="Permalink to this heading"></a></h2>
+<p>These <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> settings define where BIOMERO stores and looks for runtime data:</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">Core paths</span><a class="headerlink" href="#id1" title="Permalink to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>Setting</p></th>
+<th class="head"><p>Purpose</p></th>
+<th class="head"><p>Runtime impact</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_data_path</span></code></p></td>
+<td><p>Base directory for transferred input data and produced output data</p></td>
+<td><p>Used to build <code class="docutils literal notranslate"><span class="pre">DATA_PATH</span></code> for workflow and conversion jobs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_images_path</span></code></p></td>
+<td><p>Base directory for workflow containers on the HPC</p></td>
+<td><p>Used to build <code class="docutils literal notranslate"><span class="pre">IMAGE_PATH</span></code> and locate workflow <code class="docutils literal notranslate"><span class="pre">.sif</span></code> files</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_converters_path</span></code></p></td>
+<td><p>Base directory for converter containers on the HPC</p></td>
+<td><p>Used for conversion workflows and converter setup</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_script_path</span></code></p></td>
+<td><p>Directory containing generated or cloned Slurm job scripts</p></td>
+<td><p>Used when submitting workflow jobs and conversion jobs</p></td>
+</tr>
+</tbody>
+</table>
+<p>Relative paths are typically interpreted relative to the remote user’s home directory.
+Absolute paths are also supported if that better matches your cluster.</p>
+</section>
+<section id="operational-settings">
+<h2>Operational Settings<a class="headerlink" href="#operational-settings" title="Permalink to this heading"></a></h2>
+<section id="container-bind-path">
+<h3>Container bind path<a class="headerlink" href="#container-bind-path" title="Permalink to this heading"></a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code> when your Apptainer or Singularity jobs need an
+explicit <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code> so containers can see the transferred data.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If set, BIOMERO injects <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code> into workflow and conversion job environments.</p></li>
+<li><p>If unset, BIOMERO relies on the cluster’s default container bind behaviour.</p></li>
+</ul>
+<p>Use this when:</p>
+<ul class="simple">
+<li><p>your HPC administrator told you to set <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code></p></li>
+<li><p>containers cannot see files under <code class="docutils literal notranslate"><span class="pre">slurm_data_path</span></code></p></li>
+<li><p>jobs fail with missing input or missing output path errors inside the container</p></li>
+</ul>
+</section>
+<section id="conversion-partition">
+<h3>Conversion partition<a class="headerlink" href="#conversion-partition" title="Permalink to this heading"></a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> when conversion jobs need an explicit partition.
+The data conversion job is always submitted via <code class="docutils literal notranslate"><span class="pre">sbatch</span></code>, so it honours the same
+generic sbatch settings as workflow jobs.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If set, BIOMERO injects <code class="docutils literal notranslate"><span class="pre">--partition=&lt;value&gt;</span></code> as a real flag on the conversion
+<code class="docutils literal notranslate"><span class="pre">sbatch</span></code> command (and also exports <code class="docutils literal notranslate"><span class="pre">CONVERSION_PARTITION</span></code> to the conversion
+environment for custom scripts that read it).</p></li>
+<li><p>Precedence: <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> wins over the generic
+<code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> fallback for conversion jobs.</p></li>
+<li><p>If unset, conversion falls back to <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> (if configured),
+otherwise the cluster default partitioning behaviour.</p></li>
+</ul>
+</section>
+<section id="default-fallback-partition">
+<h3>Default (fallback) partition<a class="headerlink" href="#default-fallback-partition" title="Permalink to this heading"></a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> on clusters that have no usable system default
+partition, so you do not have to hard-code <code class="docutils literal notranslate"><span class="pre">--partition</span></code> into every workflow’s
+<code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> job parameters. It applies to both workflow and conversion jobs.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If set, BIOMERO appends <code class="docutils literal notranslate"><span class="pre">--partition=&lt;value&gt;</span></code> to a workflow <strong>or conversion</strong>
+submission only when the job does not already carry a <code class="docutils literal notranslate"><span class="pre">--partition</span></code> directive.</p></li>
+<li><p>Precedence: for workflows, a per-workflow <code class="docutils literal notranslate"><span class="pre">--partition</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> wins,
+and the GPU partition (from <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code> or a per-workflow <code class="docutils literal notranslate"><span class="pre">_use_gpu</span></code>)
+wins. For conversion, <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> wins. The default partition
+is a last-resort fallback in both cases.</p></li>
+<li><p>If unset (default), no <code class="docutils literal notranslate"><span class="pre">--partition</span></code> is injected and the cluster default is
+used, so existing deployments are unaffected.</p></li>
+</ul>
+<p>Overridable via the <code class="docutils literal notranslate"><span class="pre">BIOMERO_DEFAULT_PARTITION</span></code> environment variable
+(precedence: code default <code class="docutils literal notranslate"><span class="pre">None</span></code> → <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> in
+<code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> → <code class="docutils literal notranslate"><span class="pre">BIOMERO_DEFAULT_PARTITION</span></code>).</p>
+</section>
+<section id="sacct-history-window">
+<h3>Sacct history window<a class="headerlink" href="#sacct-history-window" title="Permalink to this heading"></a></h3>
+<p>The client uses <code class="docutils literal notranslate"><span class="pre">sacct</span></code> to list historical jobs. Two settings control how far
+back it looks:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code>: absolute date, format <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code>: relative rolling window in days</p></li>
+</ul>
+<p>Effective precedence when BIOMERO chooses a default start time:</p>
+<ol class="arabic simple">
+<li><p>built-in fallback: <code class="docutils literal notranslate"><span class="pre">2023-01-01</span></code></p></li>
+<li><p>resolved <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></li>
+<li><p>resolved <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code></p></li>
+</ol>
+<p>That means <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code> wins over <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code> when both are set.</p>
+<p>Environment-based overrides follow the same logic:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code> overrides the ini absolute date</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code> overrides both the ini rolling window and the absolute date when valid</p></li>
+<li><p>if <code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code> is invalid, BIOMERO falls back to the resolved absolute date instead of failing hard</p></li>
+</ul>
+</section>
+<section id="processing-settings">
+<h3>Processing settings<a class="headerlink" href="#processing-settings" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>: BIOMERO submits jobs by passing environment variables directly through the SSH/Fabric execution path.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">true</span></code>: BIOMERO writes a per-job shell file with exports and passes that file as <code class="docutils literal notranslate"><span class="pre">$1</span></code> to the job script.</p></li>
+<li><p>Generated job scripts also receive a small sourcing block so they can read that env file.</p></li>
+</ul>
+<p>Use this when:</p>
+<ul class="simple">
+<li><p>SSH session environment propagation into <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> is unreliable on your cluster</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">AcceptEnv</span></code> or related SSH policy prevents the expected workflow parameters from arriving in jobs</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code></p>
+<p>This setting controls two related but distinct behaviours:</p>
+<ol class="arabic simple">
+<li><p><strong>``–nv`` in the generated script</strong> — when <code class="docutils literal notranslate"><span class="pre">false</span></code>, <code class="docutils literal notranslate"><span class="pre">--nv</span></code> is baked directly into the generated job script at script-generation time (<code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">run</span> <span class="pre">--nv</span> <span class="pre">...</span></code>).  The script always passes <code class="docutils literal notranslate"><span class="pre">--nv</span></code> to the container runtime regardless of what happens at submission time.  When <code class="docutils literal notranslate"><span class="pre">true</span></code>, the generated script instead contains a shell variable reference <code class="docutils literal notranslate"><span class="pre">$GPU_FLAG</span></code>, and BIOMERO sets that variable to <code class="docutils literal notranslate"><span class="pre">--nv</span></code> or an empty string at submission time based on <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code>.</p></li>
+<li><p><strong>Runtime toggling</strong> — when <code class="docutils literal notranslate"><span class="pre">false</span></code>, whether GPU sbatch resource params (<code class="docutils literal notranslate"><span class="pre">--partition</span></code>, <code class="docutils literal notranslate"><span class="pre">--gres</span></code> / <code class="docutils literal notranslate"><span class="pre">--gpus</span></code>) are added is decided at config time via <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>.  This cannot be changed per-run.  When <code class="docutils literal notranslate"><span class="pre">true</span></code>, the caller can pass <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code> or <code class="docutils literal notranslate"><span class="pre">use_gpu=false</span></code> at submission time to switch between GPU and CPU mode on a per-run basis.</p></li>
+</ol>
+<p>In short: without <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, GPU is either always on (hardcoded <code class="docutils literal notranslate"><span class="pre">--nv</span></code>) or never injected — the two are controlled independently at script generation and submission time.  With <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, one script covers both modes and the caller decides per run.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>: <code class="docutils literal notranslate"><span class="pre">--nv</span></code> is hardcoded in the generated script.  <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> adds GPU sbatch resource params at submission, but the container flag is already fixed in the script.  No runtime override is possible.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">true</span></code>: the script contains <code class="docutils literal notranslate"><span class="pre">$GPU_FLAG</span></code>.  BIOMERO sets it to <code class="docutils literal notranslate"><span class="pre">--nv</span></code> (GPU) or empty string (CPU) at submission time based on the resolved <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> value.</p></li>
+</ul>
+<p>Use this when:</p>
+<ul class="simple">
+<li><p>you want one generated job script to run in both CPU and GPU modes without maintaining two separate scripts</p></li>
+<li><p>you need to submit the same workflow to GPU or CPU resources depending on the dataset or queue availability</p></li>
+<li><p>your generated scripts use the standard <code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">run</span> <span class="pre">$GPU_FLAG</span></code> or <code class="docutils literal notranslate"><span class="pre">apptainer</span> <span class="pre">run</span> <span class="pre">$GPU_FLAG</span></code> pattern</p></li>
+</ul>
+</section>
+<section id="image-pull-execution-mode">
+<h3>Image pull execution mode<a class="headerlink" href="#image-pull-execution-mode" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>: BIOMERO starts image pulls/builds via the existing remote shell path.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">true</span></code>: BIOMERO submits image pulls/builds through <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> instead.</p></li>
+<li><p>This applies to both workflow image setup and configured converter image setup.</p></li>
+</ul>
+<p>Use this when:</p>
+<ul class="simple">
+<li><p>container pulls/builds are too heavy for the login node</p></li>
+<li><p>your cluster requires build work to run as scheduled jobs</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code> and <code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>Control the resources requested when <code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch=true</span></code>.</p></li>
+<li><p>These values are passed to the pull/build submission jobs for workflow and converter images.</p></li>
+</ul>
+</section>
+<section id="apptainer-temp-and-cache-directories">
+<h3>Apptainer temp and cache directories<a class="headerlink" href="#apptainer-temp-and-cache-directories" title="Permalink to this heading"></a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code> and <code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code> when the default temporary
+or cache location is too small for large image pulls/builds.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If set, BIOMERO exports the corresponding Apptainer/Singularity env vars into pull/build commands.</p></li>
+<li><p>The same settings apply to both image setup modes: direct and sbatch-based.</p></li>
+<li><p>If unset, BIOMERO leaves Apptainer/Singularity at the cluster defaults.</p></li>
+</ul>
+</section>
+<section id="default-gpu-fallback-settings">
+<h3>Default GPU fallback settings<a class="headerlink" href="#default-gpu-fallback-settings" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code>, and <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> are shared client defaults used when adding GPU sbatch params to a workflow submission.  They are relevant in <strong>both</strong> GPU code paths:</p>
+<ul class="simple">
+<li><p><strong>Static path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>): BIOMERO always adds these params for that workflow.  The caller cannot override it at submission time.</p></li>
+<li><p><strong>Dynamic path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code>): BIOMERO adds these params only when <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> resolves to true — either because the caller passed <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code>, or because <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> is set in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> and no explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument was given.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> are mutually exclusive.  Set one or the other:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> — BIOMERO appends <code class="docutils literal notranslate"><span class="pre">--gres=&lt;value&gt;</span></code> to GPU workflow submissions.
+Use this when your cluster schedules GPUs via Generic RESources (<code class="docutils literal notranslate"><span class="pre">--gres</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> — BIOMERO appends <code class="docutils literal notranslate"><span class="pre">--gpus=&lt;value&gt;</span></code> to GPU workflow submissions.
+Use this when your cluster uses the <code class="docutils literal notranslate"><span class="pre">--gpus</span></code> flag (common on newer Slurm versions).</p></li>
+</ul>
+<p>Setting both raises a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> at startup.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If a workflow already has per-workflow sbatch overrides such as <code class="docutils literal notranslate"><span class="pre">cellpose_job_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">cellpose_job_gres</span></code>, or <code class="docutils literal notranslate"><span class="pre">cellpose_job_gpus</span></code>, those per-workflow settings take precedence over these shared defaults.</p></li>
+<li><p>If no per-workflow <code class="docutils literal notranslate"><span class="pre">--partition</span></code>, <code class="docutils literal notranslate"><span class="pre">--gres</span></code>, or <code class="docutils literal notranslate"><span class="pre">--gpus</span></code> is already present, BIOMERO appends these defaults to the submission command.</p></li>
+</ul>
+<p>Full precedence order for GPU resource params:</p>
+<ol class="arabic simple">
+<li><p>explicit per-workflow <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> sbatch overrides (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_gres</span></code>)</p></li>
+<li><p>shared <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> / <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> defaults</p></li>
+<li><p>nothing — BIOMERO adds no GPU resource arguments</p></li>
+</ol>
+</section>
+<section id="global-sbatch-parameters">
+<h3>Global sbatch parameters<a class="headerlink" href="#global-sbatch-parameters" title="Permalink to this heading"></a></h3>
+<p>Any <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> key that starts with <code class="docutils literal notranslate"><span class="pre">sbatch_</span></code> is treated as a global sbatch parameter
+that BIOMERO adds to every workflow <strong>and conversion</strong> submission.</p>
+<p>The key pattern is <code class="docutils literal notranslate"><span class="pre">sbatch_&lt;flag&gt;=&lt;value&gt;</span></code>, which produces <code class="docutils literal notranslate"><span class="pre">--&lt;flag&gt;=&lt;value&gt;</span></code> on the
+sbatch command line.</p>
+<p>Examples:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[SLURM]</span>
+<span class="na">sbatch_reservation</span><span class="o">=</span><span class="s">biomero</span>
+<span class="na">sbatch_nice</span><span class="o">=</span><span class="s">1</span>
+</pre></div>
+</div>
+<p>This appends <code class="docutils literal notranslate"><span class="pre">--reservation=biomero</span></code> and <code class="docutils literal notranslate"><span class="pre">--nice=1</span></code> to every workflow job and to
+each data conversion job.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>Global params are applied after per-workflow <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> sbatch overrides.</p></li>
+<li><p>If a per-workflow override already sets the same flag (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_reservation</span></code>), the global default for that flag is skipped.</p></li>
+<li><p>For conversion jobs, a <code class="docutils literal notranslate"><span class="pre">--partition</span></code> set via <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> (or the <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> fallback) takes precedence over a global <code class="docutils literal notranslate"><span class="pre">sbatch_partition</span></code>.</p></li>
+<li><p>Global params with empty values are ignored.</p></li>
+<li><p>There is no environment variable override for these — they are intentionally admin-only at config time.</p></li>
+</ul>
+<p>Use this when:</p>
+<ul class="simple">
+<li><p>you want to apply a cluster-specific constraint (e.g. a reservation or QOS) to all workflow jobs</p></li>
+<li><p>you need a cluster-wide <code class="docutils literal notranslate"><span class="pre">--nice</span></code> or <code class="docutils literal notranslate"><span class="pre">--account</span></code> that applies unless overridden per workflow</p></li>
+</ul>
+</section>
+<section id="zip-command">
+<h3>ZIP command<a class="headerlink" href="#zip-command" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code> controls which archive command BIOMERO uses when it zips job output on the cluster.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If unset, BIOMERO defaults to <code class="docutils literal notranslate"><span class="pre">$(command</span> <span class="pre">-v</span> <span class="pre">7z</span> <span class="pre">||</span> <span class="pre">command</span> <span class="pre">-v</span> <span class="pre">7za)</span></code>.</p></li>
+<li><p>If set, BIOMERO uses the configured command directly when generating the zip command.</p></li>
+</ul>
+<p>Use this when:</p>
+<ul class="simple">
+<li><p>your cluster exposes only <code class="docutils literal notranslate"><span class="pre">7za</span></code> or only <code class="docutils literal notranslate"><span class="pre">7z</span></code></p></li>
+<li><p>auto-detection is not reliable in your environment</p></li>
+</ul>
+</section>
+</section>
+<section id="analytics-and-provenance-settings">
+<h2>Analytics and Provenance Settings<a class="headerlink" href="#analytics-and-provenance-settings" title="Permalink to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code> section in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> controls BIOMERO 2.x provenance
+and workflow tracking. When enabled, BIOMERO records every workflow and job event into
+a PostgreSQL event store (via eventsourcing_sqlalchemy). Lightweight view tables are
+then derived from those events and exposed to Metabase dashboards in OMERO.biomero —
+showing live workflow status, per-user job accounting (who ran what, useful for Slurm
+resource accounting), timing, and failures across the full OMERO → Slurm → OMERO
+lifecycle.</p>
+<p>This is on by default since BIOMERO 2.x. The individual listeners can be enabled or
+disabled independently. Turn off <code class="docutils literal notranslate"><span class="pre">track_workflows=False</span></code> only if you are running a
+basic 1.x-style deployment without a PostgreSQL analytics database, in which case none
+of the Metabase dashboard views will be populated.</p>
+<p>See <a class="reference internal" href="developer/eventsourcing.html"><span class="doc">Eventsourcing and Views (Developer)</span></a> for the event model and view table details.</p>
+<section id="analytics-view-table-rebuild-window">
+<h3>Analytics view table rebuild window<a class="headerlink" href="#analytics-view-table-rebuild-window" title="Permalink to this heading"></a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is an advanced opt-in feature. Enabling it means jobs outside the cutoff
+window will <strong>not appear</strong> in analytics views. Only use it when full rebuilds
+are genuinely too slow for your installation.</p>
+</div>
+<p>When the SLURM Init script resets analytics view tables, BIOMERO replays the full
+event history to rebuild the views. On large installations with thousands of events
+this can take several minutes. By default, BIOMERO always does a full rebuild.</p>
+<p>Two settings allow capping how far back the replay goes. They are configured under
+<code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>, not <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code>: absolute cutoff date, format <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code>: rolling window in days</p></li>
+</ul>
+<p>Effective precedence:</p>
+<ol class="arabic simple">
+<li><p>built-in default: full rebuild from event ID 1</p></li>
+<li><p>resolved <code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></li>
+<li><p>resolved <code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code> (overrides absolute date when both are set)</p></li>
+<li><p>values set via environment variables (highest priority)</p></li>
+</ol>
+<p>Environment variable overrides:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code> (takes highest priority; falls back gracefully on invalid input)</p></li>
+</ul>
+<p>These settings can also be overridden for a single run via the <strong>Rebuild From Days Ago</strong>
+and <strong>Rebuild From Date</strong> inputs on the SLURM Init OMERO script.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>These settings only affect view table rebuilds during <code class="docutils literal notranslate"><span class="pre">reset_tables=True</span></code> init runs.
+They do not affect <code class="docutils literal notranslate"><span class="pre">sacct</span></code> history queries or what jobs appear in the Monitor.
+View tables built from a partial event history will not include older jobs.</p>
+</div>
+</section>
+</section>
+<section id="workflow-and-model-configuration">
+<h2>Workflow And Model Configuration<a class="headerlink" href="#workflow-and-model-configuration" title="Permalink to this heading"></a></h2>
+<p>For most installations, we recommend leaving <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> empty and
+using BIOMERO’s generated job scripts.</p>
+<p>Why this is the safer default:</p>
+<ul class="simple">
+<li><p>generated scripts are updated together with BIOMERO and can be redeployed via <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code> or script regeneration</p></li>
+<li><p>we do not maintain a separate always-up-to-date public scripts repository for operators to track</p></li>
+<li><p>an external scripts repository can drift from the BIOMERO version you are running and break newer features or assumptions between minor releases</p></li>
+<li><p>adding or evolving workflows is usually simpler through descriptor-driven generation than through maintaining a custom scripts repository</p></li>
+</ul>
+<p>Use <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> only when you explicitly need custom hand-maintained
+job scripts and are prepared to keep them aligned with the BIOMERO version in
+production.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> section (also accepted as <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> for backward
+compatibility with existing configurations) defines each workflow and optionally
+adds per-workflow sbatch overrides.  When both sections are present in the same
+file their entries are merged; <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> entries take precedence on key
+collisions.</p>
+<p>Example:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[WORKFLOWS]</span>
+<span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
+<span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
+<span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
+<span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
+<span class="na">cellpose_job_partition</span><span class="o">=</span><span class="s">gpu</span>
+<span class="na">cellpose_job_mem</span><span class="o">=</span><span class="s">16GB</span>
+<span class="na">cellpose_use_gpu</span><span class="o">=</span><span class="s">true</span>
+</pre></div>
+</div>
+<p>How BIOMERO interprets these keys:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cellpose</span></code> defines the subdirectory under <code class="docutils literal notranslate"><span class="pre">slurm_images_path</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cellpose_repo</span></code> points to the workflow repository and descriptor metadata</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cellpose_job</span></code> points to the job script inside <code class="docutils literal notranslate"><span class="pre">slurm_script_path</span></code> or the cloned scripts repository</p></li>
+<li><p>any <code class="docutils literal notranslate"><span class="pre">cellpose_job_&lt;name&gt;=&lt;value&gt;</span></code> entry is translated to `` –&lt;name&gt;=&lt;value&gt;`` on the sbatch command line</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cellpose_use_gpu=true</span></code> marks this workflow as GPU-enabled by default, so BIOMERO activates GPU handling even without an explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument at submission time</p></li>
+</ul>
+<p><strong>Direct descriptor URL</strong> (optional): <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_repo</span></code> may point directly at a
+specific descriptor file inside the repository instead of the repository root.
+BIOMERO will fetch that exact file rather than auto-discovering one:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[WORKFLOWS]</span>
+<span class="c1"># Explicit bilayers config.yaml (repo also has descriptor.json — pick one)</span>
+<span class="na">mito_bilayers</span><span class="o">=</span><span class="s">mito_bilayers</span>
+<span class="na">mito_bilayers_repo</span><span class="o">=</span><span class="s">https://github.com/org/W_MitoSeg/tree/v0.0.3/config.yaml</span>
+<span class="na">mito_bilayers_job</span><span class="o">=</span><span class="s">jobs/mito_bilayers.sh</span>
+
+<span class="c1"># Same repository but using the BIAflows interface</span>
+<span class="na">mito_biaflows</span><span class="o">=</span><span class="s">mito_biaflows</span>
+<span class="na">mito_biaflows_repo</span><span class="o">=</span><span class="s">https://github.com/org/W_MitoSeg/tree/v0.0.3/descriptor.json</span>
+<span class="na">mito_biaflows_job</span><span class="o">=</span><span class="s">jobs/mito_biaflows.sh</span>
+</pre></div>
+</div>
+<p>This lets you register the same container under two workflow names with
+different parameter interfaces.  Omitting the file suffix (plain <code class="docutils literal notranslate"><span class="pre">/tree/vX.Y.Z</span></code>)
+keeps the current auto-discovery behaviour (<code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> →
+<code class="docutils literal notranslate"><span class="pre">descriptor.yaml</span></code> → <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code>).</p>
+</section>
+<section id="example-slurm-config-ini-notes">
+<h2>Example <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Notes<a class="headerlink" href="#example-slurm-config-ini-notes" title="Permalink to this heading"></a></h2>
+<p>The example file in <code class="docutils literal notranslate"><span class="pre">resources/slurm-config.ini</span></code> documents the newer
+client-level options introduced, including:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sbatch_&lt;key&gt;</span></code> (global sbatch params pattern)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></li>
+</ul>
 </section>
 <section id="troubleshooting">
-<h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this heading"></a></h1>
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this heading"></a></h2>
 <section id="common-issues-and-solutions">
-<h2>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Permalink to this heading"></a></h2>
+<h3>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Permalink to this heading"></a></h3>
 <section id="container-access-errors">
-<h3>Container Access Errors<a class="headerlink" href="#container-access-errors" title="Permalink to this heading"></a></h3>
+<h4>Container Access Errors<a class="headerlink" href="#container-access-errors" title="Permalink to this heading"></a></h4>
 <p><strong>Problem:</strong> Workflows fail with “file not found” or permission errors.</p>
 <p><strong>Solutions:</strong></p>
 <ol class="arabic simple">
-<li><p><strong>Check bind paths:</strong> Configure <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code> if required</p></li>
-<li><p><strong>Verify permissions:</strong> Ensure SLURM user can access data directories</p></li>
-<li><p><strong>Check container binding:</strong> Verify Singularity/Apptainer can access required paths</p></li>
+<li><p><strong>Check bind paths:</strong> Configure <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code> if required.</p></li>
+<li><p><strong>Verify permissions:</strong> Ensure SLURM user can access data directories.</p></li>
+<li><p><strong>Check container binding:</strong> Verify Singularity or Apptainer can access the required paths.</p></li>
 </ol>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add explicit binding if needed</span>
 <span class="na">slurm_data_bind_path</span><span class="o">=</span><span class="s">/data/your-scratch/data</span>
@@ -252,13 +602,13 @@
 </div>
 </section>
 <section id="ssh-connection-issues">
-<h3>SSH Connection Issues<a class="headerlink" href="#ssh-connection-issues" title="Permalink to this heading"></a></h3>
-<p><strong>Problem:</strong> Cannot connect to SLURM cluster.</p>
+<h4>SSH Connection Issues<a class="headerlink" href="#ssh-connection-issues" title="Permalink to this heading"></a></h4>
+<p><strong>Problem:</strong> Cannot connect to the SLURM cluster.</p>
 <p><strong>Solutions:</strong></p>
 <ol class="arabic simple">
-<li><p><strong>SSH config:</strong> Verify SSH configuration for the host alias</p></li>
-<li><p><strong>Authentication:</strong> Check SSH keys and authentication methods</p></li>
-<li><p><strong>Network:</strong> Confirm network connectivity to the cluster</p></li>
+<li><p><strong>SSH config:</strong> Verify SSH configuration for the BIOMERO SSH host alias.</p></li>
+<li><p><strong>Authentication:</strong> Check SSH keys and authentication methods.</p></li>
+<li><p><strong>Network:</strong> Confirm network connectivity to the cluster.</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Test SSH connection manually</span>
 ssh<span class="w"> </span>your-slurm-host
@@ -269,13 +619,13 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
 </div>
 </section>
 <section id="job-submission-failures">
-<h3>Job Submission Failures<a class="headerlink" href="#job-submission-failures" title="Permalink to this heading"></a></h3>
+<h4>Job Submission Failures<a class="headerlink" href="#job-submission-failures" title="Permalink to this heading"></a></h4>
 <p><strong>Problem:</strong> Jobs fail to submit or execute.</p>
 <p><strong>Solutions:</strong></p>
 <ol class="arabic simple">
-<li><p><strong>Partition access:</strong> Check if specified partition is available</p></li>
-<li><p><strong>Resource limits:</strong> Verify memory/CPU/GPU requests are within limits</p></li>
-<li><p><strong>Queue policies:</strong> Check SLURM queue policies and restrictions</p></li>
+<li><p><strong>Partition access:</strong> Check whether the specified partition is available.</p></li>
+<li><p><strong>Resource limits:</strong> Verify memory, CPU, and GPU requests are within limits.</p></li>
+<li><p><strong>Queue policies:</strong> Check SLURM queue policies and restrictions.</p></li>
 </ol>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use appropriate partition</span>
 <span class="na">cellpose_job_partition</span><span class="o">=</span><span class="s">gpu-partition</span>
@@ -287,13 +637,13 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
 </div>
 </section>
 <section id="path-configuration-issues">
-<h3>Path Configuration Issues<a class="headerlink" href="#path-configuration-issues" title="Permalink to this heading"></a></h3>
+<h4>Path Configuration Issues<a class="headerlink" href="#path-configuration-issues" title="Permalink to this heading"></a></h4>
 <p><strong>Problem:</strong> Containers or scripts not found.</p>
 <p><strong>Solutions:</strong></p>
 <ol class="arabic simple">
-<li><p><strong>Absolute vs relative paths:</strong> Use appropriate path format for your setup</p></li>
-<li><p><strong>Directory existence:</strong> Verify directories exist on SLURM cluster</p></li>
-<li><p><strong>Path permissions:</strong> Check read/write permissions</p></li>
+<li><p><strong>Absolute vs relative paths:</strong> Use the path format that matches your cluster setup.</p></li>
+<li><p><strong>Directory existence:</strong> Verify directories exist on the SLURM cluster.</p></li>
+<li><p><strong>Path permissions:</strong> Check read and write permissions.</p></li>
 </ol>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># Relative to home directory</span>
 <span class="na">slurm_data_path</span><span class="o">=</span><span class="s">my-scratch/data</span>
@@ -304,27 +654,81 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
 </div>
 </section>
 </section>
+<section id="jobs-do-not-see-workflow-parameters">
+<h3>Jobs do not see workflow parameters<a class="headerlink" href="#jobs-do-not-see-workflow-parameters" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> Jobs start, but workflow parameters or paths appear empty inside the job environment.</p>
+<p><strong>What to check:</strong></p>
+<ol class="arabic simple">
+<li><p>Enable <code class="docutils literal notranslate"><span class="pre">env_file_submission=true</span></code> if the cluster does not reliably propagate SSH session environment variables into <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> jobs.</p></li>
+<li><p>Verify that the generated or installed job script accepts the env-file argument as <code class="docutils literal notranslate"><span class="pre">$1</span></code> when env-file submission is enabled.</p></li>
+<li><p>Review cluster SSH policy if <code class="docutils literal notranslate"><span class="pre">AcceptEnv</span></code> or similar controls are known to be restrictive.</p></li>
+</ol>
+</section>
+<section id="containers-cannot-access-transferred-data">
+<h3>Containers cannot access transferred data<a class="headerlink" href="#containers-cannot-access-transferred-data" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> The BIOMERO transfer succeeds, but the container still cannot see the files.</p>
+<p><strong>What to check:</strong></p>
+<ol class="arabic simple">
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code> if the container runtime requires an explicit bind path.</p></li>
+<li><p>Confirm that the configured bind path includes the effective <code class="docutils literal notranslate"><span class="pre">slurm_data_path</span></code> location.</p></li>
+<li><p>Compare the cluster’s default bind policy with the paths used by BIOMERO.</p></li>
+</ol>
+</section>
+<section id="gpu-jobs-land-on-the-wrong-resources">
+<h3>GPU jobs land on the wrong resources<a class="headerlink" href="#gpu-jobs-land-on-the-wrong-resources" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> GPU jobs run on the wrong partition or with the wrong GRES settings.</p>
+<p><strong>What to check:</strong></p>
+<ol class="arabic simple">
+<li><p>per-workflow <code class="docutils literal notranslate"><span class="pre">*_job_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">*_job_gres</span></code> values in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code></p></li>
+<li><p>shared <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> values</p></li>
+<li><p>whether <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code> is enabled</p></li>
+<li><p>whether the workflow was actually submitted with <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code></p></li>
+</ol>
+</section>
+<section id="historical-job-listing-returns-too-much-or-too-little-data">
+<h3>Historical job listing returns too much or too little data<a class="headerlink" href="#historical-job-listing-returns-too-much-or-too-little-data" title="Permalink to this heading"></a></h3>
+<p><strong>Problem:</strong> Historical job lookups return too much or too little data.</p>
+<p><strong>What to check:</strong></p>
+<ol class="arabic simple">
+<li><p>Adjust <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code> if you want a fixed absolute boundary.</p></li>
+<li><p>Prefer <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code> if you want a rolling window.</p></li>
+<li><p>Use the corresponding environment variables only when you need runtime-specific overrides.</p></li>
+</ol>
+</section>
 </section>
 <section id="faq">
-<h1>FAQ<a class="headerlink" href="#faq" title="Permalink to this heading"></a></h1>
+<h2>FAQ<a class="headerlink" href="#faq" title="Permalink to this heading"></a></h2>
 <p><strong>Q: Should I use relative or absolute paths?</strong></p>
 <p>A: Use relative paths if your SLURM setup expects paths relative to the user home directory. Use absolute paths if you need to specify exact filesystem locations.</p>
-<p><strong>Q: When do I need to set slurm_data_bind_path?</strong></p>
+<p><strong>Q: When do I need to set ``slurm_data_bind_path``?</strong></p>
 <p>A: Set this when your HPC administrator tells you to configure <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code>, or when containers cannot access your data directories.</p>
 <p><strong>Q: How do I know which partition to use?</strong></p>
-<p>A: Check with your HPC documentation or administrator. Common partitions include <code class="docutils literal notranslate"><span class="pre">cpu</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu</span></code>, <code class="docutils literal notranslate"><span class="pre">short</span></code>, <code class="docutils literal notranslate"><span class="pre">long</span></code>. Leave empty to use the default.</p>
+<p>A: Check with your HPC documentation or administrator. Common partitions include <code class="docutils literal notranslate"><span class="pre">cpu</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu</span></code>, <code class="docutils literal notranslate"><span class="pre">short</span></code>, and <code class="docutils literal notranslate"><span class="pre">long</span></code>. Leave the setting empty to use the default.</p>
 <p><strong>Q: Can I override job parameters for specific workflows?</strong></p>
-<p>A: Yes, add <code class="docutils literal notranslate"><span class="pre">workflowname_job_parameter=value</span></code> entries in the <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> section to override default SLURM job parameters.</p>
+<p>A: Yes. Add <code class="docutils literal notranslate"><span class="pre">workflowname_job_parameter=value</span></code> entries in the <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> section to override default SLURM job parameters.</p>
 <p><strong>Q: How do I debug workflow execution issues?</strong></p>
 <p>A: Check SLURM job logs, verify container access to data, and ensure all required directories exist with proper permissions.</p>
+<p><strong>Q: When should I enable ``env_file_submission``?</strong></p>
+<p>A: Enable it when workflow jobs start correctly but do not receive the expected environment variables, especially on clusters where SSH environment forwarding into <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> jobs is limited or disabled.</p>
+<p><strong>Q: Why do ``gpu_partition`` and ``gpu_gres`` seem to do nothing?</strong></p>
+<p>A: There are two conditions that trigger GPU sbatch param injection:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code> and the workflow is submitted with <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code> (or <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> with no explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code> but <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> is set in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> — the static path</p></li>
+</ul>
+<p>In both cases, per-workflow <code class="docutils literal notranslate"><span class="pre">*_job_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">*_job_gres</span></code>, and <code class="docutils literal notranslate"><span class="pre">*_job_gpus</span></code> settings in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> take precedence and will suppress the shared defaults for those flags.</p>
+<p><strong>Q: Should I prefer ``sacct_start_time`` or ``sacct_days_ago``?</strong></p>
+<p>A: Use <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code> for a fixed absolute boundary and <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code> for a rolling window. If both are set, <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code> takes precedence.</p>
 </section>
 <section id="further-reading">
-<h1>Further Reading<a class="headerlink" href="#further-reading" title="Permalink to this heading"></a></h1>
+<h2>Further Reading<a class="headerlink" href="#further-reading" title="Permalink to this heading"></a></h2>
 <ul class="simple">
+<li><p><a class="reference internal" href="configuration-reference.html"><span class="doc">Configuration Reference</span></a></p></li>
 <li><p><a class="reference external" href="https://slurm.schedmd.com/documentation.html">SLURM Documentation</a></p></li>
-<li><p><a class="reference external" href="https://docs.sylabs.io/guides/latest/user-guide/">Singularity User Guide</a></p></li>
 <li><p><a class="reference external" href="https://apptainer.org/docs/">Apptainer Documentation</a></p></li>
+<li><p><a class="reference external" href="https://docs.sylabs.io/guides/latest/user-guide/">Singularity User Guide</a></p></li>
 </ul>
+</section>
 </section>
 
 
@@ -332,7 +736,7 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="tutorial_link.html" class="btn btn-neutral float-left" title="Cellprofiler tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="modules.html" class="btn btn-neutral float-right" title="biomero" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="configuration-reference.html" class="btn btn-neutral float-right" title="Configuration Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

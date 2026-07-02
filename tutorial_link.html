@@ -188,9 +188,7 @@
 <p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html">SLURM Configuration Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#faq">FAQ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#further-reading">Further Reading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -1268,11 +1266,11 @@ c2
 <span class="c1"># you should change the job script instead, either in OMERO or Slurm </span>
 
 
-<span class="k">[MODELS]</span>
+<span class="k">[WORKFLOWS]</span>
 <span class="c1"># -------------------------------------</span>
-<span class="c1"># Model settings</span>
+<span class="c1"># Workflow settings (also accepted as [MODELS] for backward compatibility)</span>
 <span class="c1"># -------------------------------------</span>
-<span class="c1"># Settings for models/singularity images that we want to run on Slurm</span>
+<span class="c1"># Settings for workflows/singularity images that we want to run on Slurm</span>
 <span class="c1">#</span>
 <span class="c1"># NOTE: keys have to be unique, and require a &lt;key&gt;_repo and &lt;key&gt;_image value as well.</span>
 <span class="c1">#</span>

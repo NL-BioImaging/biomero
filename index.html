@@ -76,9 +76,7 @@
 <p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html">SLURM Configuration Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#faq">FAQ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#further-reading">Further Reading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -265,18 +263,27 @@
 <p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html">SLURM Configuration Guide</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#configuration-file-overview">Configuration File Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#basic-configuration">Basic Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#environment-variables-and-container-binding">Environment Variables and Container Binding</a></li>
-<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#workflow-configuration">Workflow Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#how-biomero-finds-configuration">How BIOMERO Finds Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#configuration-sections">Configuration Sections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#minimal-working-example">Minimal Working Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#core-path-settings">Core Path Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#operational-settings">Operational Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#analytics-and-provenance-settings">Analytics and Provenance Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#workflow-and-model-configuration">Workflow And Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#example-slurm-config-ini-notes">Example <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#faq">FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#further-reading">Further Reading</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="slurm-configuration.html#common-issues-and-solutions">Common Issues and Solutions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration-reference.html#resolution-and-precedence">Resolution And Precedence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-reference.html#environment-variable-lookup-table">Environment Variable Lookup Table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-reference.html#slurm-config-ini-lookup-table"><code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Lookup Table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-reference.html#behaviour-notes">Behaviour Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration-reference.html#search-hints">Search Hints</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#faq">FAQ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#further-reading">Further Reading</a></li>
 </ul>
 </div>
 <hr class="docutils" />
@@ -311,6 +318,7 @@
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_all_image_versions_and_data_files"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_all_image_versions_and_data_files()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_cellpose_command"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_cellpose_command()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_conversion_command"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_conversion_command()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_conversion_logfile_from_slurm"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_conversion_logfile_from_slurm()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_file_attachment_params"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_file_attachment_params()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_image_versions_and_data_files"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_image_versions_and_data_files()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.get_job_status_command"><code class="docutils literal notranslate"><span class="pre">SlurmClient.get_job_status_command()</span></code></a></li>
@@ -350,6 +358,7 @@
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.workflow_bilayers_folder_params_to_subs"><code class="docutils literal notranslate"><span class="pre">SlurmClient.workflow_bilayers_folder_params_to_subs()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.workflow_params_to_envvars"><code class="docutils literal notranslate"><span class="pre">SlurmClient.workflow_params_to_envvars()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.workflow_params_to_subs"><code class="docutils literal notranslate"><span class="pre">SlurmClient.workflow_params_to_subs()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.workflow_template_subs"><code class="docutils literal notranslate"><span class="pre">SlurmClient.workflow_template_subs()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.zip_data_on_slurm_server"><code class="docutils literal notranslate"><span class="pre">SlurmClient.zip_data_on_slurm_server()</span></code></a></li>
 </ul>
 </li>

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuration Reference &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="biomero" href="modules.html" />
+    <link rel="prev" title="SLURM Configuration Guide" href="slurm-configuration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#logging">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#resolution-and-precedence">Resolution And Precedence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#environment-variable-lookup-table">Environment Variable Lookup Table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#slurm-config-ini-lookup-table"><code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Lookup Table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#behaviour-notes">Behaviour Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#boolean-parsing">Boolean parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#integer-parsing">Integer parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#empty-string-handling">Empty-string handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gpu-precedence">GPU precedence</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#search-hints">Search Hints</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Configuration Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/configuration-reference.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="configuration-reference">
+<h1>Configuration Reference<a class="headerlink" href="#configuration-reference" title="Permalink to this heading"></a></h1>
+<p>This page is a searchable lookup table for BIOMERO Python client configuration.
+It focuses on options read by <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code> and their runtime impact.</p>
+<section id="resolution-and-precedence">
+<h2>Resolution And Precedence<a class="headerlink" href="#resolution-and-precedence" title="Permalink to this heading"></a></h2>
+<p>For the settings on this page, BIOMERO resolves values in this order:</p>
+<ol class="arabic simple">
+<li><p>built-in defaults</p></li>
+<li><p>values from <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code></p></li>
+<li><p>environment variable overrides, when supported</p></li>
+</ol>
+<p>For <code class="docutils literal notranslate"><span class="pre">sacct</span></code> history settings, relative-day settings override absolute-date settings.</p>
+<p>Use this page as the quick lookup companion to <a class="reference internal" href="slurm-configuration.html"><span class="doc">SLURM Configuration Guide</span></a>, which
+explains when and why you would choose each setting.</p>
+</section>
+<section id="environment-variable-lookup-table">
+<h2>Environment Variable Lookup Table<a class="headerlink" href="#environment-variable-lookup-table" title="Permalink to this heading"></a></h2>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">Supported configuration env vars</span><a class="headerlink" href="#id1" title="Permalink to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>Environment variable</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> key</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Runtime effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></td>
+<td><p>string date</p></td>
+<td><p>Absolute default start date for job history queries via <code class="docutils literal notranslate"><span class="pre">sacct</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Rolling history window in days; overrides absolute start time when valid</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p>Switches submission from direct env passing to per-job env-file submission</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p>Enables dynamic GPU flag handling in generated scripts and GPU-aware submissions</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Default fallback GPU partition for workflow submissions when GPU mode is requested</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Default fallback <code class="docutils literal notranslate"><span class="pre">--gres=</span></code> value appended to GPU workflow submissions; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Default fallback <code class="docutils literal notranslate"><span class="pre">--gpus=</span></code> value appended to GPU workflow submissions; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_IMAGE_PULL_VIA_SBATCH</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p>Switches workflow/converter image pulls from direct remote execution to sbatch jobs</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_CPUS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code></p></td>
+<td><p>string</p></td>
+<td><p>CPU request used for sbatch-based image pull/build jobs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_MEM</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Memory request used for sbatch-based image pull/build jobs</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Tmp directory exported for Apptainer/Singularity image pull/build commands</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Cache directory exported for Apptainer/Singularity image pull/build commands</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Overrides the zip command used on the cluster for packaging results</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
+<td><p>string date</p></td>
+<td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Legacy fallback env var for GPU partition; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Legacy fallback env var for GPU gres; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Legacy fallback env var for GPU gpus; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="slurm-config-ini-lookup-table">
+<h2><code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Lookup Table<a class="headerlink" href="#slurm-config-ini-lookup-table" title="Permalink to this heading"></a></h2>
+<table class="docutils align-default" id="id2">
+<caption><span class="caption-text">Key <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> options</span><a class="headerlink" href="#id2" title="Permalink to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_data_path</span></code></p></td>
+<td><p>string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">my-scratch/data</span></code></p></td>
+<td><p>Base path for transferred workflow data on the cluster</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_images_path</span></code></p></td>
+<td><p>string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">my-scratch/singularity_images/workflows</span></code></p></td>
+<td><p>Base path for workflow containers on the cluster</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_converters_path</span></code></p></td>
+<td><p>string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">my-scratch/singularity_images/converters</span></code></p></td>
+<td><p>Base path for converter containers on the cluster</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_script_path</span></code></p></td>
+<td><p>string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">slurm-scripts</span></code></p></td>
+<td><p>Base path for generated or cloned job scripts</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>empty</p></td>
+<td><p>If set, BIOMERO clones and updates job scripts from this repository instead of generating scripts locally; use with caution, because external script repos can drift out of sync with newer BIOMERO releases and are not the recommended default</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Injects <code class="docutils literal notranslate"><span class="pre">APPTAINER_BINDPATH</span></code> into job environments</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Partition for data conversion jobs; injected as a real <code class="docutils literal notranslate"><span class="pre">--partition</span></code> flag on the conversion sbatch (and exported as <code class="docutils literal notranslate"><span class="pre">CONVERSION_PARTITION</span></code>). Takes precedence over <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> for conversion jobs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Generic fallback <code class="docutils literal notranslate"><span class="pre">--partition</span></code> appended to workflow <strong>and</strong> conversion jobs that do not already set a partition; per-workflow params, the GPU partition, and <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> take precedence. Overridable via <code class="docutils literal notranslate"><span class="pre">BIOMERO_DEFAULT_PARTITION</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></td>
+<td><p>string date or empty</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">2023-01-01</span></code></p></td>
+<td><p>Absolute start date used when listing historical jobs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code></p></td>
+<td><p>integer or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Relative history window; takes precedence over <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
+<td><p>Uses env-file based submission instead of direct environment propagation</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
+<td><p>Enables dynamic GPU submission support in generated scripts</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Shared fallback partition appended for GPU workflow runs when needed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Shared fallback <code class="docutils literal notranslate"><span class="pre">--gres=</span></code> value appended for GPU workflow runs; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Shared fallback <code class="docutils literal notranslate"><span class="pre">--gpus=</span></code> value appended for GPU workflow runs; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sbatch_&lt;key&gt;</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Any <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> key starting with <code class="docutils literal notranslate"><span class="pre">sbatch_</span></code> adds <code class="docutils literal notranslate"><span class="pre">--&lt;key&gt;=&lt;value&gt;</span></code> to every workflow <strong>and conversion</strong> submission; per-workflow sbatch overrides (and <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> for the conversion <code class="docutils literal notranslate"><span class="pre">--partition</span></code>) always take precedence</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
+<td><p>Uses sbatch jobs instead of direct remote execution for workflow/converter image pulls</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code></p></td>
+<td><p>string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">8</span></code></p></td>
+<td><p>CPU request for sbatch-based image pull/build jobs</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p></td>
+<td><p>string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">32G</span></code></p></td>
+<td><p>Memory request for sbatch-based image pull/build jobs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Tmp directory exported for Apptainer/Singularity image pull/build commands</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Cache directory exported for Apptainer/Singularity image pull/build commands</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">$(command</span> <span class="pre">-v</span> <span class="pre">7z</span> <span class="pre">||</span> <span class="pre">command</span> <span class="pre">-v</span> <span class="pre">7za)</span></code></p></td>
+<td><p>Command used for result zipping on the HPC</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
+<td><p>string date or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events. Configured under <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
+<td><p>integer or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set. Configured under <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu</span></code></p></td>
+<td><p>boolean</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
+<td><p>Per-workflow GPU default in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> for legacy configs); e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_use_gpu=true</span></code> marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument at submission time</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_repo</span></code></p></td>
+<td><p>string URL</p></td>
+<td><p>—</p></td>
+<td><p>GitHub URL for a workflow in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>). Accepts either a repository tree URL (<code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z</span></code>) or a direct URL to a specific descriptor file (<code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z/descriptor.json</span></code>, <code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z/config.yaml</span></code>). With a plain tree URL, BIOMERO auto-discovers the descriptor (tries <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> → <code class="docutils literal notranslate"><span class="pre">descriptor.yaml</span></code> → <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> in order). With a direct URL, only that exact file is fetched — useful when a repository contains both a BIAflows <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> and a bilayers <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> and you want to choose which interface to expose.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="behaviour-notes">
+<h2>Behaviour Notes<a class="headerlink" href="#behaviour-notes" title="Permalink to this heading"></a></h2>
+<section id="boolean-parsing">
+<h3>Boolean parsing<a class="headerlink" href="#boolean-parsing" title="Permalink to this heading"></a></h3>
+<p>Supported truthy values are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">yes</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">y</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">on</span></code></p></li>
+</ul>
+<p>Supported falsy values are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">no</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">off</span></code></p></li>
+</ul>
+<p>Invalid boolean env var values fall back to the already resolved ini or default value.</p>
+</section>
+<section id="integer-parsing">
+<h3>Integer parsing<a class="headerlink" href="#integer-parsing" title="Permalink to this heading"></a></h3>
+<p>Invalid integer env var values also fall back to the already resolved ini or default value.
+This matters especially for <code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code>.</p>
+</section>
+<section id="empty-string-handling">
+<h3>Empty-string handling<a class="headerlink" href="#empty-string-handling" title="Permalink to this heading"></a></h3>
+<p>Some optional string settings treat an empty value as unset rather than as a literal empty string.
+This is relevant for values such as <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code>, <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code>,
+<code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code>, and the optional <code class="docutils literal notranslate"><span class="pre">sacct</span></code> window settings.</p>
+</section>
+<section id="gpu-precedence">
+<h3>GPU precedence<a class="headerlink" href="#gpu-precedence" title="Permalink to this heading"></a></h3>
+<p>For workflow submissions, GPU-related settings are applied in this order:</p>
+<ol class="arabic simple">
+<li><p>per-workflow sbatch parameters from <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>) such as <code class="docutils literal notranslate"><span class="pre">cellpose_job_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">cellpose_job_gres</span></code>, and <code class="docutils literal notranslate"><span class="pre">cellpose_job_gpus</span></code></p></li>
+<li><p>global sbatch defaults from <code class="docutils literal notranslate"><span class="pre">sbatch_&lt;key&gt;</span></code> entries in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code></p></li>
+<li><p>shared runtime GPU defaults: <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code> and either <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> (<code class="docutils literal notranslate"><span class="pre">--gres=</span></code>) or <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> (<code class="docutils literal notranslate"><span class="pre">--gpus=</span></code>); these two are mutually exclusive — set one or the other, never both</p></li>
+<li><p>no BIOMERO-added GPU resource arguments</p></li>
+</ol>
+<p>Shared GPU defaults (level 3) are considered when GPU mode is active.  GPU mode is activated by one of two code paths:</p>
+<ul class="simple">
+<li><p><strong>Dynamic path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code>): <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> is resolved at submission time — explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument wins, otherwise falls back to <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu</span></code> from <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code>/<code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>.  <code class="docutils literal notranslate"><span class="pre">GPU_FLAG</span></code> env var is set (<code class="docutils literal notranslate"><span class="pre">--nv</span></code> or empty) at submission time so the script can toggle the container runtime flag.</p></li>
+<li><p><strong>Static path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code>): <code class="docutils literal notranslate"><span class="pre">--nv</span></code> is baked into the generated script at script-generation time; only <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code>/<code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> triggers GPU sbatch resource param injection, and it cannot be overridden at submission time.  No <code class="docutils literal notranslate"><span class="pre">GPU_FLAG</span></code> env var is set.</p></li>
+</ul>
+<p>See <a class="reference internal" href="slurm-configuration.html"><span class="doc">SLURM Configuration Guide</span></a> for a full explanation of the interaction between these settings.</p>
+</section>
+</section>
+<section id="search-hints">
+<h2>Search Hints<a class="headerlink" href="#search-hints" title="Permalink to this heading"></a></h2>
+<p>If you are looking for a specific name, try searching the docs for any of these exact identifiers:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_IMAGE_PULL_VIA_SBATCH</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_CPUS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_MEM</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="slurm-configuration.html" class="btn btn-neutral float-left" title="SLURM Configuration Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="biomero" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

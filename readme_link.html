@@ -134,9 +134,7 @@
 <p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html">SLURM Configuration Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#faq">FAQ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html#further-reading">Further Reading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package</span></p>
 <ul>
@@ -336,11 +334,14 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <ol class="arabic simple">
 <li><p>SSH access w/ public key (headless)</p></li>
 <li><p>SCP access (generally comes with SSH)</p></li>
-<li><p>7zip installed</p></li>
+<li><p>A compatible zip command available for result archiving: <code class="docutils literal notranslate"><span class="pre">7z</span></code> or <code class="docutils literal notranslate"><span class="pre">7za</span></code></p></li>
 <li><p>Singularity/Apptainer installed</p></li>
-<li><p>(Optional) Git installed, if you want your own job scripts</p></li>
+<li><p>(Optional) Git installed, only if you intentionally use an external <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> (not recommended)</p></li>
 <li><p>Slurm accounting enabled</p></li>
 </ol>
+<p>If your cluster exposes only one archive binary or auto-detection is unreliable,
+BIOMERO can be configured explicitly with <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code>. See the configuration
+docs linked below.</p>
 </section>
 <section id="omero-requirements">
 <h2>OMERO Requirements<a class="headerlink" href="#omero-requirements" title="Permalink to this heading"></a></h2>
@@ -390,6 +391,17 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <li><p><code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
 </ul>
+<p>For the BIOMERO Python client configuration details, including environment-variable overrides, precedence rules, and the runtime impact of newer options such as <code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code>, <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code>, <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code>, and <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code>, see:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#./docs/slurm-configuration.rst"><span class="xref myst">docs/slurm-configuration.rst</span></a></p></li>
+<li><p><a class="reference internal" href="#./docs/configuration-reference.rst"><span class="xref myst">docs/configuration-reference.rst</span></a></p></li>
+</ul>
+<p>In most installations, leave <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> empty and use BIOMERO’s
+generated job scripts. External script repositories are an advanced option
+and can drift out of sync with newer BIOMERO releases.</p>
+<p>If your cluster does not reliably propagate SSH session environment
+variables into <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> jobs, review <code class="docutils literal notranslate"><span class="pre">inline_ssh_env</span></code> and the optional
+<code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code> mode in the configuration docs before deployment.</p>
 <p><em>Note</em>: Make sure to place the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> in the target folder at build time of your docker container instead of mounting it at runtime. This is because the library reads the config file at import time, and if it is not found, it will not work.</p>
 </li>
 <li><p>Install OMERO scripts from <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">OMERO Slurm Scripts</a>, e.g.</p>
@@ -416,8 +428,8 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in an OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
 <ul class="simple">
 <li><p>You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field.</p></li>
-<li><p>Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).</p></li>
-<li><p>This operation will make it create the directories you provided in the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:</p></li>
+<li><p>Please note the requirements for your Slurm cluster. We do not install Singularity/Apptainer or the required archive tool (<code class="docutils literal notranslate"><span class="pre">7z</span></code> or <code class="docutils literal notranslate"><span class="pre">7za</span></code>) on your cluster for you.</p></li>
+<li><p>This operation will create the directories you configured in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and by default generate job scripts for your configured workflows. It will only clone scripts from Git if you explicitly configure <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>:</p></li>
 </ul>
 </li>
 </ol>
@@ -682,7 +694,7 @@ It is a Python class that extends the Connection class from the Fabric library. 
 <h1>slurm-config.ini<a class="headerlink" href="#slurm-config-ini" title="Permalink to this heading"></a></h1>
 <p>The <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> file is a configuration file used by the <code class="docutils literal notranslate"><span class="pre">biomero</span></code> Python package to specify various settings related to SSH and Slurm. Here is a brief description of its contents:</p>
 <p>[<strong>SSH</strong>]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user’s SSH config file or in <code class="docutils literal notranslate"><span class="pre">/etc/fabric.yml</span></code>.</p>
-<p>[<strong>SLURM</strong>]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.</p>
+<p>[<strong>SLURM</strong>]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (<code class="docutils literal notranslate"><span class="pre">slurm_data_path</span></code>), container image files (<code class="docutils literal notranslate"><span class="pre">slurm_images_path</span></code>), converter images (<code class="docutils literal notranslate"><span class="pre">slurm_converters_path</span></code>), and Slurm job scripts (<code class="docutils literal notranslate"><span class="pre">slurm_script_path</span></code>). It also includes optional behavior flags and overrides such as <code class="docutils literal notranslate"><span class="pre">slurm_data_bind_path</span></code>, <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code>, <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code>, <code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code>, <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code>, <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code>, and the advanced <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> setting.</p>
 <p>[<strong>MODELS</strong>]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_repo</span></code> (repository containing the descriptor.json file, which will describe parameters and where to find the image), and <code class="docutils literal notranslate"><span class="pre">&lt;key&gt;_job</span></code> (jobscript name and location in the <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.</p>
 <p>Note also that you can override the default Slurm job values using this model configuration, like memory, GPU, time limit, etc.
 All values for sbatch can be applied (see e.g. <a class="reference external" href="https://slurm.schedmd.com/sbatch.html">here</a>) and will be forwarded to the job command.</p>
@@ -921,8 +933,16 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 </section>
 <section id="how-to-add-your-own-slurm-job">
 <h2>How to add your own Slurm job<a class="headerlink" href="#how-to-add-your-own-slurm-job" title="Permalink to this heading"></a></h2>
-<p>You could change the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a> and generate new jobs, by running <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=True)</span></code> (or <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts(generate_jobs=True)</span></code>)</p>
-<p>Or you could add your jobs to a <a class="reference external" href="https://github.com/TorecLuik/slurm-scripts">Github repository</a> and reference this in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, both in the field <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> and every <code class="docutils literal notranslate"><span class="pre">&lt;workflow&gt;_job</span></code>:</p>
+<p>The recommended path is to change the <a class="reference internal" href="#./resources/job_template.sh"><span class="xref myst">job template</span></a>
+and regenerate jobs by running <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config(init_slurm=True)</span></code>
+(or <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts(generate_jobs=True)</span></code>).</p>
+<p>You can also point BIOMERO at an external scripts repository through
+<code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>, but this is an advanced option. BIOMERO does not maintain
+an always-up-to-date public scripts repository for operators, and external
+repositories can drift out of sync with newer BIOMERO releases.</p>
+<p>If you still want to maintain your own scripts repository, reference it in
+<code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, both in the field <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> and every
+<code class="docutils literal notranslate"><span class="pre">&lt;workflow&gt;_job</span></code>:</p>
 <div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># -------------------------------------</span>
 <span class="c1"># REPOSITORIES</span>
 <span class="c1"># -------------------------------------</span>
@@ -934,9 +954,9 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 <span class="c1">#</span>
 <span class="na">slurm_script_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/slurm-scripts</span>
 
-<span class="k">[MODELS]</span>
+<span class="k">[WORKFLOWS]</span>
 <span class="c1"># -------------------------------------</span>
-<span class="c1"># Model settings</span>
+<span class="c1"># Workflow settings (also accepted as [MODELS] for backward compatibility)</span>
 <span class="c1"># -------------------------------------</span>
 <span class="c1"># ...</span>
 <span class="c1"># -------------------------------------</span>
@@ -950,8 +970,11 @@ It will replace <code class="docutils literal notranslate"><span class="pre">$PA
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 </pre></div>
 </div>
-<p>You can update the jobs by calling <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts()</span></code>, which will pull the repository(‘s default branch).</p>
-<p>This might be useful, for example if you have other hardware requirements for your workflow(s) than the default job asks for, or if you want to run more than just 1 singularity container.</p>
+<p>You can update those external jobs by calling <code class="docutils literal notranslate"><span class="pre">slurmClient.update_slurm_scripts()</span></code>,
+which will pull the repository’s default branch.</p>
+<p>This is only recommended when you explicitly want to own and maintain custom
+job scripts. For most users, descriptor-driven BIOMERO script generation is the
+safer and less maintenance-heavy option.</p>
 <section id="parameters">
 <h3>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h3>
 <p>The library will provide the parameters from your <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> as environment variables to the call. E.g. <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">DIAMETER=0;</span> <span class="pre">sbatch</span> <span class="pre">...</span></code>.</p>

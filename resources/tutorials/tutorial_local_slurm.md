@@ -494,11 +494,11 @@ slurm_script_repo=
 # you should change the job script instead, either in OMERO or Slurm 
 
 
-[MODELS]
+[WORKFLOWS]
 # -------------------------------------
-# Model settings
+# Workflow settings (also accepted as [MODELS] for backward compatibility)
 # -------------------------------------
-# Settings for models/singularity images that we want to run on Slurm
+# Settings for workflows/singularity images that we want to run on Slurm
 #
 # NOTE: keys have to be unique, and require a <key>_repo and <key>_image value as well.
 #

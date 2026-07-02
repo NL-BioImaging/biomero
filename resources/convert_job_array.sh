@@ -5,6 +5,8 @@
 #SBATCH -N 1
 #SBATCH --time=00:20:00
 
+$OPTIONAL_ENV
+
 # Log important values
 echo "Job Parameters:"
 echo "CONFIG_PATH: $CONFIG_PATH"

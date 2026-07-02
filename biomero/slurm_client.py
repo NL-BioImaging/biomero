@@ -31,14 +31,17 @@ from importlib_resources import files
 import io
 import os
 import yaml
+import shlex
+from biomero.constants import slurm_env
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
 from eventsourcing.system import System, SingleThreadedRunner
+from eventsourcing.persistence import IntegrityError as ESIntegrityError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +94,8 @@ class SlurmJob:
                  job_id: int,
                  wf_id: UUID,
                  task_id: UUID,
-                 slurm_polling_interval: int = SLURM_POLLING_INTERVAL):
+                 slurm_polling_interval: int = SLURM_POLLING_INTERVAL,
+                 log_file: str = None):
         """
         Initialize a SlurmJob instance.
 
@@ -102,12 +106,19 @@ class SlurmJob:
             task_id (UUID): The task ID within the workflow.
             slurm_polling_interval (int, optional): The interval in seconds for 
                 polling the job status. Defaults to SLURM_POLLING_INTERVAL.
+            log_file (str, optional): The explicit Slurm output log file (or
+                glob, e.g. ``omero-<jobid>_*.log`` for an array job) that this
+                job was told to write to via ``sbatch --output``. Used to
+                fetch/upload and clean up exactly the file(s) the job
+                produced. Defaults to None, in which case the default
+                ``omero-<jobid>.log`` workflow convention is used.
         """
         self.job_id = job_id
         self.wf_id = wf_id
         self.task_id = task_id
         self.slurm_polling_interval = slurm_polling_interval
         self.submit_result = submit_result
+        self.log_file = log_file
         self.ok = self.submit_result.ok
         self.job_state = None
         self.progress = None
@@ -164,7 +175,8 @@ class SlurmJob:
         Returns:
             Result: The result of the cleanup operation.
         """
-        return slurmClient.cleanup_tmp_files(self.job_id)
+        return slurmClient.cleanup_tmp_files(self.job_id,
+                                             logfile=self.log_file)
 
     def completed(self):
         """
@@ -267,6 +279,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
+    _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -277,15 +290,108 @@ class SlurmClient(Connection):
     # Data could legit be empty.
     _DATA_CMD = "ls -h \"{slurm_data_path}\" | grep -oP '.+(?=.zip)' || :"
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
-    _ZIP_CMD = "cd \"{data_location}/data/out\" && 7z a -y \"{data_location}/{filename}.zip\" -tzip ."
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
-    _CONVERTER_LOGFILE = "\"slurm-{slurm_job_id}\"_*.out"
+    _CONVERTER_LOGFILE = "\"omero-{slurm_job_id}\"_*.log"
     _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
     _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"
+    _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
+                           'measurement', 'executable')
+    # Folder-type inputs that the user can supply as OMERO file-annotation IDs
+    # (i.e. not images — those are handled by Image_Transfer).
+    _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
+
+    @staticmethod
+    def _get_config_value(configs,
+                          section: str,
+                          option: str,
+                          default,
+                          env_vars: list[str] = None,
+                          value_type=str,
+                          empty_is_none: bool = False):
+        """
+        Helper method to get a configuration value with support for type conversion,
+        environment variable override, and default value handling.
+
+        Args:
+            configs: The ConfigParser object containing the configurations.
+            section: The section in the config file to look for the option.
+            option: The option name in the config file. 
+            default: The default value to use if the option is not found in the config file.
+            env_vars: A list of environment variable names to check for an override. The first one found will be used. Defaults to None (no environment variable override).
+            value_type: The expected type of the configuration value (e.g., str, int, bool). Defaults to str.
+            empty_is_none: If True, treats empty string values as None. Defaults to False.
+        Returns:
+            The configuration value, potentially overridden by an environment variable and converted to the specified type.
+
+        """
+
+        if value_type is bool:
+            value = configs.getboolean(section, option, fallback=default)
+        else:
+            value = configs.get(section, option, fallback=default)
+
+        if value_type is int:
+            if value is None or value == "":
+                typed_value = default
+            else:
+                try:
+                    typed_value = int(value)
+                except (TypeError, ValueError):
+                    logger.warning(
+                        f"Invalid value '{value}' for config option {section}.{option}, using fallback."
+                    )
+                    typed_value = default
+        else:
+            typed_value = value
+
+        if empty_is_none and value == "":
+            value = None
+            typed_value = None
+
+        # ---- ENV OVERRIDE (first match wins) ----
+        env_value = None
+        used_env_var = None
+
+        if env_vars:
+            for var in env_vars:
+                env_value = os.getenv(var)
+                if env_value is not None:
+                    used_env_var = var
+                    break
+
+        if env_value is not None:
+            if value_type is bool:
+                truthy_values = ("true", "1", "yes", "y", "on")
+                falsy_values = ("false", "0", "no", "n", "off")
+                lowered = env_value.lower()
+                if lowered in truthy_values:
+                    return True
+                if lowered in falsy_values:
+                    return False
+                logger.warning(
+                    f"Invalid value '{env_value}' for environment variable {used_env_var}, using fallback."
+                )
+                return typed_value
+
+            if value_type is int:
+                try:
+                    return int(env_value)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid value '{env_value}' for environment variable {used_env_var}, using fallback."
+                    )
+                    return typed_value
+
+            if empty_is_none and env_value == "":
+                return None
+
+            return env_value
+
+        return typed_value
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -306,6 +412,7 @@ class SlurmClient(Connection):
                  converter_images: dict = None,
                  slurm_model_jobs: dict = None,
                  slurm_model_jobs_params: dict = None,
+                 slurm_model_use_gpu: dict = None,
                  slurm_script_path: str = _DEFAULT_SLURM_GIT_SCRIPT_PATH,
                  slurm_script_repo: str = None,
                  init_slurm: bool = False,
@@ -317,8 +424,23 @@ class SlurmClient(Connection):
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
                  slurm_conversion_partition: str = None,
+                 slurm_default_partition: str = None,
                  sacct_start_time: str = None,
-                 sacct_days_ago: int = None):
+                 sacct_days_ago: int = None,
+                 env_file_submission: bool = False,
+                 inject_gpu_flag: bool = False,
+                 gpu_partition: str = None,
+                 gpu_gres: str = None,
+                 gpu_gpus: str = None,
+                 slurm_global_job_params: list = None,
+                 slurm_image_pull_via_sbatch: bool = False,
+                 image_pull_cpus: str = "8",
+                 image_pull_mem: str = "32G",
+                 apptainer_tmpdir: str = None,
+                 apptainer_cachedir: str = None,
+                 slurm_zip_cmd: str = None,
+                 analytics_rebuild_start_time: str = None,
+                 analytics_rebuild_days_ago: int = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -418,6 +540,78 @@ class SlurmClient(Connection):
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
+            slurm_default_partition (str, optional): Generic fallback SLURM
+                partition appended to workflow jobs that do not already carry a
+                ``--partition=`` directive (from per-workflow ``[MODELS]`` params
+                or the GPU partition path). Useful on clusters without a usable
+                system default partition. Overridable via
+                ``BIOMERO_DEFAULT_PARTITION``. Defaults to None (no partition
+                injected; system default is used).
+            sacct_start_time (str, optional): Absolute start date for sacct
+                job history queries, format ``YYYY-MM-DD``. Overridable via
+                ``BIOMERO_SACCT_START_TIME``. Defaults to ``2023-01-01``.
+            sacct_days_ago (int, optional): Rolling history window in days for
+                sacct queries; overrides ``sacct_start_time`` when set.
+                Overridable via ``BIOMERO_SACCT_START_DAYS_AGO``.
+                Defaults to None.
+            env_file_submission (bool, optional): When True, BIOMERO writes
+                workflow environment variables to a per-job file and passes it
+                as ``$1`` to the job script instead of relying on SSH session
+                env propagation. Use when the cluster does not reliably
+                forward env vars into sbatch jobs. Defaults to False.
+            inject_gpu_flag (bool, optional): When True, BIOMERO uses a
+                ``GPU_FLAG`` substitution in generated job scripts so CPU and
+                GPU execution can be toggled at submission time via
+                ``use_gpu``. Defaults to False.
+            gpu_partition (str, optional): Shared fallback ``--partition``
+                appended to GPU workflow submissions when ``inject_gpu_flag``
+                is enabled and no per-workflow partition is configured.
+                Overridable via ``BIOMERO_GPU_PARTITION``. Defaults to None.
+            gpu_gres (str, optional): Shared fallback ``--gres`` resource
+                appended to GPU workflow submissions (e.g. ``gpu:a100:1``).
+                Mutually exclusive with ``gpu_gpus``.
+                Overridable via ``BIOMERO_GPU_GRES``. Defaults to None.
+            gpu_gpus (str, optional): Shared fallback ``--gpus`` resource
+                appended to GPU workflow submissions (e.g. ``1`` or
+                ``a100:1``). Mutually exclusive with ``gpu_gres``.
+                Overridable via ``BIOMERO_GPU_GPUS``. Defaults to None.
+            slurm_global_job_params (list, optional): Extra sbatch parameters
+                applied to every workflow submission as a fallback, e.g.
+                ``[" --reservation=biomero"]``. Per-workflow job params always
+                take precedence. Configured via ``sbatch_<key>=<value>`` keys
+                in the ``[SLURM]`` config section. Defaults to None (empty).
+            slurm_image_pull_via_sbatch (bool, optional): When True, workflow
+                and converter image pulls/builds are submitted as sbatch jobs
+                instead of running directly on the login node. Defaults to
+                False.
+            image_pull_cpus (str, optional): CPU request for sbatch-based
+                image pull jobs. Overridable via ``BIOMERO_PULL_CPUS``.
+                Defaults to ``8``.
+            image_pull_mem (str, optional): Memory request for sbatch-based
+                image pull jobs. Overridable via ``BIOMERO_PULL_MEM``.
+                Defaults to ``32G``.
+            apptainer_tmpdir (str, optional): Exported as
+                ``APPTAINER_TMPDIR`` and ``SINGULARITY_TMPDIR`` for image
+                pull/build commands when set. Use when the default tmp
+                location is too small. Overridable via
+                ``BIOMERO_APPTAINER_TMPDIR``. Defaults to None.
+            apptainer_cachedir (str, optional): Exported as
+                ``APPTAINER_CACHEDIR`` and ``SINGULARITY_CACHEDIR`` for image
+                pull/build commands when set. Overridable via
+                ``BIOMERO_APPTAINER_CACHEDIR``. Defaults to None.
+            slurm_zip_cmd (str, optional): Command used to zip job output on
+                the cluster. Defaults to auto-detecting ``7z`` or ``7za``.
+                Overridable via ``BIOMERO_SLURM_ZIP_CMD``.
+            analytics_rebuild_start_time (str, optional): Absolute cutoff date
+                (``YYYY-MM-DD``) from which events are replayed when resetting
+                analytics view tables. Overrides the full-history default.
+                Overridable via ``BIOMERO_ANALYTICS_REBUILD_START_TIME``.
+                Defaults to None (full rebuild).
+            analytics_rebuild_days_ago (int, optional): Rolling cutoff window
+                in days for analytics view table rebuilds. Overrides
+                ``analytics_rebuild_start_time`` when both are set.
+                Overridable via ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``.
+                Defaults to None (full rebuild).
         """
 
         super(SlurmClient, self).__init__(host,
@@ -440,10 +634,30 @@ class SlurmClient(Connection):
         self.converter_images = converter_images
         self.slurm_model_jobs = slurm_model_jobs
         self.slurm_model_jobs_params = slurm_model_jobs_params
+        self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
         self.slurm_conversion_partition = slurm_conversion_partition
+        self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
         self.sacct_days_ago = sacct_days_ago
+        self.env_file_submission = env_file_submission
+        self.inject_gpu_flag = inject_gpu_flag
+        self.gpu_partition = gpu_partition
+        if gpu_gres and gpu_gpus:
+            raise ValueError(
+                "gpu_gres and gpu_gpus are mutually exclusive; set one or the other, not both."
+            )
+        self.gpu_gres = gpu_gres
+        self.gpu_gpus = gpu_gpus
+        self.slurm_global_job_params = slurm_global_job_params or []
+        self.slurm_image_pull_via_sbatch = slurm_image_pull_via_sbatch
+        self.image_pull_cpus = image_pull_cpus
+        self.image_pull_mem = image_pull_mem
+        self.apptainer_tmpdir = apptainer_tmpdir
+        self.apptainer_cachedir = apptainer_cachedir
+        self.slurm_zip_cmd = slurm_zip_cmd
+        self.analytics_rebuild_start_time = analytics_rebuild_start_time
+        self.analytics_rebuild_days_ago = analytics_rebuild_days_ago
 
         # Init cache. Keep responses for 360 seconds
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
@@ -467,6 +681,21 @@ class SlurmClient(Connection):
             self.initialize_analytics_system(reset_tables=init_slurm)
         else:
             logger.warning("Setup SlurmClient for config only")
+
+    def _apptainer_pull_env_prefix(self) -> str:
+        """Return shell env assignments for Apptainer/Singularity pull/build commands."""
+        env_parts = []
+        if self.apptainer_tmpdir:
+            quoted_tmpdir = shlex.quote(self.apptainer_tmpdir)
+            env_parts.append(f"APPTAINER_TMPDIR={quoted_tmpdir}")
+            env_parts.append(f"SINGULARITY_TMPDIR={quoted_tmpdir}")
+        if self.apptainer_cachedir:
+            quoted_cachedir = shlex.quote(self.apptainer_cachedir)
+            env_parts.append(f"APPTAINER_CACHEDIR={quoted_cachedir}")
+            env_parts.append(f"SINGULARITY_CACHEDIR={quoted_cachedir}")
+        if not env_parts:
+            return ""
+        return " ".join(env_parts) + " "
 
     def initialize_analytics_system(self, reset_tables=False):
         """
@@ -570,14 +799,15 @@ class SlurmClient(Connection):
             EngineManager.close_engine()  # close current sql session
             # restart runner, listeners and recreate views
             self.initialize_analytics_system(reset_tables=False)
-            # Update the view tables again
+            # Update the view tables again, optionally from a cutoff event ID
+            start_id = self._find_analytics_start_id()
             listeners = [self.jobAccounting,
                          self.jobProgress,
                          self.wfProgress,
                          self.workflowAnalytics]
             for listener in listeners:
                 if listener:
-                    self.bring_listener_uptodate(listener)
+                    self.bring_listener_uptodate(listener, start=start_id)
 
     def get_listeners(self, runner):
         if self.track_workflows and self.enable_job_accounting:
@@ -597,6 +827,57 @@ class SlurmClient(Connection):
         else:
             self.workflowAnalytics = NoOpWorkflowTracker()
 
+    def _find_analytics_start_id(self) -> int:
+        """Return the lowest event ID to start replaying from when rebuilding
+        analytics view tables, based on ``analytics_rebuild_days_ago`` or
+        ``analytics_rebuild_start_time`` configuration.
+
+        Priority (low to high):
+        1. ``analytics_rebuild_start_time`` — absolute date string ``YYYY-MM-DD``
+        2. ``analytics_rebuild_days_ago`` — rolling window in days (overrides absolute)
+        Both default to ``None``, meaning replay from event ID 1 (full rebuild).
+
+        The timestamp is decoded from the eventsourcing JSON state blob:
+        ``{"timestamp": {"_type_": "datetime_iso", "_data_": "<iso-string>"}, ...}``
+
+        Returns:
+            int: The event ID to pass as ``start`` to ``pull_and_process``.
+                 Returns 1 if no cutoff is configured or if the query fails.
+        """
+        cutoff = None
+        if self.analytics_rebuild_start_time is not None:
+            cutoff = self.analytics_rebuild_start_time
+        if self.analytics_rebuild_days_ago is not None:
+            cutoff = (
+                datetime.now(tz=timezone.utc)
+                - timedelta(days=int(self.analytics_rebuild_days_ago))
+            ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        if cutoff is None:
+            return 1
+
+        try:
+            with EngineManager.get_session() as session:
+                result = session.execute(
+                    text(
+                        "SELECT MIN(id) FROM workflowtracker_events "
+                        "WHERE (convert_from(state, 'UTF8')::json->>'timestamp')"
+                        "::json->>'_data_' >= :cutoff"
+                    ),
+                    {"cutoff": cutoff},
+                ).scalar()
+            start_id = int(result) if result is not None else 1
+            logger.info(
+                f"Analytics rebuild cutoff: {cutoff} → starting from event ID {start_id}"
+            )
+            return start_id
+        except Exception as e:
+            logger.warning(
+                f"Could not determine analytics rebuild start ID from cutoff "
+                f"'{cutoff}': {e}. Falling back to full rebuild (start=1)."
+            )
+            return 1
+
     def bring_listener_uptodate(self, listener, start=1):
         with EngineManager.get_session() as session:
             try:
@@ -604,10 +885,10 @@ class SlurmClient(Connection):
                 listener.pull_and_process(
                     leader_name=WorkflowTracker.__name__, start=start)
                 session.commit()
-            except IntegrityError as e:
+            except (IntegrityError, ESIntegrityError) as e:
                 session.rollback()
                 error_msg = str(e).lower()
-                if 'unique constraint' in error_msg or 'duplicate key' in error_msg:
+                if 'unique constraint' in error_msg or 'duplicate key' in error_msg or isinstance(e, ESIntegrityError):
                     # Already processed by another worker - this is expected and harmless.
                     # The listener is already up to date.
                     logger.debug(
@@ -695,10 +976,12 @@ class SlurmClient(Connection):
                 for wf, image in self.slurm_model_images.items():
                     repo = self.slurm_model_repos[wf]
                     path = self.slurm_model_paths[wf]
+                    apptainer_env_prefix = self._apptainer_pull_env_prefix()
                     # If the image already includes a tag (e.g. "org/image:v1.2"),
                     # use that tag and strip it from the image name to avoid
                     # producing docker://org/image:v1.2:v1.2.
-                    image_tag, image_name = self.parse_docker_image_version(image)
+                    image_tag, image_name = self.parse_docker_image_version(
+                        image)
                     if image_tag:
                         image = image_name
                         version = image_tag
@@ -706,9 +989,24 @@ class SlurmClient(Connection):
                         _, version = self.extract_parts_from_url(repo)
                         if version == "master":
                             version = "latest"
-                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                    if self.slurm_image_pull_via_sbatch:
+                        pull_template = (
+                            "echo 'starting $path $version' >> sing.log\n"
+                            "mkdir -p $path $TMPDIR_CREATE $CACHEDIR_CREATE\n"
+                            "image_name=$(basename \"$image\")\n"
+                            "output=\"$path/${image_name}_$version.sif\"\n"
+                            "if [ -s \"$output\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
+                            "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" \"$output\" docker://$image:$version >> sing.log 2>&1; fi\n"
+                            "rc=$?\n"
+                            "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
+                        )
+                    else:
+                        pull_template = "echo 'starting $path $version' >> sing.log\nmkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\nnohup sh -c \"${APPTAINER_ENV}singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
+                    substitutes['APPTAINER_ENV'] = apptainer_env_prefix
+                    substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
+                    substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version
@@ -726,7 +1024,15 @@ class SlurmClient(Connection):
                 full_path = self.slurm_images_path+"/"+script_name
                 _ = self.put(local=io.StringIO(job_script),
                              remote=full_path)
-                cmd = f"time sh {script_name}"
+                if self.slurm_image_pull_via_sbatch:
+                    cmd = (
+                        "sbatch --parsable --job-name=biomero-pull-images "
+                        f"--cpus-per-task={self.image_pull_cpus} --mem={self.image_pull_mem} "
+                        f"--export=ALL,BIOMERO_PULL_CPUS={self.image_pull_cpus} "
+                        f"--output=pull_images-%j.log {script_name}"
+                    )
+                else:
+                    cmd = f"time sh {script_name}"
                 r = self.run_commands([cmd])
                 if not r.ok:
                     raise SSHException(r)
@@ -781,15 +1087,35 @@ class SlurmClient(Connection):
         r = self.run_commands(convert_cmds)
 
         # copy generic job array script over to slurm
+        convert_script_file = "convert_job_array.sh"
         convert_job_local = files("resources").joinpath(
-            "convert_job_array.sh")
-        _ = self.put(local=convert_job_local,
-                     remote=self.slurm_script_path)
+            convert_script_file)
+        
+        optional_env = ""
+        if self.env_file_submission:
+            optional_env = (
+                'BIOMERO_ENV_FILE="${1:-}"\n'
+                'if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then\n'
+                '    . "$BIOMERO_ENV_FILE"\n'
+                'fi'
+            )
+        substitutes = {
+            'OPTIONAL_ENV': optional_env,
+        }
+        with convert_job_local.open('r') as f:
+            src = Template(f.read())
+            convert_script = src.safe_substitute(substitutes)
+            logger.debug(f"substituted: {convert_script}")
+
+        convert_script_remote = f"{self.slurm_script_path}/{convert_script_file}"
+        _ = self.put(local=io.StringIO(convert_script),
+                     remote=convert_script_remote)
 
         # PULL converter if provided in config
         if self.converter_images:
             pull_commands = []
             for path, image in self.converter_images.items():
+                apptainer_env_prefix = self._apptainer_pull_env_prefix()
                 version, image = self.parse_docker_image_version(image)
                 if version:
                     chosen_converter = f"convert_{path}_{version}.sif"
@@ -799,9 +1125,22 @@ class SlurmClient(Connection):
                         f"Pulling 'latest' as no version was provided for {image}")
                     chosen_converter = f"convert_{path}_latest.sif"
                 with self.cd(self.slurm_converters_path):
-                    pull_template = "echo 'starting $path $version' >> sing.log\nnohup sh -c \"singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
+                    if self.slurm_image_pull_via_sbatch:
+                        pull_template = (
+                            "echo 'starting $path $version' >> sing.log\n"
+                            "mkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\n"
+                            "if [ -s \"$conv_name\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
+                            "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" $conv_name docker://$image:$version >> sing.log 2>&1; fi\n"
+                            "rc=$?\n"
+                            "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
+                        )
+                    else:
+                        pull_template = "echo 'starting $path $version' >> sing.log\nmkdir -p $TMPDIR_CREATE $CACHEDIR_CREATE\nnohup sh -c \"${APPTAINER_ENV}singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
                     t = Template(pull_template)
                     substitutes = {}
+                    substitutes['APPTAINER_ENV'] = apptainer_env_prefix
+                    substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
+                    substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
                     substitutes['path'] = path
                     substitutes['image'] = image
                     substitutes['version'] = version
@@ -819,7 +1158,15 @@ class SlurmClient(Connection):
             # copy to remote file
             full_path = self.slurm_converters_path+"/"+script_name
             _ = self.put(local=io.StringIO(job_script), remote=full_path)
-            cmd = f"time sh {script_name}"
+            if self.slurm_image_pull_via_sbatch:
+                cmd = (
+                    "sbatch --parsable --job-name=biomero-pull-converters "
+                    f"--cpus-per-task={self.image_pull_cpus} --mem={self.image_pull_mem} "
+                    f"--export=ALL,BIOMERO_PULL_CPUS={self.image_pull_cpus} "
+                    f"--output=pull_converters-%j.log {script_name}"
+                )
+            else:
+                cmd = f"time sh {script_name}"
             with self.cd(self.slurm_converters_path):
                 r = self.run_commands([cmd])
                 if not r.ok:
@@ -906,6 +1253,11 @@ class SlurmClient(Connection):
             # c. workflows
         if self.slurm_images_path:
             dir_cmds.append(f"mkdir -p \"{self.slurm_images_path}\"")
+        # d. apptainer tmp/cache dirs (used during image pulls)
+        if self.apptainer_tmpdir:
+            dir_cmds.append(f"mkdir -p {shlex.quote(self.apptainer_tmpdir)}")
+        if self.apptainer_cachedir:
+            dir_cmds.append(f"mkdir -p {shlex.quote(self.apptainer_cachedir)}")
         r = self.run_commands(dir_cmds)
         if not r.ok:
             raise SSHException(r)
@@ -945,46 +1297,212 @@ class SlurmClient(Connection):
 
         # Read the required parameters from the configuration file,
         # fallback to defaults
-        host = configs.get("SSH", "host", fallback=cls._DEFAULT_HOST)
-        inline_ssh_env = configs.getboolean(
-            "SSH", "inline_ssh_env", fallback=cls._DEFAULT_INLINE_SSH_ENV)
-        slurm_data_path = configs.get(
-            "SLURM", "slurm_data_path", fallback=cls._DEFAULT_SLURM_DATA_PATH)
-        slurm_images_path = configs.get(
-            "SLURM", "slurm_images_path",
-            fallback=cls._DEFAULT_SLURM_IMAGES_PATH)
-        slurm_converters_path = configs.get(
-            "SLURM", "slurm_converters_path",
-            fallback=cls._DEFAULT_SLURM_CONVERTERS_PATH)
-        slurm_data_bind_path = configs.get(
-            "SLURM", "slurm_data_bind_path",
-            fallback=None)
-        slurm_conversion_partition = configs.get(
-            "SLURM", "slurm_conversion_partition",
-            fallback=None)
-        sacct_start_time = configs.get(
-            "SLURM", "sacct_start_time",
-            fallback=None) or None  # treat empty string as None
-        sacct_days_ago_raw = configs.get(
-            "SLURM", "sacct_days_ago",
-            fallback=None)
-        try:
-            sacct_days_ago = int(
-                sacct_days_ago_raw) if sacct_days_ago_raw else None
-        except ValueError:
-            logger.warning(
-                f"Invalid sacct_days_ago value '{sacct_days_ago_raw}', ignoring.")
-            sacct_days_ago = None
+        host = cls._get_config_value(
+            configs,
+            section="SSH",
+            option="host",
+            default=cls._DEFAULT_HOST,
+        )
+        inline_ssh_env = cls._get_config_value(
+            configs,
+            section="SSH",
+            option="inline_ssh_env",
+            default=cls._DEFAULT_INLINE_SSH_ENV,
+            value_type=bool,
+        )
+        slurm_data_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_data_path",
+            default=cls._DEFAULT_SLURM_DATA_PATH,
+        )
+        slurm_images_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_images_path",
+            default=cls._DEFAULT_SLURM_IMAGES_PATH,
+        )
+        slurm_converters_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_converters_path",
+            default=cls._DEFAULT_SLURM_CONVERTERS_PATH,
+        )
+        slurm_data_bind_path = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_data_bind_path",
+            default=None,
+            empty_is_none=True,
+        )
+        slurm_conversion_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_conversion_partition",
+            default=None,
+            empty_is_none=True,
+        )
+        slurm_default_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_default_partition",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_DEFAULT_PARTITION],
+            empty_is_none=True,
+        )
+        sacct_start_time = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="sacct_start_time",
+            default=cls._DEFAULT_SACCT_START_TIME,
+            env_vars=[slurm_env.BIOMERO_SACCT_START_TIME],
+            empty_is_none=True,
+        )
+        sacct_days_ago = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="sacct_days_ago",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_SACCT_START_DAYS_AGO],
+            value_type=int,
+            empty_is_none=True,
+        )
+        analytics_rebuild_start_time = cls._get_config_value(
+            configs,
+            section="ANALYTICS",
+            option="analytics_rebuild_start_time",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
+            empty_is_none=True,
+        )
+        analytics_rebuild_days_ago = cls._get_config_value(
+            configs,
+            section="ANALYTICS",
+            option="analytics_rebuild_days_ago",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
+            value_type=int,
+            empty_is_none=True,
+        )
+
+        # Processing settings: env-file submission and GPU defaults.
+        env_file_submission = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="env_file_submission",
+            default=False,
+            env_vars=[slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
+            value_type=bool,
+        )
+
+        inject_gpu_flag = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="inject_gpu_flag",
+            default=False,
+            env_vars=[slurm_env.BIOMERO_INJECT_GPU_FLAG],
+            value_type=bool,
+        )
+
+        gpu_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="gpu_partition",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_GPU_PARTITION,
+                      slurm_env.GPU_PARTITION],
+            empty_is_none=True,
+        )
+
+        gpu_gres = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="gpu_gres",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_GPU_GRES, slurm_env.GPU_GRES],
+            empty_is_none=True,
+        )
+
+        gpu_gpus = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="gpu_gpus",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_GPU_GPUS, slurm_env.GPU_GPUS],
+            empty_is_none=True,
+        )
+
+        slurm_image_pull_via_sbatch = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_image_pull_via_sbatch",
+            default=False,
+            env_vars=[slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
+            value_type=bool,
+        )
+
+        image_pull_cpus = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_cpus",
+            default="8",
+            env_vars=[slurm_env.BIOMERO_PULL_CPUS],
+        )
+
+        image_pull_mem = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_mem",
+            default="32G",
+            env_vars=[slurm_env.BIOMERO_PULL_MEM],
+        )
+
+        apptainer_tmpdir = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="apptainer_tmpdir",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_APPTAINER_TMPDIR],
+            empty_is_none=True,
+        )
+
+        apptainer_cachedir = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="apptainer_cachedir",
+            default=None,
+            env_vars=[slurm_env.BIOMERO_APPTAINER_CACHEDIR],
+            empty_is_none=True,
+        )
+
+        slurm_zip_cmd = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_zip_cmd",
+            default=cls._DEFAULT_SLURM_ZIP_CMD,
+            env_vars=[slurm_env.BIOMERO_SLURM_ZIP_CMD],
+            empty_is_none=True,
+        )
 
         # Split the MODELS into paths, repos and images
-        models_dict = dict(configs.items("MODELS"))
+        # The section may be named either [MODELS] (legacy) or [WORKFLOWS]
+        # (preferred). Both are supported and merged; [MODELS] is read first so
+        # [WORKFLOWS] entries take precedence on key collisions.
+        models_dict = {}
+        for section_name in ("MODELS", "WORKFLOWS"):
+            try:
+                models_dict.update(dict(configs.items(section_name)))
+            except configparser.NoSectionError:
+                pass
         slurm_model_paths = {}
         slurm_model_repos = {}
         slurm_model_jobs = {}
         slurm_model_jobs_params = {}
+        slurm_model_use_gpu = {}
         for k, v in models_dict.items():
             suffix_repo = '_repo'
             suffix_job = '_job'
+            suffix_use_gpu = '_use_gpu'
             job_param_pattern = "(.+)_job_(.+)"
             job_param_match = re.match(job_param_pattern, k)
             if k.endswith(suffix_repo):
@@ -992,12 +1510,31 @@ class SlurmClient(Connection):
             elif k.endswith(suffix_job):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
                 slurm_model_jobs_params[k[:-len(suffix_job)]] = []
+            elif k.endswith(suffix_use_gpu):
+                slurm_model_use_gpu[k[:-len(suffix_use_gpu)]] = str(v).lower() in (
+                    "true", "1", "yes", "y", "on"
+                )
             elif job_param_match:
                 slurm_model_jobs_params[job_param_match.group(1)].append(
                     f" --{job_param_match.group(2)}={v}")
             else:
                 slurm_model_paths[k] = v
         logger.info(f"Using job params: {slurm_model_jobs_params}")
+
+        # Parse global sbatch params from [SLURM] section (sbatch_<key>=<value>).
+        # These are applied as a fallback to all workflow submissions; per-workflow
+        # job params always take precedence.
+        slurm_global_job_params = []
+        try:
+            slurm_items = dict(configs.items("SLURM"))
+            for k, v in slurm_items.items():
+                if k.startswith("sbatch_") and v:
+                    param_name = k[len("sbatch_"):]
+                    slurm_global_job_params.append(f" --{param_name}={v}")
+        except configparser.NoSectionError:
+            pass
+        if slurm_global_job_params:
+            logger.info(f"Using global sbatch params: {slurm_global_job_params}")
 
         slurm_script_path = configs.get(
             "SLURM", "slurm_script_path",
@@ -1050,6 +1587,7 @@ class SlurmClient(Connection):
                    converter_images=converter_images,
                    slurm_model_jobs=slurm_model_jobs,
                    slurm_model_jobs_params=slurm_model_jobs_params,
+                   slurm_model_use_gpu=slurm_model_use_gpu,
                    slurm_script_path=slurm_script_path,
                    slurm_script_repo=slurm_script_repo,
                    init_slurm=init_slurm,
@@ -1062,8 +1600,23 @@ class SlurmClient(Connection):
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
                    slurm_conversion_partition=slurm_conversion_partition,
+                   slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,
-                   sacct_days_ago=sacct_days_ago)
+                   sacct_days_ago=sacct_days_ago,
+                   env_file_submission=env_file_submission,
+                   inject_gpu_flag=inject_gpu_flag,
+                   gpu_partition=gpu_partition,
+                   gpu_gres=gpu_gres,
+                   gpu_gpus=gpu_gpus,
+                   slurm_global_job_params=slurm_global_job_params,
+                   slurm_image_pull_via_sbatch=slurm_image_pull_via_sbatch,
+                   image_pull_cpus=image_pull_cpus,
+                   image_pull_mem=image_pull_mem,
+                   apptainer_tmpdir=apptainer_tmpdir,
+                   apptainer_cachedir=apptainer_cachedir,
+                   slurm_zip_cmd=slurm_zip_cmd,
+                   analytics_rebuild_start_time=analytics_rebuild_start_time,
+                   analytics_rebuild_days_ago=analytics_rebuild_days_ago)
 
     def cleanup_tmp_files(self,
                           slurm_job_id: str,
@@ -1102,12 +1655,15 @@ class SlurmClient(Connection):
         if logfile is None:
             logfile = self._LOGFILE
             logfile = logfile.format(slurm_job_id=slurm_job_id)
-        rmlog = f"rm \"{logfile}\""
+        # -f so cleanup never errors when a job wrote to a different log
+        # convention (e.g. a conversion array job writes omero-<id>_*.log
+        # rather than the single omero-<id>.log).
+        rmlog = f"rm -f \"{logfile}\""
         cmds.append(rmlog)
         # converter logs
         clog = self._CONVERTER_LOGFILE
         clog = clog.format(slurm_job_id=slurm_job_id)
-        rmclog = f"rm {clog}"
+        rmclog = f"rm -f {clog}"
         cmds.append(rmclog)
 
         # data
@@ -1421,23 +1977,13 @@ class SlurmClient(Connection):
         if start_time is None:
             # Priority (low to high):
             # 1. class default  -> "2023-01-01" (backward compatible)
-            # 2. sacct_start_time from slurm-config.ini  (absolute date)
-            # 3. sacct_days_ago  from slurm-config.ini  (relative, overrides #2)
-            # 4. BIOMERO_SACCT_START_TIME  env var       (absolute)
-            # 5. BIOMERO_SACCT_START_DAYS_AGO env var    (relative, highest priority)
-            start_time = self._DEFAULT_SACCT_START_TIME
-            if self.sacct_start_time:
-                start_time = self.sacct_start_time
+            # 2. resolved instance sacct_start_time (config/env absolute)
+            # 3. resolved instance sacct_days_ago (config/env relative, highest)
+            start_time = self.sacct_start_time
             if self.sacct_days_ago is not None:
                 start_time = (
-                    datetime.now() - timedelta(days=int(self.sacct_days_ago))).strftime("%Y-%m-%d")
-            env_start = os.getenv("BIOMERO_SACCT_START_TIME")
-            if env_start:
-                start_time = env_start
-            env_days = os.getenv("BIOMERO_SACCT_START_DAYS_AGO")
-            if env_days:
-                start_time = (
-                    datetime.now() - timedelta(days=int(env_days))).strftime("%Y-%m-%d")
+                    datetime.now() - timedelta(days=int(self.sacct_days_ago))
+                ).strftime("%Y-%m-%d")
         return self._ALL_JOBS_CMD.format(start_time=start_time,
                                          end_time=end_time,
                                          states=states,
@@ -1497,6 +2043,8 @@ class SlurmClient(Connection):
         """
         # add workflow to substitutes
         substitutes['jobname'] = workflow
+        if not self.inject_gpu_flag:
+            substitutes['GPU_FLAG'] = "--nv"
         # grab job template
         template_f = files("resources").joinpath(template)
         with template_f.open('r') as f:
@@ -1524,11 +2072,37 @@ class SlurmClient(Connection):
         subs['PARAMS'] = " ".join(flags)
         return subs
 
-    _FOLDER_INPUT_TYPES = ('image', 'file', 'array', 'measurement', 'executable')
+    def workflow_template_subs(self, descriptor: Dict) -> Dict[str, str]:
+        """Build shared-template substitutions for workflow family differences."""
+        optional_env = ""
+        if self.env_file_submission:
+            optional_env = (
+                'BIOMERO_ENV_FILE="${1:-}"\n'
+                'if [ -n "$BIOMERO_ENV_FILE" ] && [ -f "$BIOMERO_ENV_FILE" ]; then\n'
+                '    . "$BIOMERO_ENV_FILE"\n'
+                'fi'
+            )
 
-    # Folder-type inputs that the user can supply as OMERO file-annotation IDs
-    # (i.e. not images — those are handled by Image_Transfer).
-    _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
+        if self._is_bilayers_workflow(descriptor):
+            folder_subs = self.workflow_bilayers_folder_params_to_subs(descriptor)
+            return {
+                'OPTIONAL_ENV': optional_env,
+                'WF_TYPE': 'bilayers',
+                'INPARAMS': folder_subs['INPARAMS'],
+                'OUTPARAMS': folder_subs['OUTPARAMS'],
+                'EXTRAPARAMS': '',
+            }
+
+        return {
+            'OPTIONAL_ENV': optional_env,
+            'WF_TYPE': 'biaflows',
+            'INPARAMS': ' '.join([
+                '--infolder "$DATA_PATH/data/in"',
+                '--gtfolder "$DATA_PATH/data/gt"',
+            ]),
+            'OUTPARAMS': '--outfolder "$DATA_PATH/data/out"',
+            'EXTRAPARAMS': '--local -nmc',
+        }
 
     def get_file_attachment_params(self, workflow: str) -> Dict[str, Dict[str, Any]]:
         """Return only the file-attachment params for a workflow.
@@ -1678,19 +2252,16 @@ class SlurmClient(Connection):
                 # so the job script uses $VAR placeholders, not typed defaults.
                 all_params = self.get_workflow_parameters(wf)
                 merged_params = {
-                    k: ({**v, 'type': 'string'} if v.get('file_attachment') else v)
+                    k: ({**v, 'type': 'string'}
+                        if v.get('file_attachment') else v)
                     for k, v in all_params.items()
                 }
                 descriptor = self.generic_descriptor_from_github(wf)
-                if self._is_bilayers_workflow(descriptor):
-                    template = "job_template_bilayers.sh"
-                    folder_subs = self.workflow_bilayers_folder_params_to_subs(
-                        descriptor)
-                    subs = {**self.workflow_params_to_subs(merged_params),
-                            **folder_subs}
-                else:
-                    template = "job_template.sh"
-                    subs = self.workflow_params_to_subs(merged_params)
+                template = "job_template.sh"
+                subs = {
+                    **self.workflow_params_to_subs(merged_params),
+                    **self.workflow_template_subs(descriptor),
+                }
                 job_script = self.generate_slurm_job_for_workflow(
                     wf, subs, template)
                 # ensure all dirs exist remotely
@@ -1749,8 +2320,10 @@ class SlurmClient(Connection):
             )
         # Enrich stored params with server-managed CLI args so the full
         # command is reproducible from task metadata alone.
-        server_params = self._get_server_managed_params(workflow_name, input_data)
-        recorded_params = {**server_params, **kwargs}  # user kwargs take precedence
+        server_params = self._get_server_managed_params(
+            workflow_name, input_data)
+        # user kwargs take precedence
+        recorded_params = {**server_params, **kwargs}
 
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
@@ -1868,17 +2441,55 @@ class SlurmClient(Connection):
             sbatch_env
         )
 
-        # Run all commands consecutively
-        res = self.run_commands(commands, sbatch_env)
+        # Run all commands consecutively.
+        # The final command is the sbatch submission. If sbatch rejects the
+        # job (e.g. an invalid --reservation/--partition) or an earlier command
+        # in the chain fails, run_commands raises UnexpectedExit. In that case
+        # NO Slurm job is created, so there is NO Slurm log file to fetch
+        # later: the only diagnostic is the failed command's own stderr/stdout
+        # (e.g. "sbatch: error: Batch job submission failed: Requested
+        # reservation is invalid"). Catch it, log it explicitly, and fall
+        # through with the failed Result so we return a SlurmJob with ok=False
+        # (job_id=-1) instead of a raw traceback. The caller can then surface
+        # the reason via slurmJob.get_error().
+        try:
+            res = self.run_commands(commands, sbatch_env)
+        except UnexpectedExit as e:
+            res = e.result
+            logger.error(
+                "Conversion submission failed before a Slurm job was created "
+                "(exit code %s). No Slurm job was submitted, so there is no "
+                "Slurm log file to retrieve; the error is in the command "
+                "output below. Common cause: an invalid sbatch parameter such "
+                "as a non-existent --reservation or --partition.",
+                getattr(res, "exited", "unknown"))
+            logger.error("Failed conversion command:\n%s",
+                         getattr(res, "command", None) or " && ".join(commands))
+            logger.error("stderr:\n%s", getattr(res, "stderr", ""))
+            logger.error("stdout:\n%s", getattr(res, "stdout", ""))
 
         slurm_job_id = self.extract_job_id(res)
+        if slurm_job_id < 0:
+            logger.error(
+                "No Slurm job id could be extracted from the conversion "
+                "submission (job was not submitted). Conversion task %s will "
+                "be marked failed; there is no Slurm-side log for this job.",
+                task_id)
 
         if task_id:
             self.workflowTracker.start_task(task_id)
             self.workflowTracker.add_job_id(task_id, slurm_job_id)
             self.workflowTracker.add_result(task_id, res)
 
-        return SlurmJob(res, slurm_job_id, wf_id, task_id)
+        # The conversion is submitted with --output=omero-%A_%a.log, so its
+        # log(s) live next to the workflow logs as omero-<jobid>_*.log. Track
+        # that glob so cleanup removes exactly those files and the OMERO
+        # scripts can fetch/upload the conversion log (also on failure).
+        conversion_log = self._CONVERTER_LOGFILE.format(
+            slurm_job_id=slurm_job_id).replace('"', '')
+
+        return SlurmJob(res, slurm_job_id, wf_id, task_id,
+                        log_file=conversion_log)
 
     def extract_job_id(self, result: Result) -> int:
         """
@@ -2132,11 +2743,51 @@ class SlurmClient(Connection):
                 f"/raw/{branch}")
         github_session = self.get_or_create_github_session()
 
+        # Detect a direct-descriptor URL: any path segments after the branch.
+        # Example: .../tree/v0.0.3/descriptor.json  → fetch that exact file.
+        # Example: .../tree/v0.0.3/config.yaml       → fetch that exact file.
+        # Plain tree URL (.../tree/v0.0.3) → file_path_parts is empty → fall
+        # through to auto-discovery (backward-compatible).
+        file_path_parts: List[str] = []
+        if "tree" in url_parts:
+            branch_index = url_parts.index("tree") + 1
+            file_path_parts = [part for part in url_parts[branch_index + 1:] if part]
+
+        if file_path_parts:
+            file_path = "/".join(file_path_parts)
+            direct_url = f"{base}/{file_path}"
+            ghfile = github_session.get(direct_url)
+            if not ghfile.ok:
+                if ghfile.status_code in (403, 429):
+                    raise ValueError(
+                        f"GitHub rate limit exceeded (HTTP {ghfile.status_code}) — "
+                        f"please wait a few minutes and try again: {repo_url}"
+                    )
+                raise ValueError(
+                    f"No descriptor file found for repository: {repo_url} "
+                    f"(HTTP {ghfile.status_code})"
+                )
+            filename = file_path_parts[-1]
+            logger.debug(
+                f"Descriptor found: {file_path} (direct URL,"
+                f" cached={ghfile.from_cache})")
+            raw = (ghfile.json() if filename.endswith(".json")
+                   else yaml.safe_load(ghfile.text))
+            return DescriptorParserFactory.parse_descriptor(
+                raw, name=name
+            ).model_dump(by_alias=True)
+
         for filename in ("descriptor.json", "descriptor.yaml", "config.yaml"):
             ghfile = github_session.get(f"{base}/{filename}")
+            if ghfile.status_code in (403, 429):
+                raise ValueError(
+                    f"GitHub rate limit exceeded (HTTP {ghfile.status_code}) — "
+                    f"please wait a few minutes and try again: {repo_url}"
+                )
             if not ghfile.ok:
                 continue
-            logger.debug(f"Descriptor found: {filename} (cached={ghfile.from_cache})")
+            logger.debug(
+                f"Descriptor found: {filename} (cached={ghfile.from_cache})")
             raw = (ghfile.json() if filename.endswith(".json")
                    else yaml.safe_load(ghfile.text))
             return DescriptorParserFactory.parse_descriptor(
@@ -2303,7 +2954,8 @@ class SlurmClient(Connection):
         """
         model_path = self.slurm_model_paths[workflow.lower()]
         job_script = self.slurm_model_jobs[workflow.lower()]
-        job_params = self.slurm_model_jobs_params[workflow.lower()]
+        job_params = list(self.slurm_model_jobs_params[workflow.lower()])
+
         # grab only the image name, not the group/creator
         image = self.slurm_model_images[workflow.lower()].split("/")[1]
 
@@ -2314,8 +2966,70 @@ class SlurmClient(Connection):
             "SINGULARITY_IMAGE": f"\"{image}_{workflow_version}.sif\"",
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
         }
-        if self.slurm_data_bind_path is not None:
+
+        config_use_gpu = self.slurm_model_use_gpu.get(workflow.lower(), False)
+        use_gpu_value = kwargs.get("use_gpu")
+        if use_gpu_value is None:
+            use_gpu = config_use_gpu
+        else:
+            use_gpu = str(use_gpu_value).lower() in (
+                "true", "1", "yes", "y", "on"
+            )
+
+        if self.inject_gpu_flag:
+            if use_gpu:
+                if self.gpu_partition and not any(
+                    p.startswith(" --partition=") for p in job_params
+                ):
+                    job_params.append(f" --partition={self.gpu_partition}")
+                if self.gpu_gres and not any(
+                    p.startswith(" --gres=") for p in job_params
+                ):
+                    job_params.append(f" --gres={self.gpu_gres}")
+                if self.gpu_gpus and not any(
+                    p.startswith(" --gpus=") for p in job_params
+                ):
+                    job_params.append(f" --gpus={self.gpu_gpus}")
+                if not self.gpu_partition and not self.gpu_gres and not self.gpu_gpus:
+                    logger.warning(
+                        "Workflow %s requested GPU defaults but no generic gpu_partition, gpu_gres, or gpu_gpus is configured.",
+                        workflow,
+                    )
+                sbatch_env["GPU_FLAG"] = "--nv"
+            else:
+                sbatch_env["GPU_FLAG"] = ""
+        elif config_use_gpu:
+            if self.gpu_partition and not any(
+                p.startswith(" --partition=") for p in job_params
+            ):
+                job_params.append(f" --partition={self.gpu_partition}")
+            if self.gpu_gres and not any(
+                p.startswith(" --gres=") for p in job_params
+            ):
+                job_params.append(f" --gres={self.gpu_gres}")
+            if self.gpu_gpus and not any(
+                p.startswith(" --gpus=") for p in job_params
+            ):
+                job_params.append(f" --gpus={self.gpu_gpus}")
+            if not self.gpu_partition and not self.gpu_gres and not self.gpu_gpus:
+                logger.warning(
+                    "Workflow %s requested GPU defaults but no generic gpu_partition, gpu_gres, or gpu_gpus is configured.",
+                    workflow,
+                )
+        # Generic fallback partition: only applied when the job does not already
+        # carry a --partition= directive (per-workflow params or the GPU path),
+        # so per-workflow and GPU partitions always win.
+        if self.slurm_default_partition and not any(
+            p.startswith(" --partition=") for p in job_params
+        ):
+            job_params.append(f" --partition={self.slurm_default_partition}")
+        if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
+        # Apply global sbatch params as fallback; per-workflow params take precedence.
+        for global_param in self.slurm_global_job_params:
+            flag_prefix = global_param.split("=")[0] + "="
+            if not any(p.startswith(flag_prefix) for p in job_params):
+                job_params.append(global_param)
         workflow_env = self.workflow_params_to_envvars(**kwargs)
         env = {**sbatch_env, **workflow_env}
 
@@ -2324,9 +3038,30 @@ class SlurmClient(Connection):
         job_params.append(time_param)
         job_params.append(email_param)
         job_param = "".join(job_params)
-        sbatch_cmd = f"sbatch{job_param} --output=omero-%j.log \
-            \"{self.slurm_script_path}/{job_script}\""
 
+        if self.env_file_submission:
+            logger.debug(f"Using env file submission for workflow {workflow}: {env}")
+            env_file = f"{self.slurm_data_path}/{input_data}/biomero_job_env.sh"
+            env_lines = "\n".join(
+                f"export {key}={shlex.quote(str(value).strip(chr(34)))}"
+                for key, value in env.items()
+            )
+            write_env_cmd = (
+                f"cat > {shlex.quote(env_file)} <<'BIOMERO_ENV'\n"
+                f"{env_lines}\n"
+                "BIOMERO_ENV\n"
+            )
+            sbatch_cmd = (
+                f"{write_env_cmd}"
+                f"sbatch{job_param} --output=omero-%j.log "
+                f"\"{self.slurm_script_path}/{job_script}\" {shlex.quote(env_file)}"
+            )
+            return sbatch_cmd, {}
+
+        sbatch_cmd = (
+            f"sbatch{job_param} --output=omero-%j.log "
+            f'"{self.slurm_script_path}/{job_script}"'
+        )
         return sbatch_cmd, env
 
     def get_conversion_command(self, data_path: str,
@@ -2377,13 +3112,55 @@ class SlurmClient(Connection):
             "SCRIPT_PATH": f"\"{self.slurm_script_path}\"",
             "CONFIG_FILE": f"\"{config_file}\"",
         }
-        if self.slurm_data_bind_path is not None:
+        if self.slurm_data_bind_path:
             sbatch_env["APPTAINER_BINDPATH"] = f"\"{self.slurm_data_bind_path}\""
-        if self.slurm_conversion_partition is not None:
+        if self.slurm_conversion_partition:
             sbatch_env["CONVERSION_PARTITION"] = f"\"{self.slurm_conversion_partition}\""
 
-        conversion_cmd = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N \"$SCRIPT_PATH/convert_job_array.sh\""
-        # conversion_cmd_waiting = "sbatch --job-name=conversion --export=ALL,CONFIG_PATH=\"$PWD/$CONFIG_FILE\" --array=1-$N --wait $SCRIPT_PATH/convert_job_array.sh"
+        config_path = f'"$PWD/{config_file}"'
+        conversion_script = (
+            f'"{self.slurm_script_path}/convert_job_array.sh"'
+        )
+        # The conversion job is always submitted via sbatch, so it honours the
+        # same generic sbatch settings as workflow jobs: a partition (its own
+        # slurm_conversion_partition, otherwise the generic
+        # slurm_default_partition fallback) and any global sbatch params
+        # (e.g. --reservation). The conversion-specific partition wins over the
+        # generic default, and an explicit partition flag wins over a global one.
+        conversion_params = []
+        partition = (
+            self.slurm_conversion_partition or self.slurm_default_partition)
+        if partition:
+            conversion_params.append(f" --partition={partition}")
+        for global_param in self.slurm_global_job_params:
+            flag_prefix = global_param.split("=")[0] + "="
+            if not any(p.startswith(flag_prefix) for p in conversion_params):
+                conversion_params.append(global_param)
+        conversion_param = "".join(conversion_params)
+        conversion_cmd = (
+            f"sbatch{conversion_param} --job-name=conversion "
+            "--output=omero-%A_%a.log "
+            f"--export=ALL,CONFIG_PATH={config_path} "
+            f"--array=1-$N {conversion_script}"
+        )
+        
+        if self.env_file_submission:
+            logger.debug(f"Using env file submission for conversion with env: {sbatch_env}")
+            env_file = f"{data_path}/biomero_job_env.sh"
+            env_lines = "\n".join(
+                f"export {key}={shlex.quote(str(value).strip(chr(34)))}"
+                for key, value in sbatch_env.items()
+            )
+            write_env_cmd = (
+                f"cat > {shlex.quote(env_file)} <<'BIOMERO_ENV'\n"
+                f"{env_lines}\n"
+                "BIOMERO_ENV\n"
+            )
+            env_conversion_cmd = (
+                f"{write_env_cmd}"
+                f"{conversion_cmd} {shlex.quote(env_file)}"
+            )
+            return env_conversion_cmd, {}, chosen_converter, version
 
         return conversion_cmd, sbatch_env, chosen_converter, version
 
@@ -2509,8 +3286,10 @@ class SlurmClient(Connection):
         Returns:
             str: The command to create the zip file.
         """
-        return self._ZIP_CMD.format(filename=filename,
-                                    data_location=data_location)
+        return (
+            f"cd \"{data_location}/data/out\" && "
+            f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
+        )
 
     def get_logfile_from_slurm(self,
                                slurm_job_id: str,
@@ -2549,6 +3328,51 @@ class SlurmClient(Connection):
         export_file = local_tmp_storage+logfile
         return local_tmp_storage, export_file, result
 
+    def get_conversion_logfile_from_slurm(self,
+                                          slurm_job_id: str,
+                                          local_tmp_storage: str = "/tmp/",
+                                          logfile: str = None
+                                          ) -> Tuple[str, str, Any]:
+        """Copy a conversion job's log(s) to local storage as one combined file.
+
+        A conversion is submitted as a Slurm array job with
+        ``--output=omero-%A_%a.log``, so it produces one log per array task
+        (``omero-<jobid>_1.log``, ``omero-<jobid>_2.log``, ...). This reads all
+        matching logs on the Slurm side and writes a single combined log file
+        locally, so it can be attached to OMERO exactly like a workflow log --
+        including when the conversion failed and the logs are the only clue.
+
+        Unlike :meth:`get_logfile_from_slurm` (which sftp-copies a single named
+        file) this resolves the array glob via ``cat`` and tolerates the case
+        where no log files exist (writes an empty file rather than erroring).
+
+        Args:
+            slurm_job_id (str): The ID of the conversion (array) Slurm job.
+            local_tmp_storage (str, optional): Local directory to write the
+                combined log to. Defaults to "/tmp/".
+            logfile (str, optional): Explicit log glob to read (e.g.
+                ``SlurmJob.log_file``). Defaults to the converter glob
+                ``omero-<jobid>_*.log``.
+
+        Returns:
+            Tuple[str, str, Any]: local directory, combined log file path, and
+                the raw ``cat`` Result.
+        """
+        if logfile is None:
+            logfile = self._CONVERTER_LOGFILE.format(
+                slurm_job_id=slurm_job_id).replace('"', '')
+        # cat all matching array-task logs; tolerate none existing so this
+        # never raises while trying to surface a failure log.
+        cat_cmd = f"cat {logfile} 2>/dev/null || true"
+        result = self.run(cat_cmd)
+        export_file = os.path.join(
+            local_tmp_storage, self._LOGFILE.format(slurm_job_id=slurm_job_id))
+        content = result.stdout if result and getattr(
+            result, "stdout", None) else ""
+        with open(export_file, "w") as f:
+            f.write(content)
+        return local_tmp_storage, export_file, result
+
     def get_unzip_command(self, zipfile: str,
                           filter_filetypes: str = "*.zarr *.ome.zarr *.tiff *.tif"
                           ) -> str:
@@ -2570,13 +3394,16 @@ class SlurmClient(Connection):
                 The command to extract the specified
                 filetypes from the zip file.
         """
-        unzip_cmd = f"mkdir \"{self.slurm_data_path}/{zipfile}\" \
-                    \"{self.slurm_data_path}/{zipfile}/data\" \
-                    \"{self.slurm_data_path}/{zipfile}/data/in\" \
-                    \"{self.slurm_data_path}/{zipfile}/data/out\" \
-                    \"{self.slurm_data_path}/{zipfile}/data/gt\"; \
-                    7z x -y -o\"{self.slurm_data_path}/{zipfile}/data/in\" \
-                    \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
+        unzip_cmd = (
+            f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
+            f" \"{self.slurm_data_path}/{zipfile}/data\""
+            f" \"{self.slurm_data_path}/{zipfile}/data/in\""
+            f" \"{self.slurm_data_path}/{zipfile}/data/out\""
+            f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
+            f" {self.slurm_zip_cmd} x -y"
+            f" -o\"{self.slurm_data_path}/{zipfile}/data/in\""
+            f" \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
+        )
 
         return unzip_cmd
 

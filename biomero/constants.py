@@ -30,6 +30,28 @@ RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 CLEANUP = "Cleanup?"
 
 
+class slurm_env:
+    BIOMERO_SACCT_START_TIME = "BIOMERO_SACCT_START_TIME"
+    BIOMERO_SACCT_START_DAYS_AGO = "BIOMERO_SACCT_START_DAYS_AGO"
+    BIOMERO_ENV_FILE_SUBMISSION = "BIOMERO_ENV_FILE_SUBMISSION"
+    BIOMERO_INJECT_GPU_FLAG = "BIOMERO_INJECT_GPU_FLAG"
+    BIOMERO_GPU_PARTITION = "BIOMERO_GPU_PARTITION"
+    BIOMERO_GPU_GRES = "BIOMERO_GPU_GRES"
+    BIOMERO_GPU_GPUS = "BIOMERO_GPU_GPUS"
+    BIOMERO_DEFAULT_PARTITION = "BIOMERO_DEFAULT_PARTITION"
+    BIOMERO_SLURM_ZIP_CMD = "BIOMERO_SLURM_ZIP_CMD"
+    BIOMERO_IMAGE_PULL_VIA_SBATCH = "BIOMERO_IMAGE_PULL_VIA_SBATCH"
+    BIOMERO_PULL_CPUS = "BIOMERO_PULL_CPUS"
+    BIOMERO_PULL_MEM = "BIOMERO_PULL_MEM"
+    BIOMERO_APPTAINER_TMPDIR = "BIOMERO_APPTAINER_TMPDIR"
+    BIOMERO_APPTAINER_CACHEDIR = "BIOMERO_APPTAINER_CACHEDIR"
+    BIOMERO_ANALYTICS_REBUILD_START_TIME = "BIOMERO_ANALYTICS_REBUILD_START_TIME"
+    BIOMERO_ANALYTICS_REBUILD_DAYS_AGO = "BIOMERO_ANALYTICS_REBUILD_DAYS_AGO"
+    GPU_PARTITION = "GPU_PARTITION"
+    GPU_GRES = "GPU_GRES"
+    GPU_GPUS = "GPU_GPUS"
+
+
 class conversion:
     # ------------------------------------------------------------
     # SLURM_Remote_Conversion script constants
@@ -106,6 +128,13 @@ class results:
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
     OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
+    # Guaranteed container the SLURM job log is force-linked to when no richer
+    # attachment target was resolved, so the log is always findable in OMERO
+    # (unlinked annotations are effectively invisible to users). Forwarded by
+    # SLURM_Run_Workflow as a "DataType:id" string (e.g. "Plate:123" or
+    # "Dataset:45"); the import scripts also derive this from the workflow's
+    # input objects when the parameter is absent (standalone manual runs).
+    LOG_FALLBACK_TARGET = "Log_Fallback_Target"
 
 
 class transfer:

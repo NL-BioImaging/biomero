@@ -130,10 +130,14 @@ Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
 Your Slurm cluster/login node needs to have:
 1. SSH access w/ public key (headless)
 2. SCP access (generally comes with SSH)
-3. 7zip installed
+3. A compatible zip command available for result archiving: `7z` or `7za`
 4. Singularity/Apptainer installed
-5. (Optional) Git installed, if you want your own job scripts
+5. (Optional) Git installed, only if you intentionally use an external `slurm_script_repo` (not recommended)
 6. Slurm accounting enabled
+
+If your cluster exposes only one archive binary or auto-detection is unreliable,
+BIOMERO can be configured explicitly with `slurm_zip_cmd`. See the configuration
+docs linked below.
 
 ## OMERO Requirements
 
@@ -176,6 +180,18 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
     - `/etc/slurm-config.ini`
     - `~/slurm-config.ini`
 
+    For the BIOMERO Python client configuration details, including environment-variable overrides, precedence rules, and the runtime impact of newer options such as `env_file_submission`, `inject_gpu_flag`, `gpu_partition`, `gpu_gres`, `sacct_days_ago`, and `slurm_zip_cmd`, see:
+    - [docs/slurm-configuration.rst](./docs/slurm-configuration.rst)
+    - [docs/configuration-reference.rst](./docs/configuration-reference.rst)
+
+    In most installations, leave `slurm_script_repo` empty and use BIOMERO's
+    generated job scripts. External script repositories are an advanced option
+    and can drift out of sync with newer BIOMERO releases.
+
+    If your cluster does not reliably propagate SSH session environment
+    variables into `sbatch` jobs, review `inline_ssh_env` and the optional
+    `env_file_submission` mode in the configuration docs before deployment.
+
     *Note*: Make sure to place the `slurm-config.ini` in the target folder at build time of your docker container instead of mounting it at runtime. This is because the library reads the config file at import time, and if it is not found, it will not work.
 
 4. Install OMERO scripts from [OMERO Slurm Scripts](https://github.com/NL-BioImaging/biomero-scripts), e.g. 
@@ -193,8 +209,8 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 
 6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.
     - You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field. 
-    - Please note the requirements for your Slurm cluster. We do not install Singularity / 7zip on your cluster for you (at the time of writing).
-    - This operation will make it create the directories you provided in the `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and generate (or clone from Git) any job scripts for these workflows:
+    - Please note the requirements for your Slurm cluster. We do not install Singularity/Apptainer or the required archive tool (`7z` or `7za`) on your cluster for you.
+    - This operation will create the directories you configured in `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and by default generate job scripts for your configured workflows. It will only clone scripts from Git if you explicitly configure `slurm_script_repo`:
 
 ```python
 with SlurmClient.from_config(configfile=configfile,
@@ -426,7 +442,7 @@ The `slurm-config.ini` file is a configuration file used by the `biomero` Python
 
 [**SSH**]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user's SSH config file or in `/etc/fabric.yml`.
 
-[**SLURM**]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (slurm_data_path), container image files (slurm_images_path), and Slurm job scripts (slurm_script_path). It also specifies the repository (slurm_script_repo) from which to pull the Slurm scripts.
+[**SLURM**]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (`slurm_data_path`), container image files (`slurm_images_path`), converter images (`slurm_converters_path`), and Slurm job scripts (`slurm_script_path`). It also includes optional behavior flags and overrides such as `slurm_data_bind_path`, `slurm_conversion_partition`, `sacct_start_time`, `sacct_days_ago`, `env_file_submission`, `inject_gpu_flag`, `gpu_partition`, `gpu_gres`, `slurm_zip_cmd`, and the advanced `slurm_script_repo` setting.
 
 [**MODELS**]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for `<key>_repo` (repository containing the descriptor.json file, which will describe parameters and where to find the image), and `<key>_job` (jobscript name and location in the `slurm_script_repo`). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.
 
@@ -646,9 +662,18 @@ By default, `biomero` will generate basic slurm jobs for each workflow, based on
 It will replace `$PARAMS` with the (non-`cytomine_`) parameters given in `descriptor.json`. See also the [Parameters](#parameters) section below.
 
 ## How to add your own Slurm job
-You could change the [job template](./resources/job_template.sh) and generate new jobs, by running `SlurmClient.from_config(init_slurm=True)` (or `slurmClient.update_slurm_scripts(generate_jobs=True)`) 
+The recommended path is to change the [job template](./resources/job_template.sh)
+and regenerate jobs by running `SlurmClient.from_config(init_slurm=True)`
+(or `slurmClient.update_slurm_scripts(generate_jobs=True)`).
 
-Or you could add your jobs to a [Github repository](https://github.com/TorecLuik/slurm-scripts) and reference this in `slurm-config.ini`, both in the field `slurm_script_repo` and every `<workflow>_job`:
+You can also point BIOMERO at an external scripts repository through
+`slurm_script_repo`, but this is an advanced option. BIOMERO does not maintain
+an always-up-to-date public scripts repository for operators, and external
+repositories can drift out of sync with newer BIOMERO releases.
+
+If you still want to maintain your own scripts repository, reference it in
+`slurm-config.ini`, both in the field `slurm_script_repo` and every
+`<workflow>_job`:
 
 ```ini
 # -------------------------------------
@@ -662,9 +687,9 @@ Or you could add your jobs to a [Github repository](https://github.com/TorecLuik
 #
 slurm_script_repo=https://github.com/TorecLuik/slurm-scripts
 
-[MODELS]
+[WORKFLOWS]
 # -------------------------------------
-# Model settings
+# Workflow settings (also accepted as [MODELS] for backward compatibility)
 # -------------------------------------
 # ...
 # -------------------------------------
@@ -678,9 +703,12 @@ cellpose_repo=https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1
 cellpose_job=jobs/cellpose.sh
 ```
 
-You can update the jobs by calling `slurmClient.update_slurm_scripts()`, which will pull the repository('s default branch).
+You can update those external jobs by calling `slurmClient.update_slurm_scripts()`,
+which will pull the repository's default branch.
 
-This might be useful, for example if you have other hardware requirements for your workflow(s) than the default job asks for, or if you want to run more than just 1 singularity container.
+This is only recommended when you explicitly want to own and maintain custom
+job scripts. For most users, descriptor-driven BIOMERO script generation is the
+safer and less maintenance-heavy option.
 
 ### Parameters
 The library will provide the parameters from your `descriptor.json` as environment variables to the call. E.g. `set DIAMETER=0; sbatch ...`.

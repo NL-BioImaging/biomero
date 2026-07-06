@@ -350,7 +350,7 @@ class SlurmClient(Connection):
 
         if empty_is_none and value == "":
             value = None
-            typed_value = None
+            typed_value = default
 
         # ---- ENV OVERRIDE (first match wins) ----
         env_value = None
@@ -387,7 +387,7 @@ class SlurmClient(Connection):
                     return typed_value
 
             if empty_is_none and env_value == "":
-                return None
+                return typed_value
 
             return env_value
 

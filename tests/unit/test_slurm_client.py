@@ -68,7 +68,8 @@ def test_get_config_value_uses_ini_when_env_missing():
     assert value == "ini-value"
 
 
-def test_get_config_value_treats_empty_as_none():
+def test_get_config_value_empty_uses_default():
+    """empty_is_none=True + blank ini value → falls back to default, not None."""
     config = MagicMock()
     config.get.return_value = ""
 
@@ -81,7 +82,60 @@ def test_get_config_value_treats_empty_as_none():
         empty_is_none=True,
     )
 
+    assert value == "default-value"
+
+
+def test_get_config_value_empty_none_default_stays_none():
+    """empty_is_none=True + blank ini value + default=None → returns None (optional field)."""
+    config = MagicMock()
+    config.get.return_value = ""
+
+    value = SlurmClient._get_config_value(
+        config,
+        section="SLURM",
+        option="test_option",
+        default=None,
+        env_vars=None,
+        empty_is_none=True,
+    )
+
     assert value is None
+
+
+def test_get_config_value_empty_env_not_an_override():
+    """empty_is_none=True + blank env var → env var is ignored, ini/default wins."""
+    config = MagicMock()
+    config.get.return_value = "ini-value"
+
+    with patch.dict(os.environ, {"TEST_ENV_KEY": ""}, clear=False):
+        value = SlurmClient._get_config_value(
+            config,
+            section="SLURM",
+            option="test_option",
+            default="default-value",
+            env_vars=["TEST_ENV_KEY"],
+            empty_is_none=True,
+        )
+
+    assert value == "ini-value"
+
+
+def test_get_config_value_empty_ini_and_empty_env_uses_default():
+    """empty_is_none=True + blank ini + blank env → both ignored, default wins."""
+    config = MagicMock()
+    config.get.return_value = ""
+
+    with patch.dict(os.environ, {"TEST_ENV_KEY": ""}, clear=False):
+        value = SlurmClient._get_config_value(
+            config,
+            section="SLURM",
+            option="test_option",
+            default="default-value",
+            env_vars=["TEST_ENV_KEY"],
+            empty_is_none=True,
+        )
+
+    assert value == "default-value"
 
 
 @pytest.mark.parametrize(
@@ -2236,6 +2290,26 @@ def test_get_jobs_info_command_default_start_time(slurm_client_from_config_facto
     assert "--starttime 2023-01-01" in cmd
 
 
+def test_get_jobs_info_command_empty_ini_falls_back_to_default(slurm_client_from_config_factory):
+    """
+    sacct_start_time blank in config → falls back to class default "2023-01-01".
+    empty_is_none=True causes _get_config_value to return None for a blank value,
+    so from_config must apply the fallback itself.
+    This is the scenario that caused 'sacct --starttime None' in production.
+    """
+    # GIVEN
+    slurm_client = slurm_client_from_config_factory(
+        config_values={"sacct_start_time": ""}
+    )
+
+    # WHEN
+    cmd = slurm_client.get_jobs_info_command()
+
+    # THEN
+    assert "--starttime 2023-01-01" in cmd
+    assert "None" not in cmd
+
+
 def test_get_jobs_info_command_ini_absolute_date(slurm_client_from_config_factory):
     """
     sacct_start_time set (e.g. from slurm-config.ini) overrides class default.
@@ -4166,11 +4240,11 @@ def test_from_config_new_option_parsing_uses_helper(
 
     # THEN
     _, kwargs = mock_SlurmClient.call_args
-    assert kwargs['sacct_start_time'] is None
+    assert kwargs['sacct_start_time'] == SlurmClient._DEFAULT_SACCT_START_TIME
     assert kwargs['sacct_days_ago'] is None
     assert kwargs['slurm_data_bind_path'] is None
     assert kwargs['slurm_conversion_partition'] is None
-    assert kwargs['slurm_zip_cmd'] is None
+    assert kwargs['slurm_zip_cmd'] == SlurmClient._DEFAULT_SLURM_ZIP_CMD
     assert kwargs['env_file_submission'] is True
 
 

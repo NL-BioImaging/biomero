@@ -462,7 +462,7 @@
 
         <span class="k">if</span> <span class="n">empty_is_none</span> <span class="ow">and</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="n">typed_value</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">typed_value</span> <span class="o">=</span> <span class="n">default</span>
 
         <span class="c1"># ---- ENV OVERRIDE (first match wins) ----</span>
         <span class="n">env_value</span> <span class="o">=</span> <span class="kc">None</span>
@@ -499,7 +499,7 @@
                     <span class="k">return</span> <span class="n">typed_value</span>
 
             <span class="k">if</span> <span class="n">empty_is_none</span> <span class="ow">and</span> <span class="n">env_value</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">None</span>
+                <span class="k">return</span> <span class="n">typed_value</span>
 
             <span class="k">return</span> <span class="n">env_value</span>
 

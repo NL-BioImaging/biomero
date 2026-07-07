@@ -30,7 +30,7 @@ I provide ready-to-go TL;DR, but in the details of each chapter I walk through t
 ## 1. Setup Docker containers for Slurm
 
 ### TL;DR:
-- Clone my example `slurm-docker-cluster` locally: [here](https://github.com/NL-BioImaging/NL-BIOMERO-Local-Slurm)
+- Clone my example `slurm-docker-cluster` locally: [here](https://github.com/NL-BioImaging/NL-BIOMERO-Local-Slurm) (or the [GPU-enabled variant](https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO-Local-Slurm-GPU) for WSL2/Docker Desktop)
 
 
 

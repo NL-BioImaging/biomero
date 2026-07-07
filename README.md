@@ -78,6 +78,7 @@ For a quick overview of what this library can do for you, we can install an exam
     - Follow Quickstart of https://github.com/NL-BioImaging/NL-BIOMERO
 2. Setup a local Slurm w/ SSH access: 
     - Follow Quickstart of https://github.com/NL-BioImaging/NL-BIOMERO-Local-Slurm
+    - (or the GPU-enabled variant: https://github.com/Cellular-Imaging-Amsterdam-UMC/NL-BIOMERO-Local-Slurm-GPU)
 3. Upload some data with OMERO.insight to `localhost` server (... we are working on a web importer ... TBC)
 4. Try out some scripts from https://github.com/NL-BioImaging/biomero-scripts (already installed in step 1!):
     1. Run script `biomero` > `admin` > `SLURM Init environment...`

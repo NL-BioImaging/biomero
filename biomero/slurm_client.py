@@ -659,7 +659,8 @@ class SlurmClient(Connection):
         self.analytics_rebuild_start_time = analytics_rebuild_start_time
         self.analytics_rebuild_days_ago = analytics_rebuild_days_ago
 
-        # Init cache. Keep responses for 3600 seconds (1 hour)
+        # Init cache. Versioned URLs (/tree/vX.Y.Z) are immutable → 24h TTL.
+        # Unversioned/master URLs → 1h TTL. Stale data is served on 429.
         self.cache = requests_cache.backends.sqlite.SQLiteCache(
             db_path="github_cache", use_temp=True)
         self.get_or_create_github_session()
@@ -2907,7 +2908,12 @@ class SlurmClient(Connection):
         # NOT count towards your Github limits. And requests_cache does that for us now.
         # Not available in Python3.6 though.
         s = requests_cache.CachedSession(backend=self.cache,
-                                         expire_after=3600,
+                                         urls_expire_after={
+                                             # Versioned tree URLs are immutable — cache for 24 h.
+                                             '*/tree/v*': 86400,
+                                             # Everything else (unversioned, master, etc.) — 1 h.
+                                             '*': 3600,
+                                         },
                                          cache_control=True,
                                          stale_if_error=True,
                                          )

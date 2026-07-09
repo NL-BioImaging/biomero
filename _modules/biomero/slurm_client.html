@@ -771,7 +771,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">analytics_rebuild_start_time</span> <span class="o">=</span> <span class="n">analytics_rebuild_start_time</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">analytics_rebuild_days_ago</span> <span class="o">=</span> <span class="n">analytics_rebuild_days_ago</span>
 
-        <span class="c1"># Init cache. Keep responses for 3600 seconds (1 hour)</span>
+        <span class="c1"># Init cache. Versioned URLs (/tree/vX.Y.Z) are immutable → 24h TTL.</span>
+        <span class="c1"># Unversioned/master URLs → 1h TTL. Stale data is served on 429.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">sqlite</span><span class="o">.</span><span class="n">SQLiteCache</span><span class="p">(</span>
             <span class="n">db_path</span><span class="o">=</span><span class="s2">&quot;github_cache&quot;</span><span class="p">,</span> <span class="n">use_temp</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_github_session</span><span class="p">()</span>
@@ -3019,7 +3020,12 @@
         <span class="c1"># NOT count towards your Github limits. And requests_cache does that for us now.</span>
         <span class="c1"># Not available in Python3.6 though.</span>
         <span class="n">s</span> <span class="o">=</span> <span class="n">requests_cache</span><span class="o">.</span><span class="n">CachedSession</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
-                                         <span class="n">expire_after</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+                                         <span class="n">urls_expire_after</span><span class="o">=</span><span class="p">{</span>
+                                             <span class="c1"># Versioned tree URLs are immutable — cache for 24 h.</span>
+                                             <span class="s1">&#39;*/tree/v*&#39;</span><span class="p">:</span> <span class="mi">86400</span><span class="p">,</span>
+                                             <span class="c1"># Everything else (unversioned, master, etc.) — 1 h.</span>
+                                             <span class="s1">&#39;*&#39;</span><span class="p">:</span> <span class="mi">3600</span><span class="p">,</span>
+                                         <span class="p">},</span>
                                          <span class="n">cache_control</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                                          <span class="n">stale_if_error</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                                          <span class="p">)</span>

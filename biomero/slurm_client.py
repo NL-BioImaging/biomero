@@ -2289,6 +2289,7 @@ class SlurmClient(Connection):
                      email: Optional[str] = None,
                      time: Optional[str] = None,
                      wf_id: Optional[UUID] = None,
+                     output_settings: Optional[Dict] = None,
                      **kwargs
                      ) -> Tuple[Result, int, UUID, UUID]:
         """
@@ -2329,6 +2330,8 @@ class SlurmClient(Connection):
             workflow_name, input_data)
         # user kwargs take precedence
         recorded_params = {**server_params, **kwargs}
+        if output_settings:
+            recorded_params["output_settings"] = output_settings
 
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
@@ -2360,6 +2363,7 @@ class SlurmClient(Connection):
                          email: Optional[str] = None,
                          time: Optional[str] = None,
                          wf_id: Optional[UUID] = None,
+                         output_settings: Optional[Dict] = None,
                          **kwargs
                          ) -> SlurmJob:
         """
@@ -2372,6 +2376,7 @@ class SlurmClient(Connection):
             email (str, optional): Email address for Slurm job notifications.
             time (str, optional): Time limit for the Slurm job in the format HH:MM:SS.
             wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.
+            output_settings (dict, optional): Selected output settings for results import.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
@@ -2379,6 +2384,7 @@ class SlurmClient(Connection):
         """
         result, job_id, wf_id, task_id = self.run_workflow(
             workflow_name, workflow_version, input_data, email, time, wf_id,
+            output_settings=output_settings,
             **kwargs)
         return SlurmJob(result, job_id, wf_id, task_id)
 

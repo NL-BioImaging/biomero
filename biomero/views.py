@@ -35,6 +35,25 @@ class JobAccounting(ProcessApplication):
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
         self.tasks = {}      # {task_id: wf_id}
         self.jobs = {}       # {job_id: (task_id, user, group)}   
+
+    def resolve_workflow(self, wf_id):
+        if wf_id not in self.workflows:
+            try:
+                wf_agg = self.repository.get(wf_id)
+                self.workflows[wf_id] = {"user": wf_agg.user, "group": wf_agg.group}
+            except Exception as e:
+                logger.warning(f"Could not resolve workflow {wf_id} in JobAccounting: {e}")
+        return self.workflows.get(wf_id)
+
+    def resolve_task(self, task_id):
+        if task_id not in self.tasks:
+            try:
+                task_agg = self.repository.get(task_id)
+                self.tasks[task_id] = task_agg.workflow_id
+                self.resolve_workflow(task_agg.workflow_id)
+            except Exception as e:
+                logger.warning(f"Could not resolve task {task_id} in JobAccounting: {e}")
+        return self.tasks.get(task_id)
                    
     @singledispatchmethod
     def policy(self, domain_event, process_event):
@@ -79,9 +98,9 @@ class JobAccounting(ProcessApplication):
         task_id = domain_event.originator_id
         
         # Find workflow and user/group for the task
-        wf_id = self.tasks.get(task_id)
+        wf_id = self.resolve_task(task_id)
         if wf_id:
-            workflow_info = self.workflows.get(wf_id)
+            workflow_info = self.resolve_workflow(wf_id)
             if workflow_info:
                 user = workflow_info["user"]
                 group = workflow_info["group"]
@@ -185,6 +204,37 @@ class WorkflowProgress(ProcessApplication):
         self.workflows = {}  
         self.tasks = {}  # {task_id: {"workflow_id": wf_id, "task_name": task_name}}
 
+    def resolve_workflow(self, wf_id):
+        if wf_id not in self.workflows:
+            try:
+                wf_agg = self.repository.get(wf_id)
+                self.workflows[wf_id] = {
+                    "status": wfs.INITIALIZING, 
+                    "progress": "0%", 
+                    "user": wf_agg.user, 
+                    "group": wf_agg.group,
+                    "name": wf_agg.name,
+                    "task": None,
+                    "start_time": getattr(wf_agg, "start_time", None)
+                }
+            except Exception as e:
+                logger.warning(f"Could not resolve workflow {wf_id} in WorkflowProgress: {e}")
+        return self.workflows.get(wf_id)
+
+    def resolve_task(self, task_id):
+        if task_id not in self.tasks:
+            try:
+                task_agg = self.repository.get(task_id)
+                self.tasks[task_id] = {
+                    "task_name": task_agg.task_name,
+                    "workflow_id": task_agg.workflow_id,
+                    "progress": getattr(task_agg, "progress", None)
+                }
+                self.resolve_workflow(task_agg.workflow_id)
+            except Exception as e:
+                logger.warning(f"Could not resolve task {task_id} in WorkflowProgress: {e}")
+        return self.tasks.get(task_id)
+
     @singledispatchmethod
     def policy(self, domain_event, process_event):
         """Default policy"""
@@ -215,7 +265,7 @@ class WorkflowProgress(ProcessApplication):
     def _(self, domain_event, process_event):
         wf_id = domain_event.originator_id
         # Defensive check: ensure workflow exists in our dictionary
-        if wf_id not in self.workflows:
+        if not self.resolve_workflow(wf_id):
             logger.warning(f"[WFP] WorkflowCompleted event for unknown workflow: wf_id={wf_id}. Skipping status update.")
             return
             
@@ -230,7 +280,7 @@ class WorkflowProgress(ProcessApplication):
         wf_id = domain_event.originator_id
         error = domain_event.error_message
         # Defensive check: ensure workflow exists in our dictionary
-        if wf_id not in self.workflows:
+        if not self.resolve_workflow(wf_id):
             logger.warning(f"[WFP] WorkflowFailed event for unknown workflow: wf_id={wf_id}. Skipping status update.")
             return
             
@@ -246,10 +296,12 @@ class WorkflowProgress(ProcessApplication):
         wf_id = domain_event.originator_id
 
         # Track task to workflow mapping
-        if task_id in self.tasks:
-            self.tasks[task_id]["workflow_id"] = wf_id
-            if wf_id in self.workflows:
-                self.workflows[wf_id]["task"] = self.tasks[task_id]["task_name"]
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["workflow_id"] = wf_id
+            workflow_info = self.resolve_workflow(wf_id)
+            if workflow_info:
+                workflow_info["task"] = task_info["task_name"]
         logger.debug(f"[WFP] Task added: task_id={task_id}, wf_id={wf_id} -- {domain_event.__dict__}")
         EngineManager.commit()
 
@@ -275,12 +327,13 @@ class WorkflowProgress(ProcessApplication):
         status = domain_event.status
 
         # Get the workflow ID and task name associated with this task
-        task_info = self.tasks.get(task_id)
+        task_info = self.resolve_task(task_id)
         if task_info:
             wf_id = task_info["workflow_id"]
             task_name = task_info["task_name"].lower()
 
-            if wf_id and wf_id in self.workflows:
+            workflow_info = self.resolve_workflow(wf_id)
+            if workflow_info:
                 # Determine status based on task_name
                 if task_name == '_slurm_image_transfer.py':
                     workflow_status = wfs.TRANSFERRING
@@ -302,8 +355,8 @@ class WorkflowProgress(ProcessApplication):
                     # Default to JOB_STATUS prefix for unknown task types
                     workflow_status = wfs.JOB_STATUS + status
                     workflow_prog = "50%"
-                    if "task_progress" in self.workflows[wf_id]:
-                        task_prog = self.workflows[wf_id]["task_progress"]
+                    if "task_progress" in workflow_info:
+                        task_prog = workflow_info["task_progress"]
                         if task_prog:
                             # Initial string and baseline
                             upper_limit_str = "90%"  # Upper limit string
@@ -320,8 +373,8 @@ class WorkflowProgress(ProcessApplication):
                     
 
                 # Update the workflow status
-                self.workflows[wf_id]["status"] = workflow_status
-                self.workflows[wf_id]["progress"] = workflow_prog
+                workflow_info["status"] = workflow_status
+                workflow_info["progress"] = workflow_prog
                 logger.debug(f"[WFP] Status updated: wf_id={wf_id}, task_id={task_id}, status={workflow_status} -- {domain_event.__dict__}")
                 self.update_view_table(wf_id)
             else:
@@ -335,11 +388,13 @@ class WorkflowProgress(ProcessApplication):
         task_id = domain_event.originator_id
         progress = domain_event.progress
         
-        if task_id in self.tasks:
-            self.tasks[task_id]["progress"] = progress
-            wf_id = self.tasks[task_id]["workflow_id"]
-            if wf_id and wf_id in self.workflows:
-                self.workflows[wf_id]["task_progress"] = progress
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["progress"] = progress
+            wf_id = task_info["workflow_id"]
+            workflow_info = self.resolve_workflow(wf_id)
+            if workflow_info:
+                workflow_info["task_progress"] = progress
                 logger.debug(f"[WFP] (Task) Progress updated: wf_id={wf_id}, progress={progress} -- {domain_event.__dict__}")
                 self.update_view_table(wf_id)
             else:
@@ -496,6 +551,31 @@ class WorkflowAnalytics(ProcessApplication):
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
         self.tasks = {}      # {task_id: {"wf_id": wf_id, "task_name": task_name, "task_version": task_version, "start_time": timestamp, "status": status, "end_time": timestamp, "error_type": error_type}}
 
+    def resolve_workflow(self, wf_id):
+        if wf_id not in self.workflows:
+            try:
+                wf_agg = self.repository.get(wf_id)
+                self.workflows[wf_id] = {"user": wf_agg.user, "group": wf_agg.group}
+            except Exception as e:
+                logger.warning(f"Could not resolve workflow {wf_id} in WorkflowAnalytics: {e}")
+        return self.workflows.get(wf_id)
+
+    def resolve_task(self, task_id):
+        if task_id not in self.tasks:
+            try:
+                task_agg = self.repository.get(task_id)
+                self.tasks[task_id] = {
+                    "wf_id": task_agg.workflow_id,
+                    "task_name": task_agg.task_name,
+                    "task_version": task_agg.task_version,
+                    "start_time": getattr(task_agg, "start_time", None),
+                    "status": getattr(task_agg, "status", "CREATED")
+                }
+                self.resolve_workflow(task_agg.workflow_id)
+            except Exception as e:
+                logger.warning(f"Could not resolve task {task_id} in WorkflowAnalytics: {e}")
+        return self.tasks.get(task_id)
+
     @singledispatchmethod
     def policy(self, domain_event, process_event):
         """Default policy"""
@@ -520,12 +600,9 @@ class WorkflowAnalytics(ProcessApplication):
         wf_id = domain_event.originator_id
 
         # Add workflow ID to the existing task information
-        if task_id in self.tasks:
-            self.tasks[task_id]["wf_id"] = wf_id
-        else:
-            # In case TaskAdded arrives before TaskCreated (unlikely but possible)
-            self.tasks[task_id] = {"wf_id": wf_id}
-
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["wf_id"] = wf_id
         logger.debug(f"[WFA] Task added: task_id={task_id}, wf_id={wf_id} -- {domain_event.__dict__}")
         EngineManager.commit()
 
@@ -538,22 +615,15 @@ class WorkflowAnalytics(ProcessApplication):
         timestamp_created = domain_event.timestamp
 
         # Track task creation details
-        if task_id in self.tasks:
-            self.tasks[task_id].update({
-                "task_name": task_name,
-                "task_version": task_version,
-                "start_time": timestamp_created,
-                "status": "CREATED"
-            })
-        else:
-            # Initialize task tracking if TaskAdded hasn't been processed yet
-            self.tasks[task_id] = {
-                "task_name": task_name,
-                "task_version": task_version,
-                "start_time": timestamp_created,
-                "status": "CREATED"
-            }
-
+        if task_id not in self.tasks:
+            self.tasks[task_id] = {}
+        task_info = self.tasks[task_id]
+        task_info.update({
+            "task_name": task_name,
+            "task_version": task_version,
+            "start_time": timestamp_created,
+            "status": "CREATED"
+        })
         logger.debug(f"[WFA] Task created: task_id={task_id}, task_name={task_name}, timestamp={timestamp_created} -- {domain_event.__dict__}")
         self.update_view_table(task_id)
         EngineManager.commit()
@@ -565,8 +635,9 @@ class WorkflowAnalytics(ProcessApplication):
         status = domain_event.status
 
         # Update task with status
-        if task_id in self.tasks:
-            self.tasks[task_id]["status"] = status
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["status"] = status
             logger.debug(f"[WFA] Task status updated: task_id={task_id}, status={status} -- {domain_event.__dict__}")
             self.update_view_table(task_id)
         EngineManager.commit()
@@ -578,8 +649,9 @@ class WorkflowAnalytics(ProcessApplication):
         timestamp_completed = domain_event.timestamp
 
         # Update task with end time
-        if task_id in self.tasks:
-            self.tasks[task_id]["end_time"] = timestamp_completed
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["end_time"] = timestamp_completed
             logger.debug(f"[WFA] Task completed: task_id={task_id}, end_time={timestamp_completed} -- {domain_event.__dict__}")
             self.update_view_table(task_id)
         EngineManager.commit()
@@ -592,9 +664,10 @@ class WorkflowAnalytics(ProcessApplication):
         error_message = domain_event.error_message
 
         # Update task with end time and error message
-        if task_id in self.tasks:
-            self.tasks[task_id]["end_time"] = timestamp_failed
-            self.tasks[task_id]["error_type"] = error_message
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["end_time"] = timestamp_failed
+            task_info["error_type"] = error_message
             logger.debug(f"[WFA] Task failed: task_id={task_id}, end_time={timestamp_failed}, error={error_message} -- {domain_event.__dict__}")
             self.update_view_table(task_id)
         EngineManager.commit()
@@ -602,7 +675,7 @@ class WorkflowAnalytics(ProcessApplication):
     @retry_on_database_conflict(max_retries=3)
     def update_view_table(self, task_id):
         """Update the view table with new task execution information."""
-        task_info = self.tasks.get(task_id)
+        task_info = self.resolve_task(task_id)
         if not task_info:
             return  # Skip if task information is incomplete
 
@@ -611,9 +684,11 @@ class WorkflowAnalytics(ProcessApplication):
         group_id = None
 
         # Retrieve user and group from workflow
-        if wf_id and wf_id in self.workflows:
-            user_id = self.workflows[wf_id]["user"]
-            group_id = self.workflows[wf_id]["group"]
+        if wf_id:
+            workflow_info = self.resolve_workflow(wf_id)
+            if workflow_info:
+                user_id = workflow_info["user"]
+                group_id = workflow_info["group"]
 
         with EngineManager.get_session() as session:
             try:

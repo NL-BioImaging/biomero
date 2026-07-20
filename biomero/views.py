@@ -207,16 +207,18 @@ class WorkflowProgress(ProcessApplication):
     def resolve_workflow(self, wf_id):
         if wf_id not in self.workflows:
             try:
-                wf_agg = self.repository.get(wf_id)
-                self.workflows[wf_id] = {
-                    "status": wfs.INITIALIZING, 
-                    "progress": "0%", 
-                    "user": wf_agg.user, 
-                    "group": wf_agg.group,
-                    "name": wf_agg.name,
-                    "task": None,
-                    "start_time": getattr(wf_agg, "start_time", None)
-                }
+                with EngineManager.get_session() as session:
+                    row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
+                    if row:
+                        self.workflows[wf_id] = {
+                            "status": row.status,
+                            "progress": row.progress,
+                            "user": row.user,
+                            "group": row.group,
+                            "name": row.name,
+                            "task": row.task,
+                            "start_time": row.start_time
+                        }
             except Exception as e:
                 logger.warning(f"Could not resolve workflow {wf_id} in WorkflowProgress: {e}")
         return self.workflows.get(wf_id)
@@ -224,13 +226,15 @@ class WorkflowProgress(ProcessApplication):
     def resolve_task(self, task_id):
         if task_id not in self.tasks:
             try:
-                task_agg = self.repository.get(task_id)
-                self.tasks[task_id] = {
-                    "task_name": task_agg.task_name,
-                    "workflow_id": task_agg.workflow_id,
-                    "progress": getattr(task_agg, "progress", None)
-                }
-                self.resolve_workflow(task_agg.workflow_id)
+                with EngineManager.get_session() as session:
+                    row = session.query(TaskExecution).filter_by(task_id=task_id).first()
+                    if row:
+                        self.tasks[task_id] = {
+                            "task_name": row.task_name,
+                            "workflow_id": row.workflow_id,
+                            "progress": row.progress
+                        }
+                        self.resolve_workflow(row.workflow_id)
             except Exception as e:
                 logger.warning(f"Could not resolve task {task_id} in WorkflowProgress: {e}")
         return self.tasks.get(task_id)
@@ -554,8 +558,10 @@ class WorkflowAnalytics(ProcessApplication):
     def resolve_workflow(self, wf_id):
         if wf_id not in self.workflows:
             try:
-                wf_agg = self.repository.get(wf_id)
-                self.workflows[wf_id] = {"user": wf_agg.user, "group": wf_agg.group}
+                with EngineManager.get_session() as session:
+                    row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
+                    if row:
+                        self.workflows[wf_id] = {"user": row.user, "group": row.group}
             except Exception as e:
                 logger.warning(f"Could not resolve workflow {wf_id} in WorkflowAnalytics: {e}")
         return self.workflows.get(wf_id)
@@ -563,15 +569,18 @@ class WorkflowAnalytics(ProcessApplication):
     def resolve_task(self, task_id):
         if task_id not in self.tasks:
             try:
-                task_agg = self.repository.get(task_id)
-                self.tasks[task_id] = {
-                    "wf_id": task_agg.workflow_id,
-                    "task_name": task_agg.task_name,
-                    "task_version": task_agg.task_version,
-                    "start_time": getattr(task_agg, "start_time", None),
-                    "status": getattr(task_agg, "status", "CREATED")
-                }
-                self.resolve_workflow(task_agg.workflow_id)
+                with EngineManager.get_session() as session:
+                    row = session.query(TaskExecution).filter_by(task_id=task_id).first()
+                    if row:
+                        self.tasks[task_id] = {
+                            "wf_id": row.workflow_id,
+                            "task_name": row.task_name,
+                            "task_version": row.task_version,
+                            "start_time": row.start_time,
+                            "status": row.status
+                        }
+                        if row.workflow_id:
+                            self.resolve_workflow(row.workflow_id)
             except Exception as e:
                 logger.warning(f"Could not resolve task {task_id} in WorkflowAnalytics: {e}")
         return self.tasks.get(task_id)

@@ -903,7 +903,7 @@ class SlurmClient(Connection):
         # to clean up Connection resources
         super().__exit__(exc_type, exc_val, exc_tb)
         # Cleanup resources specific to SlurmClient
-        EngineManager.close_engine()
+        EngineManager.remove_session()
         # If we have any other resources to close or cleanup, do it here
 
     def init_workflows(self, force_update: bool = False):
@@ -2289,6 +2289,7 @@ class SlurmClient(Connection):
                      email: Optional[str] = None,
                      time: Optional[str] = None,
                      wf_id: Optional[UUID] = None,
+                     output_settings: Optional[Dict] = None,
                      **kwargs
                      ) -> Tuple[Result, int, UUID, UUID]:
         """
@@ -2329,6 +2330,8 @@ class SlurmClient(Connection):
             workflow_name, input_data)
         # user kwargs take precedence
         recorded_params = {**server_params, **kwargs}
+        if output_settings:
+            recorded_params["output_settings"] = output_settings
 
         task_id = self.workflowTracker.add_task_to_workflow(
             wf_id,
@@ -2360,6 +2363,7 @@ class SlurmClient(Connection):
                          email: Optional[str] = None,
                          time: Optional[str] = None,
                          wf_id: Optional[UUID] = None,
+                         output_settings: Optional[Dict] = None,
                          **kwargs
                          ) -> SlurmJob:
         """
@@ -2372,6 +2376,7 @@ class SlurmClient(Connection):
             email (str, optional): Email address for Slurm job notifications.
             time (str, optional): Time limit for the Slurm job in the format HH:MM:SS.
             wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.
+            output_settings (dict, optional): Selected output settings for results import.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
@@ -2379,6 +2384,7 @@ class SlurmClient(Connection):
         """
         result, job_id, wf_id, task_id = self.run_workflow(
             workflow_name, workflow_version, input_data, email, time, wf_id,
+            output_settings=output_settings,
             **kwargs)
         return SlurmJob(result, job_id, wf_id, task_id)
 
@@ -2549,54 +2555,55 @@ class SlurmClient(Connection):
             SSHException: If the command execution fails or no response is
                 received after multiple retries.
         """
-        cmd = self.get_job_status_command(slurm_job_ids)
-        logger.info(f"Getting status of {slurm_job_ids} on Slurm")
+        # Filter job IDs to only include valid positive integers
+        valid_job_ids = []
+        for jid in slurm_job_ids:
+            try:
+                if jid is not None:
+                    val = int(jid)
+                    if val > 0:
+                        valid_job_ids.append(val)
+            except (ValueError, TypeError):
+                continue
+                
+        if not valid_job_ids:
+            return {}, None
+
+        cmd = self.get_job_status_command(valid_job_ids)
+        logger.info(f"Getting status of {valid_job_ids} on Slurm")
         retry_status = 0
+        last_result = None
         while retry_status < 3:
             result = self.run_commands([cmd], env=env)
+            last_result = result
             logger.info(result)
             if result.ok:
-                if not result.stdout:
+                if not result.stdout or not result.stdout.strip():
                     # wait for 3 seconds before checking again
                     timesleep.sleep(3)
-                    # retry
                     retry_status += 1
                     logger.debug(
-                        f"Retry {retry_status} getting status \
-                            of {slurm_job_ids}!")
+                        f"Retry {retry_status} getting status of {valid_job_ids}!")
                 else:
-                    #
-                    job_status_dict = {int(line.split()[0].split('_')[0]): line.split(
-                    )[1] for line in result.stdout.split("\n") if line}
-                    logger.debug(f"Job statuses: {job_status_dict}")
+                    try:
+                        job_status_dict = {}
+                        for line in (result.stdout or "").split("\n"):
+                            if line.strip():
+                                parts = line.split()
+                                if len(parts) >= 2:
+                                    raw_id = parts[0].split('_')[0]
+                                    job_status_dict[int(raw_id)] = parts[1]
+                        logger.debug(f"Job statuses: {job_status_dict}")
+                    except Exception as e:
+                        logger.warning(f"Error parsing job status: {e}")
+                        job_status_dict = {}
 
-                    # OK, we have to fix a stupid sacct functionality:
-                    # Problem:
-                    # When you query for a job-id, turns out that it queries
-                    # for this 'JobIdRaw'. And JobIdRaw for arrays is a
-                    # ridiculous sum, e.g. 'JobId' 11_2 gets assigned
-                    # 'JobIdRaw' 13 (= 11+2)!
-                    # Until you submit 2 more jobs and actual 'JobId' 13 comes
-                    # along, from then on you get that status returned...
-                    # For us, this creates a race condition, where we get th
-                    # e wrong data back. We expect 'JobId' 13, but its not
-                    # there yet for some reason, so we get some result
-                    # from '11_2' back instead.
-                    # And this causes a key_error later on, cause we expect
-                    # '13' since we queried for that one.
-
-                    # Current workaround: artificially add '13' to our results.
-                    # And remove the fake one(s).
                     result_dict = {}
-                    for job_id in slurm_job_ids:
-                        # Check if the job ID is not already in the job_status_dict
+                    for job_id in valid_job_ids:
                         if job_id not in job_status_dict:
-                            logger.debug(f"Missing job {job_id} in our \
-                                results! Adding it artificially.")
-                            # Add the job ID with a default status of 'PENDING'
-                            result_dict[job_id] = 'PENDING'
+                            logger.debug(f"Missing job {job_id} in our results! Returning UNKNOWN.")
+                            result_dict[job_id] = 'UNKNOWN'
                         else:
-                            # Copy those values that we want the keys from
                             result_dict[job_id] = job_status_dict[job_id]
 
                     return result_dict, result
@@ -2604,11 +2611,9 @@ class SlurmClient(Connection):
                 error = f"Result is not ok: {result}"
                 logger.error(error)
                 raise SSHException(error)
-        else:
-            error = f"Error: Retried {retry_status} times to get \
-                status of {slurm_job_ids}, but no response."
-            logger.error(error)
-            raise SSHException(error)
+        
+        logger.warning(f"Slurm sacct returned empty output for {valid_job_ids} after retries. Returning UNKNOWN.")
+        return {jid: 'UNKNOWN' for jid in valid_job_ids}, last_result
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """

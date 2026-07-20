@@ -1409,14 +1409,12 @@ def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
         ok=True, stdout=None)
 
     # WHEN
-    with pytest.raises(SSHException):
-        job_status_dict, _ = slurm_client.check_job_status([12345, 67890])
+    job_status_dict, _ = slurm_client.check_job_status([12345, 67890])
 
     # THEN
+    assert job_status_dict == {12345: 'UNKNOWN', 67890: 'UNKNOWN'}
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
-    mock_logger.error.assert_called_with(
-        'Error: Retried 3 times to get                 status of [12345, 67890], but no response.')
 
 
 @patch('biomero.slurm_client.Result')

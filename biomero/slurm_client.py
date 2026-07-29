@@ -280,6 +280,38 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
+    _CONFIG_ENV_VARS = {
+        ("SLURM", "slurm_default_partition"): [
+            slurm_env.BIOMERO_DEFAULT_PARTITION],
+        ("SLURM", "sacct_start_time"): [
+            slurm_env.BIOMERO_SACCT_START_TIME],
+        ("SLURM", "sacct_days_ago"): [
+            slurm_env.BIOMERO_SACCT_START_DAYS_AGO],
+        ("ANALYTICS", "analytics_rebuild_start_time"): [
+            slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
+        ("ANALYTICS", "analytics_rebuild_days_ago"): [
+            slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
+        ("ANALYTICS", "sqlalchemy_url"): ["SQLALCHEMY_URL"],
+        ("SLURM", "env_file_submission"): [
+            slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
+        ("SLURM", "inject_gpu_flag"): [
+            slurm_env.BIOMERO_INJECT_GPU_FLAG],
+        ("SLURM", "gpu_partition"): [
+            slurm_env.BIOMERO_GPU_PARTITION, slurm_env.GPU_PARTITION],
+        ("SLURM", "gpu_gres"): [
+            slurm_env.BIOMERO_GPU_GRES, slurm_env.GPU_GRES],
+        ("SLURM", "gpu_gpus"): [
+            slurm_env.BIOMERO_GPU_GPUS, slurm_env.GPU_GPUS],
+        ("SLURM", "slurm_image_pull_via_sbatch"): [
+            slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
+        ("SLURM", "image_pull_cpus"): [slurm_env.BIOMERO_PULL_CPUS],
+        ("SLURM", "image_pull_mem"): [slurm_env.BIOMERO_PULL_MEM],
+        ("SLURM", "apptainer_tmpdir"): [
+            slurm_env.BIOMERO_APPTAINER_TMPDIR],
+        ("SLURM", "apptainer_cachedir"): [
+            slurm_env.BIOMERO_APPTAINER_CACHEDIR],
+        ("SLURM", "slurm_zip_cmd"): [slurm_env.BIOMERO_SLURM_ZIP_CMD],
+    }
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -303,6 +335,58 @@ class SlurmClient(Connection):
     # Folder-type inputs that the user can supply as OMERO file-annotation IDs
     # (i.e. not images — those are handled by Image_Transfer).
     _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
+
+    @classmethod
+    def get_authoritative_config_path(cls):
+        """Return the configured authoritative ini path, if enabled."""
+        config_path = os.getenv(slurm_env.BIOMERO_SLURM_CONFIG_FILE)
+        if not config_path or not config_path.strip():
+            return None
+        return os.path.expanduser(config_path.strip())
+
+    @classmethod
+    def get_config_paths(cls, configfile: str = '') -> list[str]:
+        """Resolve config paths in effective read order.
+
+        ``BIOMERO_SLURM_CONFIG_FILE`` enables authoritative-file mode and
+        replaces all default and caller-supplied config layers.
+        """
+        authoritative_path = cls.get_authoritative_config_path()
+        if authoritative_path:
+            return [authoritative_path]
+        return [
+            os.path.expanduser(cls._DEFAULT_CONFIG_PATH_1),
+            os.path.expanduser(cls._DEFAULT_CONFIG_PATH_2),
+            os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3),
+            os.path.expanduser(configfile),
+        ]
+
+    @classmethod
+    def get_config_write_path(cls) -> str:
+        """Resolve the writable admin overlay or authoritative ini path."""
+        return (cls.get_authoritative_config_path()
+                or os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3))
+
+    @classmethod
+    def load_config(cls, configfile: str = '') -> configparser.ConfigParser:
+        """Load BIOMERO configuration using the effective path policy."""
+        configs = configparser.ConfigParser(allow_no_value=True)
+        configs.read(cls.get_config_paths(configfile))
+        return configs
+
+    @classmethod
+    def get_environment_config_sources(cls) -> dict:
+        """Return config options currently managed by environment variables."""
+        sources = {}
+        for (section, option), env_vars in cls._CONFIG_ENV_VARS.items():
+            for env_var in env_vars:
+                if os.getenv(env_var) is not None:
+                    sources.setdefault(section, {})[option] = {
+                        "source": "environment",
+                        "name": env_var,
+                    }
+                    break
+        return sources
 
     @staticmethod
     def _get_config_value(configs,
@@ -542,7 +626,7 @@ class SlurmClient(Connection):
                 your HPC. Defaults to None (use system default partition).
             slurm_default_partition (str, optional): Generic fallback SLURM
                 partition appended to workflow jobs that do not already carry a
-                ``--partition=`` directive (from per-workflow ``[MODELS]`` params
+                ``--partition=`` directive (from per-workflow ``[WORKFLOWS]`` params
                 or the GPU partition path). Useful on clusters without a usable
                 system default partition. Overridable via
                 ``BIOMERO_DEFAULT_PARTITION``. Defaults to None (no partition
@@ -1276,7 +1360,12 @@ class SlurmClient(Connection):
 
         Defaults paths to look for config files are:
             - /etc/slurm-config.ini
+            - /OMERO/slurm-config.ini
             - ~/slurm-config.ini
+
+        Set ``BIOMERO_SLURM_CONFIG_FILE`` to enable authoritative-file mode.
+        In that mode only the configured file is read; default paths and an
+        explicit ``configfile`` argument are intentionally ignored.
 
         Note that this is only for the SLURM-specific values that we added.
         Most configuration values are set via configuration mechanisms from
@@ -1293,12 +1382,9 @@ class SlurmClient(Connection):
             SlurmClient: A new SlurmClient object.
         """
         # Load the configuration file
-        configs = configparser.ConfigParser(allow_no_value=True)
-        # Loads from default locations and given location, missing files are ok
-        configs.read([os.path.expanduser(cls._DEFAULT_CONFIG_PATH_1),
-                     os.path.expanduser(cls._DEFAULT_CONFIG_PATH_2),
-                     os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3),
-                     os.path.expanduser(configfile)])
+        # Loads from the authoritative file when configured, otherwise from
+        # the default locations and given location. Missing files are okay.
+        configs = cls.load_config(configfile)
 
         # Read the required parameters from the configuration file,
         # fallback to defaults
@@ -1352,7 +1438,8 @@ class SlurmClient(Connection):
             section="SLURM",
             option="slurm_default_partition",
             default=None,
-            env_vars=[slurm_env.BIOMERO_DEFAULT_PARTITION],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "SLURM", "slurm_default_partition")],
             empty_is_none=True,
         )
         sacct_start_time = cls._get_config_value(
@@ -1360,7 +1447,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="sacct_start_time",
             default=cls._DEFAULT_SACCT_START_TIME,
-            env_vars=[slurm_env.BIOMERO_SACCT_START_TIME],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "sacct_start_time")],
             empty_is_none=True,
         )
         sacct_days_ago = cls._get_config_value(
@@ -1368,7 +1455,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="sacct_days_ago",
             default=None,
-            env_vars=[slurm_env.BIOMERO_SACCT_START_DAYS_AGO],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "sacct_days_ago")],
             value_type=int,
             empty_is_none=True,
         )
@@ -1377,7 +1464,8 @@ class SlurmClient(Connection):
             section="ANALYTICS",
             option="analytics_rebuild_start_time",
             default=None,
-            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "ANALYTICS", "analytics_rebuild_start_time")],
             empty_is_none=True,
         )
         analytics_rebuild_days_ago = cls._get_config_value(
@@ -1385,7 +1473,8 @@ class SlurmClient(Connection):
             section="ANALYTICS",
             option="analytics_rebuild_days_ago",
             default=None,
-            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "ANALYTICS", "analytics_rebuild_days_ago")],
             value_type=int,
             empty_is_none=True,
         )
@@ -1396,7 +1485,8 @@ class SlurmClient(Connection):
             section="SLURM",
             option="env_file_submission",
             default=False,
-            env_vars=[slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "SLURM", "env_file_submission")],
             value_type=bool,
         )
 
@@ -1405,7 +1495,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="inject_gpu_flag",
             default=False,
-            env_vars=[slurm_env.BIOMERO_INJECT_GPU_FLAG],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "inject_gpu_flag")],
             value_type=bool,
         )
 
@@ -1414,8 +1504,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="gpu_partition",
             default=None,
-            env_vars=[slurm_env.BIOMERO_GPU_PARTITION,
-                      slurm_env.GPU_PARTITION],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "gpu_partition")],
             empty_is_none=True,
         )
 
@@ -1424,7 +1513,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="gpu_gres",
             default=None,
-            env_vars=[slurm_env.BIOMERO_GPU_GRES, slurm_env.GPU_GRES],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "gpu_gres")],
             empty_is_none=True,
         )
 
@@ -1433,7 +1522,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="gpu_gpus",
             default=None,
-            env_vars=[slurm_env.BIOMERO_GPU_GPUS, slurm_env.GPU_GPUS],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "gpu_gpus")],
             empty_is_none=True,
         )
 
@@ -1442,7 +1531,8 @@ class SlurmClient(Connection):
             section="SLURM",
             option="slurm_image_pull_via_sbatch",
             default=False,
-            env_vars=[slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "SLURM", "slurm_image_pull_via_sbatch")],
             value_type=bool,
         )
 
@@ -1451,7 +1541,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="image_pull_cpus",
             default="8",
-            env_vars=[slurm_env.BIOMERO_PULL_CPUS],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_cpus")],
         )
 
         image_pull_mem = cls._get_config_value(
@@ -1459,7 +1549,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="image_pull_mem",
             default="32G",
-            env_vars=[slurm_env.BIOMERO_PULL_MEM],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_mem")],
         )
 
         apptainer_tmpdir = cls._get_config_value(
@@ -1467,7 +1557,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="apptainer_tmpdir",
             default=None,
-            env_vars=[slurm_env.BIOMERO_APPTAINER_TMPDIR],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "apptainer_tmpdir")],
             empty_is_none=True,
         )
 
@@ -1476,7 +1566,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="apptainer_cachedir",
             default=None,
-            env_vars=[slurm_env.BIOMERO_APPTAINER_CACHEDIR],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "apptainer_cachedir")],
             empty_is_none=True,
         )
 
@@ -1485,7 +1575,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="slurm_zip_cmd",
             default=cls._DEFAULT_SLURM_ZIP_CMD,
-            env_vars=[slurm_env.BIOMERO_SLURM_ZIP_CMD],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "slurm_zip_cmd")],
             empty_is_none=True,
         )
 

@@ -28,6 +28,10 @@ Environment Variable Lookup Table
      - ``slurm-config.ini`` key
      - Type
      - Runtime effect
+   * - ``BIOMERO_SLURM_CONFIG_FILE``
+     - —
+     - filesystem path
+     - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
    * - ``BIOMERO_SACCT_START_TIME``
      - ``sacct_start_time``
      - string date

@@ -181,6 +181,10 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
     - `/etc/slurm-config.ini`
     - `~/slurm-config.ini`
 
+    For an admin-managed deployment, set `BIOMERO_SLURM_CONFIG_FILE` to the
+    mounted configuration path. BIOMERO will then treat that file as
+    authoritative instead of merging the default locations.
+
     For the BIOMERO Python client configuration details, including environment-variable overrides, precedence rules, and the runtime impact of newer options such as `env_file_submission`, `inject_gpu_flag`, `gpu_partition`, `gpu_gres`, `sacct_days_ago`, and `slurm_zip_cmd`, see:
     - [docs/slurm-configuration.rst](./docs/slurm-configuration.rst)
     - [docs/configuration-reference.rst](./docs/configuration-reference.rst)
@@ -193,7 +197,9 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
     variables into `sbatch` jobs, review `inline_ssh_env` and the optional
     `env_file_submission` mode in the configuration docs before deployment.
 
-    *Note*: Make sure to place the `slurm-config.ini` in the target folder at build time of your docker container instead of mounting it at runtime. This is because the library reads the config file at import time, and if it is not found, it will not work.
+    The configuration is read whenever `SlurmClient.from_config()` is called,
+    so a configuration file may be mounted at runtime. Ensure the mount exists
+    before starting services that construct a client.
 
 4. Install OMERO scripts from [OMERO Slurm Scripts](https://github.com/NL-BioImaging/biomero-scripts), e.g. 
     - `cd /opt/omero/server/OMERO.server/lib/scripts`

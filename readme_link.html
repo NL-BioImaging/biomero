@@ -392,6 +392,9 @@ docs linked below.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">/etc/slurm-config.ini</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">~/slurm-config.ini</span></code></p></li>
 </ul>
+<p>For an admin-managed deployment, set <code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_CONFIG_FILE</span></code> to the
+mounted configuration path. BIOMERO will then treat that file as
+authoritative instead of merging the default locations.</p>
 <p>For the BIOMERO Python client configuration details, including environment-variable overrides, precedence rules, and the runtime impact of newer options such as <code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code>, <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code>, <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code>, and <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code>, see:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#./docs/slurm-configuration.rst"><span class="xref myst">docs/slurm-configuration.rst</span></a></p></li>
@@ -403,7 +406,9 @@ and can drift out of sync with newer BIOMERO releases.</p>
 <p>If your cluster does not reliably propagate SSH session environment
 variables into <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> jobs, review <code class="docutils literal notranslate"><span class="pre">inline_ssh_env</span></code> and the optional
 <code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code> mode in the configuration docs before deployment.</p>
-<p><em>Note</em>: Make sure to place the <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> in the target folder at build time of your docker container instead of mounting it at runtime. This is because the library reads the config file at import time, and if it is not found, it will not work.</p>
+<p>The configuration is read whenever <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code> is called,
+so a configuration file may be mounted at runtime. Ensure the mount exists
+before starting services that construct a client.</p>
 </li>
 <li><p>Install OMERO scripts from <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">OMERO Slurm Scripts</a>, e.g.</p>
 <ul class="simple">

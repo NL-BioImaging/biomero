@@ -153,92 +153,97 @@ explains when and why you would choose each setting.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_CONFIG_FILE</span></code></p></td>
+<td><p>—</p></td>
+<td><p>filesystem path</p></td>
+<td><p>Enables authoritative-file mode; only this ini file is read instead of merging the default config paths</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></td>
 <td><p>string date</p></td>
 <td><p>Absolute default start date for job history queries via <code class="docutils literal notranslate"><span class="pre">sacct</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>Rolling history window in days; overrides absolute start time when valid</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p>Switches submission from direct env passing to per-job env-file submission</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p>Enables dynamic GPU flag handling in generated scripts and GPU-aware submissions</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Default fallback GPU partition for workflow submissions when GPU mode is requested</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Default fallback <code class="docutils literal notranslate"><span class="pre">--gres=</span></code> value appended to GPU workflow submissions; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Default fallback <code class="docutils literal notranslate"><span class="pre">--gpus=</span></code> value appended to GPU workflow submissions; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_IMAGE_PULL_VIA_SBATCH</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_IMAGE_PULL_VIA_SBATCH</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p>Switches workflow/converter image pulls from direct remote execution to sbatch jobs</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_CPUS</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_CPUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code></p></td>
 <td><p>string</p></td>
 <td><p>CPU request used for sbatch-based image pull/build jobs</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_MEM</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_MEM</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Memory request used for sbatch-based image pull/build jobs</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Tmp directory exported for Apptainer/Singularity image pull/build commands</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Cache directory exported for Apptainer/Singularity image pull/build commands</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Overrides the zip command used on the cluster for packaging results</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
 <td><p>string date</p></td>
 <td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU partition; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU gres; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU gpus; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>

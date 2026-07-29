@@ -170,6 +170,12 @@ their <code class="docutils literal notranslate"><span class="pre">slurm-config.
 <li><p>the explicit <code class="docutils literal notranslate"><span class="pre">configfile=...</span></code> path passed by the caller</p></li>
 </ol>
 <p>Later files override earlier files.</p>
+<p>For deployments where an administration UI owns the complete configuration,
+set <code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_CONFIG_FILE</span></code> to the path of that file. This enables
+authoritative-file mode: BIOMERO reads only that file and does not merge the
+default paths or an explicit <code class="docutils literal notranslate"><span class="pre">configfile=...</span></code> path. Removing a setting from
+the authoritative file therefore cannot reveal a lower-precedence file value.
+If the variable is unset or empty, the layered behavior above is unchanged.</p>
 <p>For the settings documented on this page, environment variables then override
 the resolved <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> value when supported.</p>
 </section>
@@ -276,12 +282,12 @@ otherwise the cluster default partitioning behaviour.</p></li>
 <h3>Default (fallback) partition<a class="headerlink" href="#default-fallback-partition" title="Permalink to this heading"></a></h3>
 <p>Use <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> on clusters that have no usable system default
 partition, so you do not have to hard-code <code class="docutils literal notranslate"><span class="pre">--partition</span></code> into every workflow’s
-<code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> job parameters. It applies to both workflow and conversion jobs.</p>
+<code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> job parameters. It applies to both workflow and conversion jobs.</p>
 <p>Impact:</p>
 <ul class="simple">
 <li><p>If set, BIOMERO appends <code class="docutils literal notranslate"><span class="pre">--partition=&lt;value&gt;</span></code> to a workflow <strong>or conversion</strong>
 submission only when the job does not already carry a <code class="docutils literal notranslate"><span class="pre">--partition</span></code> directive.</p></li>
-<li><p>Precedence: for workflows, a per-workflow <code class="docutils literal notranslate"><span class="pre">--partition</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> wins,
+<li><p>Precedence: for workflows, a per-workflow <code class="docutils literal notranslate"><span class="pre">--partition</span></code> in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> wins,
 and the GPU partition (from <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code> or a per-workflow <code class="docutils literal notranslate"><span class="pre">_use_gpu</span></code>)
 wins. For conversion, <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> wins. The default partition
 is a last-resort fallback in both cases.</p></li>
@@ -332,12 +338,12 @@ back it looks:</p>
 <p>This setting controls two related but distinct behaviours:</p>
 <ol class="arabic simple">
 <li><p><strong>``–nv`` in the generated script</strong> — when <code class="docutils literal notranslate"><span class="pre">false</span></code>, <code class="docutils literal notranslate"><span class="pre">--nv</span></code> is baked directly into the generated job script at script-generation time (<code class="docutils literal notranslate"><span class="pre">singularity</span> <span class="pre">run</span> <span class="pre">--nv</span> <span class="pre">...</span></code>).  The script always passes <code class="docutils literal notranslate"><span class="pre">--nv</span></code> to the container runtime regardless of what happens at submission time.  When <code class="docutils literal notranslate"><span class="pre">true</span></code>, the generated script instead contains a shell variable reference <code class="docutils literal notranslate"><span class="pre">$GPU_FLAG</span></code>, and BIOMERO sets that variable to <code class="docutils literal notranslate"><span class="pre">--nv</span></code> or an empty string at submission time based on <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code>.</p></li>
-<li><p><strong>Runtime toggling</strong> — when <code class="docutils literal notranslate"><span class="pre">false</span></code>, whether GPU sbatch resource params (<code class="docutils literal notranslate"><span class="pre">--partition</span></code>, <code class="docutils literal notranslate"><span class="pre">--gres</span></code> / <code class="docutils literal notranslate"><span class="pre">--gpus</span></code>) are added is decided at config time via <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>.  This cannot be changed per-run.  When <code class="docutils literal notranslate"><span class="pre">true</span></code>, the caller can pass <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code> or <code class="docutils literal notranslate"><span class="pre">use_gpu=false</span></code> at submission time to switch between GPU and CPU mode on a per-run basis.</p></li>
+<li><p><strong>Runtime toggling</strong> — when <code class="docutils literal notranslate"><span class="pre">false</span></code>, whether GPU sbatch resource params (<code class="docutils literal notranslate"><span class="pre">--partition</span></code>, <code class="docutils literal notranslate"><span class="pre">--gres</span></code> / <code class="docutils literal notranslate"><span class="pre">--gpus</span></code>) are added is decided at config time via <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code>.  This cannot be changed per-run.  When <code class="docutils literal notranslate"><span class="pre">true</span></code>, the caller can pass <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code> or <code class="docutils literal notranslate"><span class="pre">use_gpu=false</span></code> at submission time to switch between GPU and CPU mode on a per-run basis.</p></li>
 </ol>
 <p>In short: without <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, GPU is either always on (hardcoded <code class="docutils literal notranslate"><span class="pre">--nv</span></code>) or never injected — the two are controlled independently at script generation and submission time.  With <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code>, one script covers both modes and the caller decides per run.</p>
 <p>Impact:</p>
 <ul class="simple">
-<li><p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>: <code class="docutils literal notranslate"><span class="pre">--nv</span></code> is hardcoded in the generated script.  <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> adds GPU sbatch resource params at submission, but the container flag is already fixed in the script.  No runtime override is possible.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>: <code class="docutils literal notranslate"><span class="pre">--nv</span></code> is hardcoded in the generated script.  <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> adds GPU sbatch resource params at submission, but the container flag is already fixed in the script.  No runtime override is possible.</p></li>
 <li><p>When <code class="docutils literal notranslate"><span class="pre">true</span></code>: the script contains <code class="docutils literal notranslate"><span class="pre">$GPU_FLAG</span></code>.  BIOMERO sets it to <code class="docutils literal notranslate"><span class="pre">--nv</span></code> (GPU) or empty string (CPU) at submission time based on the resolved <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> value.</p></li>
 </ul>
 <p>Use this when:</p>
@@ -383,8 +389,8 @@ or cache location is too small for large image pulls/builds.</p>
 <h3>Default GPU fallback settings<a class="headerlink" href="#default-gpu-fallback-settings" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code>, and <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> are shared client defaults used when adding GPU sbatch params to a workflow submission.  They are relevant in <strong>both</strong> GPU code paths:</p>
 <ul class="simple">
-<li><p><strong>Static path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>): BIOMERO always adds these params for that workflow.  The caller cannot override it at submission time.</p></li>
-<li><p><strong>Dynamic path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code>): BIOMERO adds these params only when <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> resolves to true — either because the caller passed <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code>, or because <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> is set in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> and no explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument was given.</p></li>
+<li><p><strong>Static path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code>): BIOMERO always adds these params for that workflow.  The caller cannot override it at submission time.</p></li>
+<li><p><strong>Dynamic path</strong> (<code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code>): BIOMERO adds these params only when <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> resolves to true — either because the caller passed <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code>, or because <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> is set in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> and no explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument was given.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> are mutually exclusive.  Set one or the other:</p>
 <ul class="simple">
@@ -401,7 +407,7 @@ Use this when your cluster uses the <code class="docutils literal notranslate"><
 </ul>
 <p>Full precedence order for GPU resource params:</p>
 <ol class="arabic simple">
-<li><p>explicit per-workflow <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> sbatch overrides (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_gres</span></code>)</p></li>
+<li><p>explicit per-workflow <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> sbatch overrides (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_gres</span></code>)</p></li>
 <li><p>shared <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> / <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code> defaults</p></li>
 <li><p>nothing — BIOMERO adds no GPU resource arguments</p></li>
 </ol>
@@ -422,7 +428,7 @@ sbatch command line.</p>
 each data conversion job.</p>
 <p>Impact:</p>
 <ul class="simple">
-<li><p>Global params are applied after per-workflow <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> sbatch overrides.</p></li>
+<li><p>Global params are applied after per-workflow <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> sbatch overrides.</p></li>
 <li><p>If a per-workflow override already sets the same flag (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_reservation</span></code>), the global default for that flag is skipped.</p></li>
 <li><p>For conversion jobs, a <code class="docutils literal notranslate"><span class="pre">--partition</span></code> set via <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> (or the <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> fallback) takes precedence over a global <code class="docutils literal notranslate"><span class="pre">sbatch_partition</span></code>.</p></li>
 <li><p>Global params with empty values are ignored.</p></li>
@@ -679,7 +685,7 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
 <p><strong>Problem:</strong> GPU jobs run on the wrong partition or with the wrong GRES settings.</p>
 <p><strong>What to check:</strong></p>
 <ol class="arabic simple">
-<li><p>per-workflow <code class="docutils literal notranslate"><span class="pre">*_job_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">*_job_gres</span></code> values in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code></p></li>
+<li><p>per-workflow <code class="docutils literal notranslate"><span class="pre">*_job_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">*_job_gres</span></code> values in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code></p></li>
 <li><p>shared <code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code> and <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code> values</p></li>
 <li><p>whether <code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code> is enabled</p></li>
 <li><p>whether the workflow was actually submitted with <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code></p></li>
@@ -705,7 +711,7 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
 <p><strong>Q: How do I know which partition to use?</strong></p>
 <p>A: Check with your HPC documentation or administrator. Common partitions include <code class="docutils literal notranslate"><span class="pre">cpu</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu</span></code>, <code class="docutils literal notranslate"><span class="pre">short</span></code>, and <code class="docutils literal notranslate"><span class="pre">long</span></code>. Leave the setting empty to use the default.</p>
 <p><strong>Q: Can I override job parameters for specific workflows?</strong></p>
-<p>A: Yes. Add <code class="docutils literal notranslate"><span class="pre">workflowname_job_parameter=value</span></code> entries in the <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> section to override default SLURM job parameters.</p>
+<p>A: Yes. Add <code class="docutils literal notranslate"><span class="pre">workflowname_job_parameter=value</span></code> entries in the <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> section to override default SLURM job parameters.</p>
 <p><strong>Q: How do I debug workflow execution issues?</strong></p>
 <p>A: Check SLURM job logs, verify container access to data, and ensure all required directories exist with proper permissions.</p>
 <p><strong>Q: When should I enable ``env_file_submission``?</strong></p>
@@ -713,10 +719,10 @@ ssh<span class="w"> </span>-F<span class="w"> </span>~/.ssh/config<span class="w
 <p><strong>Q: Why do ``gpu_partition`` and ``gpu_gres`` seem to do nothing?</strong></p>
 <p>A: There are two conditions that trigger GPU sbatch param injection:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code> and the workflow is submitted with <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code> (or <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> with no explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code> but <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> is set in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> — the static path</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=true</span></code> and the workflow is submitted with <code class="docutils literal notranslate"><span class="pre">use_gpu=true</span></code> (or <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> with no explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag=false</span></code> but <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu=true</span></code> is set in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> — the static path</p></li>
 </ul>
-<p>In both cases, per-workflow <code class="docutils literal notranslate"><span class="pre">*_job_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">*_job_gres</span></code>, and <code class="docutils literal notranslate"><span class="pre">*_job_gpus</span></code> settings in <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> take precedence and will suppress the shared defaults for those flags.</p>
+<p>In both cases, per-workflow <code class="docutils literal notranslate"><span class="pre">*_job_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">*_job_gres</span></code>, and <code class="docutils literal notranslate"><span class="pre">*_job_gpus</span></code> settings in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> take precedence and will suppress the shared defaults for those flags.</p>
 <p><strong>Q: Should I prefer ``sacct_start_time`` or ``sacct_days_ago``?</strong></p>
 <p>A: Use <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code> for a fixed absolute boundary and <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code> for a rolling window. If both are set, <code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code> takes precedence.</p>
 </section>

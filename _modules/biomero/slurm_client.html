@@ -392,6 +392,38 @@
     <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span> <span class="o">=</span> <span class="s2">&quot;slurm-scripts&quot;</span>
     <span class="n">_DEFAULT_SACCT_START_TIME</span> <span class="o">=</span> <span class="s2">&quot;2023-01-01&quot;</span>
     <span class="n">_DEFAULT_SLURM_ZIP_CMD</span> <span class="o">=</span> <span class="s2">&quot;$(command -v 7z || command -v 7za)&quot;</span>
+    <span class="n">_CONFIG_ENV_VARS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_default_partition&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_DEFAULT_PARTITION</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_start_time&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SACCT_START_TIME</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_days_ago&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SACCT_START_DAYS_AGO</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span> <span class="s2">&quot;analytics_rebuild_start_time&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_ANALYTICS_REBUILD_START_TIME</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span> <span class="s2">&quot;analytics_rebuild_days_ago&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span> <span class="s2">&quot;sqlalchemy_url&quot;</span><span class="p">):</span> <span class="p">[</span><span class="s2">&quot;SQLALCHEMY_URL&quot;</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;env_file_submission&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_ENV_FILE_SUBMISSION</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;inject_gpu_flag&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_INJECT_GPU_FLAG</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu_partition&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_GPU_PARTITION</span><span class="p">,</span> <span class="n">slurm_env</span><span class="o">.</span><span class="n">GPU_PARTITION</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu_gres&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_GPU_GRES</span><span class="p">,</span> <span class="n">slurm_env</span><span class="o">.</span><span class="n">GPU_GRES</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu_gpus&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_GPU_GPUS</span><span class="p">,</span> <span class="n">slurm_env</span><span class="o">.</span><span class="n">GPU_GPUS</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_image_pull_via_sbatch&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_IMAGE_PULL_VIA_SBATCH</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;image_pull_cpus&quot;</span><span class="p">):</span> <span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_CPUS</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;image_pull_mem&quot;</span><span class="p">):</span> <span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_MEM</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer_tmpdir&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_APPTAINER_TMPDIR</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer_cachedir&quot;</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_APPTAINER_CACHEDIR</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_zip_cmd&quot;</span><span class="p">):</span> <span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SLURM_ZIP_CMD</span><span class="p">],</span>
+    <span class="p">}</span>
     <span class="n">_OUT_SEP</span> <span class="o">=</span> <span class="s2">&quot;--split--&quot;</span>
     <span class="n">_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{slurm_images_path}</span><span class="s2">/</span><span class="si">{image_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(?&lt;=</span><span class="se">\\</span><span class="s2">-|</span><span class="se">\\</span><span class="s2">_)(v.+|latest)(?=.simg|.sif)&#39;&quot;</span>
     <span class="n">_CONVERTER_VERSION_CMD</span> <span class="o">=</span> <span class="s2">&quot;ls -h </span><span class="se">\&quot;</span><span class="si">{converter_path}</span><span class="se">\&quot;</span><span class="s2"> | grep -oP &#39;(convert_.+)(?=.simg|.sif)&#39; | awk &#39;{{n=split($0, a, </span><span class="se">\&quot;</span><span class="s2">_</span><span class="se">\&quot;</span><span class="s2">); last=a[n]; sub(</span><span class="se">\&quot;</span><span class="s2">_</span><span class="se">\&quot;</span><span class="s2">last</span><span class="se">\&quot;</span><span class="s2">$</span><span class="se">\&quot;</span><span class="s2">, </span><span class="se">\&quot;\&quot;</span><span class="s2">, $0); print $0, last}}&#39;&quot;</span>
@@ -415,6 +447,58 @@
     <span class="c1"># Folder-type inputs that the user can supply as OMERO file-annotation IDs</span>
     <span class="c1"># (i.e. not images — those are handled by Image_Transfer).</span>
     <span class="n">_FILE_ATTACHMENT_TYPES</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;array&#39;</span><span class="p">,</span> <span class="s1">&#39;measurement&#39;</span><span class="p">,</span> <span class="s1">&#39;executable&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlurmClient.get_authoritative_config_path"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_authoritative_config_path">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_authoritative_config_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the configured authoritative ini path, if enabled.&quot;&quot;&quot;</span>
+        <span class="n">config_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SLURM_CONFIG_FILE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config_path</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config_path</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">config_path</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="SlurmClient.get_config_paths"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_config_paths">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_config_paths</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve config paths in effective read order.</span>
+
+<span class="sd">        ``BIOMERO_SLURM_CONFIG_FILE`` enables authoritative-file mode and</span>
+<span class="sd">        replaces all default and caller-supplied config layers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">authoritative_path</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_authoritative_config_path</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">authoritative_path</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">authoritative_path</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_1</span><span class="p">),</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_2</span><span class="p">),</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_3</span><span class="p">),</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">configfile</span><span class="p">),</span>
+        <span class="p">]</span></div>
+
+<div class="viewcode-block" id="SlurmClient.get_config_write_path"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_config_write_path">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_config_write_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve the writable admin overlay or authoritative ini path.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">get_authoritative_config_path</span><span class="p">()</span>
+                <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_3</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SlurmClient.load_config"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.load_config">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_config</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load BIOMERO configuration using the effective path policy.&quot;&quot;&quot;</span>
+        <span class="n">configs</span> <span class="o">=</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">(</span><span class="n">allow_no_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">configs</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">get_config_paths</span><span class="p">(</span><span class="n">configfile</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">configs</span></div>
+
+<div class="viewcode-block" id="SlurmClient.get_environment_config_sources"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_environment_config_sources">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_environment_config_sources</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return config options currently managed by environment variables.&quot;&quot;&quot;</span>
+        <span class="n">sources</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">),</span> <span class="n">env_vars</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">env_var</span> <span class="ow">in</span> <span class="n">env_vars</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">env_var</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">sources</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="p">{})[</span><span class="n">option</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;environment&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">env_var</span><span class="p">,</span>
+                    <span class="p">}</span>
+                    <span class="k">break</span>
+        <span class="k">return</span> <span class="n">sources</span></div>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_config_value</span><span class="p">(</span><span class="n">configs</span><span class="p">,</span>
@@ -654,7 +738,7 @@
 <span class="sd">                your HPC. Defaults to None (use system default partition).</span>
 <span class="sd">            slurm_default_partition (str, optional): Generic fallback SLURM</span>
 <span class="sd">                partition appended to workflow jobs that do not already carry a</span>
-<span class="sd">                ``--partition=`` directive (from per-workflow ``[MODELS]`` params</span>
+<span class="sd">                ``--partition=`` directive (from per-workflow ``[WORKFLOWS]`` params</span>
 <span class="sd">                or the GPU partition path). Useful on clusters without a usable</span>
 <span class="sd">                system default partition. Overridable via</span>
 <span class="sd">                ``BIOMERO_DEFAULT_PARTITION``. Defaults to None (no partition</span>
@@ -1388,7 +1472,12 @@
 
 <span class="sd">        Defaults paths to look for config files are:</span>
 <span class="sd">            - /etc/slurm-config.ini</span>
+<span class="sd">            - /OMERO/slurm-config.ini</span>
 <span class="sd">            - ~/slurm-config.ini</span>
+
+<span class="sd">        Set ``BIOMERO_SLURM_CONFIG_FILE`` to enable authoritative-file mode.</span>
+<span class="sd">        In that mode only the configured file is read; default paths and an</span>
+<span class="sd">        explicit ``configfile`` argument are intentionally ignored.</span>
 
 <span class="sd">        Note that this is only for the SLURM-specific values that we added.</span>
 <span class="sd">        Most configuration values are set via configuration mechanisms from</span>
@@ -1405,12 +1494,9 @@
 <span class="sd">            SlurmClient: A new SlurmClient object.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Load the configuration file</span>
-        <span class="n">configs</span> <span class="o">=</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">(</span><span class="n">allow_no_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="c1"># Loads from default locations and given location, missing files are ok</span>
-        <span class="n">configs</span><span class="o">.</span><span class="n">read</span><span class="p">([</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_1</span><span class="p">),</span>
-                     <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_2</span><span class="p">),</span>
-                     <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_CONFIG_PATH_3</span><span class="p">),</span>
-                     <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">configfile</span><span class="p">)])</span>
+        <span class="c1"># Loads from the authoritative file when configured, otherwise from</span>
+        <span class="c1"># the default locations and given location. Missing files are okay.</span>
+        <span class="n">configs</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
 
         <span class="c1"># Read the required parameters from the configuration file,</span>
         <span class="c1"># fallback to defaults</span>
@@ -1464,7 +1550,8 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;slurm_default_partition&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_DEFAULT_PARTITION</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span>
+                <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_default_partition&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">sacct_start_time</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
@@ -1472,7 +1559,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;sacct_start_time&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_SACCT_START_TIME</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SACCT_START_TIME</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_start_time&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">sacct_days_ago</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
@@ -1480,7 +1567,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;sacct_days_ago&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SACCT_START_DAYS_AGO</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;sacct_days_ago&quot;</span><span class="p">)],</span>
             <span class="n">value_type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
@@ -1489,7 +1576,8 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;analytics_rebuild_start_time&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_ANALYTICS_REBUILD_START_TIME</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span>
+                <span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span> <span class="s2">&quot;analytics_rebuild_start_time&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">analytics_rebuild_days_ago</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
@@ -1497,7 +1585,8 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;analytics_rebuild_days_ago&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span>
+                <span class="s2">&quot;ANALYTICS&quot;</span><span class="p">,</span> <span class="s2">&quot;analytics_rebuild_days_ago&quot;</span><span class="p">)],</span>
             <span class="n">value_type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
@@ -1508,7 +1597,8 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;env_file_submission&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_ENV_FILE_SUBMISSION</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span>
+                <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;env_file_submission&quot;</span><span class="p">)],</span>
             <span class="n">value_type</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1517,7 +1607,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;inject_gpu_flag&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_INJECT_GPU_FLAG</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;inject_gpu_flag&quot;</span><span class="p">)],</span>
             <span class="n">value_type</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1526,8 +1616,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;gpu_partition&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_GPU_PARTITION</span><span class="p">,</span>
-                      <span class="n">slurm_env</span><span class="o">.</span><span class="n">GPU_PARTITION</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu_partition&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1536,7 +1625,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;gpu_gres&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_GPU_GRES</span><span class="p">,</span> <span class="n">slurm_env</span><span class="o">.</span><span class="n">GPU_GRES</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu_gres&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1545,7 +1634,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;gpu_gpus&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_GPU_GPUS</span><span class="p">,</span> <span class="n">slurm_env</span><span class="o">.</span><span class="n">GPU_GPUS</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu_gpus&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1554,7 +1643,8 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;slurm_image_pull_via_sbatch&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_IMAGE_PULL_VIA_SBATCH</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span>
+                <span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_image_pull_via_sbatch&quot;</span><span class="p">)],</span>
             <span class="n">value_type</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1563,7 +1653,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;image_pull_cpus&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="s2">&quot;8&quot;</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_CPUS</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;image_pull_cpus&quot;</span><span class="p">)],</span>
         <span class="p">)</span>
 
         <span class="n">image_pull_mem</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
@@ -1571,7 +1661,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;image_pull_mem&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="s2">&quot;32G&quot;</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_MEM</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;image_pull_mem&quot;</span><span class="p">)],</span>
         <span class="p">)</span>
 
         <span class="n">apptainer_tmpdir</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
@@ -1579,7 +1669,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;apptainer_tmpdir&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_APPTAINER_TMPDIR</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer_tmpdir&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1588,7 +1678,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;apptainer_cachedir&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_APPTAINER_CACHEDIR</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer_cachedir&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -1597,7 +1687,7 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">&quot;slurm_zip_cmd&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_SLURM_ZIP_CMD</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SLURM_ZIP_CMD</span><span class="p">],</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">&quot;SLURM&quot;</span><span class="p">,</span> <span class="s2">&quot;slurm_zip_cmd&quot;</span><span class="p">)],</span>
             <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 

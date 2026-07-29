@@ -492,10 +492,14 @@ configuration file (.ini).</p>
 <dl class="simple">
 <dt>Defaults paths to look for config files are:</dt><dd><ul class="simple">
 <li><p>/etc/slurm-config.ini</p></li>
+<li><p>/OMERO/slurm-config.ini</p></li>
 <li><p>~/slurm-config.ini</p></li>
 </ul>
 </dd>
 </dl>
+<p>Set <code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_CONFIG_FILE</span></code> to enable authoritative-file mode.
+In that mode only the configured file is read; default paths and an
+explicit <code class="docutils literal notranslate"><span class="pre">configfile</span></code> argument are intentionally ignored.</p>
 <p>Note that this is only for the SLURM-specific values that we added.
 Most configuration values are set via configuration mechanisms from
 Fabric library, like SSH settings being loaded from SSH config,
@@ -603,6 +607,12 @@ the Slurm cluster.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.get_authoritative_config_path">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_authoritative_config_path</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.get_authoritative_config_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.get_authoritative_config_path" title="Permalink to this definition"></a></dt>
+<dd><p>Return the configured authoritative ini path, if enabled.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.get_cellpose_command">
 <span class="sig-name descname"><span class="pre">get_cellpose_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">cp_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">nuc_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">prob_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">cell_diameter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cellpose'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.get_cellpose_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.get_cellpose_command" title="Permalink to this definition"></a></dt>
 <dd><p>Return the command and environment dictionary to run a CellPose job
@@ -637,6 +647,20 @@ and the environment dictionary.</p>
 <dd class="field-odd"><p>Tuple[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>]</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.get_config_paths">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_config_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">configfile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.get_config_paths"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.get_config_paths" title="Permalink to this definition"></a></dt>
+<dd><p>Resolve config paths in effective read order.</p>
+<p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_CONFIG_FILE</span></code> enables authoritative-file mode and
+replaces all default and caller-supplied config layers.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.get_config_write_path">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_config_write_path</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.get_config_write_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.get_config_write_path" title="Permalink to this definition"></a></dt>
+<dd><p>Resolve the writable admin overlay or authoritative ini path.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -703,6 +727,12 @@ combined log to. Defaults to “/tmp/”.</p></li>
 <dd class="field-odd"><p>Tuple[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, Any]</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.get_environment_config_sources">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_environment_config_sources</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.get_environment_config_sources"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.get_environment_config_sources" title="Permalink to this definition"></a></dt>
+<dd><p>Return config options currently managed by environment variables.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1058,6 +1088,12 @@ set when running the command. Defaults to None.</p>
 <dd class="field-odd"><p>List[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.load_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">configfile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/configparser.html#configparser.ConfigParser" title="(in Python v3.14)"><span class="pre">ConfigParser</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.load_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.load_config" title="Permalink to this definition"></a></dt>
+<dd><p>Load BIOMERO configuration using the effective path policy.</p>
 </dd></dl>
 
 <dl class="py method">

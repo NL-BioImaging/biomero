@@ -72,25 +72,3 @@ def test_missing_authoritative_file_does_not_fall_back(monkeypatch, tmp_path):
 
     assert isinstance(configs, configparser.ConfigParser)
     assert configs.sections() == []
-
-
-def test_environment_sources_report_first_active_override(monkeypatch):
-    monkeypatch.setenv(slurm_env.GPU_GRES, "legacy-gres")
-    monkeypatch.setenv(slurm_env.BIOMERO_GPU_GRES, "preferred-gres")
-    monkeypatch.setenv(slurm_env.BIOMERO_DEFAULT_PARTITION, "cpu")
-    monkeypatch.setenv("SQLALCHEMY_URL", "postgresql://managed")
-
-    sources = SlurmClient.get_environment_config_sources()
-
-    assert sources["SLURM"]["gpu_gres"] == {
-        "source": "environment",
-        "name": slurm_env.BIOMERO_GPU_GRES,
-    }
-    assert sources["SLURM"]["slurm_default_partition"] == {
-        "source": "environment",
-        "name": slurm_env.BIOMERO_DEFAULT_PARTITION,
-    }
-    assert sources["ANALYTICS"]["sqlalchemy_url"] == {
-        "source": "environment",
-        "name": "SQLALCHEMY_URL",
-    }

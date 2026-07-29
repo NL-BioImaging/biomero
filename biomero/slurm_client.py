@@ -281,6 +281,7 @@ class SlurmClient(Connection):
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
     _CONFIG_ENV_VARS = {
+        ("ANALYTICS", "sqlalchemy_url"): [slurm_env.SQLALCHEMY_URL],
         ("SLURM", "slurm_default_partition"): [
             slurm_env.BIOMERO_DEFAULT_PARTITION],
         ("SLURM", "sacct_start_time"): [
@@ -291,7 +292,6 @@ class SlurmClient(Connection):
             slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
         ("ANALYTICS", "analytics_rebuild_days_ago"): [
             slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
-        ("ANALYTICS", "sqlalchemy_url"): ["SQLALCHEMY_URL"],
         ("SLURM", "env_file_submission"): [
             slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
         ("SLURM", "inject_gpu_flag"): [
@@ -373,20 +373,6 @@ class SlurmClient(Connection):
         configs = configparser.ConfigParser(allow_no_value=True)
         configs.read(cls.get_config_paths(configfile))
         return configs
-
-    @classmethod
-    def get_environment_config_sources(cls) -> dict:
-        """Return config options currently managed by environment variables."""
-        sources = {}
-        for (section, option), env_vars in cls._CONFIG_ENV_VARS.items():
-            for env_var in env_vars:
-                if os.getenv(env_var) is not None:
-                    sources.setdefault(section, {})[option] = {
-                        "source": "environment",
-                        "name": env_var,
-                    }
-                    break
-        return sources
 
     @staticmethod
     def _get_config_value(configs,
@@ -797,11 +783,18 @@ class SlurmClient(Connection):
             raise NotImplementedError(
                 f"Can't handle {persistence_module}. Currently only supports 'eventsourcing_sqlalchemy' as PERSISTENCE_MODULE")
 
-        sqlalchemy_url = os.getenv("SQLALCHEMY_URL", self.sqlalchemy_url)
+        configured_sqlalchemy_url = self.sqlalchemy_url
+        sqlalchemy_url = self._get_config_value(
+            configparser.ConfigParser(),
+            section="ANALYTICS",
+            option="sqlalchemy_url",
+            default=configured_sqlalchemy_url,
+            env_vars=self._CONFIG_ENV_VARS[("ANALYTICS", "sqlalchemy_url")],
+        )
         if not sqlalchemy_url:
             raise ValueError(
                 "SQLALCHEMY_URL must be set either in init, config ('sqlalchemy_url') or as an environment variable.")
-        if sqlalchemy_url != self.sqlalchemy_url:
+        if sqlalchemy_url != configured_sqlalchemy_url:
             logger.info(
                 "Overriding configured SQLALCHEMY_URL with env var SQLALCHEMY_URL.")
 
@@ -1659,8 +1652,14 @@ class SlurmClient(Connection):
                 'ANALYTICS', 'enable_job_progress', fallback=True)
             enable_workflow_analytics = configs.getboolean(
                 'ANALYTICS', 'enable_workflow_analytics', fallback=True)
-            sqlalchemy_url = configs.get(
-                'ANALYTICS', 'sqlalchemy_url', fallback=None)
+            sqlalchemy_url = cls._get_config_value(
+                configs,
+                section='ANALYTICS',
+                option='sqlalchemy_url',
+                default=None,
+                env_vars=cls._CONFIG_ENV_VARS[
+                    ('ANALYTICS', 'sqlalchemy_url')],
+            )
         except configparser.NoSectionError:
             # If the ANALYTICS section is missing, fallback to default values
             track_workflows = True

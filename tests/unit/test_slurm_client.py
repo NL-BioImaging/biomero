@@ -2503,7 +2503,8 @@ def test_from_config(mock_ConfigParser,
         enable_job_accounting=True,  # expected enable_job_accounting value
         enable_job_progress=True,  # expected enable_job_progress value
         enable_workflow_analytics=True,  # expected enable_workflow_analytics value
-        sqlalchemy_url="sqlite:///test.db",  # expected sqlalchemy_url value
+        # SQLALCHEMY_URL from the autouse fixture overrides the ini value.
+        sqlalchemy_url="sqlite:///:memory:",
         config_only=config_only,
         slurm_data_bind_path=mv,
         slurm_conversion_partition=mv,

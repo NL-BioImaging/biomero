@@ -338,6 +338,10 @@ disabled independently. Turn off ``track_workflows=False`` only if you are runni
 basic 1.x-style deployment without a PostgreSQL analytics database, in which case none
 of the Metabase dashboard views will be populated.
 
+Set the database connection with ``sqlalchemy_url`` in ``[ANALYTICS]``. The
+``SQLALCHEMY_URL`` environment variable has higher precedence and overrides the ini
+value when set.
+
 See :doc:`developer/eventsourcing` for the event model and view table details.
 
 Analytics view table rebuild window

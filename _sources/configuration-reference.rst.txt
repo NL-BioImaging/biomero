@@ -32,6 +32,10 @@ Environment Variable Lookup Table
      - —
      - filesystem path
      - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+   * - ``SQLALCHEMY_URL``
+     - ``sqlalchemy_url``
+     - database URL
+     - Overrides the ``[ANALYTICS]`` database connection URL used for workflow tracking and analytics storage
    * - ``BIOMERO_SACCT_START_TIME``
      - ``sacct_start_time``
      - string date
@@ -280,6 +284,7 @@ Search Hints
 If you are looking for a specific name, try searching the docs for any of these exact identifiers:
 
 * ``BIOMERO_SACCT_START_TIME``
+* ``SQLALCHEMY_URL``
 * ``BIOMERO_SACCT_START_DAYS_AGO``
 * ``BIOMERO_ENV_FILE_SUBMISSION``
 * ``BIOMERO_INJECT_GPU_FLAG``

@@ -468,6 +468,9 @@ lifecycle.</p>
 disabled independently. Turn off <code class="docutils literal notranslate"><span class="pre">track_workflows=False</span></code> only if you are running a
 basic 1.x-style deployment without a PostgreSQL analytics database, in which case none
 of the Metabase dashboard views will be populated.</p>
+<p>Set the database connection with <code class="docutils literal notranslate"><span class="pre">sqlalchemy_url</span></code> in <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>. The
+<code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL</span></code> environment variable has higher precedence and overrides the ini
+value when set.</p>
 <p>See <a class="reference internal" href="developer/eventsourcing.html"><span class="doc">Eventsourcing and Views (Developer)</span></a> for the event model and view table details.</p>
 <section id="analytics-view-table-rebuild-window">
 <h3>Analytics view table rebuild window<a class="headerlink" href="#analytics-view-table-rebuild-window" title="Permalink to this heading"></a></h3>

@@ -20,6 +20,7 @@ CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
 FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
+LABELS_TO_ROIS_SCRIPT = "Labels2Rois"
 
 
 # ------------------------------------------------------------
@@ -85,6 +86,9 @@ class workflow:
     OUTPUT_DUPLICATES = "3b) Allow duplicate dataset (name)?"
     OUTPUT_CSV_TABLE = "4) Upload result CSVs as OMERO tables"
     OUTPUT_ATTACH_FILE_OUTPUTS = "5) Attach individual non-image output files"
+    OUTPUT_CREATE_ROIS = "6a) Create ROIs from label images"
+    ROI_LABEL_PATTERN = "6b) Label image pattern"
+    ROI_SHAPE = "6c) ROI shape"
     NO = "--NO THANK YOU--"
     USE_ZARR_FORMAT = "Use_ZARR_Format"
 
@@ -130,6 +134,10 @@ class results:
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
     OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
+    OUTPUT_CREATE_ROIS = "Create_ROIs"
+    ROI_LABEL_PATTERN = "ROI_Label_Pattern"
+    ROI_SHAPE = "ROI_Shape"
+    ROI_TARGET_IMAGE_IDS = "ROI_Target_Image_IDs"
     # Guaranteed container the SLURM job log is force-linked to when no richer
     # attachment target was resolved, so the log is always findable in OMERO
     # (unlinked annotations are effectively invisible to users). Forwarded by
@@ -207,6 +215,7 @@ class workflow_status:
     RETRIEVING = "RETRIEVING"
     IMPORTING = "IMPORTING"
     IMPORTED = "IMPORTED"
+    POSTPROCESSING = "POSTPROCESSING"
     DONE = "DONE"
     FAILED = "FAILED"
     RUNNING = "RUNNING"

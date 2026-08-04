@@ -910,6 +910,22 @@ def test_workflow_progress_all_statuses(workflow_tracker_and_workflow_progress):
     assert workflow_progress.workflows[workflow_id]["progress"] == expected_interpolated_progress  # Check interpolated progress
 
 
+def test_workflow_progress_roi_postprocessing(workflow_tracker_and_workflow_progress):
+    workflow_tracker, workflow_progress = workflow_tracker_and_workflow_progress
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2
+    )
+
+    for task_name in ("SLURM_Get_Results.py", "SLURM_Import_Results.py"):
+        task_id = workflow_tracker.add_task_to_workflow(
+            workflow_id, task_name, "v1", {}, {}
+        )
+        workflow_tracker.update_task_status(task_id, wfs.POSTPROCESSING)
+
+        assert workflow_progress.workflows[workflow_id]["status"] == wfs.POSTPROCESSING
+        assert workflow_progress.workflows[workflow_id]["progress"] == "95%"
+
+
 def test_job_progress_job_id_added(workflow_tracker_and_job_progress):
     # GIVEN a WorkflowTracker event system and job progress listener
     workflow_tracker: WorkflowTracker
@@ -2153,4 +2169,3 @@ class TestDatabaseRetryMechanism:
             
             # Reset for next test case
             mock_function.reset_mock()
-

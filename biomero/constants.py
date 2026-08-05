@@ -20,7 +20,7 @@ CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
 FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
-LABELS_TO_ROIS_SCRIPT = "Labels2Rois"
+LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
 
 
 # ------------------------------------------------------------

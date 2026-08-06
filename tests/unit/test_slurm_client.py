@@ -908,8 +908,9 @@ def test_run_conversion_workflow_job(
     
     # Handle special case for zarr format (.zarr and .ome.zarr)
     if source_format == 'zarr':
-        find_cmd = (f'find "{expected_data_path}/data/in" -name "*.zarr" '
-                    f'-o -name "*.ome.zarr" | awk \'{{print NR, $0}}\' '
+        find_cmd = (f'find "{expected_data_path}/data/in" -type d '
+                    f'\\( -name "*.zarr" -o -name "*.ome.zarr" \\) '
+                    f'-prune -print | awk \'{{print NR, $0}}\' '
                     f'> "{expected_config_file}"')
     else:
         find_cmd = (f'find "{expected_data_path}/data/in" '

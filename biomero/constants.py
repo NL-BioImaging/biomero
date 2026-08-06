@@ -89,6 +89,7 @@ class workflow:
     OUTPUT_CREATE_ROIS = "6a) Create ROIs from label images"
     ROI_LABEL_PATTERN = "6b) Label image pattern"
     ROI_SHAPE = "6c) ROI shape"
+    ROI_DELETE_LABEL_IMAGES = "6d) Delete label images after ROI creation"
     NO = "--NO THANK YOU--"
     USE_ZARR_FORMAT = "Use_ZARR_Format"
 
@@ -137,6 +138,7 @@ class results:
     OUTPUT_CREATE_ROIS = "Create_ROIs"
     ROI_LABEL_PATTERN = "ROI_Label_Pattern"
     ROI_SHAPE = "ROI_Shape"
+    ROI_DELETE_LABEL_IMAGES = "ROI_Delete_Label_Images"
     ROI_TARGET_IMAGE_IDS = "ROI_Target_Image_IDs"
     # Guaranteed container the SLURM job log is force-linked to when no richer
     # attachment target was resolved, so the log is always findable in OMERO

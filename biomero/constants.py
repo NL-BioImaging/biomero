@@ -14,6 +14,9 @@
 # limitations under the License.
 """This module defines constants for use with BIOMERO (scripts)"""
 
+import re
+from uuid import UUID
+
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
@@ -21,6 +24,39 @@ FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
+
+# Blueprint qualitative color scheme. Keep these values in Python because the
+# OMERO scripts do not load the Blueprint JavaScript package.
+# https://blueprintjs.com/docs/#core/colors.qualitative-color-schemes
+QUALITATIVE_COLOR_SCHEME = (
+    "#147EB3",  # cerulean3
+    "#29A634",  # forest3
+    "#D1980B",  # gold3
+    "#D33D17",  # vermilion3
+    "#9D3F9D",  # violet3
+    "#00A396",  # turquoise3
+    "#DB2C6F",  # rose3
+    "#8EB125",  # lime3
+    "#946638",  # sepia3
+    "#7961DB",  # indigo3
+)
+
+
+def resolve_workflow_color(color_override, workflow_id):
+    """Return an explicit color.
+
+    Derive the automatic value deterministically from a workflow UUID.
+    """
+    color = str(color_override or "").strip().upper()
+    if color:
+        if not re.fullmatch(r"#[0-9A-F]{6}", color):
+            raise ValueError(
+                "Workflow color must be empty or use #RRGGBB format"
+            )
+        return color
+    return QUALITATIVE_COLOR_SCHEME[
+        UUID(str(workflow_id)).int % len(QUALITATIVE_COLOR_SCHEME)
+    ]
 
 
 # ------------------------------------------------------------
@@ -92,6 +128,7 @@ class workflow:
     ROI_DELETE_LABEL_IMAGES = "6d) Delete label images after ROI creation"
     ROI_CLEAR_EXISTING = "6e) Clear existing ROIs on original images"
     ROI_CLEAR_FILTER = "6f) Clear existing ROI name filter"
+    ROI_COLOR = "6g) ROI color override"
     NO = "--NO THANK YOU--"
     USE_ZARR_FORMAT = "Use_ZARR_Format"
 
@@ -144,6 +181,7 @@ class results:
     ROI_NAME_PREFIX = "ROI_Name_Prefix"
     ROI_CLEAR_EXISTING = "ROI_Clear_Existing"
     ROI_CLEAR_FILTER = "ROI_Clear_Filter"
+    ROI_COLOR = "ROI_Color"
     ROI_TARGET_IMAGE_IDS = "ROI_Target_Image_IDs"
     # Guaranteed container the SLURM job log is force-linked to when no richer
     # attachment target was resolved, so the log is always findable in OMERO

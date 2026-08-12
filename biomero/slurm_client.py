@@ -2504,8 +2504,13 @@ class SlurmClient(Connection):
 
         # Handle both .zarr and .ome.zarr extensions for backward compatibility
         if source_format == 'zarr':
-            find_cmd = (f"find \"{data_path}/data/in\" -name \"*.zarr\" "
-                        f"-o -name \"*.ome.zarr\" | "
+            # Treat each selected Zarr store as one atomic input. Imported
+            # OME-Zarr images may contain nested label stores; descending into
+            # a matched parent would submit those labels as extra array tasks,
+            # racing the parent task that removes its converted input.
+            find_cmd = (f"find \"{data_path}/data/in\" -type d "
+                        f"\\( -name \"*.zarr\" -o -name \"*.ome.zarr\" \\) "
+                        f"-prune -print | "
                         f"awk '{{print NR, $0}}' > \"{config_file}\"")
         else:
             find_cmd = (f"find \"{data_path}/data/in\" "

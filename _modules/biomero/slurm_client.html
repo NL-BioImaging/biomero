@@ -2616,8 +2616,13 @@
 
         <span class="c1"># Handle both .zarr and .ome.zarr extensions for backward compatibility</span>
         <span class="k">if</span> <span class="n">source_format</span> <span class="o">==</span> <span class="s1">&#39;zarr&#39;</span><span class="p">:</span>
-            <span class="n">find_cmd</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/in</span><span class="se">\&quot;</span><span class="s2"> -name </span><span class="se">\&quot;</span><span class="s2">*.zarr</span><span class="se">\&quot;</span><span class="s2"> &quot;</span>
-                        <span class="sa">f</span><span class="s2">&quot;-o -name </span><span class="se">\&quot;</span><span class="s2">*.ome.zarr</span><span class="se">\&quot;</span><span class="s2"> | &quot;</span>
+            <span class="c1"># Treat each selected Zarr store as one atomic input. Imported</span>
+            <span class="c1"># OME-Zarr images may contain nested label stores; descending into</span>
+            <span class="c1"># a matched parent would submit those labels as extra array tasks,</span>
+            <span class="c1"># racing the parent task that removes its converted input.</span>
+            <span class="n">find_cmd</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/in</span><span class="se">\&quot;</span><span class="s2"> -type d &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">( -name </span><span class="se">\&quot;</span><span class="s2">*.zarr</span><span class="se">\&quot;</span><span class="s2"> -o -name </span><span class="se">\&quot;</span><span class="s2">*.ome.zarr</span><span class="se">\&quot;</span><span class="s2"> </span><span class="se">\\</span><span class="s2">) &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;-prune -print | &quot;</span>
                         <span class="sa">f</span><span class="s2">&quot;awk &#39;</span><span class="se">{{</span><span class="s2">print NR, $0</span><span class="se">}}</span><span class="s2">&#39; &gt; </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">config_file</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">find_cmd</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;find </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">data_path</span><span class="si">}</span><span class="s2">/data/in</span><span class="se">\&quot;</span><span class="s2"> &quot;</span>

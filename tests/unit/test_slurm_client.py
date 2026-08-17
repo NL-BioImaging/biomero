@@ -1,4 +1,5 @@
 import logging
+import json
 from uuid import uuid4
 from uuid import UUID
 from biomero.slurm_client import (
@@ -3623,6 +3624,64 @@ def test_write_canonical_input_manifest_rejects_unsafe_input_path(
     with pytest.raises(ValueError, match="relative Slurm input folder"):
         slurm_client.write_canonical_input_manifest(
             input_data, canonical_input_manifest())
+
+
+def test_read_canonical_input_manifest_validates_remote_json(slurm_client):
+    manifest = canonical_input_manifest()
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=True,
+        stdout=json.dumps(manifest.to_dict()),
+        stderr="",
+    ))
+
+    loaded = slurm_client.read_canonical_input_manifest(
+        "/remote/data/batch-1",
+        expected_workflow_id=manifest.workflow_id,
+    )
+
+    assert loaded == manifest
+    slurm_client.run_commands.assert_called_once_with([
+        "cat /remote/data/batch-1/.biomero/canonical-inputs.json"
+    ])
+
+
+def test_read_canonical_input_manifest_returns_none_when_absent(slurm_client):
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=False,
+        stdout="",
+        stderr="No such file",
+    ))
+
+    assert slurm_client.read_canonical_input_manifest(
+        "/remote/data/batch-1"
+    ) is None
+
+
+def test_read_canonical_input_manifest_rejects_wrong_workflow(slurm_client):
+    manifest = canonical_input_manifest()
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=True,
+        stdout=json.dumps(manifest.to_dict()),
+        stderr="",
+    ))
+
+    with pytest.raises(ValueError, match="workflow ID"):
+        slurm_client.read_canonical_input_manifest(
+            "/remote/data/batch-1",
+            expected_workflow_id=UUID(
+                "cccccccc-cccc-cccc-cccc-cccccccccccc"
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "data_location", ["relative/path", "/remote/../escape", "/bad\npath"]
+)
+def test_read_canonical_input_manifest_rejects_unsafe_location(
+    slurm_client, data_location
+):
+    with pytest.raises(ValueError, match="absolute Slurm data location"):
+        slurm_client.read_canonical_input_manifest(data_location)
 
 
 def test_unpack_data_calls_run_commands(slurm_client):

@@ -2151,6 +2151,61 @@ class SlurmClient(Connection):
             )
         return remote_path
 
+    def read_canonical_input_manifest(
+        self,
+        data_location: str,
+        expected_workflow_id: Optional[UUID] = None,
+    ) -> Optional[CanonicalInputManifest]:
+        """Load and validate the immutable input snapshot beside a Slurm task.
+
+        A missing recovery manifest returns ``None`` so callers can consult the
+        event store. A present but malformed or wrongly scoped manifest fails
+        closed because it must never be used to omit returned image data.
+        """
+        if (
+            not data_location
+            or "\\" in data_location
+            or "\n" in data_location
+            or "\r" in data_location
+            or "\0" in data_location
+        ):
+            raise ValueError("data_location must be an absolute Slurm data location")
+        data_path = PurePosixPath(data_location)
+        if not data_path.is_absolute() or ".." in data_path.parts:
+            raise ValueError("data_location must be an absolute Slurm data location")
+
+        remote_path = (
+            f"{data_path.as_posix().rstrip('/')}/"
+            ".biomero/canonical-inputs.json"
+        )
+        result = self.run_commands([
+            f"cat {shlex.quote(remote_path)}"
+        ])
+        if not result.ok:
+            logger.info(
+                "No canonical input recovery manifest at %s: %s",
+                remote_path,
+                result.stderr,
+            )
+            return None
+        try:
+            manifest = CanonicalInputManifest.from_dict(
+                json.loads(result.stdout)
+            )
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid canonical input manifest at {remote_path}"
+            ) from exc
+
+        if expected_workflow_id is not None:
+            expected = UUID(str(expected_workflow_id))
+            if manifest.workflow_id != expected:
+                raise ValueError(
+                    "Canonical input manifest workflow ID does not match "
+                    f"expected workflow {expected}"
+                )
+        return manifest
+
     def unpack_data(self, zipfile: str,
                     env: Optional[Dict[str, str]] = None) -> Result:
         """

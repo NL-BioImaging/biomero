@@ -1,7 +1,14 @@
 import logging
 from uuid import uuid4
+from uuid import UUID
 from biomero.slurm_client import (
     SlurmClient
+)
+from biomero.zarr_contracts import (
+    CanonicalInput,
+    CanonicalInputManifest,
+    CanonicalZarrSource,
+    PixelIdentity,
 )
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
@@ -3542,6 +3549,80 @@ def test_transfer_data_calls_put(slurm_client):
     slurm_client.transfer_data("/local/myfile.zip")
     slurm_client.put.assert_called_once_with(
         local="/local/myfile.zip", remote="/remote/data")
+
+
+def canonical_input_manifest():
+    identity = PixelIdentity(
+        node_path=".",
+        role="image",
+        iscc_code="ISCC:KPIXEL",
+        data_code="ISCC:GDATA",
+        instance_code="ISCC:IINSTANCE",
+        tool_version="0.1.0",
+        imagewalk_revision="draft-2026-06",
+        shape=(1, 1, 1, 16, 16),
+        dtype="uint16",
+        axes=("t", "c", "z", "y", "x"),
+    )
+    source = CanonicalZarrSource(
+        storage_root="group-3-data",
+        relative_path=".processed/Image-7.g1.ome.zarr",
+        node_path=".",
+        source_object_type="Image",
+        source_object_id=7,
+        source_generation=1,
+        interchange_profile="ngff-0.4-zarr-v2",
+        pixel_identity=identity,
+        pixel_identity_origin="raw",
+        canonical_pixel_verified=True,
+    )
+    return CanonicalInputManifest(
+        workflow_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        export_task_id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        inputs=(CanonicalInput(
+            ordinal=0,
+            selected_object_type="Image",
+            selected_object_id=7,
+            source=source,
+        ),),
+    )
+
+
+def test_write_canonical_input_manifest_transfers_validated_json(slurm_client):
+    slurm_client.slurm_data_path = "/remote/data"
+    slurm_client.run_commands = MagicMock(
+        return_value=MagicMock(ok=True, stderr=""))
+    captured = {}
+
+    def capture_put(*, local, remote):
+        local.seek(0)
+        captured["json"] = local.read().decode("utf-8")
+        captured["remote"] = remote
+        return MagicMock(ok=True, stderr="")
+
+    slurm_client.put = MagicMock(side_effect=capture_put)
+    manifest = canonical_input_manifest()
+
+    remote_path = slurm_client.write_canonical_input_manifest(
+        "batch-1", manifest)
+
+    assert remote_path == (
+        "/remote/data/batch-1/.biomero/canonical-inputs.json")
+    assert captured["remote"] == remote_path
+    assert '"workflowId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"' in (
+        captured["json"])
+    slurm_client.run_commands.assert_called_once_with([
+        "mkdir -p /remote/data/batch-1/.biomero"
+    ])
+
+
+@pytest.mark.parametrize("input_data", ["../escape", "/absolute", "bad\\path"])
+def test_write_canonical_input_manifest_rejects_unsafe_input_path(
+    slurm_client, input_data
+):
+    with pytest.raises(ValueError, match="relative Slurm input folder"):
+        slurm_client.write_canonical_input_manifest(
+            input_data, canonical_input_manifest())
 
 
 def test_unpack_data_calls_run_commands(slurm_client):

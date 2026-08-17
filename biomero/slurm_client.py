@@ -14,6 +14,7 @@
 # limitations under the License.
 from typing import Dict, List, Optional, Tuple, Any
 from uuid import UUID
+from pathlib import PurePosixPath
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
 from invoke.exceptions import UnexpectedExit
@@ -29,10 +30,12 @@ import time as timesleep
 from string import Template
 from importlib_resources import files
 import io
+import json
 import os
 import yaml
 import shlex
 from biomero.constants import slurm_env
+from biomero.zarr_contracts import CanonicalInputManifest
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
@@ -2098,6 +2101,55 @@ class SlurmClient(Connection):
         logger.info(
             f"Transfering file {local_path} to {self.slurm_data_path}")
         return self.put(local=local_path, remote=self.slurm_data_path)
+
+    def write_canonical_input_manifest(
+        self,
+        input_data: str,
+        manifest: CanonicalInputManifest,
+    ) -> str:
+        """Persist a validated recovery manifest beside one workflow input.
+
+        The manifest lives outside the portable Zarr under the BIOMERO-owned
+        ``.biomero`` directory. It lets result ingestion recover the immutable
+        source snapshot even when event tracking is temporarily unavailable.
+        """
+        if not input_data or "\\" in input_data:
+            raise ValueError("input_data must be a relative Slurm input folder")
+        input_path = PurePosixPath(input_data)
+        if input_path.is_absolute() or ".." in input_path.parts:
+            raise ValueError("input_data must be a relative Slurm input folder")
+
+        if not isinstance(manifest, CanonicalInputManifest):
+            manifest = CanonicalInputManifest.from_dict(manifest)
+
+        remote_dir = (
+            f"{self.slurm_data_path.rstrip('/')}/"
+            f"{input_path.as_posix()}/.biomero"
+        )
+        mkdir_result = self.run_commands([
+            f"mkdir -p {shlex.quote(remote_dir)}"
+        ])
+        if not mkdir_result.ok:
+            raise SSHException(
+                "Failed to create remote canonical manifest directory: "
+                f"{mkdir_result.stderr}"
+            )
+
+        remote_path = f"{remote_dir}/canonical-inputs.json"
+        payload = io.BytesIO(
+            json.dumps(
+                manifest.to_dict(),
+                indent=2,
+                sort_keys=True,
+            ).encode("utf-8")
+        )
+        transfer_result = self.put(local=payload, remote=remote_path)
+        if hasattr(transfer_result, "ok") and not transfer_result.ok:
+            raise SSHException(
+                "Failed to transfer canonical input manifest: "
+                f"{getattr(transfer_result, 'stderr', transfer_result)}"
+            )
+        return remote_path
 
     def unpack_data(self, zipfile: str,
                     env: Optional[Dict[str, str]] = None) -> Result:

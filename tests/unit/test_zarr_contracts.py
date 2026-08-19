@@ -14,6 +14,7 @@ from biomero.zarr_contracts import (
     CanonicalZarrSource,
     ManagedZarrNode,
     PixelIdentity,
+    ShallowPlateReference,
     ShallowZarrReference,
     ZarrLabelComponent,
 )
@@ -22,6 +23,7 @@ from biomero.zarr_contracts import (
 def test_shared_shallow_contract_is_reexported():
     assert SHALLOW_COLLECTION_NAMESPACE == "biomero.zarr.shallow"
     assert ShallowZarrReference.__module__ == "biomero_schema.zarr"
+    assert ShallowPlateReference.__module__ == "biomero_schema.zarr"
     assert ManagedZarrNode.__module__ == "biomero_schema.zarr"
     assert ZarrLabelComponent.__module__ == "biomero_schema.zarr"
     assert CANONICAL_PLATE_SOURCE_NAMESPACE == "biomero.zarr.plate-source"

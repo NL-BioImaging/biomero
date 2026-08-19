@@ -2,8 +2,10 @@ import pytest
 
 from biomero.zarr_contracts import (
     CANONICAL_SOURCE_NAMESPACE,
+    CANONICAL_PLATE_SOURCE_NAMESPACE,
     SHALLOW_COLLECTION_NAMESPACE,
     CanonicalInput,
+    CanonicalPlateSource,
     CanonicalZarrSource,
     ManagedZarrNode,
     PixelIdentity,
@@ -17,6 +19,8 @@ def test_shared_shallow_contract_is_reexported():
     assert ShallowZarrReference.__module__ == "biomero_schema.zarr"
     assert ManagedZarrNode.__module__ == "biomero_schema.zarr"
     assert ZarrLabelComponent.__module__ == "biomero_schema.zarr"
+    assert CANONICAL_PLATE_SOURCE_NAMESPACE == "biomero.zarr.plate-source"
+    assert CanonicalPlateSource.__module__ == "biomero_schema.zarr"
 
 
 @pytest.fixture

@@ -5,6 +5,8 @@ workflow events remains in this package.
 """
 
 from biomero_schema.zarr import (
+    CANONICAL_PLATE_IMAGE_NAMESPACE,
+    CANONICAL_PLATE_LABEL_NAMESPACE,
     CANONICAL_SOURCE_NAMESPACE,
     CANONICAL_SOURCE_SCHEMA,
     CANONICAL_PLATE_SOURCE_NAMESPACE,
@@ -14,6 +16,9 @@ from biomero_schema.zarr import (
     CanonicalInput,
     CanonicalInputManifest,
     CanonicalPlateImage,
+    CanonicalPlateImageRecord,
+    CanonicalPlateIndex,
+    CanonicalPlateLabelRecord,
     CanonicalPlateSource,
     CanonicalZarrSource,
     ManagedZarrNode,
@@ -26,6 +31,8 @@ from biomero_schema.zarr import (
 
 
 __all__ = [
+    "CANONICAL_PLATE_IMAGE_NAMESPACE",
+    "CANONICAL_PLATE_LABEL_NAMESPACE",
     "CANONICAL_SOURCE_NAMESPACE",
     "CANONICAL_SOURCE_SCHEMA",
     "CANONICAL_PLATE_SOURCE_NAMESPACE",
@@ -35,6 +42,9 @@ __all__ = [
     "CanonicalInput",
     "CanonicalInputManifest",
     "CanonicalPlateImage",
+    "CanonicalPlateImageRecord",
+    "CanonicalPlateIndex",
+    "CanonicalPlateLabelRecord",
     "CanonicalPlateSource",
     "CanonicalZarrSource",
     "ManagedZarrNode",

@@ -172,6 +172,8 @@ class results:
     OUTPUT_ATTACH_FILE_OUTPUTS_PLATE_ID = "Plate for file outputs"
     IMPORT_LABEL_ZARRS = "Import_Label_Zarrs"
     IMPORT_ONLY_LABELS = "Import_Only_Labels"
+    IMPORT_PLATE_LABEL_PREVIEW = "Import_Plate_Label_Preview"
+    PLATE_LABEL_PREVIEW_NAME = "Plate_Label_Preview_Name"
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
     OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"

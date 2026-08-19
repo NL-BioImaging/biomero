@@ -35,3 +35,14 @@ def test_shallow_zarr_feature_flag_is_forwardable_to_omero_scripts():
         constants.slurm_env.BIOMERO_SHALLOW_ZARR
         == "BIOMERO_SHALLOW_ZARR"
     )
+
+
+def test_plate_label_preview_result_inputs_are_stable():
+    assert (
+        constants.results.IMPORT_PLATE_LABEL_PREVIEW
+        == "Import_Plate_Label_Preview"
+    )
+    assert (
+        constants.results.PLATE_LABEL_PREVIEW_NAME
+        == "Plate_Label_Preview_Name"
+    )

@@ -5,14 +5,18 @@ from biomero.zarr_contracts import (
     SHALLOW_COLLECTION_NAMESPACE,
     CanonicalInput,
     CanonicalZarrSource,
+    ManagedZarrNode,
     PixelIdentity,
     ShallowZarrReference,
+    ZarrLabelComponent,
 )
 
 
 def test_shared_shallow_contract_is_reexported():
     assert SHALLOW_COLLECTION_NAMESPACE == "biomero.zarr.shallow"
     assert ShallowZarrReference.__module__ == "biomero_schema.zarr"
+    assert ManagedZarrNode.__module__ == "biomero_schema.zarr"
+    assert ZarrLabelComponent.__module__ == "biomero_schema.zarr"
 
 
 @pytest.fixture

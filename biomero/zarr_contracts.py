@@ -13,10 +13,12 @@ from biomero_schema.zarr import (
     CanonicalInput,
     CanonicalInputManifest,
     CanonicalZarrSource,
+    ManagedZarrNode,
     PixelIdentity,
     ShallowCollection,
     ShallowImageReference,
     ShallowZarrReference,
+    ZarrLabelComponent,
 )
 
 
@@ -29,8 +31,10 @@ __all__ = [
     "CanonicalInput",
     "CanonicalInputManifest",
     "CanonicalZarrSource",
+    "ManagedZarrNode",
     "PixelIdentity",
     "ShallowCollection",
     "ShallowImageReference",
     "ShallowZarrReference",
+    "ZarrLabelComponent",
 ]

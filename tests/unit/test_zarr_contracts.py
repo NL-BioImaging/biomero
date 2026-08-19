@@ -2,10 +2,17 @@ import pytest
 
 from biomero.zarr_contracts import (
     CANONICAL_SOURCE_NAMESPACE,
+    SHALLOW_COLLECTION_NAMESPACE,
     CanonicalInput,
     CanonicalZarrSource,
     PixelIdentity,
+    ShallowZarrReference,
 )
+
+
+def test_shared_shallow_contract_is_reexported():
+    assert SHALLOW_COLLECTION_NAMESPACE == "biomero.zarr.shallow"
+    assert ShallowZarrReference.__module__ == "biomero_schema.zarr"
 
 
 @pytest.fixture

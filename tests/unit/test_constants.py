@@ -28,3 +28,10 @@ def test_resolve_workflow_color_is_deterministic_and_override_wins():
     assert constants.resolve_workflow_color("#d33d17", first) == "#D33D17"
     with pytest.raises(ValueError, match="#RRGGBB"):
         constants.resolve_workflow_color("red", first)
+
+
+def test_shallow_zarr_feature_flag_is_forwardable_to_omero_scripts():
+    assert (
+        constants.slurm_env.BIOMERO_SHALLOW_ZARR
+        == "BIOMERO_SHALLOW_ZARR"
+    )

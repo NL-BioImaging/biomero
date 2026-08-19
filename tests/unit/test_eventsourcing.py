@@ -11,6 +11,7 @@ from biomero.database import EngineManager, JobProgressView, JobView, TaskExecut
 from biomero.constants import workflow_status as wfs
 from uuid import UUID
 import logging
+from types import SimpleNamespace
 from sqlalchemy.exc import IntegrityError
 import psycopg2
 from eventsourcing.system import System, SingleThreadedRunner
@@ -234,6 +235,38 @@ def test_record_canonical_inputs_on_workflow(workflow_tracker):
     assert manifest.workflow_id == workflow_id
     assert manifest.export_task_id == export_task_id
     assert manifest.inputs == (canonical_input,)
+
+
+def test_legacy_workflow_state_without_canonical_fields_is_readable(
+    workflow_tracker,
+):
+    """Pre-feature aggregate state behaves as an empty canonical snapshot."""
+    legacy_workflow = SimpleNamespace()
+    with unittest.mock.patch.object(
+        workflow_tracker.repository,
+        "get",
+        return_value=legacy_workflow,
+    ):
+        snapshot = workflow_tracker.get_canonical_inputs(uuid.uuid4())
+
+    assert snapshot == {"export_task_id": None, "inputs": []}
+
+
+def test_workflow_initiated_event_schema_stays_legacy_compatible(
+    workflow_tracker,
+):
+    """Canonical defaults do not alter the persisted creation-event schema."""
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Legacy-compatible workflow", "", 1, 1
+    )
+    notification = workflow_tracker.notification_log.select(
+        start=1, limit=1
+    )[0]
+
+    assert b"canonical_inputs" not in notification.state
+    workflow = workflow_tracker.repository.get(workflow_id)
+    assert workflow.canonical_inputs == []
+    assert workflow.canonical_inputs_export_task_id is None
 
 
 def test_canonical_input_snapshot_rejects_task_from_another_workflow(

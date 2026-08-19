@@ -446,10 +446,14 @@ class WorkflowTracker(Application):
             inputs=tuple(canonical_inputs),
         )
         wire_inputs = [item.to_dict() for item in manifest.inputs]
-        if workflow.canonical_inputs_export_task_id is not None:
+        existing_export_task_id = getattr(
+            workflow, "canonical_inputs_export_task_id", None
+        )
+        existing_inputs = getattr(workflow, "canonical_inputs", [])
+        if existing_export_task_id is not None:
             if (
-                workflow.canonical_inputs_export_task_id == export_task_id
-                and workflow.canonical_inputs == wire_inputs
+                existing_export_task_id == export_task_id
+                and existing_inputs == wire_inputs
             ):
                 return
             raise ValueError(
@@ -467,8 +471,10 @@ class WorkflowTracker(Application):
         """Returns the canonical input snapshot recorded for a workflow."""
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return {
-            "export_task_id": workflow.canonical_inputs_export_task_id,
-            "inputs": deepcopy(workflow.canonical_inputs),
+            "export_task_id": getattr(
+                workflow, "canonical_inputs_export_task_id", None
+            ),
+            "inputs": deepcopy(getattr(workflow, "canonical_inputs", [])),
         }
 
     def get_canonical_input_manifest(

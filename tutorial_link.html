@@ -255,7 +255,7 @@ You can walk through the readme, or open the <a class="reference external" href=
 <section id="headless">
 <h3>headless<a class="headerlink" href="#headless" title="Permalink to this heading"></a></h3>
 <p>After it works, let’s try it headless too:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./cellprofiler.exe -c -p &#39;&lt;path-to&gt;\PLA-dot-counting-with-speckle-enhancement.cppipe&#39; -o &#39;&lt;path-to&gt;\cellprofiler_results&#39; -i &#39;&lt;path-to&gt;\PLA_data
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./cellprofiler.exe -c -p '&lt;path-to&gt;\PLA-dot-counting-with-speckle-enhancement.cppipe' -o '&lt;path-to&gt;\cellprofiler_results' -i '&lt;path-to&gt;\PLA_data
 </pre></div>
 </div>
 <p>Here we provide the input images (<code class="docutils literal notranslate"><span class="pre">-i</span></code>), the output folder (<code class="docutils literal notranslate"><span class="pre">-o</span></code>), the project (<code class="docutils literal notranslate"><span class="pre">-p</span></code>) and headless mode (<code class="docutils literal notranslate"><span class="pre">-c</span></code>).</p>
@@ -367,7 +367,7 @@ We want the newest one, so I rewrote the Dockerfile:</p>
 <span class="k">ADD</span><span class="w"> </span>PLA-dot-counting-with-speckle-enhancement.cppipe<span class="w"> </span>/app/PLA-dot-counting-with-speckle-enhancement.cppipe
 <span class="k">ADD</span><span class="w"> </span>descriptor.json<span class="w"> </span>/app/descriptor.json
 
-<span class="k">ENTRYPOINT</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;python3.7&quot;</span><span class="p">,</span><span class="s2">&quot;/app/wrapper.py&quot;</span><span class="p">]</span>
+<span class="k">ENTRYPOINT</span><span class="w"> </span><span class="p">[</span><span class="s2">"python3.7"</span><span class="p">,</span><span class="s2">"/app/wrapper.py"</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>Finally we add our own workflow to <code class="docutils literal notranslate"><span class="pre">/app</span></code> folder:</p>
@@ -387,62 +387,62 @@ Mainly, update the name, description and where we will publish the container (yo
 <details>
   <summary>Example full json</summary>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SpotCounting-CellProfiler&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Workflow for spot counting in CellProfiler&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;container-image&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;torecluik/w_spotcounting-cellprofiler&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;singularity&quot;</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SpotCounting-CellProfiler"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Workflow for spot counting in CellProfiler"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"container-image"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"image"</span><span class="p">:</span><span class="w"> </span><span class="s2">"torecluik/w_spotcounting-cellprofiler"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"singularity"</span>
 <span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">&quot;command-line&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;python wrapper.py CYTOMINE_HOST CYTOMINE_PUBLIC_KEY CYTOMINE_PRIVATE_KEY CYTOMINE_ID_PROJECT CYTOMINE_ID_SOFTWARE&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;inputs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="nt">"command-line"</span><span class="p">:</span><span class="w"> </span><span class="s2">"python wrapper.py CYTOMINE_HOST CYTOMINE_PUBLIC_KEY CYTOMINE_PRIVATE_KEY CYTOMINE_ID_PROJECT CYTOMINE_ID_SOFTWARE"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_host&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS host&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;String&quot;</span>
+<span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cytomine_host"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"value-key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"@ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"command-line-flag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--@id"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BIAFLOWS host"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"set-by-server"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"optional"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"String"</span>
 <span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_public_key&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS public key&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;String&quot;</span>
+<span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cytomine_public_key"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"value-key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"@ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"command-line-flag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--@id"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BIAFLOWS public key"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"set-by-server"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"optional"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"String"</span>
 <span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_private_key&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS private key&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;String&quot;</span>
+<span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cytomine_private_key"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"value-key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"@ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"command-line-flag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--@id"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BIAFLOWS private key"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"set-by-server"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"optional"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"String"</span>
 <span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_id_project&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS project ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Number&quot;</span>
+<span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cytomine_id_project"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"value-key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"@ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"command-line-flag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--@id"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BIAFLOWS project ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"set-by-server"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"optional"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Number"</span>
 <span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine_id_software&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;value-key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;command-line-flag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;--@id&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BIAFLOWS software ID&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;set-by-server&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;optional&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Number&quot;</span>
+<span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cytomine_id_software"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"value-key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"@ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"command-line-flag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--@id"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BIAFLOWS software ID"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"set-by-server"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"optional"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Number"</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">],</span>
 
-<span class="w">  </span><span class="nt">&quot;schema-version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cytomine-0.1&quot;</span>
+<span class="w">  </span><span class="nt">"schema-version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cytomine-0.1"</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -457,11 +457,11 @@ We also have to make sure that we call the pipeline correctly here.</p>
   <summary>Our changes to the wrapper</summary>
 <p>This first part we keep the same: the <code class="docutils literal notranslate"><span class="pre">BiaflowsJob</span></code> will parse the commandline parameters for us and provide those as <code class="docutils literal notranslate"><span class="pre">bj.parameter.&lt;param_name&gt;</span></code> if we did want them. But we don’t use any right now.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
-    <span class="n">base_path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;HOME&quot;</span><span class="p">))</span> <span class="c1"># Mandatory for Singularity</span>
+    <span class="n">base_path</span> <span class="o">=</span> <span class="s2">"</span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">"HOME"</span><span class="p">))</span> <span class="c1"># Mandatory for Singularity</span>
     <span class="n">problem_cls</span> <span class="o">=</span> <span class="n">CLASS_OBJSEG</span>
 
     <span class="k">with</span> <span class="n">BiaflowsJob</span><span class="o">.</span><span class="n">from_cli</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="k">as</span> <span class="n">bj</span><span class="p">:</span>
-        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Initialisation...&quot;</span><span class="p">)</span>
+        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">"Initialisation..."</span><span class="p">)</span>
         <span class="c1"># 1. Prepare data for workflow</span>
         <span class="n">in_imgs</span><span class="p">,</span> <span class="n">gt_imgs</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="n">gt_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">prepare_data</span><span class="p">(</span><span class="n">problem_cls</span><span class="p">,</span> <span class="n">bj</span><span class="p">,</span> <span class="n">is_2d</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">bj</span><span class="o">.</span><span class="n">flags</span><span class="p">)</span>
 </pre></div>
@@ -469,20 +469,20 @@ We also have to make sure that we call the pipeline correctly here.</p>
 <p>The second part (where we call our pipeline) we can simplify a bit, as we don’t need to parse parameters for cellprofiler. See <a class="reference internal" href="#extra-how-to-add-workflow-parameters-to-cellprofiler"><span class="xref myst">later</span></a> for how to start handling that.</p>
 <p>We specifically name the cppipe that we added to <code class="docutils literal notranslate"><span class="pre">/app</span></code>, and we use <code class="docutils literal notranslate"><span class="pre">subprocess.run(...)</span></code> to execute our cellprofiler headless on the commandline: <code class="docutils literal notranslate"><span class="pre">cellprofiler</span> <span class="pre">-c</span> <span class="pre">-r</span> <span class="pre">-p</span> <span class="pre">...</span> <span class="pre">-i</span> <span class="pre">...</span> <span class="pre">-o</span> <span class="pre">...</span> <span class="pre">-t</span></code>.</p>
 <p>In theory we could also use the cellprofiler python package here, for more control. But in general, we can run any commandline program with <code class="docutils literal notranslate"><span class="pre">subprocess.run</span></code>, so this wrapper will look similar for most workflows.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>        <span class="n">pipeline</span> <span class="o">=</span> <span class="s2">&quot;/app/PLA-dot-counting-with-speckle-enhancement.cppipe&quot;</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>        <span class="n">pipeline</span> <span class="o">=</span> <span class="s2">"/app/PLA-dot-counting-with-speckle-enhancement.cppipe"</span>
 
         <span class="c1"># 2. Run CellProfiler pipeline</span>
-        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">"Launching workflow..."</span><span class="p">)</span>
         
         <span class="c1">## If we want to allow parameters, we have to parse them into the pipeline here</span>
         <span class="c1"># mod_pipeline = parse_cellprofiler_parameters(bj, pipeline, tmp_path)</span>
         <span class="n">mod_pipeline</span> <span class="o">=</span> <span class="n">pipeline</span>
 
         <span class="n">shArgs</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="s2">&quot;cellprofiler&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="n">mod_pipeline</span><span class="p">,</span>
-            <span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span>
+            <span class="s2">"cellprofiler"</span><span class="p">,</span> <span class="s2">"-c"</span><span class="p">,</span> <span class="s2">"-r"</span><span class="p">,</span> <span class="s2">"-p"</span><span class="p">,</span> <span class="n">mod_pipeline</span><span class="p">,</span>
+            <span class="s2">"-i"</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="s2">"-o"</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="s2">"-t"</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span>
         <span class="p">]</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shArgs</span><span class="p">),</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shArgs</span><span class="p">),</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Finally, we don’t change much to the rest of the script and just handle the return code. 0 means success, so then we just log to the logfile.</p>
@@ -579,7 +579,7 @@ https://hub.docker.com/u/your-dockerhub-user</p></li>
 <span class="na">cellprofiler_spot</span><span class="o">=</span><span class="s">cellprofiler_spot</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellprofiler_spot_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_SpotCounting-CellProfiler/tree/v1.0.0</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellprofiler_spot_job</span><span class="o">=</span><span class="s">jobs/cellprofiler_spot.sh</span>
 </pre></div>
 </div>
@@ -605,7 +605,7 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 <span class="c1"># Modified work Copyright 2022 Torec Luik, Amsterdam UMC</span>
 <span class="c1"># Use is subject to license terms supplied in LICENSE.txt</span>
 <span class="c1">#</span>
-<span class="c1"># Example OMERO.script to instantiate a &#39;empty&#39; Slurm connection.</span>
+<span class="c1"># Example OMERO.script to instantiate a 'empty' Slurm connection.</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">omero</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">omero.gateway</span>
@@ -618,46 +618,46 @@ For example, I had a bugfix, so I released <a class="reference external" href="h
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">runScript</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    The main entry point of the script</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">client</span> <span class="o">=</span> <span class="n">scripts</span><span class="o">.</span><span class="n">client</span><span class="p">(</span>
-        <span class="s1">&#39;Slurm Init&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="sd">&#39;&#39;&#39;Will initiate the Slurm environment for workflow execution.</span>
+        <span class="s1">'Slurm Init'</span><span class="p">,</span>
+<span class="w">        </span><span class="sd">'''Will initiate the Slurm environment for workflow execution.</span>
 
 <span class="sd">        You can provide a config file location, </span>
 <span class="sd">        and/or it will look for default locations:</span>
 <span class="sd">        /etc/slurm-config.ini</span>
 <span class="sd">        ~/slurm-config.ini</span>
-<span class="sd">        &#39;&#39;&#39;</span><span class="p">,</span>
-        <span class="n">scripts</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="s2">&quot;Init Slurm&quot;</span><span class="p">,</span> <span class="n">grouping</span><span class="o">=</span><span class="s2">&quot;01&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-        <span class="n">scripts</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s2">&quot;Config file&quot;</span><span class="p">,</span> <span class="n">optional</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">grouping</span><span class="o">=</span><span class="s2">&quot;01.1&quot;</span><span class="p">,</span>
-                       <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The path to your configuration file. Optional.&quot;</span><span class="p">),</span>
+<span class="sd">        '''</span><span class="p">,</span>
+        <span class="n">scripts</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="s2">"Init Slurm"</span><span class="p">,</span> <span class="n">grouping</span><span class="o">=</span><span class="s2">"01"</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">scripts</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s2">"Config file"</span><span class="p">,</span> <span class="n">optional</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">grouping</span><span class="o">=</span><span class="s2">"01.1"</span><span class="p">,</span>
+                       <span class="n">description</span><span class="o">=</span><span class="s2">"The path to your configuration file. Optional."</span><span class="p">),</span>
         <span class="n">namespaces</span><span class="o">=</span><span class="p">[</span><span class="n">omero</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">namespaces</span><span class="o">.</span><span class="n">NSDYNAMIC</span><span class="p">],</span>
     <span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-        <span class="n">init_slurm</span> <span class="o">=</span> <span class="n">unwrap</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="s2">&quot;Init Slurm&quot;</span><span class="p">))</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">""</span>
+        <span class="n">init_slurm</span> <span class="o">=</span> <span class="n">unwrap</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="s2">"Init Slurm"</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">init_slurm</span><span class="p">:</span>
-            <span class="n">configfile</span> <span class="o">=</span> <span class="n">unwrap</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="s2">&quot;Config file&quot;</span><span class="p">))</span>
+            <span class="n">configfile</span> <span class="o">=</span> <span class="n">unwrap</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="s2">"Config file"</span><span class="p">))</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">configfile</span><span class="p">:</span>
-                <span class="n">configfile</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="n">configfile</span> <span class="o">=</span> <span class="s1">''</span>
             <span class="k">with</span> <span class="n">SlurmClient</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">configfile</span><span class="o">=</span><span class="n">configfile</span><span class="p">,</span>
                                          <span class="n">init_slurm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">slurmClient</span><span class="p">:</span>
                 <span class="n">slurmClient</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validate_slurm_setup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Slurm is setup:&quot;</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="s2">"Slurm is setup:"</span>
                 <span class="n">models</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">get_all_image_versions_and_data_files</span><span class="p">()</span>
-                <span class="n">message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Models: </span><span class="si">{</span><span class="n">models</span><span class="si">}</span><span class="se">\n</span><span class="s2">Data:</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"Models: </span><span class="si">{</span><span class="n">models</span><span class="si">}</span><span class="se">\n</span><span class="s2">Data:</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">"</span>
 
-        <span class="n">client</span><span class="o">.</span><span class="n">setOutput</span><span class="p">(</span><span class="s2">&quot;Message&quot;</span><span class="p">,</span> <span class="n">rstring</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">message</span><span class="p">)))</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">setOutput</span><span class="p">(</span><span class="s2">"Message"</span><span class="p">,</span> <span class="n">rstring</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">message</span><span class="p">)))</span>
 
     <span class="k">finally</span><span class="p">:</span>
         <span class="n">client</span><span class="o">.</span><span class="n">closeSession</span><span class="p">()</span>
 
 
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'__main__'</span><span class="p">:</span>
     <span class="n">runScript</span><span class="p">()</span>
 
 </pre></div>
@@ -686,8 +686,8 @@ Perhaps we can integrate with OMERO.Tables in the future.</p>
 <h2>Extra: How to add workflow parameters to cellprofiler?<a class="headerlink" href="#extra-how-to-add-workflow-parameters-to-cellprofiler" title="Permalink to this heading"></a></h2>
 <p>So normally, adding workflow parameters to your commandline in <code class="docutils literal notranslate"><span class="pre">wrapper.py</span></code> is easy, like <a class="reference external" href="https://github.com/Neubias-WG5/W_NucleiSegmentation-Cellpose/blob/master/wrapper.py#L62C8-L65C37">this</a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span>        <span class="c1"># Add here the code for running the analysis script</span>
-        <span class="c1">#&quot;--chan&quot;, &quot;{:d}&quot;.format(nuc_channel)</span>
-        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">,</span> <span class="s2">&quot;--dir&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;--pretrained_model&quot;</span><span class="p">,</span> <span class="s2">&quot;nuclei&quot;</span><span class="p">,</span> <span class="s2">&quot;--save_tif&quot;</span><span class="p">,</span> <span class="s2">&quot;--no_npy&quot;</span><span class="p">,</span> <span class="s2">&quot;--chan&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">&quot;--diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">&quot;--cellprob_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">prob_threshold</span><span class="p">)]</span>
+        <span class="c1">#"--chan", "{:d}".format(nuc_channel)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"python"</span><span class="p">,</span> <span class="s2">"-m"</span><span class="p">,</span> <span class="s2">"cellpose"</span><span class="p">,</span> <span class="s2">"--dir"</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">"--pretrained_model"</span><span class="p">,</span> <span class="s2">"nuclei"</span><span class="p">,</span> <span class="s2">"--save_tif"</span><span class="p">,</span> <span class="s2">"--no_npy"</span><span class="p">,</span> <span class="s2">"--chan"</span><span class="p">,</span> <span class="s2">"</span><span class="si">{:d}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">"--diameter"</span><span class="p">,</span> <span class="s2">"</span><span class="si">{:f}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">"--cellprob_threshold"</span><span class="p">,</span> <span class="s2">"</span><span class="si">{:f}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">prob_threshold</span><span class="p">)]</span>
         <span class="n">status</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -764,7 +764,7 @@ Instead, we should package it in a lightweight container with the correct Python
 <span class="na">cellexpansion</span><span class="o">=</span><span class="s">cellexpansion</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellexpansion_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
 </pre></div>
 </div>
@@ -778,16 +778,16 @@ Output the new mask back as image in a new dataset.</p></li>
 <p>We calculate overlap with another very short Python script.
 It outputs the overlap counts of 2 masks.</p>
 <p>Example original code:</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">imCellsCellLabels</span><span class="o">=</span><span class="n">imread</span><span class="p">(</span><span class="s1">&#39;images/CellsNucleiLabels.tif&#39;</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_ANYDEPTH</span><span class="p">)</span>
-<span class="n">imCellsGranulesLabels</span><span class="o">=</span><span class="n">imread</span><span class="p">(</span><span class="s1">&#39;images/CellsGranulesLabels.tif&#39;</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_ANYDEPTH</span><span class="p">)</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">imCellsCellLabels</span><span class="o">=</span><span class="n">imread</span><span class="p">(</span><span class="s1">'images/CellsNucleiLabels.tif'</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_ANYDEPTH</span><span class="p">)</span>
+<span class="n">imCellsGranulesLabels</span><span class="o">=</span><span class="n">imread</span><span class="p">(</span><span class="s1">'images/CellsGranulesLabels.tif'</span><span class="p">,</span><span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_ANYDEPTH</span><span class="p">)</span>
 <span class="n">numCells</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">imCellsCellLabels</span><span class="p">)</span>
 <span class="n">CellNumGranules</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">numCells</span><span class="p">,</span><span class="mi">2</span><span class="p">],</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
-<span class="n">granulesStats</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">measure</span><span class="o">.</span><span class="n">regionprops_table</span><span class="p">(</span><span class="n">imCellsGranulesLabels</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;centroid&#39;</span><span class="p">,)))</span>
+<span class="n">granulesStats</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">measure</span><span class="o">.</span><span class="n">regionprops_table</span><span class="p">(</span><span class="n">imCellsGranulesLabels</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="p">(</span><span class="s1">'centroid'</span><span class="p">,)))</span>
 <span class="n">granulesStatsnp</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">granulesStats</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()),</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
 <span class="n">granulesStatsInCellLabel</span><span class="o">=</span><span class="n">imCellsCellLabels</span><span class="p">[</span><span class="n">granulesStatsnp</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">granulesStatsnp</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]]</span>
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">numCells</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
     <span class="n">CellNumGranules</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">granulesStatsInCellLabel</span><span class="o">==</span><span class="n">i</span><span class="p">)</span>
-<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">CellNumGranules</span><span class="p">,</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Estimated&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">style</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">CellNumGranules</span><span class="p">,</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'Estimated'</span><span class="p">])</span><span class="o">.</span><span class="n">style</span>
 </pre></div>
 </div>
 <p>I added this as a separate workflow at <a class="reference external" href="https://github.com/TorecLuik/W_CountMaskOverlap">W_CountMaskOverlap</a>.</p>
@@ -814,11 +814,11 @@ It outputs the overlap counts of 2 masks.</p>
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 <span class="c1"># Override the default job values for this workflow</span>
 <span class="c1"># Or add a job value to this workflow</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># If you don't want to override, comment out / delete the line.</span>
 <span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
 <span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
 <span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
@@ -933,8 +933,8 @@ So I spent the time to activate OpenSSH server on Rocky linux:</p>
 <span class="k">RUN</span><span class="w"> </span>/usr/bin/ssh-keygen<span class="w"> </span>-A
 <span class="c"># Expose docker port 22</span>
 <span class="k">EXPOSE</span><span class="w"> </span><span class="s">22</span>
-<span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/usr/sbin/sshd&quot;</span><span class="p">,</span><span class="s2">&quot;-D&quot;</span><span class="p">]</span>
-<span class="c"># CMD [&quot;slurmdbd&quot;]</span>
+<span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">"/usr/sbin/sshd"</span><span class="p">,</span><span class="s2">"-D"</span><span class="p">]</span>
+<span class="c"># CMD ["slurmdbd"]</span>
 </pre></div>
 </div>
 <p>We have replaced the <code class="docutils literal notranslate"><span class="pre">slurmdbd</span></code> command (CMD) with our setup from <code class="docutils literal notranslate"><span class="pre">sshdocker</span></code>, starting a ssh daemon (<code class="docutils literal notranslate"><span class="pre">sshd</span></code>) with our SSH public key associated to the <code class="docutils literal notranslate"><span class="pre">slurm</span></code> user
@@ -949,18 +949,18 @@ This is performed in this line:</p>
 <p>Turns out, we also need to change the entrypoint script:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>...<span class="w"> </span><span class="c1"># other stuff from script</span>
 
-<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;slurmctld&quot;</span><span class="w"> </span><span class="o">]</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="nv">$1</span><span class="s2">"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"slurmctld"</span><span class="w"> </span><span class="o">]</span>
 <span class="k">then</span>
-<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;---&gt; Starting the MUNGE Authentication service (munged) ...&quot;</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"---&gt; Starting the MUNGE Authentication service (munged) ..."</span>
 <span class="w">    </span>gosu<span class="w"> </span>munge<span class="w"> </span>/usr/sbin/munged
 
-<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;---&gt; Starting SSH Daemon (sshd) ...&quot;</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"---&gt; Starting SSH Daemon (sshd) ..."</span>
 <span class="w">    </span><span class="c1"># exec /usr/bin/ssh-keygen -A</span>
 <span class="w">    </span><span class="nb">exec</span><span class="w"> </span>/usr/sbin/sshd<span class="w"> </span>-D<span class="w"> </span><span class="p">&amp;</span>
 <span class="w">    </span><span class="nb">exec</span><span class="w"> </span>rm<span class="w"> </span>/run/nologin<span class="w"> </span><span class="p">&amp;</span>
 <span class="w">    </span><span class="nb">exec</span><span class="w"> </span>chmod<span class="w"> </span><span class="m">777</span><span class="w"> </span>/data<span class="w"> </span><span class="p">&amp;</span>
 
-<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;---&gt; Waiting for slurmdbd to become active before starting slurmctld ...&quot;</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"---&gt; Waiting for slurmdbd to become active before starting slurmctld ..."</span>
 
 <span class="w">    </span>...<span class="w"> </span><span class="c1"># other stuff from script</span>
 </pre></div>
@@ -971,27 +971,27 @@ If you still run into issues with permissions in <code class="docutils literal n
 <p>======= 2b. Tell Docker Compose to use the new Dockerfile for <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code> =======</p>
 <p>Currently, <a class="reference external" href="https://github.com/giovtorres/slurm-docker-cluster/blob/master/docker-compose.yml">Docker Compose</a> will spin up all containers from the same Dockerfile definition.</p>
 <p>So we will change the Dockerfile for the <code class="docutils literal notranslate"><span class="pre">slurmctld</span></code> as defined in the <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code>, by replacing <code class="docutils literal notranslate"><span class="pre">image</span></code> with <code class="docutils literal notranslate"><span class="pre">build</span></code>:</p>
-<div class="highlight-yml notranslate"><div class="highlight"><pre><span></span>slurmctld:
-    # image: slurm-docker-cluster:${IMAGE_TAG:-21.08.6}
-    # Build this image from current folder
-    # Use a specific file: Dockerfile_slurmctld
-    build: 
-      context: ./
-      dockerfile: Dockerfile_slurmctld
-    command: [&quot;slurmctld&quot;]
-    container_name: slurmctld
-    hostname: slurmctld
-    volumes:
-      - etc_munge:/etc/munge
-      - etc_slurm:/etc/slurm
-      - slurm_jobdir:/data
-      - var_log_slurm:/var/log/slurm
-    expose:
-      - &quot;6817&quot;
-    ports:
-      - &quot;2222:22&quot;
-    depends_on:
-      - &quot;slurmdbd&quot;
+<div class="highlight-yml notranslate"><div class="highlight"><pre><span></span><span class="nt">slurmctld</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># image: slurm-docker-cluster:${IMAGE_TAG:-21.08.6}</span>
+<span class="w">    </span><span class="c1"># Build this image from current folder</span>
+<span class="w">    </span><span class="c1"># Use a specific file: Dockerfile_slurmctld</span>
+<span class="w">    </span><span class="nt">build</span><span class="p">:</span><span class="w"> </span>
+<span class="w">      </span><span class="nt">context</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./</span>
+<span class="w">      </span><span class="nt">dockerfile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Dockerfile_slurmctld</span>
+<span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"slurmctld"</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurmctld</span>
+<span class="w">    </span><span class="nt">hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurmctld</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">etc_munge:/etc/munge</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">etc_slurm:/etc/slurm</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurm_jobdir:/data</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">var_log_slurm:/var/log/slurm</span>
+<span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"6817"</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"2222:22"</span>
+<span class="w">    </span><span class="nt">depends_on</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"slurmdbd"</span>
 </pre></div>
 </div>
 <p>We also mapped port 22 (SSH) from the container to our localhost port 2222.
@@ -1067,7 +1067,7 @@ It is also possible that a host key has just been changed.
 </div>
 <p>The queue is empty!
 Let’s fill it up with some short tasks:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>slurm@slurmctld<span class="w"> </span>data<span class="o">]</span>$<span class="w"> </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span>
 Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">5</span>
 Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">6</span>
 Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">7</span>
@@ -1162,7 +1162,7 @@ c2
 <span class="c1"># The alias for the SLURM SSH connection</span>
 <span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
 <span class="c1"># Set the rest of your SSH configuration in your SSH config under this host name/alias</span>
-<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric&#39;s documentation for details on config loading)</span>
+<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric's documentation for details on config loading)</span>
 
 <span class="k">[SLURM]</span>
 <span class="c1"># -------------------------------------</span>
@@ -1175,17 +1175,17 @@ c2
 <span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/my-scratch/data</span>
 <span class="c1"># The path on SLURM entrypoint for storing container image files</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_images_path</span><span class="o">=</span><span class="s">/data/my-scratch/singularity_images/workflows</span>
 <span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_script_path</span><span class="o">=</span><span class="s">/data/my-scratch/slurm-scripts</span>
 </pre></div>
 </div>
@@ -1198,12 +1198,12 @@ c2
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 <span class="c1"># Override the default job values for this workflow</span>
 <span class="c1"># Or add a job value to this workflow</span>
 <span class="c1"># For more examples of such parameters, google SBATCH parameters.</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># If you don't want to override, comment out / delete the line.</span>
 <span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
 <span class="c1"># cellpose_job_gres=gpu:1g.10gb:1</span>
 <span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
@@ -1220,7 +1220,7 @@ c2
 <span class="c1"># The alias for the SLURM SSH connection</span>
 <span class="na">host</span><span class="o">=</span><span class="s">slurm</span>
 <span class="c1"># Set the rest of your SSH configuration in your SSH config under this host name/alias</span>
-<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric&#39;s documentation for details on config loading)</span>
+<span class="c1"># Or in e.g. /etc/fabric.yml (see Fabric's documentation for details on config loading)</span>
 
 <span class="k">[SLURM]</span>
 <span class="c1"># -------------------------------------</span>
@@ -1233,17 +1233,17 @@ c2
 <span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_data_path</span><span class="o">=</span><span class="s">/data/my-scratch/data</span>
 <span class="c1"># The path on SLURM entrypoint for storing container image files</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_images_path</span><span class="o">=</span><span class="s">/data/my-scratch/singularity_images/workflows</span>
 <span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_script_path</span><span class="o">=</span><span class="s">/data/my-scratch/slurm-scripts</span>
 <span class="c1"># -------------------------------------</span>
 <span class="c1"># REPOSITORIES</span>
@@ -1285,12 +1285,12 @@ c2
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 <span class="c1"># Override the default job values for this workflow</span>
 <span class="c1"># Or add a job value to this workflow</span>
 <span class="c1"># For more examples of such parameters, google SBATCH parameters.</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># If you don't want to override, comment out / delete the line.</span>
 <span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
 <span class="c1"># cellpose_job_gres=gpu:1g.10gb:1</span>
 <span class="c1"># Run CellPose Slurm with 15 GB CPU memory</span>
@@ -1302,7 +1302,7 @@ c2
 <span class="c1"># stardist=stardist</span>
 <span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
 <span class="c1"># stardist_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-Stardist/tree/v1.3.2</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># # The jobscript in the 'slurm_script_repo'</span>
 <span class="c1"># stardist_job=jobs/stardist.sh</span>
 <span class="c1"># -------------------------------------</span>
 <span class="c1"># CELLPROFILER SEGMENTATION</span>
@@ -1311,7 +1311,7 @@ c2
 <span class="c1"># cellprofiler=cellprofiler</span>
 <span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
 <span class="c1"># cellprofiler_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-CellProfiler/tree/v1.6.4</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># # The jobscript in the 'slurm_script_repo'</span>
 <span class="c1"># cellprofiler_job=jobs/cellprofiler.sh</span>
 <span class="c1"># -------------------------------------</span>
 <span class="c1"># DEEPCELL SEGMENTATION</span>
@@ -1320,7 +1320,7 @@ c2
 <span class="c1"># deepcell=deepcell</span>
 <span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
 <span class="c1"># deepcell_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-DeepCell/tree/v.1.4.3</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># # The jobscript in the 'slurm_script_repo'</span>
 <span class="c1"># deepcell_job=jobs/deepcell.sh</span>
 <span class="c1"># -------------------------------------</span>
 <span class="c1"># IMAGEJ SEGMENTATION</span>
@@ -1329,7 +1329,7 @@ c2
 <span class="c1"># imagej=imagej</span>
 <span class="c1"># # The (e.g. github) repository with the descriptor.json file</span>
 <span class="c1"># imagej_repo=https://github.com/Neubias-WG5/W_NucleiSegmentation-ImageJ/tree/v1.12.10</span>
-<span class="c1"># # The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># # The jobscript in the 'slurm_script_repo'</span>
 <span class="c1"># imagej_job=jobs/imagej.sh</span>
 <span class="c1"># # -------------------------------------</span>
 <span class="c1"># # CELLPROFILER SPOT COUNTING</span>
@@ -1338,7 +1338,7 @@ c2
 <span class="na">cellprofiler_spot</span><span class="o">=</span><span class="s">cellprofiler_spot</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellprofiler_spot_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_SpotCounting-CellProfiler/tree/v1.0.1</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellprofiler_spot_job</span><span class="o">=</span><span class="s">jobs/cellprofiler_spot.sh</span>
 <span class="c1"># # -------------------------------------</span>
 <span class="c1"># CELLEXPANSION SPOT COUNTING</span>
@@ -1347,7 +1347,7 @@ c2
 <span class="na">cellexpansion</span><span class="o">=</span><span class="s">cellexpansion</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellexpansion_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_CellExpansion/tree/v1.0.1</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellexpansion_job</span><span class="o">=</span><span class="s">jobs/cellexpansion.sh</span>
 </pre></div>
 </div>
@@ -1416,7 +1416,7 @@ Turns out, our Slurm doesn’t have the compute nodes to execute this operation.
 <details>
 Note that there is always overhead cost, so the speedup will not be linear. However, the more time is in compute vs overhead, the more gains you should get by splitting over multiple jobs / nodes / CPUs.
 <p>Let’s check on the Slurm node:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sacct<span class="w"> </span>--starttime<span class="w"> </span><span class="s2">&quot;2023-06-13T17:00:00&quot;</span><span class="w"> </span>--format<span class="w"> </span>Jobid,State,start,end,JobName%-18,Elapsed<span class="w"> </span>-n<span class="w"> </span>-X<span class="w"> </span>--endtime<span class="w"> </span><span class="s2">&quot;now&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sacct<span class="w"> </span>--starttime<span class="w"> </span><span class="s2">"2023-06-13T17:00:00"</span><span class="w"> </span>--format<span class="w"> </span>Jobid,State,start,end,JobName%-18,Elapsed<span class="w"> </span>-n<span class="w"> </span>-X<span class="w"> </span>--endtime<span class="w"> </span><span class="s2">"now"</span>
 </pre></div>
 </div>
 <p>In my latest example, it was 1 minute (30%) faster to have 2 batches/jobs (<code class="docutils literal notranslate"><span class="pre">32</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">33</span></code>) vs 1 job (<code class="docutils literal notranslate"><span class="pre">31</span></code>):</p>
@@ -1538,7 +1538,7 @@ The External IP was on the <a class="reference external" href="https://console.c
 <p>Now connect via SSH to Google Cloud Slurm and let’s see if Slurm works:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>squeue
 <span class="w">             </span>JOBID<span class="w"> </span>PARTITION<span class="w">     </span>NAME<span class="w">     </span>USER<span class="w"> </span>ST<span class="w">       </span>TIME<span class="w">  </span>NODES<span class="w"> </span>NODELIST<span class="o">(</span>REASON<span class="o">)</span>
-<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">&quot;sleep 5 &amp;&amp; hostname&quot;</span>
+<span class="o">[</span>t_t_luik_amsterdamumc_nl@hpcsmall-login-2aoamjs0-001<span class="w"> </span>~<span class="o">]</span>$<span class="w"> </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w">  </span>sbatch<span class="w"> </span>--wrap<span class="o">=</span><span class="s2">"sleep 5 &amp;&amp; hostname"</span>
 Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">4</span>
 Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">5</span>
 Submitted<span class="w"> </span>batch<span class="w"> </span>job<span class="w"> </span><span class="m">6</span>
@@ -1575,7 +1575,7 @@ hpcsmall-debug-ghpc-3
 <li><p>Follow this <a class="reference external" href="https://cloud.google.com/architecture/deploying-containerized-workloads-slurm-cluster-compute-engine">guide</a> to install Singularity, but in step 5 please install in <code class="docutils literal notranslate"><span class="pre">/opt/apps</span></code> ! <code class="docutils literal notranslate"><span class="pre">/apps</span></code> is not actually shared with all nodes.</p></li>
 <li><p>Execute the following to update <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code>:</p></li>
 </ol>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">&#39;export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">&#39;</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span> <span class="o">&amp;&amp;</span> <span class="n">source</span> <span class="o">~/.</span><span class="n">bashrc</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s1">'export PATH=/apps/singularity/3.8.7/bin:/usr/sbin:$</span><span class="si">{PATH}</span><span class="s1">'</span> <span class="o">&gt;&gt;</span> <span class="o">~/.</span><span class="n">bashrc</span> <span class="o">&amp;&amp;</span> <span class="n">source</span> <span class="o">~/.</span><span class="n">bashrc</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
@@ -1799,9 +1799,9 @@ Especially if you will not use GPU anyway (because $$).</p>
   <span class="o">-</span> <span class="n">software</span><span class="o">-</span><span class="n">properties</span><span class="o">-</span><span class="n">common</span>
 
 <span class="n">runcmd</span><span class="p">:</span>  
-  <span class="o">-</span> <span class="s1">&#39;sudo add-apt-repository -y ppa:apptainer/ppa&#39;</span>
-  <span class="o">-</span> <span class="s1">&#39;sudo apt update&#39;</span>
-  <span class="o">-</span> <span class="s1">&#39;sudo apt install -y apptainer&#39;</span>
+  <span class="o">-</span> <span class="s1">'sudo add-apt-repository -y ppa:apptainer/ppa'</span>
+  <span class="o">-</span> <span class="s1">'sudo apt update'</span>
+  <span class="o">-</span> <span class="s1">'sudo apt install -y apptainer'</span>
 </pre></div>
 </div>
 <p>Apptainer is singularity and will provide the singularity (alias) command.</p>
@@ -1907,7 +1907,7 @@ your chosen Server name (check the Azure portal). For me it was <code class="doc
 <section id="test-singularity-on-slurm">
 <h2>3. Test Singularity on Slurm<a class="headerlink" href="#test-singularity-on-slurm" title="Permalink to this heading"></a></h2>
 <p>For example, run:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sbatch -n 1 --wrap &quot;hostname &gt; lolcow.log &amp;&amp; singularity run docker://godlovedc/lolcow &gt;&gt; lolcow.log&quot;
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sbatch -n 1 --wrap "hostname &gt; lolcow.log &amp;&amp; singularity run docker://godlovedc/lolcow &gt;&gt; lolcow.log"
 </pre></div>
 </div>
 <p>This should say “Submitted batch job 1”
@@ -1921,8 +1921,8 @@ c1
 <span class="w"> </span>_______________________________________
 /<span class="w"> </span>Must<span class="w"> </span>I<span class="w"> </span>hold<span class="w"> </span>a<span class="w"> </span>candle<span class="w"> </span>to<span class="w"> </span>my<span class="w"> </span>shames?<span class="w">    </span><span class="se">\</span>
 <span class="p">|</span><span class="w">                                       </span><span class="p">|</span>
-<span class="p">|</span><span class="w"> </span>--<span class="w"> </span>William<span class="w"> </span>Shakespeare,<span class="w"> </span><span class="s2">&quot;The Merchant |</span>
-<span class="s2">\ of Venice&quot;</span><span class="w">                            </span>/
+<span class="p">|</span><span class="w"> </span>--<span class="w"> </span>William<span class="w"> </span>Shakespeare,<span class="w"> </span><span class="s2">"The Merchant |</span>
+<span class="s2">\ of Venice"</span><span class="w">                            </span>/
 <span class="w"> </span>---------------------------------------
 <span class="w">        </span><span class="se">\ </span><span class="w">  </span>^__^
 <span class="w">         </span><span class="se">\ </span><span class="w"> </span><span class="o">(</span>oo<span class="o">)</span><span class="se">\_</span>______
@@ -2021,17 +2021,17 @@ Alternatively, you connect your local (BI)OMERO to this cluster now.</p>
 <span class="c1"># The path on SLURM entrypoint for storing datafiles</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_data_path</span><span class="o">=</span><span class="s">data</span>
 <span class="c1"># The path on SLURM entrypoint for storing container image files</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_images_path</span><span class="o">=</span><span class="s">singularity_images/workflows</span>
 <span class="c1"># The path on SLURM entrypoint for storing the slurm job scripts</span>
 <span class="c1">#</span>
 <span class="c1"># Note: </span>
-<span class="c1"># This example is relative to the Slurm user&#39;s home dir</span>
+<span class="c1"># This example is relative to the Slurm user's home dir</span>
 <span class="na">slurm_script_path</span><span class="o">=</span><span class="s">slurm-scripts</span>
 </pre></div>
 </div>

@@ -442,15 +442,24 @@ each data conversion job.</p>
 </section>
 <section id="zip-command">
 <h3>ZIP command<a class="headerlink" href="#zip-command" title="Permalink to this heading"></a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code> controls which archive command BIOMERO uses when it zips job output on the cluster.</p>
+<p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code> controls which archive command BIOMERO uses when it creates
+and extracts ZIP files on the cluster. It can also be overridden by
+<code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code>.</p>
 <p>Impact:</p>
 <ul class="simple">
 <li><p>If unset, BIOMERO defaults to <code class="docutils literal notranslate"><span class="pre">$(command</span> <span class="pre">-v</span> <span class="pre">7z</span> <span class="pre">||</span> <span class="pre">command</span> <span class="pre">-v</span> <span class="pre">7za)</span></code>.</p></li>
-<li><p>If set, BIOMERO uses the configured command directly when generating the zip command.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">7z</span></code> and <code class="docutils literal notranslate"><span class="pre">7za</span></code> use the existing 7-Zip command syntax.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zip</span></code> uses Info-ZIP syntax for creation and <code class="docutils literal notranslate"><span class="pre">unzip</span></code> for extraction. An
+explicit path ending in <code class="docutils literal notranslate"><span class="pre">/zip</span></code>, such as <code class="docutils literal notranslate"><span class="pre">/usr/bin/zip</span></code>, uses the matching
+sibling path (<code class="docutils literal notranslate"><span class="pre">/usr/bin/unzip</span></code>) for extraction.</p></li>
+<li><p>Other configured values retain the legacy 7-Zip syntax for backward
+compatibility.</p></li>
 </ul>
 <p>Use this when:</p>
 <ul class="simple">
 <li><p>your cluster exposes only <code class="docutils literal notranslate"><span class="pre">7za</span></code> or only <code class="docutils literal notranslate"><span class="pre">7z</span></code></p></li>
+<li><p>your cluster provides the Info-ZIP <code class="docutils literal notranslate"><span class="pre">zip</span></code> and <code class="docutils literal notranslate"><span class="pre">unzip</span></code> commands instead of
+7-Zip; set <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd=zip</span></code></p></li>
 <li><p>auto-detection is not reliable in your environment</p></li>
 </ul>
 </section>

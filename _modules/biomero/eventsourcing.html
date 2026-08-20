@@ -113,14 +113,14 @@
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
 <span class="c1"># Copyright 2024 Torec Luik</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -140,7 +140,7 @@
 
 
 <div class="viewcode-block" id="ResultDict"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.ResultDict">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">ResultDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    A dictionary subclass that stores details from a Fabric Result object.</span>
 
 <span class="sd">    Args:</span>
@@ -151,13 +151,13 @@
 <span class="sd">        env (dict): The environment variables during the command execution.</span>
 <span class="sd">        stdout (str): The standard output from the command.</span>
 <span class="sd">        stderr (str): The standard error from the command.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;command&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">command</span>
-        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;env&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">env</span>
-        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;stdout&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span>
-        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;stderr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stderr</span></div>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">'command'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">command</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">'env'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">env</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">'stdout'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">'stderr'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stderr</span></div>
 
 
 <span class="c1"># When updating Aggregate classes, take care of versioning for compatibility:</span>
@@ -167,7 +167,7 @@
 
 
 <div class="viewcode-block" id="WorkflowRun"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowRun</span><span class="p">(</span><span class="n">Aggregate</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Represents a workflow run as an aggregate in the domain model.</span>
 
 <span class="sd">    Attributes:</span>
@@ -176,11 +176,11 @@
 <span class="sd">        user (int): The ID of the user who initiated the workflow.</span>
 <span class="sd">        group (int): The ID of the group associated with the workflow.</span>
 <span class="sd">        tasks (list): A list of task UUIDs associated with the workflow.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">INITIAL_VERSION</span> <span class="o">=</span> <span class="mi">0</span>
 
 <div class="viewcode-block" id="WorkflowRun.WorkflowInitiated"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowInitiated">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">WorkflowInitiated</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Created</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when a new workflow is initiated.</span>
 
 <span class="sd">        Attributes:</span>
@@ -188,7 +188,7 @@
 <span class="sd">            description (str): A description of the workflow.</span>
 <span class="sd">            user (int): The ID of the user who initiated the workflow.</span>
 <span class="sd">            group (int): The group ID associated with the workflow.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
         <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
         <span class="n">user</span><span class="p">:</span> <span class="nb">int</span>
@@ -204,61 +204,61 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">group</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c1"># logger.debug(f&quot;Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}&quot;)</span>
+        <span class="c1"># logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")</span>
 
 <div class="viewcode-block" id="WorkflowRun.TaskAdded"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.TaskAdded">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskAdded</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when a task is added to the workflow.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            task_id (UUID): The UUID of the task added to the workflow.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.add_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.add_task">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">TaskAdded</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">add_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Adding task to WorkflowRun: task_id={task_id}&quot;)</span>
+        <span class="c1"># logger.debug(f"Adding task to WorkflowRun: task_id={task_id}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.WorkflowStarted"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowStarted">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">WorkflowStarted</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the workflow starts.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.start_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.start_workflow">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowStarted</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Starting workflow: id={self.id}&quot;)</span>
+        <span class="c1"># logger.debug(f"Starting workflow: id={self.id}")</span>
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.WorkflowCompleted"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowCompleted">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">WorkflowCompleted</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the workflow completes.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.complete_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.complete_workflow">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowCompleted</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">complete_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Completing workflow: id={self.id}&quot;)</span>
+        <span class="c1"># logger.debug(f"Completing workflow: id={self.id}")</span>
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.WorkflowFailed"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowFailed">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">WorkflowFailed</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the workflow fails.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            error_message (str): The error message indicating why the workflow failed.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.fail_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.fail_workflow">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowFailed</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">fail_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Failing workflow: id={self.id}, error_message={error_message}&quot;)</span>
+        <span class="c1"># logger.debug(f"Failing workflow: id={self.id}, error_message={error_message}")</span>
         <span class="k">pass</span></div></div>
 
 
 <div class="viewcode-block" id="Task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">Task</span><span class="p">(</span><span class="n">Aggregate</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Represents a task in a workflow as an aggregate in the domain model.</span>
 
 <span class="sd">    Attributes:</span>
@@ -271,11 +271,11 @@
 <span class="sd">        results (list): List of results from the task execution.</span>
 <span class="sd">        result_message (str): Message related to the result of the task.</span>
 <span class="sd">        status (str): The current status of the task.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">INITIAL_VERSION</span> <span class="o">=</span> <span class="mi">0</span>
 
 <div class="viewcode-block" id="Task.TaskCreated"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.TaskCreated">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskCreated</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Created</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when a task is created.</span>
 
 <span class="sd">        Attributes:</span>
@@ -284,7 +284,7 @@
 <span class="sd">            task_version (str): The version of the task.</span>
 <span class="sd">            input_data (dict): Input data for the task.</span>
 <span class="sd">            params (dict): Additional parameters for the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span>
         <span class="n">task_name</span><span class="p">:</span> <span class="nb">str</span>
         <span class="n">task_version</span><span class="p">:</span> <span class="nb">str</span>
@@ -309,106 +309,106 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Not logging on aggregates, they get reconstructed so much</span>
-        <span class="c1"># logger.debug(f&quot;Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}&quot;)</span>
+        <span class="c1"># logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")</span>
 
 <div class="viewcode-block" id="Task.JobIdAdded"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.JobIdAdded">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">JobIdAdded</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when a job ID is added to the task.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            job_id (str): The job ID added to the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span></div>
 
 <div class="viewcode-block" id="Task.add_job_id"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.add_job_id">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">JobIdAdded</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">add_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Adding job_id to Task: task_id={self.id}, job_id={job_id}&quot;)</span>
+        <span class="c1"># logger.debug(f"Adding job_id to Task: task_id={self.id}, job_id={job_id}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">job_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Task.StatusUpdated"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.StatusUpdated">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">StatusUpdated</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Event triggered when the task&#39;s status is updated.</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Event triggered when the task's status is updated.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            status (str): The updated status of the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">status</span><span class="p">:</span> <span class="nb">str</span></div>
 
 <div class="viewcode-block" id="Task.update_task_status"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.update_task_status">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">StatusUpdated</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_task_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Adding status to Task: task_id={self.id}, status={status}&quot;)</span>
+        <span class="c1"># logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">status</span></div>
     
 <div class="viewcode-block" id="Task.ProgressUpdated"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.ProgressUpdated">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">ProgressUpdated</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Event triggered when the task&#39;s progress is updated.</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Event triggered when the task's progress is updated.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            progress (str): The updated progress of the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">progress</span><span class="p">:</span> <span class="nb">str</span></div>
 
 <div class="viewcode-block" id="Task.update_task_progress"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.update_task_progress">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">ProgressUpdated</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_task_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">progress</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Adding progress to Task: task_id={self.id}, progress={progress}&quot;)</span>
+        <span class="c1"># logger.debug(f"Adding progress to Task: task_id={self.id}, progress={progress}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">progress</span> <span class="o">=</span> <span class="n">progress</span></div>
 
 <div class="viewcode-block" id="Task.ResultAdded"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.ResultAdded">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">ResultAdded</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when a result is added to the task.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            result (ResultDict): The result dictionary added to the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">result</span><span class="p">:</span> <span class="n">ResultDict</span></div>
 
 <div class="viewcode-block" id="Task.add_result"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.add_result">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Adding result to Task: task_id={self.id}, result={result}&quot;)</span>
+        <span class="c1"># logger.debug(f"Adding result to Task: task_id={self.id}, result={result}")</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">ResultDict</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_add_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
     <span class="nd">@event</span><span class="p">(</span><span class="n">ResultAdded</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">ResultDict</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Adding result to Task results: task_id={self.id}, result={result}&quot;)</span>
+        <span class="c1"># logger.debug(f"Adding result to Task results: task_id={self.id}, result={result}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Task.TaskStarted"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.TaskStarted">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskStarted</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the task starts.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="Task.start_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.start_task">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">TaskStarted</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Starting task: id={self.id}&quot;)</span>
+        <span class="c1"># logger.debug(f"Starting task: id={self.id}")</span>
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="Task.TaskCompleted"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.TaskCompleted">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskCompleted</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the task completes.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            result (str): The result message of the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">result</span><span class="p">:</span> <span class="nb">str</span></div>
 
 <div class="viewcode-block" id="Task.complete_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.complete_task">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">TaskCompleted</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">complete_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Completing task: id={self.id}, result={result}&quot;)</span>
+        <span class="c1"># logger.debug(f"Completing task: id={self.id}, result={result}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="n">result</span></div>
 
 <div class="viewcode-block" id="Task.TaskFailed"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.TaskFailed">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskFailed</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the task fails.</span>
 
 <span class="sd">        Attributes:</span>
 <span class="sd">            error_message (str): The error message indicating why the task failed.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span></div>
 
 <div class="viewcode-block" id="Task.fail_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.fail_task">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">TaskFailed</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">fail_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f&quot;Failing task: id={self.id}, error_message={error_message}&quot;)</span>
+        <span class="c1"># logger.debug(f"Failing task: id={self.id}, error_message={error_message}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="n">error_message</span>
         <span class="k">pass</span></div></div>
 
@@ -416,14 +416,14 @@
 <span class="c1"># -------------------- APPLICATIONS -------------------- #</span>
 
 <div class="viewcode-block" id="NoOpWorkflowTracker"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.NoOpWorkflowTracker">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">NoOpWorkflowTracker</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    A no-operation workflow tracker that makes all method calls no-op.</span>
 
 <span class="sd">    All method calls to this class will return None and log the function name </span>
 <span class="sd">    and its parameters for debugging purposes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Override attribute access to return a no-op function for undefined methods.</span>
 
 <span class="sd">        Args:</span>
@@ -431,16 +431,16 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            function: A no-op function that logs its name and arguments.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">no_op_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[No-op] Called function: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> with args: </span><span class="si">{</span><span class="n">args</span><span class="si">}</span><span class="s2">, kwargs: </span><span class="si">{</span><span class="n">kwargs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[No-op] Called function: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> with args: </span><span class="si">{</span><span class="n">args</span><span class="si">}</span><span class="s2">, kwargs: </span><span class="si">{</span><span class="n">kwargs</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
 
         <span class="k">return</span> <span class="n">no_op_function</span></div>
 
 
 <div class="viewcode-block" id="WorkflowTracker"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowTracker</span><span class="p">(</span><span class="n">Application</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Application service class for managing workflow and task lifecycle operations.</span>
 
 <span class="sd">    Methods:</span>
@@ -456,7 +456,7 @@
 <span class="sd">        add_result: Adds a result to a task.</span>
 <span class="sd">        update_task_status: Updates the status of a task.</span>
 <span class="sd">        update_task_progress: Updates the progress of a task.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="WorkflowTracker.initiate_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.initiate_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">initiate_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
@@ -464,7 +464,7 @@
                           <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                           <span class="n">user</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                           <span class="n">group</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UUID</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Initiates a new workflow.</span>
 
 <span class="sd">        Args:</span>
@@ -475,8 +475,8 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            UUID: The UUID of the newly initiated workflow.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Initiating workflow: name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">, description=</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Initiating workflow: name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">, description=</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">, user=</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">, group=</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">workflow</span> <span class="o">=</span> <span class="n">WorkflowRun</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
@@ -490,7 +490,7 @@
                              <span class="n">input_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
                              <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
                              <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UUID</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Adds a task to the specified workflow.</span>
 
 <span class="sd">        Args:</span>
@@ -502,8 +502,8 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            UUID: The UUID of the newly added task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Adding task to workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">, task_version=</span><span class="si">{</span><span class="n">task_version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Adding task to workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">, task_version=</span><span class="si">{</span><span class="n">task_version</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span> <span class="o">=</span> <span class="n">Task</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">,</span>
                     <span class="n">task_name</span><span class="p">,</span>
@@ -520,13 +520,13 @@
 
 <div class="viewcode-block" id="WorkflowTracker.start_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Starts the workflow with the given UUID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            workflow_id (UUID): The UUID of the workflow to start.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Starting workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Starting workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">start_workflow</span><span class="p">()</span>
@@ -535,13 +535,13 @@
 
 <div class="viewcode-block" id="WorkflowTracker.complete_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.complete_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">complete_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Marks the workflow with the given UUID as completed.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            workflow_id (UUID): The UUID of the workflow to complete.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Completing workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Completing workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">complete_workflow</span><span class="p">()</span>
@@ -550,14 +550,14 @@
 
 <div class="viewcode-block" id="WorkflowTracker.fail_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.fail_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">fail_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Marks the workflow with the given UUID as failed with an error message.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            workflow_id (UUID): The UUID of the workflow to fail.</span>
 <span class="sd">            error_message (str): The error message describing the failure.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Failing workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">, error_message=</span><span class="si">{</span><span class="n">error_message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Failing workflow: workflow_id=</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">, error_message=</span><span class="si">{</span><span class="n">error_message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="n">workflow</span><span class="o">.</span><span class="n">fail_workflow</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
@@ -566,13 +566,13 @@
 
 <div class="viewcode-block" id="WorkflowTracker.start_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_task">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Starts the task with the given UUID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task to start.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Starting task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Starting task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">start_task</span><span class="p">()</span>
@@ -581,14 +581,14 @@
 
 <div class="viewcode-block" id="WorkflowTracker.complete_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.complete_task">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">complete_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Marks the task with the given UUID as completed with a result message.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task to complete.</span>
 <span class="sd">            message (str): The result message of the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Completing task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, message=</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Completing task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, message=</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">complete_task</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
@@ -597,14 +597,14 @@
 
 <div class="viewcode-block" id="WorkflowTracker.fail_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.fail_task">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">fail_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Marks the task with the given UUID as failed with an error message.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task to fail.</span>
 <span class="sd">            error_message (str): The error message describing the failure.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Failing task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, error_message=</span><span class="si">{</span><span class="n">error_message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Failing task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, error_message=</span><span class="si">{</span><span class="n">error_message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">fail_task</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
@@ -613,14 +613,14 @@
 
 <div class="viewcode-block" id="WorkflowTracker.add_job_id"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_job_id">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">add_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Adds a Slurm job ID to the task with the given UUID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task.</span>
 <span class="sd">            slurm_job_id (str): The Slurm job ID to associate with the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Adding job_id to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, slurm_job_id=</span><span class="si">{</span><span class="n">slurm_job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Adding job_id to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, slurm_job_id=</span><span class="si">{</span><span class="n">slurm_job_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="p">)</span>
@@ -629,14 +629,14 @@
 
 <div class="viewcode-block" id="WorkflowTracker.add_result"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_result">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Adds a result to the task with the given UUID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task.</span>
 <span class="sd">            result (Result): The Fabric result object to add to the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Adding result to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, result=</span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Adding result to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, result=</span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
@@ -645,14 +645,14 @@
 
 <div class="viewcode-block" id="WorkflowTracker.update_task_status"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.update_task_status">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_task_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Updates the status of the task with the given UUID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task.</span>
 <span class="sd">            status (str): The new status of the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Adding status to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Adding status to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">update_task_status</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
@@ -661,14 +661,14 @@
         
 <div class="viewcode-block" id="WorkflowTracker.update_task_progress"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.update_task_progress">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_task_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">progress</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Updates the progress of the task with the given UUID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (UUID): The UUID of the task.</span>
 <span class="sd">            progress (str): The updated progress of the task.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WFT] Adding progress to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, progress=</span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Adding progress to task: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, progress=</span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>

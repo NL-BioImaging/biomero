@@ -226,7 +226,8 @@ explains when and why you would choose each setting.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
 <td><p>string</p></td>
-<td><p>Overrides the zip command used on the cluster for packaging results</p></td>
+<td><p>Overrides the ZIP command used on the cluster; <code class="docutils literal notranslate"><span class="pre">zip</span></code> selects Info-ZIP
+and its matching <code class="docutils literal notranslate"><span class="pre">unzip</span></code> command, while other values use 7-Zip syntax</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
@@ -376,7 +377,8 @@ explains when and why you would choose each setting.</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
 <td><p>string or empty</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">$(command</span> <span class="pre">-v</span> <span class="pre">7z</span> <span class="pre">||</span> <span class="pre">command</span> <span class="pre">-v</span> <span class="pre">7za)</span></code></p></td>
-<td><p>Command used for result zipping on the HPC</p></td>
+<td><p>Command used for ZIP creation and extraction on the HPC. Set to <code class="docutils literal notranslate"><span class="pre">zip</span></code>
+to use the Info-ZIP <code class="docutils literal notranslate"><span class="pre">zip</span></code>/<code class="docutils literal notranslate"><span class="pre">unzip</span></code> pair.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
 <td><p>string date or empty</p></td>

@@ -87,7 +87,8 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SLURM_ZIP_CMD``
      - ``slurm_zip_cmd``
      - string
-     - Overrides the zip command used on the cluster for packaging results
+     - Overrides the ZIP command used on the cluster; ``zip`` selects Info-ZIP
+       and its matching ``unzip`` command, while other values use 7-Zip syntax
    * - ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
      - ``analytics_rebuild_start_time``
      - string date
@@ -206,7 +207,8 @@ Environment Variable Lookup Table
    * - ``slurm_zip_cmd``
      - string or empty
      - ``$(command -v 7z || command -v 7za)``
-     - Command used for result zipping on the HPC
+     - Command used for ZIP creation and extraction on the HPC. Set to ``zip``
+       to use the Info-ZIP ``zip``/``unzip`` pair.
    * - ``analytics_rebuild_start_time``
      - string date or empty
      - unset

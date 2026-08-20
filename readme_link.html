@@ -310,7 +310,7 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>biomero<span class="o">[</span>full<span class="o">]</span>
 
 <span class="c1"># Latest development version with BIOMERO.scripts requirements</span>
-python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;git+https://github.com/NL-BioImaging/biomero[full]&#39;</span>
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'git+https://github.com/NL-BioImaging/biomero[full]'</span>
 
 <span class="c1"># With test dependencies (for local testing/development)</span>
 python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>biomero<span class="o">[</span>test<span class="o">]</span>
@@ -335,14 +335,15 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <ol class="arabic simple">
 <li><p>SSH access w/ public key (headless)</p></li>
 <li><p>SCP access (generally comes with SSH)</p></li>
-<li><p>A compatible zip command available for result archiving: <code class="docutils literal notranslate"><span class="pre">7z</span></code> or <code class="docutils literal notranslate"><span class="pre">7za</span></code></p></li>
+<li><p>Compatible ZIP tooling for result archiving: <code class="docutils literal notranslate"><span class="pre">7z</span></code>/<code class="docutils literal notranslate"><span class="pre">7za</span></code>, or the Info-ZIP
+<code class="docutils literal notranslate"><span class="pre">zip</span></code> and <code class="docutils literal notranslate"><span class="pre">unzip</span></code> pair</p></li>
 <li><p>Singularity/Apptainer installed</p></li>
 <li><p>(Optional) Git installed, only if you intentionally use an external <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code> (not recommended)</p></li>
 <li><p>Slurm accounting enabled</p></li>
 </ol>
-<p>If your cluster exposes only one archive binary or auto-detection is unreliable,
-BIOMERO can be configured explicitly with <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code>. See the configuration
-docs linked below.</p>
+<p>If your cluster uses Info-ZIP, set <code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd=zip</span></code>. If it exposes only one
+7-Zip binary or auto-detection is unreliable, configure that executable
+explicitly. See the configuration docs linked below.</p>
 </section>
 <section id="omero-requirements">
 <h2>OMERO Requirements<a class="headerlink" href="#omero-requirements" title="Permalink to this heading"></a></h2>
@@ -434,7 +435,7 @@ before starting services that construct a client.</p>
 <li><p>To finish setting up your <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and Slurm server, run it once with <code class="docutils literal notranslate"><span class="pre">init_slurm=True</span></code>. This is provided in an OMERO script form at <a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py">init/Slurm Init environment</a> , which you just installed in previous step.</p>
 <ul class="simple">
 <li><p>You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field.</p></li>
-<li><p>Please note the requirements for your Slurm cluster. We do not install Singularity/Apptainer or the required archive tool (<code class="docutils literal notranslate"><span class="pre">7z</span></code> or <code class="docutils literal notranslate"><span class="pre">7za</span></code>) on your cluster for you.</p></li>
+<li><p>Please note the requirements for your Slurm cluster. We do not install Singularity/Apptainer or the required archive tooling (<code class="docutils literal notranslate"><span class="pre">7z</span></code>/<code class="docutils literal notranslate"><span class="pre">7za</span></code>, or Info-ZIP <code class="docutils literal notranslate"><span class="pre">zip</span></code> plus <code class="docutils literal notranslate"><span class="pre">unzip</span></code>) on your cluster for you.</p></li>
 <li><p>This operation will create the directories you configured in <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, pull any described Singularity images to the server (note: might take a while), and by default generate job scripts for your configured workflows. It will only clone scripts from Git if you explicitly configure <code class="docutils literal notranslate"><span class="pre">slurm_script_repo</span></code>:</p></li>
 </ul>
 </li>
@@ -524,7 +525,7 @@ before starting services that construct a client.</p>
 <ol class="arabic simple" start="2">
 <li><p><strong>Configure OMERO.web</strong>:</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>omero<span class="w"> </span>config<span class="w"> </span>append<span class="w"> </span>omero.web.apps<span class="w"> </span><span class="s1">&#39;&quot;omero_biomero&quot;&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>omero<span class="w"> </span>config<span class="w"> </span>append<span class="w"> </span>omero.web.apps<span class="w"> </span><span class="s1">'"omero_biomero"'</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
@@ -638,24 +639,24 @@ before starting services that construct a client.</p>
 <p>We host BIOMERO container dockerfiles at <a class="reference external" href="https://github.com/NL-BioImaging/NL-BIOMERO">NL-BIOMERO</a>, which publishes container images to our public dockerhub <a class="reference external" href="https://hub.docker.com/u/cellularimagingcf">cellularimagingcf</a>. Specifically the <a class="reference external" href="https://hub.docker.com/r/cellularimagingcf/biomero">cellularimagingcf/biomero</a> image is an OMERO processor container with BIOMERO library installed. When we release a new version of BIOMERO, we will also release a new version of these containers (because we deploy these locally at our Core Facility - Cellular Imaging in Amsterdam).</p>
 <p>You can mount your specific configurations over those in the container, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span># Run the biomero container
-echo &quot;Starting BIOMERO...&quot;
+echo "Starting BIOMERO..."
 podman run -d --rm --name ${CONTAINER_BIOMERO} \
-  -e CONFIG_omero_master_host=&quot;${CONFIG_OMERO_MASTER_HOST}&quot; \
-  -e OMERO_WORKER_NAME=&quot;${CONTAINER_BIOMERO}&quot; \
-  -e CONFIG_omero_logging_level=&quot;${CONFIG_OMERO_LOGGING_LEVEL}&quot; \
-  -e CONFIG_omero_upgrades_url=&quot;${CONFIG_OMERO_UPGRADES_URL}&quot; \
-  -e CONFIG_omero_scripts_timeout=&quot;${CONFIG_OMERO_SCRIPTS_TIMEOUT}&quot; \
-  -e PERSISTENCE_MODULE=&quot;${PERSISTENCE_MODULE}&quot; \
-  -e SQLALCHEMY_URL=&quot;${BIOMERO_SQLALCHEMY_URL}&quot; \
+  -e CONFIG_omero_master_host="${CONFIG_OMERO_MASTER_HOST}" \
+  -e OMERO_WORKER_NAME="${CONTAINER_BIOMERO}" \
+  -e CONFIG_omero_logging_level="${CONFIG_OMERO_LOGGING_LEVEL}" \
+  -e CONFIG_omero_upgrades_url="${CONFIG_OMERO_UPGRADES_URL}" \
+  -e CONFIG_omero_scripts_timeout="${CONFIG_OMERO_SCRIPTS_TIMEOUT}" \
+  -e PERSISTENCE_MODULE="${PERSISTENCE_MODULE}" \
+  -e SQLALCHEMY_URL="${BIOMERO_SQLALCHEMY_URL}" \
   --network ${OMERO_NETWORK_NAME} \
-  --volume &quot;${OMERO_DATA_PATH}&quot;:/OMERO:z \
-  --volume &quot;${IMPORT_DATA_PATH}&quot;:/data \
+  --volume "${OMERO_DATA_PATH}":/OMERO:z \
+  --volume "${IMPORT_DATA_PATH}":/data \
   --volume /opt/omero/slurm-config.ini:/etc/slurm-config.ini:Z \
-  --volume &quot;${BIOMERO_SHARED_CONFIG_FILE}&quot;:/opt/omero/server/slurm-config.ini:z \
-  --volume &quot;$(pwd)/logs/${CONTAINER_BIOMERO}:/opt/omero/server/OMERO.server/var/log:Z&quot; \
+  --volume "${BIOMERO_SHARED_CONFIG_FILE}":/opt/omero/server/slurm-config.ini:z \
+  --volume "$(pwd)/logs/${CONTAINER_BIOMERO}:/opt/omero/server/OMERO.server/var/log:Z" \
   --secret ssh-config,target=/tmp/.ssh/config --secret ssh-key,target=/tmp/.ssh/id_rsa --secret ssh-pubkey,target=/tmp/.ssh/id_rsa.pub  --secret ssh-known_hosts,target=/tmp/.ssh/known_hosts \
   --userns=keep-id:uid=${OMERO_SERVER_UID},gid=${OMERO_SERVER_GID} \
-  cellularimagingcf/biomero:&quot;$NL_BIOMERO_VERSION&quot;
+  cellularimagingcf/biomero:"$NL_BIOMERO_VERSION"
 </pre></div>
 </div>
 <p>This will spin up the docker container (in Podman) with omero config (<code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">CONFIG_omero_..</span></code>), mounting the required data drives (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/mnt/...</span></code>) and adding a new slurm config (<code class="docutils literal notranslate"><span class="pre">--volume</span> <span class="pre">/my/slurm-config.ini:/etc/slurm-config.ini</span></code>) and the required SSH settings (<code class="docutils literal notranslate"><span class="pre">--secret</span> <span class="pre">...,target=/tmp/.ssh/...</span></code>) to access the remote HPC.</p>
@@ -736,7 +737,7 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 </pre></div>
 </div>
@@ -806,7 +807,7 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
         <span class="n">in_imgs</span><span class="p">,</span> <span class="n">gt_imgs</span><span class="p">,</span> <span class="n">in_path</span><span class="p">,</span> <span class="n">gt_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">prepare_data</span><span class="p">(</span><span class="n">problem_cls</span><span class="p">,</span> <span class="n">bj</span><span class="p">,</span> <span class="n">is_2d</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">bj</span><span class="o">.</span><span class="n">flags</span><span class="p">)</span>
 
         <span class="c1"># 2. Run image analysis workflow</span>
-        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+        <span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">"Launching workflow..."</span><span class="p">)</span>
 
         <span class="c1"># Add here the code for running the analysis script</span>
 
@@ -828,33 +829,33 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
 
 <span class="c1"># 2. Run image analysis workflow</span>
-<span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+<span class="n">bj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">"Launching workflow..."</span><span class="p">)</span>
 
 <span class="c1"># Add here the code for running the analysis script</span>
 <span class="n">prob_thresh</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">prob_threshold</span>
 <span class="n">diameter</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">diameter</span>
 <span class="n">cp_model</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">cp_model</span>
 <span class="n">use_gpu</span> <span class="o">=</span> <span class="n">bj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">use_gpu</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chosen model: </span><span class="si">{</span><span class="n">cp_model</span><span class="si">}</span><span class="s2"> | Channel </span><span class="si">{</span><span class="n">nuc_channel</span><span class="si">}</span><span class="s2"> | Diameter </span><span class="si">{</span><span class="n">diameter</span><span class="si">}</span><span class="s2"> | Cell prob threshold </span><span class="si">{</span><span class="n">prob_thresh</span><span class="si">}</span><span class="s2"> | GPU </span><span class="si">{</span><span class="n">use_gpu</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cellpose&quot;</span><span class="p">,</span> <span class="s2">&quot;--dir&quot;</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;--pretrained_model&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cp_model</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;--save_tif&quot;</span><span class="p">,</span> <span class="s2">&quot;--no_npy&quot;</span><span class="p">,</span> <span class="s2">&quot;--chan&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">&quot;--diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">&quot;--cellprob_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prob_thresh</span><span class="p">)]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Chosen model: </span><span class="si">{</span><span class="n">cp_model</span><span class="si">}</span><span class="s2"> | Channel </span><span class="si">{</span><span class="n">nuc_channel</span><span class="si">}</span><span class="s2"> | Diameter </span><span class="si">{</span><span class="n">diameter</span><span class="si">}</span><span class="s2"> | Cell prob threshold </span><span class="si">{</span><span class="n">prob_thresh</span><span class="si">}</span><span class="s2"> | GPU </span><span class="si">{</span><span class="n">use_gpu</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"python"</span><span class="p">,</span> <span class="s2">"-m"</span><span class="p">,</span> <span class="s2">"cellpose"</span><span class="p">,</span> <span class="s2">"--dir"</span><span class="p">,</span> <span class="n">tmp_path</span><span class="p">,</span> <span class="s2">"--pretrained_model"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">cp_model</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"--save_tif"</span><span class="p">,</span> <span class="s2">"--no_npy"</span><span class="p">,</span> <span class="s2">"--chan"</span><span class="p">,</span> <span class="s2">"</span><span class="si">{:d}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nuc_channel</span><span class="p">),</span> <span class="s2">"--diameter"</span><span class="p">,</span> <span class="s2">"</span><span class="si">{:f}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diameter</span><span class="p">),</span> <span class="s2">"--cellprob_threshold"</span><span class="p">,</span> <span class="s2">"</span><span class="si">{:f}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prob_thresh</span><span class="p">)]</span>
 <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using GPU!&quot;</span><span class="p">)</span>
-    <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;--use_gpu&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Using GPU!"</span><span class="p">)</span>
+    <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"--use_gpu"</span><span class="p">)</span>
 <span class="n">status</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running Cellpose failed, terminate&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Running Cellpose failed, terminate"</span><span class="p">)</span>
     <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 
 <span class="c1"># Crop to original shape</span>
 <span class="k">for</span> <span class="n">bimg</span> <span class="ow">in</span> <span class="n">in_imgs</span><span class="p">:</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="n">resized</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">shape</span><span class="p">:</span>
-        <span class="n">img</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename_no_extension</span><span class="o">+</span><span class="s2">&quot;_cp_masks.tif&quot;</span><span class="p">))</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename_no_extension</span><span class="o">+</span><span class="s2">"_cp_masks.tif"</span><span class="p">))</span>
         <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">:</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
         <span class="n">imageio</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span> <span class="n">img</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename_no_extension</span><span class="o">+</span><span class="s2">&quot;_cp_masks.tif&quot;</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">))</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename_no_extension</span><span class="o">+</span><span class="s2">"_cp_masks.tif"</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span><span class="n">bimg</span><span class="o">.</span><span class="n">filename</span><span class="p">))</span>
 
 <span class="c1"># 3. Upload data to BIAFLOWS</span>
 </pre></div>
@@ -877,14 +878,14 @@ The format is <code class="docutils literal notranslate"><span class="pre">d-hh:
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
 
 <span class="c1"># 3. Call the image analysis workflow using the run script</span>
-<span class="n">nj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">&quot;Launching workflow...&quot;</span><span class="p">)</span>
+<span class="n">nj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="s2">"Launching workflow..."</span><span class="p">)</span>
 
-<span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;/usr/bin/xvfb-run java -Xmx6000m -cp /fiji/jars/ij.jar ij.ImageJ --headless --console &quot;</span> \
-            <span class="s2">&quot;-macro macro.ijm </span><span class="se">\&quot;</span><span class="s2">input=</span><span class="si">{}</span><span class="s2">, output=</span><span class="si">{}</span><span class="s2">, radius=</span><span class="si">{}</span><span class="s2">, min_threshold=</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">in_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">nj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">ij_radius</span><span class="p">,</span> <span class="n">nj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">ij_min_threshold</span><span class="p">)</span>
-<span class="n">return_code</span> <span class="o">=</span> <span class="n">call</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="s2">&quot;/fiji&quot;</span><span class="p">)</span>  <span class="c1"># waits for the subprocess to return</span>
+<span class="n">command</span> <span class="o">=</span> <span class="s2">"/usr/bin/xvfb-run java -Xmx6000m -cp /fiji/jars/ij.jar ij.ImageJ --headless --console "</span> \
+            <span class="s2">"-macro macro.ijm </span><span class="se">\"</span><span class="s2">input=</span><span class="si">{}</span><span class="s2">, output=</span><span class="si">{}</span><span class="s2">, radius=</span><span class="si">{}</span><span class="s2">, min_threshold=</span><span class="si">{}</span><span class="se">\"</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">in_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">nj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">ij_radius</span><span class="p">,</span> <span class="n">nj</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">ij_min_threshold</span><span class="p">)</span>
+<span class="n">return_code</span> <span class="o">=</span> <span class="n">call</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="s2">"/fiji"</span><span class="p">)</span>  <span class="c1"># waits for the subprocess to return</span>
 
 <span class="k">if</span> <span class="n">return_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="n">err_desc</span> <span class="o">=</span> <span class="s2">&quot;Failed to execute the ImageJ macro (return code: </span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">return_code</span><span class="p">)</span>
+    <span class="n">err_desc</span> <span class="o">=</span> <span class="s2">"Failed to execute the ImageJ macro (return code: </span><span class="si">{}</span><span class="s2">)"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">return_code</span><span class="p">)</span>
     <span class="n">nj</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">statusComment</span><span class="o">=</span><span class="n">err_desc</span><span class="p">)</span>
     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err_desc</span><span class="p">)</span>
     
@@ -972,7 +973,7 @@ repositories can drift out of sync with newer BIOMERO releases.</p>
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 </pre></div>
 </div>
@@ -1030,11 +1031,11 @@ safer and less maintenance-heavy option.</p>
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 <span class="c1"># Override the default job values for this workflow</span>
 <span class="c1"># Or add a job value to this workflow</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># If you don't want to override, comment out / delete the line.</span>
 <span class="c1"># Run CellPose Slurm with 10 GB GPU</span>
 <span class="na">cellpose_job_gres</span><span class="o">=</span><span class="s">gpu:1g.10gb:1</span>
 </pre></div>
@@ -1049,11 +1050,11 @@ safer and less maintenance-heavy option.</p>
 <span class="na">cellpose</span><span class="o">=</span><span class="s">cellpose</span>
 <span class="c1"># The (e.g. github) repository with the descriptor.json file</span>
 <span class="na">cellpose_repo</span><span class="o">=</span><span class="s">https://github.com/TorecLuik/W_NucleiSegmentation-Cellpose/tree/v1.2.7</span>
-<span class="c1"># The jobscript in the &#39;slurm_script_repo&#39;</span>
+<span class="c1"># The jobscript in the 'slurm_script_repo'</span>
 <span class="na">cellpose_job</span><span class="o">=</span><span class="s">jobs/cellpose.sh</span>
 <span class="c1"># Override the default job values for this workflow</span>
 <span class="c1"># Or add a job value to this workflow</span>
-<span class="c1"># If you don&#39;t want to override, comment out / delete the line.</span>
+<span class="c1"># If you don't want to override, comment out / delete the line.</span>
 <span class="c1"># Run with longer time limit</span>
 <span class="na">cellpose_job_time</span><span class="o">=</span><span class="s">00:30:00</span>
 </pre></div>
@@ -1109,13 +1110,13 @@ safer and less maintenance-heavy option.</p>
 <p>Debug logging can be enabled with the standard python logging module, for example with logging.basicConfig():</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
-<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;DEBUG&#39;</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">'DEBUG'</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>For example in (the <code class="docutils literal notranslate"><span class="pre">__init__</span></code> of) a script:</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'__main__'</span><span class="p">:</span>
     <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
-                        <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+                        <span class="nb">format</span><span class="o">=</span><span class="s1">'</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">'</span><span class="p">,</span>
                         <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
     <span class="n">runScript</span><span class="p">()</span>
 </pre></div>

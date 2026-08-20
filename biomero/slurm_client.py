@@ -30,6 +30,7 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+import posixpath
 import yaml
 import shlex
 from biomero.constants import slurm_env
@@ -670,7 +671,10 @@ class SlurmClient(Connection):
                 pull/build commands when set. Overridable via
                 ``BIOMERO_APPTAINER_CACHEDIR``. Defaults to None.
             slurm_zip_cmd (str, optional): Command used to zip job output on
-                the cluster. Defaults to auto-detecting ``7z`` or ``7za``.
+                the cluster. ``zip`` (including an explicit path ending in
+                ``/zip``) selects Info-ZIP syntax and the corresponding
+                ``unzip`` executable; all other values retain the legacy
+                7-Zip syntax. Defaults to auto-detecting ``7z`` or ``7za``.
                 Overridable via ``BIOMERO_SLURM_ZIP_CMD``.
             analytics_rebuild_start_time (str, optional): Absolute cutoff date
                 (``YYYY-MM-DD``) from which events are replayed when resetting
@@ -3391,10 +3395,53 @@ class SlurmClient(Connection):
         Returns:
             str: The command to create the zip file.
         """
+        if self._uses_infozip():
+            return (
+                f"cd \"{data_location}/data/out\" && "
+                f"{self.slurm_zip_cmd} -r "
+                f"\"{data_location}/{filename}.zip\" ."
+            )
         return (
             f"cd \"{data_location}/data/out\" && "
             f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
         )
+
+    def _uses_infozip(self) -> bool:
+        """Return whether ``slurm_zip_cmd`` names the Info-ZIP executable."""
+        try:
+            executable = shlex.split(self.slurm_zip_cmd)[0]
+        except (IndexError, TypeError, ValueError):
+            return False
+        return posixpath.basename(executable) == "zip"
+
+    def _get_infozip_unzip_command(self) -> str:
+        """Resolve unzip next to an explicitly pathed Info-ZIP executable."""
+        executable = shlex.split(self.slurm_zip_cmd)[0]
+        executable_dir = posixpath.dirname(executable)
+        unzip_cmd = posixpath.join(executable_dir, "unzip") \
+            if executable_dir else "unzip"
+        return shlex.quote(unzip_cmd)
+
+    @staticmethod
+    def _get_infozip_filter_args(filter_filetypes: Optional[str]) -> str:
+        """Quote member filters and include files inside Zarr directories."""
+        if not filter_filetypes:
+            return ""
+
+        patterns = []
+        for pattern in shlex.split(filter_filetypes):
+            zarr_path = pattern.rstrip("/")
+            if zarr_path.endswith(".zarr"):
+                pattern = f"{zarr_path}/*"
+            if pattern not in patterns:
+                patterns.append(pattern)
+
+        # ``*.zarr/*`` also matches OME-Zarr members. Passing both patterns
+        # makes Info-ZIP warn that the later, already-consumed pattern did not
+        # match and return status 11 despite extracting the data successfully.
+        if "*.zarr/*" in patterns and "*.ome.zarr/*" in patterns:
+            patterns.remove("*.ome.zarr/*")
+        return "".join(f" {shlex.quote(pattern)}" for pattern in patterns)
 
     def get_logfile_from_slurm(self,
                                slurm_job_id: str,
@@ -3499,6 +3546,21 @@ class SlurmClient(Connection):
                 The command to extract the specified
                 filetypes from the zip file.
         """
+        if self._uses_infozip():
+            unzip_cmd = self._get_infozip_unzip_command()
+            filter_args = self._get_infozip_filter_args(filter_filetypes)
+            return (
+                f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
+                f" \"{self.slurm_data_path}/{zipfile}/data\""
+                f" \"{self.slurm_data_path}/{zipfile}/data/in\""
+                f" \"{self.slurm_data_path}/{zipfile}/data/out\""
+                f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
+                f" {unzip_cmd} -o"
+                f" \"{self.slurm_data_path}/{zipfile}.zip\""
+                f"{filter_args}"
+                f" -d \"{self.slurm_data_path}/{zipfile}/data/in\""
+                f"{' || [ $? -eq 11 ]' if filter_args else ''}"
+            )
         unzip_cmd = (
             f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
             f" \"{self.slurm_data_path}/{zipfile}/data\""

@@ -310,16 +310,25 @@ Use this when:
 ZIP command
 ~~~~~~~~~~~
 
-``slurm_zip_cmd`` controls which archive command BIOMERO uses when it zips job output on the cluster.
+``slurm_zip_cmd`` controls which archive command BIOMERO uses when it creates
+and extracts ZIP files on the cluster. It can also be overridden by
+``BIOMERO_SLURM_ZIP_CMD``.
 
 Impact:
 
 * If unset, BIOMERO defaults to ``$(command -v 7z || command -v 7za)``.
-* If set, BIOMERO uses the configured command directly when generating the zip command.
+* ``7z`` and ``7za`` use the existing 7-Zip command syntax.
+* ``zip`` uses Info-ZIP syntax for creation and ``unzip`` for extraction. An
+  explicit path ending in ``/zip``, such as ``/usr/bin/zip``, uses the matching
+  sibling path (``/usr/bin/unzip``) for extraction.
+* Other configured values retain the legacy 7-Zip syntax for backward
+  compatibility.
 
 Use this when:
 
 * your cluster exposes only ``7za`` or only ``7z``
+* your cluster provides the Info-ZIP ``zip`` and ``unzip`` commands instead of
+  7-Zip; set ``slurm_zip_cmd=zip``
 * auto-detection is not reliable in your environment
 
 Analytics and Provenance Settings

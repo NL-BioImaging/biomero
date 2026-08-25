@@ -6,6 +6,9 @@
 Welcome to BIOMERO's documentation!
 ==============================================
 
+For publication references and guidance on which BIOMERO paper to cite, see
+:doc:`citing`.
+
 
 .. Get started
 
@@ -16,6 +19,7 @@ Welcome to BIOMERO's documentation!
    :maxdepth: 4
 
    readme_link
+   citing
 
 .. Tutorials
 

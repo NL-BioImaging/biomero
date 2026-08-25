@@ -4,7 +4,7 @@
 cff-version: 1.2.0
 title: 'BIOMERO: BioImage analysis in OMERO'
 message: >-
-  If you use this software, please cite it the article from preferred-citation
+  If you use this software, please cite the article from preferred-citation
 type: software
 authors:
   - given-names: Torec Tom

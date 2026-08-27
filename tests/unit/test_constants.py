@@ -46,3 +46,25 @@ def test_plate_label_preview_result_inputs_are_stable():
         constants.results.PLATE_LABEL_PREVIEW_NAME
         == "Plate_Label_Preview_Name"
     )
+
+
+def test_file_output_target_contract_is_shared_by_workflow_and_results_scripts():
+    assert (
+        constants.workflow.OUTPUT_ATTACH_FILE_OUTPUTS_TARGET
+        == "5a) File annotation destination"
+    )
+    assert (
+        constants.results.OUTPUT_ATTACH_FILE_OUTPUTS_TARGET
+        == "File output destination"
+    )
+    assert constants.file_output_targets.LEGACY == "legacy_input_container"
+    assert constants.file_output_targets.AUTO == "auto"
+    assert constants.file_output_targets.RESULT_DESTINATION == "result_destination"
+    assert constants.file_output_targets.INPUT_CONTAINER == "input_container"
+    assert constants.file_output_targets.INPUT_PARENT == "input_parent"
+    assert constants.file_output_targets.USER_VALUES == (
+        "auto",
+        "result_destination",
+        "input_container",
+        "input_parent",
+    )

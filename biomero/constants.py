@@ -109,6 +109,23 @@ class workflow_batched:
     BATCH_SIZE = "Batch_Size"
 
 
+class file_output_targets:
+    """Destination modes for individual non-image workflow outputs."""
+
+    # Missing values from older clients preserve the historical behavior.
+    LEGACY = "legacy_input_container"
+    AUTO = "auto"
+    RESULT_DESTINATION = "result_destination"
+    INPUT_CONTAINER = "input_container"
+    INPUT_PARENT = "input_parent"
+    USER_VALUES = (
+        AUTO,
+        RESULT_DESTINATION,
+        INPUT_CONTAINER,
+        INPUT_PARENT,
+    )
+
+
 class workflow:
     # ------------------------------------------------------------
     # SLURM_Run_Workflow script constants
@@ -123,6 +140,7 @@ class workflow:
     OUTPUT_DUPLICATES = "3b) Allow duplicate dataset (name)?"
     OUTPUT_CSV_TABLE = "4) Upload result CSVs as OMERO tables"
     OUTPUT_ATTACH_FILE_OUTPUTS = "5) Attach individual non-image output files"
+    OUTPUT_ATTACH_FILE_OUTPUTS_TARGET = "5a) File annotation destination"
     OUTPUT_CREATE_ROIS = "6a) Create ROIs from label images"
     ROI_LABEL_PATTERN = "6b) Label image pattern"
     ROI_SHAPE = "6c) ROI shape"
@@ -177,6 +195,7 @@ class results:
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
     OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
+    OUTPUT_ATTACH_FILE_OUTPUTS_TARGET = "File output destination"
     OUTPUT_CREATE_ROIS = "Create_ROIs"
     ROI_LABEL_PATTERN = "ROI_Label_Pattern"
     ROI_SHAPE = "ROI_Shape"

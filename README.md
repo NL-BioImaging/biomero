@@ -55,7 +55,7 @@ BIOMERO 1.0 consists of this Python library (`biomero`) and the integrations wit
 
 ![OMERO-Figure1_Overview_v5](https://github.com/NL-BioImaging/biomero/assets/68958516/ff437ed2-d4b7-48b4-a7e3-12f1dbf00981)
 
-For the <img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="16" style="height:16px; width:auto; vertical-align:middle;"> BIOMERO 2.0 setup, see NL-BIOMERO for deployment; and for details on the design and FAIR features, see our latest preprint: [“BIOMERO 2.0: end-to-end FAIR infrastructure for bioimaging data import, analysis, and provenance”](https://arxiv.org/abs/2511.13611)  
+For the <img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="16" style="height:16px; width:auto; vertical-align:middle;"> BIOMERO 2.0 setup, see NL-BIOMERO for deployment; and for details on the design and FAIR features, see our published paper: [“BIOMERO 2.0: end-to-end FAIR infrastructure for bioimaging data import, analysis, and provenance”](https://doi.org/10.1111/jmi.70114). For the BIOMERO library citation and guidance on when to cite each paper, see [Citing BIOMERO](https://nl-bioimaging.github.io/biomero/citing.html).
 
 
 ## Deploy with NL-BIOMERO
@@ -131,14 +131,15 @@ Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
 Your Slurm cluster/login node needs to have:
 1. SSH access w/ public key (headless)
 2. SCP access (generally comes with SSH)
-3. A compatible zip command available for result archiving: `7z` or `7za`
+3. Compatible ZIP tooling for result archiving: `7z`/`7za`, or the Info-ZIP
+   `zip` and `unzip` pair
 4. Singularity/Apptainer installed
 5. (Optional) Git installed, only if you intentionally use an external `slurm_script_repo` (not recommended)
 6. Slurm accounting enabled
 
-If your cluster exposes only one archive binary or auto-detection is unreliable,
-BIOMERO can be configured explicitly with `slurm_zip_cmd`. See the configuration
-docs linked below.
+If your cluster uses Info-ZIP, set `slurm_zip_cmd=zip`. If it exposes only one
+7-Zip binary or auto-detection is unreliable, configure that executable
+explicitly. See the configuration docs linked below.
 
 ## OMERO Requirements
 
@@ -216,7 +217,7 @@ To connect an OMERO processor to a Slurm cluster using the `biomero` library, us
 
 6. To finish setting up your `SlurmClient` and Slurm server, run it once with `init_slurm=True`. This is provided in an OMERO script form at [init/Slurm Init environment](https://github.com/NL-BioImaging/biomero-scripts/blob/master/admin/SLURM_Init_environment.py) , which you just installed in previous step.
     - You could provide the configfile location explicitly if it is not a default one defined earlier, but very likely you can omit that field. 
-    - Please note the requirements for your Slurm cluster. We do not install Singularity/Apptainer or the required archive tool (`7z` or `7za`) on your cluster for you.
+    - Please note the requirements for your Slurm cluster. We do not install Singularity/Apptainer or the required archive tooling (`7z`/`7za`, or Info-ZIP `zip` plus `unzip`) on your cluster for you.
     - This operation will create the directories you configured in `slurm-config.ini`, pull any described Singularity images to the server (note: might take a while), and by default generate job scripts for your configured workflows. It will only clone scripts from Git if you explicitly configure `slurm_script_repo`:
 
 ```python

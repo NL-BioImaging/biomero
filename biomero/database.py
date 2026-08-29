@@ -332,29 +332,19 @@ class EngineManager:
         
     @classmethod
     def create_scoped_session(cls, sqlalchemy_url: str = None):
-        """
-        Creates and returns a scoped session for interacting with the
-        database.
-
-        If the engine doesn't already exist, it initializes the SQLAlchemy
-        engine and sets up the scoped session.
-
-        Args:
-            sqlalchemy_url (str, optional): The SQLAlchemy database URL. If
-                not provided, the method will retrieve the value from the
-                'SQLALCHEMY_URL' environment variable.
-
-        Returns:
-            str: The topic of the scoped session adapter class.
-        """
+        logger.warning(f"[DB] create_scoped_session called on class id {id(cls)} (engine={cls._engine}, session={cls._session})")
+        print(f"[DB_PRINT] create_scoped_session called on class id {id(cls)} (engine={cls._engine}, session={cls._session})", flush=True)
         if cls._engine is None:
             # Note, we only allow sqlalchemy eventsourcing module
             if not sqlalchemy_url:
                 sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
             cls._engine = create_engine(sqlalchemy_url)
-            # Setup tables if they don't exist yet, and detect fresh installs
-            Base.metadata.create_all(cls._engine)
+            try:
+                Base.metadata.create_all(cls._engine)
+            except Exception as e:
+                logger.warning(f"Base.metadata.create_all raised exception: {e}")
 
+        if cls._session is None:
             # Create a scoped_session object.
             cls._session = scoped_session(
                 sessionmaker(
@@ -371,16 +361,16 @@ class EngineManager:
             # Produce the topic of the scoped session adapter class.
             cls._scoped_session_topic = get_topic(MyScopedSessionAdapter)
 
+        logger.warning(f"[DB] create_scoped_session completed on class id {id(cls)} (engine={cls._engine}, session={cls._session})")
+        print(f"[DB_PRINT] create_scoped_session completed on class id {id(cls)} (engine={cls._engine}, session={cls._session})", flush=True)
         return cls._scoped_session_topic
     
     @classmethod
     def get_session(cls):
-        """
-        Retrieves the current scoped session.
-
-        Returns:
-            Session: The SQLAlchemy session for interacting with the database.
-        """
+        logger.warning(f"[DB] get_session called on class id {id(cls)} (session={cls._session})")
+        print(f"[DB_PRINT] get_session called on class id {id(cls)} (session={cls._session})", flush=True)
+        if cls._session is None:
+            cls.create_scoped_session()
         return cls._session()
     
     @classmethod

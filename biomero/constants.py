@@ -257,6 +257,7 @@ class transfer:
     FORMAT_OMETIFF = 'OME-TIFF'
     FORMAT_OMEZARR = 'OME-ZARR'
     OME_VERSION = "OME-Zarr_version"
+    RECONSTRUCT_SHALLOW_ZARR = "Reconstruct_Shallow_Zarr"
     OME_ZARR_VERSION_0_4 = '0.4'
     OME_ZARR_VERSION_0_5 = '0.5'
     OME_ZARR_VERSION_0_6 = '0.6'

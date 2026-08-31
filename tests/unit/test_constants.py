@@ -37,6 +37,13 @@ def test_shallow_zarr_feature_flag_is_forwardable_to_omero_scripts():
     )
 
 
+def test_shallow_reconstruction_transfer_input_is_stable():
+    assert (
+        constants.transfer.RECONSTRUCT_SHALLOW_ZARR
+        == "Reconstruct_Shallow_Zarr"
+    )
+
+
 def test_plate_label_preview_result_inputs_are_stable():
     assert (
         constants.results.IMPORT_PLATE_LABEL_PREVIEW

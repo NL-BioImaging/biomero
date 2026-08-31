@@ -6,6 +6,7 @@ from biomero.zarr_contracts import (
     CANONICAL_SOURCE_NAMESPACE,
     CANONICAL_PLATE_SOURCE_NAMESPACE,
     SHALLOW_COLLECTION_NAMESPACE,
+    TRANSFER_INPUT_MARKER,
     CanonicalInput,
     CanonicalPlateImageRecord,
     CanonicalPlateIndex,
@@ -21,6 +22,7 @@ from biomero.zarr_contracts import (
 
 
 def test_shared_shallow_contract_is_reexported():
+    assert TRANSFER_INPUT_MARKER == ".biomero-input.json"
     assert SHALLOW_COLLECTION_NAMESPACE == "biomero.zarr.shallow"
     assert ShallowZarrReference.__module__ == "biomero_schema.zarr"
     assert ShallowPlateReference.__module__ == "biomero_schema.zarr"

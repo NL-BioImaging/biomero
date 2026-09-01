@@ -2583,6 +2583,9 @@ def test_from_config(mock_ConfigParser,
         slurm_image_pull_via_sbatch=False,
         image_pull_cpus=mv,
         image_pull_mem=mv,
+        image_pull_time=mv,
+        image_pull_concurrency=1,
+        image_pull_partition=mv,
         apptainer_tmpdir=mv,
         apptainer_cachedir=mv,
         slurm_zip_cmd=mv,
@@ -2723,6 +2726,7 @@ def test_setup_slurm_notok(mock_run, mock_validate):
 
 
 @pytest.mark.parametrize("mpaths, expected_modelpaths", [({'wf': 'path'}, 'path'), ({'wf': 'path', 'wf2': 'path2'}, 'path" "path2')])
+@patch('biomero.slurm_client.SlurmClient._submit_image_pull_array', return_value=12345)
 @patch('biomero.slurm_client.io.StringIO')
 @patch('biomero.slurm_client.SlurmClient.validate')
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -2735,6 +2739,7 @@ def test_setup_slurm(_mock_CachedSession,
                      mock_run,
                      mock_validate,
                      mock_stringio,
+                     mock_submit_images,
                      expected_modelpaths,
                      mpaths):
     """
@@ -2748,8 +2753,6 @@ def test_setup_slurm(_mock_CachedSession,
     ipath = "imagespath"
     cpath = "converterspath"
     srepo = "repo-url"
-    convert_name = "convert_zarr_to_tiff"
-    convert_def = f"{convert_name}.def"
     mimages = {'wf': 'image'}
     mrepos = {'wf': "https://github.com/example/workflow1"}
     script_name = "pull_images.sh"
@@ -2776,17 +2779,16 @@ def test_setup_slurm(_mock_CachedSession,
         ['rm -rf "$LOCALREPO"', 'git clone "$REPOSRC" "$LOCALREPO" 2> /dev/null'],
         {"REPOSRC": f"\"{srepo}\"", "LOCALREPO": f"\"{spath}\""})
 
-    # 3 converters
+    # 3 converter resources are staged without building on the login node.
     _mock_Connection_put.assert_called()
-    # mock_run.assert_any_call(f"mkdir -p {cpath}")
-    mock_run.assert_any_call(
-        [f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &"])
-
-    # 4 images
-    mock_run.assert_any_call([f"mkdir -p \"{expected_modelpaths}\""])
-    _mock_Connection_put.assert_called_with(
-        local=mock_stringio(), remote=f'{ipath}/{script_name}')
-    mock_run.assert_any_call([f"time sh {script_name}"])
+    # 4 workflow and converter specs are handed to one shared submission.
+    expected_dirs = " ".join(
+        f"{ipath}/{path}" for path in mpaths.values())
+    mock_run.assert_any_call([f"mkdir -p {expected_dirs}"])
+    mock_submit_images.assert_called_once()
+    combined_specs = mock_submit_images.call_args.args[0]
+    assert {spec["kind"] for spec in combined_specs} == {
+        "workflow", "converter"}
 
 
 @pytest.mark.parametrize(
@@ -4362,6 +4364,50 @@ def test_from_config_pull_env_override(
 @patch('biomero.slurm_client.SlurmClient.__init__')
 @patch('biomero.slurm_client.configparser.ConfigParser')
 @patch.dict(os.environ, {
+    "BIOMERO_PULL_TIME": "1-00:00:00",
+    "BIOMERO_PULL_CONCURRENCY": "4",
+    "BIOMERO_PULL_PARTITION": "defq",
+}, clear=False)
+def test_from_config_image_pull_array_env_override(
+        mock_ConfigParser,
+        mock_SlurmClient,
+        _mock_run, _mock_put, _mock_open, _mock_session,
+        slurm_configparser_factory):
+    """Array-specific pull settings use normal ini -> env precedence."""
+    mock_SlurmClient.return_value = None
+    mock_ConfigParser.return_value = slurm_configparser_factory(
+        get_values={
+            ('ANALYTICS', 'sqlalchemy_url'): 'sqlite:///test.db',
+            ('SLURM', 'sacct_start_time'): None,
+            ('SLURM', 'sacct_days_ago'): None,
+            ('SLURM', 'image_pull_time'): '02:00:00',
+            ('SLURM', 'image_pull_concurrency'): '2',
+            ('SLURM', 'image_pull_partition'): 'short',
+        },
+        boolean_values={
+            'track_workflows': True,
+            'enable_job_accounting': True,
+            'enable_job_progress': True,
+            'enable_workflow_analytics': True,
+        },
+    )
+
+    SlurmClient.from_config(
+        configfile='test_config.ini', init_slurm=False, config_only=True)
+
+    _, kwargs = mock_SlurmClient.call_args_list[-1]
+    assert kwargs['image_pull_time'] == '1-00:00:00'
+    assert kwargs['image_pull_concurrency'] == 4
+    assert kwargs['image_pull_partition'] == 'defq'
+
+
+@patch('biomero.slurm_client.Connection.create_session')
+@patch('biomero.slurm_client.Connection.open')
+@patch('biomero.slurm_client.Connection.put')
+@patch('biomero.slurm_client.SlurmClient.run')
+@patch('biomero.slurm_client.SlurmClient.__init__')
+@patch('biomero.slurm_client.configparser.ConfigParser')
+@patch.dict(os.environ, {
     "BIOMERO_APPTAINER_TMPDIR": "/scratch/user/.apptainer-tmp",
     "BIOMERO_APPTAINER_CACHEDIR": "/scratch/user/.apptainer-cache",
 }, clear=False)
@@ -4433,12 +4479,20 @@ def test_setup_converters_image_pull_via_sbatch(
 
     client.setup_converters()
 
-    script = mock_stringio.call_args_list[-1][0][0]
+    script = next(
+        call.args[0] for call in mock_stringio.call_args_list
+        if isinstance(call.args[0], str)
+        and "skopeo inspect --raw" in call.args[0])
     assert "singularity build --force --disable-cache" in script
     assert "BIOMERO_PULL_CPUS" in script
-    mock_run_commands.assert_any_call([
-        "sbatch --parsable --job-name=biomero-pull-converters --cpus-per-task=12 --mem=64G --export=ALL,BIOMERO_PULL_CPUS=12 --output=pull_converters-%j.log pull_images.sh"
-    ])
+    sbatch_command = next(
+        call.args[0][0] for call in mock_run_commands.call_args_list
+        if call.args and call.args[0]
+        and call.args[0][0].startswith("sbatch --parsable"))
+    assert "--array=0-0%1" in sbatch_command
+    assert "--cpus-per-task=12" in sbatch_command
+    assert "--mem=64G" in sbatch_command
+    assert "pull-image-%A_%a.log" in sbatch_command
 
 
 @patch('biomero.slurm_client.Connection.create_session')
@@ -4479,11 +4533,13 @@ def test_setup_converters_uses_configured_apptainer_dirs_without_sbatch(
 
     client.setup_converters()
 
-    script = mock_stringio.call_args_list[-1][0][0]
-    assert "APPTAINER_TMPDIR=/scratch/user/.apptainer-tmp" in script
-    assert "SINGULARITY_TMPDIR=/scratch/user/.apptainer-tmp" in script
-    assert "APPTAINER_CACHEDIR=/scratch/user/.apptainer-cache" in script
-    assert "SINGULARITY_CACHEDIR=/scratch/user/.apptainer-cache" in script
+    direct_command = next(
+        call.args[0][0] for call in mock_run_commands.call_args_list
+        if call.args and call.args[0]
+        and call.args[0][0].startswith("nohup env"))
+    assert "/scratch/user/.apptainer-tmp" in direct_command
+    assert "/scratch/user/.apptainer-cache" in direct_command
+    assert "pull-image-direct_0.log" in direct_command
 
 
 @pytest.mark.parametrize(
@@ -4656,11 +4712,12 @@ def test_setup_converters_sbatch_with_apptainer_dirs(
 
     client.setup_converters()
 
-    script = mock_stringio.call_args_list[-1][0][0]
-    assert "APPTAINER_TMPDIR=/scratch/.apptainer-tmp" in script
-    assert "SINGULARITY_TMPDIR=/scratch/.apptainer-tmp" in script
-    assert "APPTAINER_CACHEDIR=/scratch/.apptainer-cache" in script
-    assert "SINGULARITY_CACHEDIR=/scratch/.apptainer-cache" in script
+    sbatch_command = next(
+        call.args[0][0] for call in mock_run_commands.call_args_list
+        if call.args and call.args[0]
+        and call.args[0][0].startswith("sbatch --parsable"))
+    assert "/scratch/.apptainer-tmp" in sbatch_command
+    assert "/scratch/.apptainer-cache" in sbatch_command
 
 
 def test_get_workflow_command_no_bind_path_no_error(slurm_client):
@@ -4811,3 +4868,204 @@ def test_parse_descriptor_trailing_slash_uses_auto_discovery(
         f"Expected auto-discovery to start with descriptor.json, got: {first_call_url}"
     )
     assert result is not None
+
+
+def test_image_pull_sbatch_command_is_bounded_and_merges_params(slurm_client):
+    slurm_client.slurm_global_job_params = [
+        " --account=project",
+        " --time=02:00:00",
+        " --partition=generic",
+        " --mem=8G",
+    ]
+    slurm_client.image_pull_cpus = "8"
+    slurm_client.image_pull_mem = "32G"
+    slurm_client.image_pull_time = "1-00:00:00"
+    slurm_client.image_pull_partition = "defq"
+    slurm_client.image_pull_concurrency = 4
+
+    cmd = slurm_client._build_image_pull_sbatch_command(
+        script_path="/shared/scripts/pull_images.sh",
+        manifest_path="/shared/status/submission/manifest.tsv",
+        status_dir="/shared/status/submission",
+        task_count=16,
+    )
+
+    assert "--array=0-15%4" in cmd
+    assert "--cpus-per-task=8" in cmd
+    assert "--mem=32G" in cmd
+    assert "--time=1-00:00:00" in cmd
+    assert "--partition=defq" in cmd
+    assert "--account=project" in cmd
+    assert "--time=02:00:00" not in cmd
+    assert "--partition=generic" not in cmd
+    assert "--mem=8G" not in cmd
+    assert "--output=/shared/status/submission/pull-image-%A_%a.log" in cmd
+    assert cmd.endswith(
+        "/shared/scripts/pull_images.sh "
+        "/shared/status/submission/manifest.tsv "
+        "/shared/status/submission '' ''"
+    )
+
+
+def test_image_pull_sbatch_command_inherits_global_time(slurm_client):
+    slurm_client.slurm_global_job_params = [
+        " --time=1-00:00:00",
+        " --qos=normal",
+    ]
+    slurm_client.image_pull_cpus = "8"
+    slurm_client.image_pull_mem = "32G"
+    slurm_client.image_pull_time = None
+    slurm_client.image_pull_partition = None
+    slurm_client.image_pull_concurrency = 2
+
+    cmd = slurm_client._build_image_pull_sbatch_command(
+        "pull_images.sh", "manifest.tsv", "status", 3)
+
+    assert "--array=0-2%2" in cmd
+    assert "--time=1-00:00:00" in cmd
+    assert "--qos=normal" in cmd
+
+
+def test_extract_job_id_supports_sbatch_parsable(slurm_client):
+    result = MagicMock(stdout="12345;cluster\n")
+    assert slurm_client.extract_job_id(result) == 12345
+
+
+def test_parse_image_pull_status_counts_and_failure_reason(slurm_client):
+    status_output = (
+        "workflow\tcellpose\tv1.0\tREADY\t0\tvalidated\t/a.sif\n"
+        "workflow\timagej\tv2.0\tFAILED\t22\tmanifest unknown\t/b.sif\n"
+        "converter\tzarr_to_tiff\tv3.0\tRUNNING\t\tqueued\t/c.sif\n"
+    )
+
+    result = slurm_client._parse_image_pull_status(status_output)
+
+    assert result["counts"] == {"READY": 1, "RUNNING": 1, "FAILED": 1}
+    assert result["images"][1]["reason"] == "manifest unknown"
+    assert result["images"][1]["exit_code"] == 22
+
+
+def test_get_all_image_versions_filters_empty_output(slurm_client):
+    slurm_client.slurm_model_paths = {"imagej": "imagej"}
+    slurm_client.run_commands_split_out = MagicMock(
+        return_value=["", "data-a\n"])
+
+    models, data = slurm_client.get_all_image_versions_and_data_files()
+
+    assert models == {"imagej": []}
+    assert data == ["data-a"]
+
+
+def test_array_runner_has_verification_retry_atomic_publish_and_cleanup():
+    pull_script = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "resources",
+        "pull_images.sh",
+    )
+    script = open(pull_script, encoding="utf-8").read()
+
+    assert "SLURM_ARRAY_TASK_ID" in script
+    assert "SLURM_TMPDIR" in script
+    assert "skopeo inspect --raw" in script
+    assert "manifest unknown" in script
+    assert "singularity inspect" in script
+    assert "mv --" in script
+    assert "trap cleanup EXIT" in script
+    assert "READY" in script
+    assert "FAILED" in script
+
+
+def test_setup_slurm_submits_one_combined_workflow_converter_array(slurm_client):
+    converter_spec = {"kind": "converter"}
+    slurm_client.validate = MagicMock(return_value=True)
+    slurm_client.setup_directories = MagicMock()
+    slurm_client.setup_job_scripts = MagicMock()
+    slurm_client.prepare_converters = MagicMock(return_value=[converter_spec])
+    slurm_client.setup_container_images = MagicMock(return_value=24680)
+
+    result = slurm_client.setup_slurm()
+
+    assert result == 24680
+    slurm_client.setup_container_images.assert_called_once_with(
+        extra_image_specs=[converter_spec])
+
+
+@patch('biomero.slurm_client.uuid4')
+def test_submit_image_pull_array_returns_array_id_and_stages_status(
+        mock_uuid4, slurm_client):
+    mock_uuid4.return_value.hex = "submission"
+    slurm_client.slurm_script_path = "/shared/scripts"
+    slurm_client.slurm_image_pull_via_sbatch = True
+    slurm_client.image_pull_cpus = "8"
+    slurm_client.image_pull_mem = "32G"
+    slurm_client.image_pull_time = "1-00:00:00"
+    slurm_client.image_pull_partition = "defq"
+    slurm_client.image_pull_concurrency = 4
+    slurm_client.slurm_global_job_params = []
+    slurm_client.run_commands_split_out = MagicMock(return_value=["PENDING\n"])
+    slurm_client.run_commands = MagicMock(side_effect=[
+        MagicMock(ok=True, stdout=""),
+        MagicMock(ok=True, stdout="24680;cluster\n"),
+        MagicMock(ok=True, stdout=""),
+    ])
+    slurm_client.put = MagicMock()
+    spec = {
+        "kind": "workflow",
+        "name": "imagej",
+        "version": "v1",
+        "source_type": "registry",
+        "source": "org/imagej",
+        "destination": "/shared/images/imagej/imagej_v1.sif",
+    }
+
+    result = slurm_client._submit_image_pull_array([spec])
+
+    assert result == 24680
+    sbatch_call = slurm_client.run_commands.call_args_list[1][0][0][0]
+    assert "--array=0-0%4" in sbatch_call
+    assert "--time=1-00:00:00" in sbatch_call
+    uploaded_paths = [call.args[1] for call in slurm_client.put.call_args_list]
+    assert "/shared/scripts/image-pulls/submission/manifest.tsv" in uploaded_paths
+    assert "/shared/scripts/image-pulls/submission/status-0.status" in uploaded_paths
+
+
+@patch('biomero.slurm_client.uuid4')
+def test_rerun_excludes_existing_valid_images_from_array(
+        mock_uuid4, slurm_client):
+    mock_uuid4.return_value.hex = "rerun"
+    slurm_client.slurm_script_path = "/shared/scripts"
+    slurm_client.slurm_image_pull_via_sbatch = True
+    slurm_client.image_pull_cpus = "8"
+    slurm_client.image_pull_mem = "32G"
+    slurm_client.image_pull_time = None
+    slurm_client.image_pull_partition = None
+    slurm_client.image_pull_concurrency = 4
+    slurm_client.slurm_global_job_params = []
+    slurm_client.run_commands_split_out = MagicMock(
+        return_value=["READY\n"] * 15 + ["PENDING\n"])
+    slurm_client.run_commands = MagicMock(side_effect=[
+        MagicMock(ok=True, stdout=""),
+        MagicMock(ok=True, stdout="13579\n"),
+        MagicMock(ok=True, stdout=""),
+    ])
+    slurm_client.put = MagicMock()
+    specs = [{
+        "kind": "workflow",
+        "name": f"workflow-{index}",
+        "version": "v1",
+        "source_type": "registry",
+        "source": f"org/workflow-{index}",
+        "destination": f"/shared/workflow-{index}.sif",
+    } for index in range(16)]
+
+    result = slurm_client._submit_image_pull_array(specs)
+
+    assert result == 13579
+    sbatch_call = slurm_client.run_commands.call_args_list[1][0][0][0]
+    assert "--array=0-0%4" in sbatch_call
+    manifest_upload = next(
+        call for call in slurm_client.put.call_args_list
+        if call.args[1].endswith("manifest.tsv"))
+    manifest_text = manifest_upload.args[0].getvalue()
+    assert "workflow-15" in manifest_text
+    assert "workflow-14" not in manifest_text

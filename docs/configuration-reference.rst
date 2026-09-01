@@ -76,6 +76,18 @@ Environment Variable Lookup Table
      - ``image_pull_mem``
      - string
      - Memory request used for sbatch-based image pull/build jobs
+   * - ``BIOMERO_PULL_TIME``
+     - ``image_pull_time``
+     - string
+     - Time limit for the image-pull array; overrides global ``sbatch_time``
+   * - ``BIOMERO_PULL_CONCURRENCY``
+     - ``image_pull_concurrency``
+     - integer
+     - Maximum simultaneously running image-pull array tasks
+   * - ``BIOMERO_PULL_PARTITION``
+     - ``image_pull_partition``
+     - string
+     - Partition for the image-pull array; overrides global ``sbatch_partition``
    * - ``BIOMERO_APPTAINER_TMPDIR``
      - ``apptainer_tmpdir``
      - string
@@ -183,7 +195,7 @@ Environment Variable Lookup Table
    * - ``sbatch_<key>``
      - string or empty
      - unset
-     - Any ``[SLURM]`` key starting with ``sbatch_`` adds ``--<key>=<value>`` to every workflow **and conversion** submission; per-workflow sbatch overrides (and ``slurm_conversion_partition`` for the conversion ``--partition``) always take precedence
+     - Any ``[SLURM]`` key starting with ``sbatch_`` adds ``--<key>=<value>`` to workflow, conversion, and scheduled image-pull submissions; more-specific workflow, conversion, or ``image_pull_*`` values take precedence
    * - ``slurm_image_pull_via_sbatch``
      - boolean
      - ``false``
@@ -196,14 +208,26 @@ Environment Variable Lookup Table
      - string
      - ``32G``
      - Memory request for sbatch-based image pull/build jobs
+   * - ``image_pull_time``
+     - string or empty
+     - unset
+     - Time limit for the image-pull array; blank inherits ``sbatch_time``
+   * - ``image_pull_concurrency``
+     - integer
+     - ``1``
+     - Maximum simultaneously running array tasks; configure 2-4 to bound filesystem pressure
+   * - ``image_pull_partition``
+     - string or empty
+     - unset
+     - Partition for image initialization; blank inherits ``sbatch_partition``
    * - ``apptainer_tmpdir``
      - string or empty
      - unset
-     - Tmp directory exported for Apptainer/Singularity image pull/build commands
+     - Fallback build-temp parent when ``SLURM_TMPDIR`` is unavailable
    * - ``apptainer_cachedir``
      - string or empty
      - unset
-     - Cache directory exported for Apptainer/Singularity image pull/build commands
+     - Fallback task-cache parent when ``SLURM_TMPDIR`` is unavailable
    * - ``slurm_zip_cmd``
      - string or empty
      - ``$(command -v 7z || command -v 7za)``

@@ -239,8 +239,11 @@ Impact:
   Dedicated ``image_pull_*`` resource values override matching global flags.
 * The compatibility default concurrency is ``1``; ``2`` to ``4`` is recommended
   to limit metadata and I/O pressure on shared storage.
-* Every registry reference is preflighted with ``skopeo inspect --raw`` on its
-  compute task. Install ``skopeo`` on compute nodes alongside Singularity.
+* Each compute task auto-detects ``apptainer`` first and then ``singularity``.
+  The selected runtime resolves the OCI manifest as the first phase of its
+  native build, so no separate registry utility is required.
+* Permanent manifest, authentication, and reference errors fail immediately;
+  classified transient registry and network errors are retried.
 * Each task writes its own ``pull-image-%A_%a.log`` and structured status.
 
 Apptainer temp and cache directories

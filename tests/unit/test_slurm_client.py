@@ -4482,8 +4482,9 @@ def test_setup_converters_image_pull_via_sbatch(
     script = next(
         call.args[0] for call in mock_stringio.call_args_list
         if isinstance(call.args[0], str)
-        and "skopeo inspect --raw" in call.args[0])
-    assert "singularity build --force --disable-cache" in script
+        and "command -v apptainer" in call.args[0])
+    assert '"$container_runtime" build --force --disable-cache' in script
+    assert "skopeo" not in script
     assert "BIOMERO_PULL_CPUS" in script
     sbatch_command = next(
         call.args[0][0] for call in mock_run_commands.call_args_list
@@ -4966,13 +4967,37 @@ def test_array_runner_has_verification_retry_atomic_publish_and_cleanup():
 
     assert "SLURM_ARRAY_TASK_ID" in script
     assert "SLURM_TMPDIR" in script
-    assert "skopeo inspect --raw" in script
+    assert "command -v apptainer" in script
+    assert "command -v singularity" in script
+    assert '"$container_runtime" build' in script
+    assert '"$container_runtime" inspect' in script
+    assert "skopeo" not in script
     assert "manifest unknown" in script
-    assert "singularity inspect" in script
     assert "mv --" in script
     assert "trap cleanup EXIT" in script
     assert "READY" in script
     assert "FAILED" in script
+
+
+def test_existing_image_check_supports_apptainer_and_singularity(slurm_client):
+    slurm_client.run_commands_split_out = MagicMock(return_value=["READY\n"])
+    spec = {
+        "kind": "workflow",
+        "name": "imagej",
+        "version": "v1",
+        "source_type": "registry",
+        "source": "org/imagej",
+        "destination": "/shared/images/imagej_v1.sif",
+    }
+
+    ready, pending = slurm_client._partition_existing_images([spec])
+
+    command = slurm_client.run_commands_split_out.call_args.args[0][0]
+    assert "command -v apptainer" in command
+    assert "command -v singularity" in command
+    assert '"$container_runtime" inspect' in command
+    assert ready == [spec]
+    assert pending == []
 
 
 def test_setup_slurm_submits_one_combined_workflow_converter_array(slurm_client):

@@ -1190,9 +1190,11 @@ class SlurmClient(Connection):
         for spec in specs:
             destination = shlex.quote(spec["destination"])
             commands.append(
-                f"if [ -s {destination} ] && singularity inspect "
-                f"{destination} >/dev/null 2>&1; then echo READY; "
-                "else echo PENDING; fi")
+                "container_runtime=$(command -v apptainer 2>/dev/null || "
+                "command -v singularity 2>/dev/null || true); "
+                f"if [ -n \"$container_runtime\" ] && [ -s {destination} ] "
+                f"&& \"$container_runtime\" inspect {destination} "
+                ">/dev/null 2>&1; then echo READY; else echo PENDING; fi")
         results = self.run_commands_split_out(commands)
         ready = []
         pending = []

@@ -125,8 +125,17 @@ run_with_retry() {
 
 write_status RUNNING "" "array ${array_job_id}_${task_id} running"
 
+if command -v apptainer >/dev/null 2>&1; then
+    container_runtime=apptainer
+elif command -v singularity >/dev/null 2>&1; then
+    container_runtime=singularity
+else
+    fail_task 69 "Apptainer or Singularity is required on the compute node"
+fi
+
 # A rerun can race with another initializer; only trust a SIF that inspection accepts.
-if [ -s "$destination" ] && singularity inspect "$destination" >/dev/null 2>&1; then
+if [ -s "$destination" ] && \
+        "$container_runtime" inspect "$destination" >/dev/null 2>&1; then
     final_state=READY
     write_status READY 0 "existing SIF validated"
     exit 0
@@ -145,21 +154,16 @@ export SINGULARITY_CACHEDIR="$task_cache"
 mkdir -p -- "$APPTAINER_TMPDIR" "$APPTAINER_CACHEDIR"
 
 if [ "$source_type" = "registry" ]; then
-    command -v skopeo >/dev/null 2>&1 || \
-        fail_task 69 "registry manifest preflight unavailable: skopeo not found"
     registry_ref="docker://${source}:${image_version}"
-    run_with_retry preflight skopeo inspect --raw "$registry_ref"
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-        fail_task "$rc" "$(concise_reason "$work_dir/preflight-${attempt}.log")"
-    fi
-    run_with_retry build singularity build --force --disable-cache \
+    # Native registry resolution is the portable preflight. The runtime reads
+    # the OCI manifest before downloading, extracting, and converting layers.
+    run_with_retry build "$container_runtime" build --force --disable-cache \
         --mksquashfs-args "-processors ${SLURM_CPUS_PER_TASK:-${BIOMERO_PULL_CPUS:-8}}" \
         "$local_sif" "$registry_ref"
     rc=$?
 else
     [ -r "$source" ] || fail_task 66 "converter definition is missing or unreadable"
-    run_with_retry build singularity build --force --disable-cache \
+    run_with_retry build "$container_runtime" build --force --disable-cache \
         --mksquashfs-args "-processors ${SLURM_CPUS_PER_TASK:-${BIOMERO_PULL_CPUS:-8}}" \
         "$local_sif" "$source"
     rc=$?
@@ -170,14 +174,14 @@ if [ "$rc" -ne 0 ]; then
 fi
 
 [ -s "$local_sif" ] || fail_task 65 "build returned success but produced an empty SIF"
-singularity inspect "$local_sif" >/dev/null 2>&1 || \
-    fail_task 65 "built SIF failed Singularity inspection"
+"$container_runtime" inspect "$local_sif" >/dev/null 2>&1 || \
+    fail_task 65 "built SIF failed Apptainer/Singularity inspection"
 
 mkdir -p -- "$(dirname "$destination")"
 cp -- "$local_sif" "$shared_partial" || fail_task 74 "copy to shared storage failed"
 [ -s "$shared_partial" ] || fail_task 65 "shared temporary SIF is empty"
-singularity inspect "$shared_partial" >/dev/null 2>&1 || \
-    fail_task 65 "shared temporary SIF failed Singularity inspection"
+"$container_runtime" inspect "$shared_partial" >/dev/null 2>&1 || \
+    fail_task 65 "shared temporary SIF failed Apptainer/Singularity inspection"
 mv -- "$shared_partial" "$destination" || fail_task 74 "atomic SIF publish failed"
 
 final_state=READY

@@ -15,9 +15,11 @@
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.application import Application
 from uuid import NAMESPACE_URL, UUID, uuid5
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping, Sequence, Union
+from copy import deepcopy
 from fabric import Result
 import logging
+from biomero_schema.zarr import CanonicalInput, CanonicalInputManifest
 from biomero.database import EngineManager, retry_on_database_conflict
 
 
@@ -92,6 +94,8 @@ class WorkflowRun(Aggregate):
         self.user = user
         self.group = group
         self.tasks = []
+        self.canonical_inputs = []
+        self.canonical_inputs_export_task_id = None
         # logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")
 
     class TaskAdded(Aggregate.Event):
@@ -107,6 +111,20 @@ class WorkflowRun(Aggregate):
     def add_task(self, task_id: UUID):
         # logger.debug(f"Adding task to WorkflowRun: task_id={task_id}")
         self.tasks.append(task_id)
+
+    class CanonicalInputsRecorded(Aggregate.Event):
+        """Records the immutable canonical inputs used by an export task."""
+        export_task_id: UUID
+        canonical_inputs: List[Dict[str, Any]]
+
+    @event(CanonicalInputsRecorded)
+    def record_canonical_inputs(
+        self,
+        export_task_id: UUID,
+        canonical_inputs: List[Dict[str, Any]],
+    ):
+        self.canonical_inputs_export_task_id = export_task_id
+        self.canonical_inputs = deepcopy(canonical_inputs)
 
     class WorkflowStarted(Aggregate.Event):
         """
@@ -407,6 +425,75 @@ class WorkflowTracker(Application):
         return task.id
 
     @retry_on_database_conflict(max_retries=3)
+    def record_canonical_inputs(
+        self,
+        workflow_id: UUID,
+        export_task_id: UUID,
+        canonical_inputs: Sequence[
+            Union[CanonicalInput, Mapping[str, Any]]
+        ],
+    ) -> None:
+        """Records the exact canonical input generations used by a workflow."""
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        if export_task_id not in workflow.tasks:
+            raise ValueError(
+                f"Export task {export_task_id} does not belong to workflow "
+                f"{workflow_id}"
+            )
+        manifest = CanonicalInputManifest(
+            workflow_id=workflow_id,
+            export_task_id=export_task_id,
+            inputs=tuple(canonical_inputs),
+        )
+        wire_inputs = [item.to_dict() for item in manifest.inputs]
+        existing_export_task_id = getattr(
+            workflow, "canonical_inputs_export_task_id", None
+        )
+        existing_inputs = getattr(workflow, "canonical_inputs", [])
+        if existing_export_task_id is not None:
+            if (
+                existing_export_task_id == export_task_id
+                and existing_inputs == wire_inputs
+            ):
+                return
+            raise ValueError(
+                f"Workflow {workflow_id} already has an immutable canonical "
+                "input snapshot"
+            )
+        workflow.record_canonical_inputs(
+            export_task_id,
+            wire_inputs,
+        )
+        self.save(workflow)
+        EngineManager.safe_commit()
+
+    def get_canonical_inputs(self, workflow_id: UUID) -> Dict[str, Any]:
+        """Returns the canonical input snapshot recorded for a workflow."""
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        return {
+            "export_task_id": getattr(
+                workflow, "canonical_inputs_export_task_id", None
+            ),
+            "inputs": deepcopy(getattr(workflow, "canonical_inputs", [])),
+        }
+
+    def get_canonical_input_manifest(
+        self, workflow_id: UUID
+    ) -> CanonicalInputManifest:
+        """Returns the validated, JSON-serializable recovery manifest."""
+        snapshot = self.get_canonical_inputs(workflow_id)
+        export_task_id = snapshot["export_task_id"]
+        if export_task_id is None:
+            raise ValueError(
+                f"Workflow {workflow_id} has no canonical input snapshot"
+            )
+        return CanonicalInputManifest(
+            workflow_id=workflow_id,
+            export_task_id=export_task_id,
+            inputs=tuple(snapshot["inputs"]),
+        )
+
+    @retry_on_database_conflict(max_retries=3)
     def start_workflow(self, workflow_id: UUID):
         """
         Starts the workflow with the given UUID.
@@ -562,6 +649,3 @@ class WorkflowTracker(Application):
         task.update_task_progress(progress)
         self.save(task)
         EngineManager.safe_commit()
-
-
-

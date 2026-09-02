@@ -5,11 +5,13 @@ import uuid
 import pytest
 import unittest.mock
 from biomero.eventsourcing import Task, WorkflowTracker
+from biomero.zarr_contracts import CanonicalInput, CanonicalZarrSource, PixelIdentity
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution
 from biomero.constants import workflow_status as wfs
 from uuid import UUID
 import logging
+from types import SimpleNamespace
 from sqlalchemy.exc import IntegrityError
 import psycopg2
 from eventsourcing.system import System, SingleThreadedRunner
@@ -173,6 +175,127 @@ def test_add_task_to_workflow(workflow_tracker):
     task = workflow_tracker.repository.get(task_id)
     assert task.task_name == "Task 1"
     assert task.workflow_id == workflow_id
+
+
+def test_record_canonical_inputs_on_workflow(workflow_tracker):
+    workflow_id = workflow_tracker.initiate_workflow(
+        name="Zarr workflow",
+        description="Canonical input snapshot",
+        user=1,
+        group=1,
+    )
+    export_task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id=workflow_id,
+        task_name="_SLURM_Image_Transfer.py",
+        task_version="1.0",
+        input_data={"Image": [3207]},
+        kwargs={},
+    )
+    identity = PixelIdentity(
+        node_path=".",
+        role="image",
+        iscc_code="ISCC:KPIXEL",
+        data_code="ISCC:GDATA",
+        instance_code="ISCC:IINSTANCE",
+        tool_version="0.1.0",
+        imagewalk_revision="draft-2026-06",
+        shape=(1, 1, 1, 16, 16),
+        dtype="uint16",
+        axes=("t", "c", "z", "y", "x"),
+    )
+    source = CanonicalZarrSource(
+        storage_root="group-1-data",
+        relative_path=".processed/Image-3207.g1.ome.zarr",
+        node_path=".",
+        source_object_type="Image",
+        source_object_id=3207,
+        source_generation=1,
+        interchange_profile="ngff-0.4-zarr-v2",
+        pixel_identity=identity,
+        pixel_identity_origin="raw",
+        canonical_pixel_verified=True,
+    )
+    canonical_input = CanonicalInput(
+        ordinal=0,
+        selected_object_type="Image",
+        selected_object_id=3207,
+        source=source,
+    )
+
+    workflow_tracker.record_canonical_inputs(
+        workflow_id, export_task_id, [canonical_input]
+    )
+
+    snapshot = workflow_tracker.get_canonical_inputs(workflow_id)
+    assert snapshot["export_task_id"] == export_task_id
+    assert snapshot["inputs"] == [canonical_input.to_dict()]
+    workflow = workflow_tracker.repository.get(workflow_id)
+    assert workflow.canonical_inputs == [canonical_input.to_dict()]
+    manifest = workflow_tracker.get_canonical_input_manifest(workflow_id)
+    assert manifest.workflow_id == workflow_id
+    assert manifest.export_task_id == export_task_id
+    assert manifest.inputs == (canonical_input,)
+
+
+def test_legacy_workflow_state_without_canonical_fields_is_readable(
+    workflow_tracker,
+):
+    """Pre-feature aggregate state behaves as an empty canonical snapshot."""
+    legacy_workflow = SimpleNamespace()
+    with unittest.mock.patch.object(
+        workflow_tracker.repository,
+        "get",
+        return_value=legacy_workflow,
+    ):
+        snapshot = workflow_tracker.get_canonical_inputs(uuid.uuid4())
+
+    assert snapshot == {"export_task_id": None, "inputs": []}
+
+
+def test_workflow_initiated_event_schema_stays_legacy_compatible(
+    workflow_tracker,
+):
+    """Canonical defaults do not alter the persisted creation-event schema."""
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Legacy-compatible workflow", "", 1, 1
+    )
+    notification = workflow_tracker.notification_log.select(
+        start=1, limit=1
+    )[0]
+
+    assert b"canonical_inputs" not in notification.state
+    workflow = workflow_tracker.repository.get(workflow_id)
+    assert workflow.canonical_inputs == []
+    assert workflow.canonical_inputs_export_task_id is None
+
+
+def test_canonical_input_snapshot_rejects_task_from_another_workflow(
+    workflow_tracker,
+):
+    first_workflow = workflow_tracker.initiate_workflow("First", "", 1, 1)
+    second_workflow = workflow_tracker.initiate_workflow("Second", "", 1, 1)
+    other_task = workflow_tracker.add_task_to_workflow(
+        second_workflow, "Export", "1", {}, {}
+    )
+
+    with pytest.raises(ValueError, match="does not belong"):
+        workflow_tracker.record_canonical_inputs(first_workflow, other_task, [])
+
+
+def test_canonical_input_snapshot_is_immutable(workflow_tracker):
+    workflow_id = workflow_tracker.initiate_workflow("First", "", 1, 1)
+    first_task = workflow_tracker.add_task_to_workflow(
+        workflow_id, "Export", "1", {}, {}
+    )
+    second_task = workflow_tracker.add_task_to_workflow(
+        workflow_id, "Export retry", "1", {}, {}
+    )
+    workflow_tracker.record_canonical_inputs(workflow_id, first_task, [])
+
+    # An exact retry is idempotent, but a different export cannot replace it.
+    workflow_tracker.record_canonical_inputs(workflow_id, first_task, [])
+    with pytest.raises(ValueError, match="immutable"):
+        workflow_tracker.record_canonical_inputs(workflow_id, second_task, [])
 
 
 def test_start_workflow(workflow_tracker, caplog):

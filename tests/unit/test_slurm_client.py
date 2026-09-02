@@ -1475,7 +1475,9 @@ def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
     job_status_dict, _ = slurm_client.check_job_status([12345, 67890])
 
     # THEN
-    assert job_status_dict == {12345: 'UNKNOWN', 67890: 'UNKNOWN'}
+    # Empty sacct output is not evidence that the jobs failed: callers treat
+    # an unrecognized state as terminal, so they keep polling instead.
+    assert job_status_dict == {12345: 'PENDING', 67890: 'PENDING'}
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
 

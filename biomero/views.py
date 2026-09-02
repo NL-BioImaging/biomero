@@ -346,12 +346,16 @@ class WorkflowProgress(ProcessApplication):
                     workflow_status = wfs.CONVERTING
                     workflow_prog = "25%"
                 elif task_name == 'slurm_get_results.py':
-                    workflow_status = wfs.RETRIEVING
-                    workflow_prog = "90%"
+                    if status == wfs.POSTPROCESSING:
+                        workflow_status = wfs.POSTPROCESSING
+                        workflow_prog = "95%"
+                    else:
+                        workflow_status = wfs.RETRIEVING
+                        workflow_prog = "90%"
                 elif task_name == 'slurm_import_results.py':
                     # Map IMPORTING -> wfs.IMPORTING, IMPORTED -> wfs.IMPORTED, fallback to status
                     workflow_status = getattr(wfs, status, status)
-                    workflow_prog = "90%"
+                    workflow_prog = "95%" if status == wfs.POSTPROCESSING else "90%"
                 elif task_name == 'slurm_run_workflow.py':
                     workflow_status = wfs.RUNNING
                     workflow_prog = "50%"

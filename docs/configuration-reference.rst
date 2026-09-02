@@ -28,6 +28,14 @@ Environment Variable Lookup Table
      - ``slurm-config.ini`` key
      - Type
      - Runtime effect
+   * - ``BIOMERO_SLURM_CONFIG_FILE``
+     - —
+     - filesystem path
+     - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+   * - ``SQLALCHEMY_URL``
+     - ``sqlalchemy_url``
+     - database URL
+     - Overrides the ``[ANALYTICS]`` database connection URL used for workflow tracking and analytics storage
    * - ``BIOMERO_SACCT_START_TIME``
      - ``sacct_start_time``
      - string date
@@ -79,7 +87,8 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SLURM_ZIP_CMD``
      - ``slurm_zip_cmd``
      - string
-     - Overrides the zip command used on the cluster for packaging results
+     - Overrides the ZIP command used on the cluster; ``zip`` selects Info-ZIP
+       and its matching ``unzip`` command, while other values use 7-Zip syntax
    * - ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
      - ``analytics_rebuild_start_time``
      - string date
@@ -198,7 +207,8 @@ Environment Variable Lookup Table
    * - ``slurm_zip_cmd``
      - string or empty
      - ``$(command -v 7z || command -v 7za)``
-     - Command used for result zipping on the HPC
+     - Command used for ZIP creation and extraction on the HPC. Set to ``zip``
+       to use the Info-ZIP ``zip``/``unzip`` pair.
    * - ``analytics_rebuild_start_time``
      - string date or empty
      - unset
@@ -276,6 +286,7 @@ Search Hints
 If you are looking for a specific name, try searching the docs for any of these exact identifiers:
 
 * ``BIOMERO_SACCT_START_TIME``
+* ``SQLALCHEMY_URL``
 * ``BIOMERO_SACCT_START_DAYS_AGO``
 * ``BIOMERO_ENV_FILE_SUBMISSION``
 * ``BIOMERO_INJECT_GPU_FLAG``

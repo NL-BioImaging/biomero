@@ -30,6 +30,7 @@ from string import Template
 from importlib_resources import files
 import io
 import os
+import posixpath
 import yaml
 import shlex
 from biomero.constants import slurm_env
@@ -280,6 +281,38 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
+    _CONFIG_ENV_VARS = {
+        ("ANALYTICS", "sqlalchemy_url"): [slurm_env.SQLALCHEMY_URL],
+        ("SLURM", "slurm_default_partition"): [
+            slurm_env.BIOMERO_DEFAULT_PARTITION],
+        ("SLURM", "sacct_start_time"): [
+            slurm_env.BIOMERO_SACCT_START_TIME],
+        ("SLURM", "sacct_days_ago"): [
+            slurm_env.BIOMERO_SACCT_START_DAYS_AGO],
+        ("ANALYTICS", "analytics_rebuild_start_time"): [
+            slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
+        ("ANALYTICS", "analytics_rebuild_days_ago"): [
+            slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
+        ("SLURM", "env_file_submission"): [
+            slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
+        ("SLURM", "inject_gpu_flag"): [
+            slurm_env.BIOMERO_INJECT_GPU_FLAG],
+        ("SLURM", "gpu_partition"): [
+            slurm_env.BIOMERO_GPU_PARTITION, slurm_env.GPU_PARTITION],
+        ("SLURM", "gpu_gres"): [
+            slurm_env.BIOMERO_GPU_GRES, slurm_env.GPU_GRES],
+        ("SLURM", "gpu_gpus"): [
+            slurm_env.BIOMERO_GPU_GPUS, slurm_env.GPU_GPUS],
+        ("SLURM", "slurm_image_pull_via_sbatch"): [
+            slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
+        ("SLURM", "image_pull_cpus"): [slurm_env.BIOMERO_PULL_CPUS],
+        ("SLURM", "image_pull_mem"): [slurm_env.BIOMERO_PULL_MEM],
+        ("SLURM", "apptainer_tmpdir"): [
+            slurm_env.BIOMERO_APPTAINER_TMPDIR],
+        ("SLURM", "apptainer_cachedir"): [
+            slurm_env.BIOMERO_APPTAINER_CACHEDIR],
+        ("SLURM", "slurm_zip_cmd"): [slurm_env.BIOMERO_SLURM_ZIP_CMD],
+    }
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -303,6 +336,44 @@ class SlurmClient(Connection):
     # Folder-type inputs that the user can supply as OMERO file-annotation IDs
     # (i.e. not images — those are handled by Image_Transfer).
     _FILE_ATTACHMENT_TYPES = ('file', 'array', 'measurement', 'executable')
+
+    @classmethod
+    def get_authoritative_config_path(cls):
+        """Return the configured authoritative ini path, if enabled."""
+        config_path = os.getenv(slurm_env.BIOMERO_SLURM_CONFIG_FILE)
+        if not config_path or not config_path.strip():
+            return None
+        return os.path.expanduser(config_path.strip())
+
+    @classmethod
+    def get_config_paths(cls, configfile: str = '') -> list[str]:
+        """Resolve config paths in effective read order.
+
+        ``BIOMERO_SLURM_CONFIG_FILE`` enables authoritative-file mode and
+        replaces all default and caller-supplied config layers.
+        """
+        authoritative_path = cls.get_authoritative_config_path()
+        if authoritative_path:
+            return [authoritative_path]
+        return [
+            os.path.expanduser(cls._DEFAULT_CONFIG_PATH_1),
+            os.path.expanduser(cls._DEFAULT_CONFIG_PATH_2),
+            os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3),
+            os.path.expanduser(configfile),
+        ]
+
+    @classmethod
+    def get_config_write_path(cls) -> str:
+        """Resolve the writable admin overlay or authoritative ini path."""
+        return (cls.get_authoritative_config_path()
+                or os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3))
+
+    @classmethod
+    def load_config(cls, configfile: str = '') -> configparser.ConfigParser:
+        """Load BIOMERO configuration using the effective path policy."""
+        configs = configparser.ConfigParser(allow_no_value=True)
+        configs.read(cls.get_config_paths(configfile))
+        return configs
 
     @staticmethod
     def _get_config_value(configs,
@@ -542,7 +613,7 @@ class SlurmClient(Connection):
                 your HPC. Defaults to None (use system default partition).
             slurm_default_partition (str, optional): Generic fallback SLURM
                 partition appended to workflow jobs that do not already carry a
-                ``--partition=`` directive (from per-workflow ``[MODELS]`` params
+                ``--partition=`` directive (from per-workflow ``[WORKFLOWS]`` params
                 or the GPU partition path). Useful on clusters without a usable
                 system default partition. Overridable via
                 ``BIOMERO_DEFAULT_PARTITION``. Defaults to None (no partition
@@ -600,7 +671,10 @@ class SlurmClient(Connection):
                 pull/build commands when set. Overridable via
                 ``BIOMERO_APPTAINER_CACHEDIR``. Defaults to None.
             slurm_zip_cmd (str, optional): Command used to zip job output on
-                the cluster. Defaults to auto-detecting ``7z`` or ``7za``.
+                the cluster. ``zip`` (including an explicit path ending in
+                ``/zip``) selects Info-ZIP syntax and the corresponding
+                ``unzip`` executable; all other values retain the legacy
+                7-Zip syntax. Defaults to auto-detecting ``7z`` or ``7za``.
                 Overridable via ``BIOMERO_SLURM_ZIP_CMD``.
             analytics_rebuild_start_time (str, optional): Absolute cutoff date
                 (``YYYY-MM-DD``) from which events are replayed when resetting
@@ -713,11 +787,18 @@ class SlurmClient(Connection):
             raise NotImplementedError(
                 f"Can't handle {persistence_module}. Currently only supports 'eventsourcing_sqlalchemy' as PERSISTENCE_MODULE")
 
-        sqlalchemy_url = os.getenv("SQLALCHEMY_URL", self.sqlalchemy_url)
+        configured_sqlalchemy_url = self.sqlalchemy_url
+        sqlalchemy_url = self._get_config_value(
+            configparser.ConfigParser(),
+            section="ANALYTICS",
+            option="sqlalchemy_url",
+            default=configured_sqlalchemy_url,
+            env_vars=self._CONFIG_ENV_VARS[("ANALYTICS", "sqlalchemy_url")],
+        )
         if not sqlalchemy_url:
             raise ValueError(
                 "SQLALCHEMY_URL must be set either in init, config ('sqlalchemy_url') or as an environment variable.")
-        if sqlalchemy_url != self.sqlalchemy_url:
+        if sqlalchemy_url != configured_sqlalchemy_url:
             logger.info(
                 "Overriding configured SQLALCHEMY_URL with env var SQLALCHEMY_URL.")
 
@@ -1276,7 +1357,12 @@ class SlurmClient(Connection):
 
         Defaults paths to look for config files are:
             - /etc/slurm-config.ini
+            - /OMERO/slurm-config.ini
             - ~/slurm-config.ini
+
+        Set ``BIOMERO_SLURM_CONFIG_FILE`` to enable authoritative-file mode.
+        In that mode only the configured file is read; default paths and an
+        explicit ``configfile`` argument are intentionally ignored.
 
         Note that this is only for the SLURM-specific values that we added.
         Most configuration values are set via configuration mechanisms from
@@ -1293,12 +1379,9 @@ class SlurmClient(Connection):
             SlurmClient: A new SlurmClient object.
         """
         # Load the configuration file
-        configs = configparser.ConfigParser(allow_no_value=True)
-        # Loads from default locations and given location, missing files are ok
-        configs.read([os.path.expanduser(cls._DEFAULT_CONFIG_PATH_1),
-                     os.path.expanduser(cls._DEFAULT_CONFIG_PATH_2),
-                     os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3),
-                     os.path.expanduser(configfile)])
+        # Loads from the authoritative file when configured, otherwise from
+        # the default locations and given location. Missing files are okay.
+        configs = cls.load_config(configfile)
 
         # Read the required parameters from the configuration file,
         # fallback to defaults
@@ -1352,7 +1435,8 @@ class SlurmClient(Connection):
             section="SLURM",
             option="slurm_default_partition",
             default=None,
-            env_vars=[slurm_env.BIOMERO_DEFAULT_PARTITION],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "SLURM", "slurm_default_partition")],
             empty_is_none=True,
         )
         sacct_start_time = cls._get_config_value(
@@ -1360,7 +1444,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="sacct_start_time",
             default=cls._DEFAULT_SACCT_START_TIME,
-            env_vars=[slurm_env.BIOMERO_SACCT_START_TIME],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "sacct_start_time")],
             empty_is_none=True,
         )
         sacct_days_ago = cls._get_config_value(
@@ -1368,7 +1452,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="sacct_days_ago",
             default=None,
-            env_vars=[slurm_env.BIOMERO_SACCT_START_DAYS_AGO],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "sacct_days_ago")],
             value_type=int,
             empty_is_none=True,
         )
@@ -1377,7 +1461,8 @@ class SlurmClient(Connection):
             section="ANALYTICS",
             option="analytics_rebuild_start_time",
             default=None,
-            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_START_TIME],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "ANALYTICS", "analytics_rebuild_start_time")],
             empty_is_none=True,
         )
         analytics_rebuild_days_ago = cls._get_config_value(
@@ -1385,7 +1470,8 @@ class SlurmClient(Connection):
             section="ANALYTICS",
             option="analytics_rebuild_days_ago",
             default=None,
-            env_vars=[slurm_env.BIOMERO_ANALYTICS_REBUILD_DAYS_AGO],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "ANALYTICS", "analytics_rebuild_days_ago")],
             value_type=int,
             empty_is_none=True,
         )
@@ -1396,7 +1482,8 @@ class SlurmClient(Connection):
             section="SLURM",
             option="env_file_submission",
             default=False,
-            env_vars=[slurm_env.BIOMERO_ENV_FILE_SUBMISSION],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "SLURM", "env_file_submission")],
             value_type=bool,
         )
 
@@ -1405,7 +1492,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="inject_gpu_flag",
             default=False,
-            env_vars=[slurm_env.BIOMERO_INJECT_GPU_FLAG],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "inject_gpu_flag")],
             value_type=bool,
         )
 
@@ -1414,8 +1501,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="gpu_partition",
             default=None,
-            env_vars=[slurm_env.BIOMERO_GPU_PARTITION,
-                      slurm_env.GPU_PARTITION],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "gpu_partition")],
             empty_is_none=True,
         )
 
@@ -1424,7 +1510,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="gpu_gres",
             default=None,
-            env_vars=[slurm_env.BIOMERO_GPU_GRES, slurm_env.GPU_GRES],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "gpu_gres")],
             empty_is_none=True,
         )
 
@@ -1433,7 +1519,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="gpu_gpus",
             default=None,
-            env_vars=[slurm_env.BIOMERO_GPU_GPUS, slurm_env.GPU_GPUS],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "gpu_gpus")],
             empty_is_none=True,
         )
 
@@ -1442,7 +1528,8 @@ class SlurmClient(Connection):
             section="SLURM",
             option="slurm_image_pull_via_sbatch",
             default=False,
-            env_vars=[slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
+            env_vars=cls._CONFIG_ENV_VARS[(
+                "SLURM", "slurm_image_pull_via_sbatch")],
             value_type=bool,
         )
 
@@ -1451,7 +1538,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="image_pull_cpus",
             default="8",
-            env_vars=[slurm_env.BIOMERO_PULL_CPUS],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_cpus")],
         )
 
         image_pull_mem = cls._get_config_value(
@@ -1459,7 +1546,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="image_pull_mem",
             default="32G",
-            env_vars=[slurm_env.BIOMERO_PULL_MEM],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_mem")],
         )
 
         apptainer_tmpdir = cls._get_config_value(
@@ -1467,7 +1554,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="apptainer_tmpdir",
             default=None,
-            env_vars=[slurm_env.BIOMERO_APPTAINER_TMPDIR],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "apptainer_tmpdir")],
             empty_is_none=True,
         )
 
@@ -1476,7 +1563,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="apptainer_cachedir",
             default=None,
-            env_vars=[slurm_env.BIOMERO_APPTAINER_CACHEDIR],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "apptainer_cachedir")],
             empty_is_none=True,
         )
 
@@ -1485,7 +1572,7 @@ class SlurmClient(Connection):
             section="SLURM",
             option="slurm_zip_cmd",
             default=cls._DEFAULT_SLURM_ZIP_CMD,
-            env_vars=[slurm_env.BIOMERO_SLURM_ZIP_CMD],
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "slurm_zip_cmd")],
             empty_is_none=True,
         )
 
@@ -1569,8 +1656,14 @@ class SlurmClient(Connection):
                 'ANALYTICS', 'enable_job_progress', fallback=True)
             enable_workflow_analytics = configs.getboolean(
                 'ANALYTICS', 'enable_workflow_analytics', fallback=True)
-            sqlalchemy_url = configs.get(
-                'ANALYTICS', 'sqlalchemy_url', fallback=None)
+            sqlalchemy_url = cls._get_config_value(
+                configs,
+                section='ANALYTICS',
+                option='sqlalchemy_url',
+                default=None,
+                env_vars=cls._CONFIG_ENV_VARS[
+                    ('ANALYTICS', 'sqlalchemy_url')],
+            )
         except configparser.NoSectionError:
             # If the ANALYTICS section is missing, fallback to default values
             track_workflows = True
@@ -2421,8 +2514,13 @@ class SlurmClient(Connection):
 
         # Handle both .zarr and .ome.zarr extensions for backward compatibility
         if source_format == 'zarr':
-            find_cmd = (f"find \"{data_path}/data/in\" -name \"*.zarr\" "
-                        f"-o -name \"*.ome.zarr\" | "
+            # Treat each selected Zarr store as one atomic input. Imported
+            # OME-Zarr images may contain nested label stores; descending into
+            # a matched parent would submit those labels as extra array tasks,
+            # racing the parent task that removes its converted input.
+            find_cmd = (f"find \"{data_path}/data/in\" -type d "
+                        f"\\( -name \"*.zarr\" -o -name \"*.ome.zarr\" \\) "
+                        f"-prune -print | "
                         f"awk '{{print NR, $0}}' > \"{config_file}\"")
         else:
             find_cmd = (f"find \"{data_path}/data/in\" "
@@ -3302,10 +3400,53 @@ class SlurmClient(Connection):
         Returns:
             str: The command to create the zip file.
         """
+        if self._uses_infozip():
+            return (
+                f"cd \"{data_location}/data/out\" && "
+                f"{self.slurm_zip_cmd} -r "
+                f"\"{data_location}/{filename}.zip\" ."
+            )
         return (
             f"cd \"{data_location}/data/out\" && "
             f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
         )
+
+    def _uses_infozip(self) -> bool:
+        """Return whether ``slurm_zip_cmd`` names the Info-ZIP executable."""
+        try:
+            executable = shlex.split(self.slurm_zip_cmd)[0]
+        except (IndexError, TypeError, ValueError):
+            return False
+        return posixpath.basename(executable) == "zip"
+
+    def _get_infozip_unzip_command(self) -> str:
+        """Resolve unzip next to an explicitly pathed Info-ZIP executable."""
+        executable = shlex.split(self.slurm_zip_cmd)[0]
+        executable_dir = posixpath.dirname(executable)
+        unzip_cmd = posixpath.join(executable_dir, "unzip") \
+            if executable_dir else "unzip"
+        return shlex.quote(unzip_cmd)
+
+    @staticmethod
+    def _get_infozip_filter_args(filter_filetypes: Optional[str]) -> str:
+        """Quote member filters and include files inside Zarr directories."""
+        if not filter_filetypes:
+            return ""
+
+        patterns = []
+        for pattern in shlex.split(filter_filetypes):
+            zarr_path = pattern.rstrip("/")
+            if zarr_path.endswith(".zarr"):
+                pattern = f"{zarr_path}/*"
+            if pattern not in patterns:
+                patterns.append(pattern)
+
+        # ``*.zarr/*`` also matches OME-Zarr members. Passing both patterns
+        # makes Info-ZIP warn that the later, already-consumed pattern did not
+        # match and return status 11 despite extracting the data successfully.
+        if "*.zarr/*" in patterns and "*.ome.zarr/*" in patterns:
+            patterns.remove("*.ome.zarr/*")
+        return "".join(f" {shlex.quote(pattern)}" for pattern in patterns)
 
     def get_logfile_from_slurm(self,
                                slurm_job_id: str,
@@ -3410,6 +3551,21 @@ class SlurmClient(Connection):
                 The command to extract the specified
                 filetypes from the zip file.
         """
+        if self._uses_infozip():
+            unzip_cmd = self._get_infozip_unzip_command()
+            filter_args = self._get_infozip_filter_args(filter_filetypes)
+            return (
+                f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
+                f" \"{self.slurm_data_path}/{zipfile}/data\""
+                f" \"{self.slurm_data_path}/{zipfile}/data/in\""
+                f" \"{self.slurm_data_path}/{zipfile}/data/out\""
+                f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
+                f" {unzip_cmd} -o"
+                f" \"{self.slurm_data_path}/{zipfile}.zip\""
+                f"{filter_args}"
+                f" -d \"{self.slurm_data_path}/{zipfile}/data/in\""
+                f"{' || [ $? -eq 11 ]' if filter_args else ''}"
+            )
         unzip_cmd = (
             f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
             f" \"{self.slurm_data_path}/{zipfile}/data\""

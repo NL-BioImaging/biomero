@@ -358,6 +358,68 @@ def test_get_unzip_command_explicit_zip_cmd(slurm_client):
     assert "mkdir -p" in unzip_command
 
 
+@pytest.mark.parametrize("zip_cmd", ["zip", "/usr/bin/zip"])
+def test_get_zip_command_infozip(slurm_client, zip_cmd):
+    """Info-ZIP uses its own recursive-create syntax."""
+    slurm_client.slurm_zip_cmd = zip_cmd
+
+    cmd = slurm_client.get_zip_command("/data/loc", "result")
+
+    assert cmd == (
+        f'cd "/data/loc/data/out" && {zip_cmd} -r '
+        f'"/data/loc/result.zip" .'
+    )
+
+
+@pytest.mark.parametrize(
+    ("zip_cmd", "unzip_cmd"),
+    [("zip", "unzip"), ("/usr/bin/zip", "/usr/bin/unzip")],
+)
+def test_get_unzip_command_infozip(slurm_client, zip_cmd, unzip_cmd):
+    """Info-ZIP extraction uses unzip and preserves the input filter."""
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_zip_cmd = zip_cmd
+
+    cmd = slurm_client.get_unzip_command("batch1", "*.tif *.zarr")
+
+    assert cmd == (
+        'mkdir -p "/data/batch1"'
+        ' "/data/batch1/data"'
+        ' "/data/batch1/data/in"'
+        ' "/data/batch1/data/out"'
+        ' "/data/batch1/data/gt";'
+        f' {unzip_cmd} -o "/data/batch1.zip"'
+        " '*.tif' '*.zarr/*'"
+        ' -d "/data/batch1/data/in"'
+        ' || [ $? -eq 11 ]'
+    )
+
+
+def test_get_unzip_command_infozip_without_filter(slurm_client):
+    """Info-ZIP can extract every archive member when filtering is disabled."""
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_zip_cmd = "zip"
+
+    cmd = slurm_client.get_unzip_command("batch1", None)
+
+    assert cmd.endswith(
+        'unzip -o "/data/batch1.zip" -d "/data/batch1/data/in"'
+    )
+
+
+def test_get_unzip_command_infozip_default_filters(slurm_client):
+    """Default Zarr filters are recursive without redundant OME patterns."""
+    slurm_client.slurm_data_path = "/data"
+    slurm_client.slurm_zip_cmd = "zip"
+
+    cmd = slurm_client.get_unzip_command("batch1")
+
+    assert "'*.zarr/*'" in cmd
+    assert "'*.zarr'" not in cmd
+    assert "*.ome.zarr" not in cmd
+    assert cmd.endswith(" || [ $? -eq 11 ]")
+
+
 @patch.object(SlurmClient, 'get')
 def test_get_logfile_from_slurm(mock_get, slurm_client):
     # GIVEN
@@ -908,8 +970,9 @@ def test_run_conversion_workflow_job(
     
     # Handle special case for zarr format (.zarr and .ome.zarr)
     if source_format == 'zarr':
-        find_cmd = (f'find "{expected_data_path}/data/in" -name "*.zarr" '
-                    f'-o -name "*.ome.zarr" | awk \'{{print NR, $0}}\' '
+        find_cmd = (f'find "{expected_data_path}/data/in" -type d '
+                    f'\\( -name "*.zarr" -o -name "*.ome.zarr" \\) '
+                    f'-prune -print | awk \'{{print NR, $0}}\' '
                     f'> "{expected_config_file}"')
     else:
         find_cmd = (f'find "{expected_data_path}/data/in" '
@@ -2501,7 +2564,8 @@ def test_from_config(mock_ConfigParser,
         enable_job_accounting=True,  # expected enable_job_accounting value
         enable_job_progress=True,  # expected enable_job_progress value
         enable_workflow_analytics=True,  # expected enable_workflow_analytics value
-        sqlalchemy_url="sqlite:///test.db",  # expected sqlalchemy_url value
+        # SQLALCHEMY_URL from the autouse fixture overrides the ini value.
+        sqlalchemy_url="sqlite:///:memory:",
         config_only=config_only,
         slurm_data_bind_path=mv,
         slurm_conversion_partition=mv,

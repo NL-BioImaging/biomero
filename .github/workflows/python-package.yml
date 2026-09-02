@@ -27,7 +27,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install "biomero-schema @ git+https://github.com/NL-BioImaging/biomero-schema.git@feature/zarr-shallow-storage"
         python -m pip install --editable .[test]
     - name: Lint with flake8
       run: |

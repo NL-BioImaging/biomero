@@ -128,9 +128,11 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.domain</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aggregate</span><span class="p">,</span> <span class="n">event</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.application</span><span class="w"> </span><span class="kn">import</span> <span class="n">Application</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">NAMESPACE_URL</span><span class="p">,</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid5</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">fabric</span><span class="w"> </span><span class="kn">import</span> <span class="n">Result</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero_schema.zarr</span><span class="w"> </span><span class="kn">import</span> <span class="n">CanonicalInput</span><span class="p">,</span> <span class="n">CanonicalInputManifest</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">retry_on_database_conflict</span>
 
 
@@ -205,6 +207,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">group</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">canonical_inputs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">canonical_inputs_export_task_id</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")</span>
 
 <div class="viewcode-block" id="WorkflowRun.TaskAdded"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.TaskAdded">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskAdded</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
@@ -220,6 +224,20 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">add_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
         <span class="c1"># logger.debug(f"Adding task to WorkflowRun: task_id={task_id}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkflowRun.CanonicalInputsRecorded"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.CanonicalInputsRecorded">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">CanonicalInputsRecorded</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Records the immutable canonical inputs used by an export task."""</span>
+        <span class="n">export_task_id</span><span class="p">:</span> <span class="n">UUID</span>
+        <span class="n">canonical_inputs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span></div>
+
+<div class="viewcode-block" id="WorkflowRun.record_canonical_inputs"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.record_canonical_inputs">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">CanonicalInputsRecorded</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_canonical_inputs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">export_task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
+        <span class="n">canonical_inputs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">canonical_inputs_export_task_id</span> <span class="o">=</span> <span class="n">export_task_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">canonical_inputs</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">canonical_inputs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.WorkflowStarted"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowStarted">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">WorkflowStarted</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -519,6 +537,75 @@
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">id</span></div>
 
+<div class="viewcode-block" id="WorkflowTracker.record_canonical_inputs"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.record_canonical_inputs">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_canonical_inputs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
+        <span class="n">export_task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
+        <span class="n">canonical_inputs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">CanonicalInput</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span>
+        <span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Records the exact canonical input generations used by a workflow."""</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">export_task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Export task </span><span class="si">{</span><span class="n">export_task_id</span><span class="si">}</span><span class="s2"> does not belong to workflow "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+        <span class="n">manifest</span> <span class="o">=</span> <span class="n">CanonicalInputManifest</span><span class="p">(</span>
+            <span class="n">workflow_id</span><span class="o">=</span><span class="n">workflow_id</span><span class="p">,</span>
+            <span class="n">export_task_id</span><span class="o">=</span><span class="n">export_task_id</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">canonical_inputs</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">wire_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">manifest</span><span class="o">.</span><span class="n">inputs</span><span class="p">]</span>
+        <span class="n">existing_export_task_id</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="n">workflow</span><span class="p">,</span> <span class="s2">"canonical_inputs_export_task_id"</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">existing_inputs</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">workflow</span><span class="p">,</span> <span class="s2">"canonical_inputs"</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">if</span> <span class="n">existing_export_task_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">existing_export_task_id</span> <span class="o">==</span> <span class="n">export_task_id</span>
+                <span class="ow">and</span> <span class="n">existing_inputs</span> <span class="o">==</span> <span class="n">wire_inputs</span>
+            <span class="p">):</span>
+                <span class="k">return</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> already has an immutable canonical "</span>
+                <span class="s2">"input snapshot"</span>
+            <span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">record_canonical_inputs</span><span class="p">(</span>
+            <span class="n">export_task_id</span><span class="p">,</span>
+            <span class="n">wire_inputs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.get_canonical_inputs"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.get_canonical_inputs">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_canonical_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Returns the canonical input snapshot recorded for a workflow."""</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"export_task_id"</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span>
+                <span class="n">workflow</span><span class="p">,</span> <span class="s2">"canonical_inputs_export_task_id"</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="p">),</span>
+            <span class="s2">"inputs"</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">workflow</span><span class="p">,</span> <span class="s2">"canonical_inputs"</span><span class="p">,</span> <span class="p">[])),</span>
+        <span class="p">}</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.get_canonical_input_manifest"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.get_canonical_input_manifest">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_canonical_input_manifest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CanonicalInputManifest</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns the validated, JSON-serializable recovery manifest."""</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_canonical_inputs</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="n">export_task_id</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s2">"export_task_id"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">export_task_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> has no canonical input snapshot"</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">CanonicalInputManifest</span><span class="p">(</span>
+            <span class="n">workflow_id</span><span class="o">=</span><span class="n">workflow_id</span><span class="p">,</span>
+            <span class="n">export_task_id</span><span class="o">=</span><span class="n">export_task_id</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">snapshot</span><span class="p">[</span><span class="s2">"inputs"</span><span class="p">]),</span>
+        <span class="p">)</span></div>
+
 <div class="viewcode-block" id="WorkflowTracker.start_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.start_workflow">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -675,9 +762,6 @@
         <span class="n">task</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div></div>
-
-
-
 </pre></div>
 
            </div>

@@ -75,10 +75,12 @@ def detached_mode_enabled() -> bool:
 
     Opt-in through the BIOMERO_DETACHED_WORKFLOWS environment variable of the
     OMERO processor running the script, because it requires a supervisor to be
-    present: without one, a queued run would never be executed.
+    present: without one, a queued run would never be executed. The variable
+    is declared in constants.slurm_env so that the processor forwards it to the
+    script subprocesses it starts, which is where this is read.
     """
-    return os.getenv("BIOMERO_DETACHED_WORKFLOWS", "false").lower() in (
-        "1", "true", "yes", "on")
+    return os.getenv(constants.slurm_env.BIOMERO_DETACHED_WORKFLOWS,
+                     "false").lower() in ("1", "true", "yes", "on")
 
 
 def register_detached_launcher(client, tracker, wf_id: UUID,

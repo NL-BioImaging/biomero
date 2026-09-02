@@ -52,6 +52,24 @@ CLAIMED = "CLAIMED"
 LAUNCHER_TASK_NAMES = (constants.RUN_WF_SCRIPT, constants.RUN_WF_BATCHED_SCRIPT)
 
 
+# A workflow may accumulate a great many tasks. The launcher is registered
+# immediately after the workflow is started, so only the first few tasks ever
+# need looking at to decide whether a workflow was queued for a supervisor.
+LAUNCHER_SCAN_LIMIT = 10
+
+
+def workflow_tracker():
+    """A handle on the workflow tracker's event store.
+
+    The view applications each keep their own event store, so an aggregate the
+    tracker created — here or in another process — can only be read through the
+    tracker's own store. Use this where there is no SlurmClient to borrow one
+    from.
+    """
+    from biomero.eventsourcing import WorkflowTracker
+    return WorkflowTracker()
+
+
 def detached_mode_enabled() -> bool:
     """Whether workflow scripts should queue runs instead of executing them.
 
@@ -63,7 +81,7 @@ def detached_mode_enabled() -> bool:
         "1", "true", "yes", "on")
 
 
-def register_detached_launcher(client, slurmClient, wf_id: UUID,
+def register_detached_launcher(client, tracker, wf_id: UUID,
                               task_name: str, script_version: str,
                               selected_workflow_names: List[str],
                               extra_params: Dict) -> UUID:
@@ -75,7 +93,7 @@ def register_detached_launcher(client, slurmClient, wf_id: UUID,
 
     Args:
         client: OMERO script client whose inputs are being recorded.
-        slurmClient: Active SlurmClient, for its workflow tracker.
+        tracker: Workflow tracker to record the task in.
         wf_id: Workflow the launcher belongs to.
         task_name: Name of the launching script, from LAUNCHER_TASK_NAMES.
         script_version: Version of the launching script.
@@ -89,7 +107,7 @@ def register_detached_launcher(client, slurmClient, wf_id: UUID,
     launcher_params.update(extra_params)
     launcher_params["workflows"] = list(selected_workflow_names)
     launcher_params[LAUNCHER_MARKER] = script_version
-    task_id = slurmClient.workflowTracker.add_task_to_workflow(
+    task_id = tracker.add_task_to_workflow(
         wf_id,
         task_name,
         script_version,
@@ -108,24 +126,23 @@ def is_launcher_task(task) -> bool:
             and LAUNCHER_MARKER in params)
 
 
-def find_launcher_task(slurmClient, wf_id: UUID):
+def find_launcher_task(tracker, wf_id: UUID):
     """The launcher task of a workflow, if it has one.
 
     Args:
-        slurmClient: Active SlurmClient, for its workflow tracker.
+        tracker: Workflow tracker to read the aggregates from.
         wf_id: Workflow to inspect.
 
     Returns:
         The launcher Task aggregate, or None when this workflow was not queued
         for a supervisor (or its tasks cannot be read).
     """
-    tracker = slurmClient.workflowTracker
     try:
         workflow = tracker.repository.get(wf_id)
     except Exception as e:
         logger.warning(f"Could not read workflow {wf_id}: {e}")
         return None
-    for task_id in getattr(workflow, "tasks", []):
+    for task_id in getattr(workflow, "tasks", [])[:LAUNCHER_SCAN_LIMIT]:
         try:
             task = tracker.repository.get(task_id)
         except Exception as e:
@@ -136,14 +153,14 @@ def find_launcher_task(slurmClient, wf_id: UUID):
     return None
 
 
-def claim_launcher_task(slurmClient, task_id: UUID) -> None:
+def claim_launcher_task(tracker, task_id: UUID) -> None:
     """Mark a launcher task as taken, so no second worker picks it up.
 
     The claim is the task's status, which is persisted in the task execution
     view. A launcher still marked CLAIMED while no worker is running it is
     therefore recognizable as a leftover from a previous process.
     """
-    slurmClient.workflowTracker.update_task_status(task_id, CLAIMED)
+    tracker.update_task_status(task_id, CLAIMED)
 
 
 def is_claimed(task) -> bool:
@@ -151,7 +168,7 @@ def is_claimed(task) -> bool:
     return getattr(task, "status", None) == CLAIMED
 
 
-def load_task_history(slurmClient, wf_id: UUID) -> List[Dict]:
+def load_task_history(tracker, wf_id: UUID) -> List[Dict]:
     """Summarize the tasks a workflow already has, to resume an interrupted run.
 
     Whether a task finished is read from the task execution view rather than
@@ -160,7 +177,7 @@ def load_task_history(slurmClient, wf_id: UUID) -> List[Dict]:
     a workflow task is a Slurm state).
 
     Args:
-        slurmClient: Active SlurmClient, for its workflow tracker.
+        tracker: Workflow tracker to read the aggregates from.
         wf_id: Workflow to inspect.
 
     Returns:
@@ -171,22 +188,24 @@ def load_task_history(slurmClient, wf_id: UUID) -> List[Dict]:
     from biomero.database import EngineManager, TaskExecution
 
     history: List[Dict] = []
-    tracker = slurmClient.workflowTracker
     try:
         workflow = tracker.repository.get(wf_id)
     except Exception as e:
         logger.warning(f"Could not read workflow {wf_id} for resume: {e}")
         return history
+    task_ids = list(getattr(workflow, "tasks", []))
     rows = {}
     try:
         with EngineManager.get_session() as session:
+            # Keyed by task: the execution view does not record which workflow
+            # a task belongs to.
             for row in session.query(TaskExecution).filter(
-                    TaskExecution.workflow_id == wf_id).all():
+                    TaskExecution.task_id.in_(task_ids)).all():
                 rows[row.task_id] = row
     except Exception as e:
         logger.warning(f"Could not read task history of {wf_id}: {e}")
         return history
-    for task_id in getattr(workflow, "tasks", []):
+    for task_id in task_ids:
         try:
             task = tracker.repository.get(task_id)
         except Exception as e:

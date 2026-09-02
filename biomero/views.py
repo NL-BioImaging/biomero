@@ -23,6 +23,21 @@ from biomero.constants import workflow_status as wfs
 
 logger = logging.getLogger(__name__)
 
+# A view application only has its own event store, so an aggregate the tracker
+# created is not in it. Since a workflow may now be run by a process that did
+# not create it (see biomero.detached), the views have to be able to look those
+# aggregates up rather than relying on what they saw go past in memory.
+_tracker = None
+
+
+def tracker_repository():
+    """Read-only access to the workflow tracker's aggregates."""
+    global _tracker
+    if _tracker is None:
+        from biomero.eventsourcing import WorkflowTracker
+        _tracker = WorkflowTracker()
+    return _tracker.repository
+
     
 # ------------------- View Listener Applications ------------------ #
 
@@ -37,22 +52,27 @@ class JobAccounting(ProcessApplication):
         self.jobs = {}       # {job_id: (task_id, user, group)}   
 
     def resolve_workflow(self, wf_id):
+        """Look a workflow up when we did not see it started ourselves."""
         if wf_id not in self.workflows:
             try:
-                wf_agg = self.repository.get(wf_id)
-                self.workflows[wf_id] = {"user": wf_agg.user, "group": wf_agg.group}
+                wf_agg = tracker_repository().get(wf_id)
+                self.workflows[wf_id] = {"user": wf_agg.user,
+                                         "group": wf_agg.group}
             except Exception as e:
-                logger.warning(f"Could not resolve workflow {wf_id} in JobAccounting: {e}")
+                logger.warning(f"Could not resolve workflow {wf_id} in "
+                               f"JobAccounting: {e}")
         return self.workflows.get(wf_id)
 
     def resolve_task(self, task_id):
+        """Look a task up when we did not see it created ourselves."""
         if task_id not in self.tasks:
             try:
-                task_agg = self.repository.get(task_id)
+                task_agg = tracker_repository().get(task_id)
                 self.tasks[task_id] = task_agg.workflow_id
                 self.resolve_workflow(task_agg.workflow_id)
             except Exception as e:
-                logger.warning(f"Could not resolve task {task_id} in JobAccounting: {e}")
+                logger.warning(f"Could not resolve task {task_id} in "
+                               f"JobAccounting: {e}")
         return self.tasks.get(task_id)
                    
     @singledispatchmethod
@@ -224,19 +244,20 @@ class WorkflowProgress(ProcessApplication):
         return self.workflows.get(wf_id)
 
     def resolve_task(self, task_id):
+        """Look a task up when we did not see it created ourselves."""
         if task_id not in self.tasks:
             try:
-                with EngineManager.get_session() as session:
-                    row = session.query(TaskExecution).filter_by(task_id=task_id).first()
-                    if row:
-                        self.tasks[task_id] = {
-                            "task_name": row.task_name,
-                            "workflow_id": row.workflow_id,
-                            "progress": row.progress
-                        }
-                        self.resolve_workflow(row.workflow_id)
+                task_agg = tracker_repository().get(task_id)
+                self.tasks[task_id] = {
+                    "task_name": task_agg.task_name,
+                    "workflow_id": task_agg.workflow_id,
+                    # Progress is reported by events, not kept on the task.
+                    "progress": None
+                }
+                self.resolve_workflow(task_agg.workflow_id)
             except Exception as e:
-                logger.warning(f"Could not resolve task {task_id} in WorkflowProgress: {e}")
+                logger.warning(f"Could not resolve task {task_id} in "
+                               f"WorkflowProgress: {e}")
         return self.tasks.get(task_id)
 
     @singledispatchmethod
@@ -356,7 +377,8 @@ class WorkflowProgress(ProcessApplication):
                     # Map IMPORTING -> wfs.IMPORTING, IMPORTED -> wfs.IMPORTED, fallback to status
                     workflow_status = getattr(wfs, status, status)
                     workflow_prog = "95%" if status == wfs.POSTPROCESSING else "90%"
-                elif task_name == 'slurm_run_workflow.py':
+                elif task_name in ('slurm_run_workflow.py',
+                                   'slurm_run_workflow_batched.py'):
                     workflow_status = wfs.RUNNING
                     workflow_prog = "50%"
                 else:
@@ -571,22 +593,28 @@ class WorkflowAnalytics(ProcessApplication):
         return self.workflows.get(wf_id)
 
     def resolve_task(self, task_id):
+        """Look a task up when we did not see it created ourselves."""
         if task_id not in self.tasks:
             try:
+                task_agg = tracker_repository().get(task_id)
+                start_time = None
                 with EngineManager.get_session() as session:
-                    row = session.query(TaskExecution).filter_by(task_id=task_id).first()
+                    row = session.query(TaskExecution).filter_by(
+                        task_id=task_id).first()
                     if row:
-                        self.tasks[task_id] = {
-                            "wf_id": row.workflow_id,
-                            "task_name": row.task_name,
-                            "task_version": row.task_version,
-                            "start_time": row.start_time,
-                            "status": row.status
-                        }
-                        if row.workflow_id:
-                            self.resolve_workflow(row.workflow_id)
+                        start_time = row.start_time
+                self.tasks[task_id] = {
+                    "wf_id": task_agg.workflow_id,
+                    "task_name": task_agg.task_name,
+                    "task_version": task_agg.task_version,
+                    "start_time": start_time or task_agg.created_on,
+                    "status": task_agg.status
+                }
+                if task_agg.workflow_id:
+                    self.resolve_workflow(task_agg.workflow_id)
             except Exception as e:
-                logger.warning(f"Could not resolve task {task_id} in WorkflowAnalytics: {e}")
+                logger.warning(f"Could not resolve task {task_id} in "
+                               f"WorkflowAnalytics: {e}")
         return self.tasks.get(task_id)
 
     @singledispatchmethod

@@ -332,17 +332,37 @@ class EngineManager:
         
     @classmethod
     def create_scoped_session(cls, sqlalchemy_url: str = None):
-        logger.warning(f"[DB] create_scoped_session called on class id {id(cls)} (engine={cls._engine}, session={cls._session})")
-        print(f"[DB_PRINT] create_scoped_session called on class id {id(cls)} (engine={cls._engine}, session={cls._session})", flush=True)
+        """
+        Creates and returns a scoped session for interacting with the
+        database.
+
+        If the engine doesn't already exist, it initializes the SQLAlchemy
+        engine and sets up the scoped session. The engine and the session are
+        set up independently: a long-lived process (such as the workflow
+        supervisor) can outlive a session that was removed on the way out of a
+        SlurmClient context, and still needs a working session afterwards.
+
+        Args:
+            sqlalchemy_url (str, optional): The SQLAlchemy database URL. If
+                not provided, the method will retrieve the value from the
+                'SQLALCHEMY_URL' environment variable.
+
+        Returns:
+            str: The topic of the scoped session adapter class.
+        """
         if cls._engine is None:
             # Note, we only allow sqlalchemy eventsourcing module
             if not sqlalchemy_url:
                 sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
             cls._engine = create_engine(sqlalchemy_url)
+            # Setup tables if they don't exist yet, and detect fresh installs.
+            # Concurrent starts can race here, and losing that race is fine:
+            # the tables exist either way.
             try:
                 Base.metadata.create_all(cls._engine)
             except Exception as e:
-                logger.warning(f"Base.metadata.create_all raised exception: {e}")
+                logger.warning(f"Could not create tables (they may already "
+                               f"exist): {e}")
 
         if cls._session is None:
             # Create a scoped_session object.
@@ -361,14 +381,16 @@ class EngineManager:
             # Produce the topic of the scoped session adapter class.
             cls._scoped_session_topic = get_topic(MyScopedSessionAdapter)
 
-        logger.warning(f"[DB] create_scoped_session completed on class id {id(cls)} (engine={cls._engine}, session={cls._session})")
-        print(f"[DB_PRINT] create_scoped_session completed on class id {id(cls)} (engine={cls._engine}, session={cls._session})", flush=True)
         return cls._scoped_session_topic
-    
+
     @classmethod
     def get_session(cls):
-        logger.warning(f"[DB] get_session called on class id {id(cls)} (session={cls._session})")
-        print(f"[DB_PRINT] get_session called on class id {id(cls)} (session={cls._session})", flush=True)
+        """
+        Retrieves the current scoped session, setting one up when needed.
+
+        Returns:
+            Session: The SQLAlchemy session for interacting with the database.
+        """
         if cls._session is None:
             cls.create_scoped_session()
         return cls._session()
@@ -402,8 +424,12 @@ class EngineManager:
     def remove_session(cls):
         """
         Removes the current session from the scoped session registry.
+
+        Safe to call when no session was ever set up, so that it can be used
+        for cleanup on any exit path.
         """
-        cls._session.remove()
+        if cls._session is not None:
+            cls._session.remove()
     
     @classmethod
     @retry_on_database_conflict(max_retries=10)

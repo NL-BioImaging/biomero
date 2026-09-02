@@ -983,7 +983,10 @@ class SlurmClient(Connection):
         # Ensure to call the parent class's __exit__
         # to clean up Connection resources
         super().__exit__(exc_type, exc_val, exc_tb)
-        # Cleanup resources specific to SlurmClient
+        # Cleanup resources specific to SlurmClient. Only this thread's session
+        # is released, not the engine: a long-lived process (the workflow
+        # supervisor) opens a client per workflow and the ones running
+        # alongside it still need the engine.
         EngineManager.remove_session()
         # If we have any other resources to close or cleanup, do it here
 
@@ -2696,11 +2699,18 @@ class SlurmClient(Connection):
                         logger.warning(f"Error parsing job status: {e}")
                         job_status_dict = {}
 
+                    # sacct queries on 'JobIdRaw', which for job arrays is a
+                    # sum: 'JobId' 11_2 is 'JobIdRaw' 13, so asking for 13
+                    # before it exists can return 11_2's row instead. A job we
+                    # asked about but did not get a row for is therefore
+                    # reported as still pending, never as an unknown state:
+                    # callers treat an unrecognized state as a failure.
                     result_dict = {}
                     for job_id in valid_job_ids:
                         if job_id not in job_status_dict:
-                            logger.debug(f"Missing job {job_id} in our results! Returning UNKNOWN.")
-                            result_dict[job_id] = 'UNKNOWN'
+                            logger.debug(f"Missing job {job_id} in our "
+                                         f"results! Reporting it as PENDING.")
+                            result_dict[job_id] = 'PENDING'
                         else:
                             result_dict[job_id] = job_status_dict[job_id]
 
@@ -2710,8 +2720,12 @@ class SlurmClient(Connection):
                 logger.error(error)
                 raise SSHException(error)
         
-        logger.warning(f"Slurm sacct returned empty output for {valid_job_ids} after retries. Returning UNKNOWN.")
-        return {jid: 'UNKNOWN' for jid in valid_job_ids}, last_result
+        # Empty sacct output is not evidence that the jobs failed, so keep the
+        # callers polling instead of raising or failing their workflow.
+        logger.warning(f"Slurm sacct returned empty output for "
+                       f"{valid_job_ids} after {retry_status} retries; "
+                       f"reporting them as PENDING.")
+        return {jid: 'PENDING' for jid in valid_job_ids}, last_result
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """

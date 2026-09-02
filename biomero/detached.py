@@ -51,7 +51,6 @@ CLAIMED = "CLAIMED"
 # Scripts that can queue a detached run.
 LAUNCHER_TASK_NAMES = (constants.RUN_WF_SCRIPT, constants.RUN_WF_BATCHED_SCRIPT)
 
-
 # A workflow may accumulate a great many tasks. The launcher is registered
 # immediately after the workflow is started, so only the first few tasks ever
 # need looking at to decide whether a workflow was queued for a supervisor.

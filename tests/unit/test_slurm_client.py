@@ -4366,7 +4366,7 @@ def test_from_config_pull_env_override(
 @patch.dict(os.environ, {
     "BIOMERO_PULL_TIME": "1-00:00:00",
     "BIOMERO_PULL_CONCURRENCY": "4",
-    "BIOMERO_PULL_PARTITION": "defq",
+    "BIOMERO_PULL_PARTITION": "image-pull",
 }, clear=False)
 def test_from_config_image_pull_array_env_override(
         mock_ConfigParser,
@@ -4398,7 +4398,7 @@ def test_from_config_image_pull_array_env_override(
     _, kwargs = mock_SlurmClient.call_args_list[-1]
     assert kwargs['image_pull_time'] == '1-00:00:00'
     assert kwargs['image_pull_concurrency'] == 4
-    assert kwargs['image_pull_partition'] == 'defq'
+    assert kwargs['image_pull_partition'] == 'image-pull'
 
 
 @patch('biomero.slurm_client.Connection.create_session')
@@ -4881,7 +4881,7 @@ def test_image_pull_sbatch_command_is_bounded_and_merges_params(slurm_client):
     slurm_client.image_pull_cpus = "8"
     slurm_client.image_pull_mem = "32G"
     slurm_client.image_pull_time = "1-00:00:00"
-    slurm_client.image_pull_partition = "defq"
+    slurm_client.image_pull_partition = "image-pull"
     slurm_client.image_pull_concurrency = 4
 
     cmd = slurm_client._build_image_pull_sbatch_command(
@@ -4895,7 +4895,7 @@ def test_image_pull_sbatch_command_is_bounded_and_merges_params(slurm_client):
     assert "--cpus-per-task=8" in cmd
     assert "--mem=32G" in cmd
     assert "--time=1-00:00:00" in cmd
-    assert "--partition=defq" in cmd
+    assert "--partition=image-pull" in cmd
     assert "--account=project" in cmd
     assert "--time=02:00:00" not in cmd
     assert "--partition=generic" not in cmd
@@ -5024,7 +5024,7 @@ def test_submit_image_pull_array_returns_array_id_and_stages_status(
     slurm_client.image_pull_cpus = "8"
     slurm_client.image_pull_mem = "32G"
     slurm_client.image_pull_time = "1-00:00:00"
-    slurm_client.image_pull_partition = "defq"
+    slurm_client.image_pull_partition = "image-pull"
     slurm_client.image_pull_concurrency = 4
     slurm_client.slurm_global_job_params = []
     slurm_client.run_commands_split_out = MagicMock(return_value=["PENDING\n"])

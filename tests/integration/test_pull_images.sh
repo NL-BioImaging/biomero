@@ -25,6 +25,11 @@ case $1 in
         count=$((count + 1))
         printf '%s\n' "$count" > "$count_file"
         case ${FAKE_RUNTIME_MODE:-success} in
+            streaming)
+                echo 'runtime progress is visible'
+                touch "${FAKE_RUNTIME_STARTED:?}"
+                sleep 3
+                ;;
             permanent)
                 echo 'FATAL: manifest unknown' >&2
                 exit 22
@@ -63,12 +68,29 @@ run_task() {
     FAKE_RUNTIME_MODE="$mode" \
     FAKE_BUILD_COUNT="$case_dir/build-count" \
     FAKE_RUNTIME_NAME="$case_dir/runtime-name" \
+    FAKE_RUNTIME_STARTED="$case_dir/runtime-started" \
     BIOMERO_PULL_ATTEMPTS=3 \
     SLURM_ARRAY_JOB_ID=100 \
     SLURM_ARRAY_TASK_ID=0 \
     SLURM_TMPDIR="$case_dir/slurm-tmp" \
         bash "$runner" "$case_dir/manifest.tsv" "$case_dir/status"
 }
+
+streaming_dir="$test_root/streaming"
+run_task "$streaming_dir" streaming > "$streaming_dir-output.log" 2>&1 &
+streaming_pid=$!
+for _ in $(seq 1 50); do
+    [ ! -e "$streaming_dir/runtime-started" ] || break
+    sleep 0.02
+done
+test -e "$streaming_dir/runtime-started"
+if ! grep -q 'runtime progress is visible' "$streaming_dir-output.log"; then
+    kill "$streaming_pid" 2>/dev/null || true
+    wait "$streaming_pid" 2>/dev/null || true
+    echo 'runtime build output was buffered instead of streamed' >&2
+    exit 1
+fi
+wait "$streaming_pid"
 
 success_dir="$test_root/success"
 run_task "$success_dir" success
@@ -143,5 +165,72 @@ if PATH="/usr/bin:/bin" \
 fi
 grep -q $'workflow\timagej\tv1\tFAILED\t69\tApptainer or Singularity is required' \
     "$missing_dir/status/status-0.status"
+
+# Build output must stream to the job log as it happens (so `tail -f` shows
+# progress), not only get flushed once the whole attempt has finished.
+stream_dir="$test_root/streaming"
+stream_bin="$stream_dir/bin"
+mkdir -p "$stream_bin" "$stream_dir/shared" "$stream_dir/status" \
+    "$stream_dir/slurm-tmp"
+started_marker="$stream_dir/build-started"
+continue_marker="$stream_dir/build-continue"
+cat > "$stream_bin/apptainer" <<EOF
+#!/bin/bash
+case \$1 in
+    inspect)
+        [ -s "\$2" ]
+        ;;
+    build)
+        echo 'INFO: Starting build...'
+        touch "$started_marker"
+        while [ ! -f "$continue_marker" ]; do
+            sleep 0.1
+        done
+        echo 'INFO: Build complete'
+        destination=\${@: -2:1}
+        printf 'valid-sif\n' > "\$destination"
+        ;;
+    *)
+        exit 64
+        ;;
+esac
+EOF
+chmod +x "$stream_bin/apptainer"
+write_manifest "$stream_dir/manifest.tsv" "$stream_dir/shared/imagej_v1.sif"
+job_log="$stream_dir/pull-image-0.log"
+PATH="$stream_bin:$PATH" \
+SLURM_ARRAY_JOB_ID=104 \
+SLURM_ARRAY_TASK_ID=0 \
+SLURM_TMPDIR="$stream_dir/slurm-tmp" \
+    bash "$runner" "$stream_dir/manifest.tsv" "$stream_dir/status" \
+    > "$job_log" 2>&1 &
+runner_pid=$!
+
+waited=0
+while [ ! -f "$started_marker" ]; do
+    sleep 0.1
+    waited=$((waited + 1))
+    if [ "$waited" -ge 50 ]; then
+        echo 'fake build never started' >&2
+        echo '--- job log ---' >&2
+        cat "$job_log" >&2 || true
+        echo '--- status dir ---' >&2
+        ls -la "$stream_dir/status" >&2 || true
+        cat "$stream_dir/status/status-0.status" >&2 || true
+        kill "$runner_pid" 2>/dev/null || true
+        exit 1
+    fi
+done
+
+if ! grep -q 'INFO: Starting build' "$job_log"; then
+    echo 'build output was not streamed live to the job log' >&2
+    kill "$runner_pid" 2>/dev/null || true
+    exit 1
+fi
+
+touch "$continue_marker"
+wait "$runner_pid"
+grep -q $'workflow\timagej\tv1\tREADY\t0\tbuilt and validated' \
+    "$stream_dir/status/status-0.status"
 
 echo 'pull_images integration checks passed'

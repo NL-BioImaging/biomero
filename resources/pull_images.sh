@@ -103,9 +103,10 @@ run_with_retry() {
     while [ "$attempt" -le "$max_attempts" ]; do
         attempt_log="$work_dir/${operation}-${attempt}.log"
         echo "$operation attempt $attempt/$max_attempts for $source:$image_version"
-        "$@" > "$attempt_log" 2>&1
-        rc=$?
-        cat "$attempt_log"
+        # Stream live via tee so `tail -f` on the job log shows progress
+        # instead of only the buffered output after the attempt exits.
+        "$@" 2>&1 | tee "$attempt_log"
+        rc=${PIPESTATUS[0]}
         if [ "$rc" -eq 0 ]; then
             return 0
         fi

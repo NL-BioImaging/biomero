@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Dict, List, Optional, Tuple, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
 from invoke.exceptions import UnexpectedExit
@@ -307,6 +307,11 @@ class SlurmClient(Connection):
             slurm_env.BIOMERO_IMAGE_PULL_VIA_SBATCH],
         ("SLURM", "image_pull_cpus"): [slurm_env.BIOMERO_PULL_CPUS],
         ("SLURM", "image_pull_mem"): [slurm_env.BIOMERO_PULL_MEM],
+        ("SLURM", "image_pull_time"): [slurm_env.BIOMERO_PULL_TIME],
+        ("SLURM", "image_pull_concurrency"): [
+            slurm_env.BIOMERO_PULL_CONCURRENCY],
+        ("SLURM", "image_pull_partition"): [
+            slurm_env.BIOMERO_PULL_PARTITION],
         ("SLURM", "apptainer_tmpdir"): [
             slurm_env.BIOMERO_APPTAINER_TMPDIR],
         ("SLURM", "apptainer_cachedir"): [
@@ -507,6 +512,9 @@ class SlurmClient(Connection):
                  slurm_image_pull_via_sbatch: bool = False,
                  image_pull_cpus: str = "8",
                  image_pull_mem: str = "32G",
+                 image_pull_time: str = None,
+                 image_pull_concurrency: int = 1,
+                 image_pull_partition: str = None,
                  apptainer_tmpdir: str = None,
                  apptainer_cachedir: str = None,
                  slurm_zip_cmd: str = None,
@@ -647,10 +655,11 @@ class SlurmClient(Connection):
                 ``a100:1``). Mutually exclusive with ``gpu_gres``.
                 Overridable via ``BIOMERO_GPU_GPUS``. Defaults to None.
             slurm_global_job_params (list, optional): Extra sbatch parameters
-                applied to every workflow submission as a fallback, e.g.
-                ``[" --reservation=biomero"]``. Per-workflow job params always
-                take precedence. Configured via ``sbatch_<key>=<value>`` keys
-                in the ``[SLURM]`` config section. Defaults to None (empty).
+                applied to workflow, conversion, and scheduled image-pull
+                submissions as fallbacks, e.g. ``[" --reservation=biomero"]``.
+                More-specific job parameters always take precedence.
+                Configured via ``sbatch_<key>=<value>`` keys in the ``[SLURM]``
+                config section. Defaults to None (empty).
             slurm_image_pull_via_sbatch (bool, optional): When True, workflow
                 and converter image pulls/builds are submitted as sbatch jobs
                 instead of running directly on the login node. Defaults to
@@ -661,6 +670,16 @@ class SlurmClient(Connection):
             image_pull_mem (str, optional): Memory request for sbatch-based
                 image pull jobs. Overridable via ``BIOMERO_PULL_MEM``.
                 Defaults to ``32G``.
+            image_pull_time (str, optional): Time request for sbatch-based
+                image pull arrays. Overrides a global ``sbatch_time`` value.
+                Overridable via ``BIOMERO_PULL_TIME``. Defaults to None.
+            image_pull_concurrency (int, optional): Maximum number of image
+                array tasks that may run simultaneously. Overridable via
+                ``BIOMERO_PULL_CONCURRENCY``. Defaults to ``1`` for backward
+                compatibility with the former sequential sbatch job.
+            image_pull_partition (str, optional): Partition for sbatch-based
+                image pull arrays. Overrides a global ``sbatch_partition``.
+                Overridable via ``BIOMERO_PULL_PARTITION``. Defaults to None.
             apptainer_tmpdir (str, optional): Exported as
                 ``APPTAINER_TMPDIR`` and ``SINGULARITY_TMPDIR`` for image
                 pull/build commands when set. Use when the default tmp
@@ -727,6 +746,9 @@ class SlurmClient(Connection):
         self.slurm_image_pull_via_sbatch = slurm_image_pull_via_sbatch
         self.image_pull_cpus = image_pull_cpus
         self.image_pull_mem = image_pull_mem
+        self.image_pull_time = image_pull_time
+        self.image_pull_concurrency = max(1, image_pull_concurrency or 1)
+        self.image_pull_partition = image_pull_partition
         self.apptainer_tmpdir = apptainer_tmpdir
         self.apptainer_cachedir = apptainer_cachedir
         self.slurm_zip_cmd = slurm_zip_cmd
@@ -771,6 +793,89 @@ class SlurmClient(Connection):
         if not env_parts:
             return ""
         return " ".join(env_parts) + " "
+
+    def _build_image_pull_sbatch_command(
+            self,
+            script_path: str,
+            manifest_path: str,
+            status_dir: str,
+            task_count: int) -> str:
+        """Build the scheduler command for one bounded image-pull array.
+
+        Generic ``sbatch_*`` values apply to image initialization as they do
+        to workflow and conversion submissions. Array-owned flags and explicit
+        ``image_pull_*`` resources take precedence over matching globals.
+        """
+        if task_count < 1:
+            raise ValueError("task_count must be at least 1")
+
+        dedicated = {
+            "cpus-per-task": self.image_pull_cpus or "8",
+            "mem": self.image_pull_mem or "32G",
+            "time": self.image_pull_time,
+            "partition": self.image_pull_partition,
+        }
+        reserved = {
+            "array", "output", "error", "job-name", "export",
+            *[key for key, value in dedicated.items() if value],
+        }
+        params = []
+        for raw_param in self.slurm_global_job_params:
+            param = raw_param.strip()
+            match = re.match(r"--([^=\s]+)", param)
+            if match and match.group(1) not in reserved:
+                params.append(param)
+
+        concurrency = max(1, int(self.image_pull_concurrency or 1))
+        params.extend([
+            f"--array=0-{task_count - 1}%{concurrency}",
+            "--job-name=biomero-pull-images",
+        ])
+        for flag, value in dedicated.items():
+            if value:
+                params.append(f"--{flag}={value}")
+        params.extend([
+            f"--export=ALL,BIOMERO_PULL_CPUS={dedicated['cpus-per-task']}",
+            f"--output={posixpath.join(status_dir, 'pull-image-%A_%a.log')}",
+        ])
+        args = " ".join(shlex.quote(value or "") for value in (
+            script_path, manifest_path, status_dir,
+            self.apptainer_tmpdir, self.apptainer_cachedir))
+        return f"sbatch --parsable {' '.join(params)} {args}"
+
+    @staticmethod
+    def _parse_image_pull_status(status_output: str) -> Dict[str, Any]:
+        """Parse fixed-column per-image status records from the cluster."""
+        images = []
+        counts = {"READY": 0, "RUNNING": 0, "FAILED": 0}
+        for raw_line in status_output.splitlines():
+            if not raw_line.strip():
+                continue
+            fields = raw_line.split("\t", 6)
+            if len(fields) != 7:
+                logger.warning("Ignoring malformed image status: %s", raw_line)
+                continue
+            kind, name, version, state, exit_code, reason, destination = fields
+            if state not in counts:
+                logger.warning("Ignoring unknown image state: %s", state)
+                continue
+            parsed_exit = None
+            if exit_code:
+                try:
+                    parsed_exit = int(exit_code)
+                except ValueError:
+                    parsed_exit = None
+            images.append({
+                "kind": kind,
+                "name": name,
+                "version": version,
+                "state": state,
+                "exit_code": parsed_exit,
+                "reason": reason,
+                "destination": destination,
+            })
+            counts[state] += 1
+        return {"counts": counts, "images": images}
 
     def initialize_analytics_system(self, reset_tables=False):
         """
@@ -1010,125 +1115,203 @@ class SlurmClient(Connection):
                 image = descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
 
-    def setup_slurm(self):
-        """
-        Validates or creates the required setup on the Slurm cluster.
-
-        Raises:
-            SSHException: if it cannot connect to Slurm, or runs into an error
-        """
-        if self.validate():
-            # 1. Create directories
-            self.setup_directories()
-
-            # 2. Clone git
-            self.setup_job_scripts()
-
-            # 3. Setup converters
-            self.setup_converters()
-
-            # 4. Download workflow images
-            self.setup_container_images()
-
-        else:
+    def setup_slurm(self) -> Optional[int]:
+        """Create the cluster setup and return the image array job ID."""
+        if not self.validate():
             raise SSHException("Failure in connecting to Slurm cluster")
+        self.setup_directories()
+        self.setup_job_scripts()
+        converter_specs = self.prepare_converters()
+        return self.setup_container_images(extra_image_specs=converter_specs)
 
-    def setup_container_images(self):
-        """
-        Sets up container images for Slurm operations.
+    @staticmethod
+    def _image_status_record(spec: Dict[str, str], state: str,
+                             exit_code: str = "",
+                             reason: str = "") -> str:
+        reason = reason.replace("\t", " ").replace("\r", " ").replace(
+            "\n", " ")[:240]
+        return "\t".join([
+            spec["kind"], spec["name"], spec["version"], state,
+            str(exit_code), reason, spec["destination"],
+        ]) + "\n"
 
-        This function creates specific directories for container images and pulls
-        necessary images from Docker repositories. It generates and executes
-        a script to pull images and copies it to the remote location.
+    @staticmethod
+    def _render_image_manifest(specs: List[Dict[str, str]]) -> str:
+        columns = (
+            "kind", "name", "version", "source_type", "source",
+            "destination")
+        rows = ["\t".join(columns)]
+        destinations = set()
+        for spec in specs:
+            values = [str(spec[column]) for column in columns]
+            if any("\t" in value or "\n" in value or "\r" in value
+                   for value in values):
+                raise ValueError("Image manifest values cannot contain tabs or newlines")
+            if spec["destination"] in destinations:
+                raise ValueError(
+                    f"Duplicate image destination: {spec['destination']}")
+            destinations.add(spec["destination"])
+            rows.append("\t".join(values))
+        return "\n".join(rows) + "\n"
 
-        Raises:
-            SSHException: If there is an issue executing commands or copying files.
-        """
-        # Create specific workflow dirs
-        with self.cd(self.slurm_images_path):
-            if self.slurm_model_paths:
-                modelpaths = "\" \"".join(self.slurm_model_paths.values())
-                # mkdir cellprofiler imagej ...
-                r = self.run_commands([f"mkdir -p \"{modelpaths}\""])
-                if not r.ok:
-                    raise SSHException(r)
+    def _workflow_image_specs(self) -> List[Dict[str, str]]:
+        specs = []
+        for workflow, configured_image in (self.slurm_model_images or {}).items():
+            image = configured_image
+            image_tag, image_name = self.parse_docker_image_version(image)
+            if image_tag:
+                image = image_name
+                version = image_tag
+            else:
+                repo = self.slurm_model_repos[workflow]
+                _, version = self.extract_parts_from_url(repo)
+                if version == "master":
+                    version = "latest"
+            filename = f"{posixpath.basename(image)}_{version}.sif"
+            specs.append({
+                "kind": "workflow",
+                "name": workflow,
+                "version": version,
+                "source_type": "registry",
+                "source": image,
+                "destination": posixpath.join(
+                    self.slurm_images_path,
+                    self.slurm_model_paths[workflow], filename),
+            })
+        return specs
 
-            if self.slurm_model_images:
-                pull_commands = []
-                for wf, image in self.slurm_model_images.items():
-                    repo = self.slurm_model_repos[wf]
-                    path = self.slurm_model_paths[wf]
-                    apptainer_env_prefix = self._apptainer_pull_env_prefix()
-                    # If the image already includes a tag (e.g. "org/image:v1.2"),
-                    # use that tag and strip it from the image name to avoid
-                    # producing docker://org/image:v1.2:v1.2.
-                    image_tag, image_name = self.parse_docker_image_version(
-                        image)
-                    if image_tag:
-                        image = image_name
-                        version = image_tag
-                    else:
-                        _, version = self.extract_parts_from_url(repo)
-                        if version == "master":
-                            version = "latest"
-                    if self.slurm_image_pull_via_sbatch:
-                        pull_template = (
-                            "echo 'starting $path $version' >> sing.log\n"
-                            "mkdir -p $path $TMPDIR_CREATE $CACHEDIR_CREATE\n"
-                            "image_name=$(basename \"$image\")\n"
-                            "output=\"$path/${image_name}_$version.sif\"\n"
-                            "if [ -s \"$output\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
-                            "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" \"$output\" docker://$image:$version >> sing.log 2>&1; fi\n"
-                            "rc=$?\n"
-                            "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
-                        )
-                    else:
-                        pull_template = "echo 'starting $path $version' >> sing.log\n$EXTRA_MKDIRS\nnohup sh -c \"${APPTAINER_ENV}singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
-                    t = Template(pull_template)
-                    substitutes = {}
-                    substitutes['APPTAINER_ENV'] = apptainer_env_prefix
-                    substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
-                    substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
-                    _extra_dirs = " ".join(shlex.quote(d) for d in [self.apptainer_tmpdir, self.apptainer_cachedir] if d)
-                    substitutes['EXTRA_MKDIRS'] = f"mkdir -p {_extra_dirs}" if _extra_dirs else ":"
-                    substitutes['path'] = path
-                    substitutes['image'] = image
-                    substitutes['version'] = version
-                    cmd = t.safe_substitute(substitutes)
-                    logger.debug(f"substituted: {cmd}")
-                    pull_commands.append(cmd)
-                script_name = "pull_images.sh"
-                template_script = files("resources").joinpath(script_name)
-                with template_script.open('r') as f:
-                    src = Template(f.read())
-                    substitute = {'pullcommands': "\n".join(pull_commands)}
-                    job_script = src.safe_substitute(substitute)
-                logger.debug(f"substituted:\n {job_script}")
-                # copy to remote file
-                full_path = self.slurm_images_path+"/"+script_name
-                _ = self.put(local=io.StringIO(job_script),
-                             remote=full_path)
-                if self.slurm_image_pull_via_sbatch:
-                    cmd = (
-                        "sbatch --parsable --job-name=biomero-pull-images "
-                        f"--cpus-per-task={self.image_pull_cpus} --mem={self.image_pull_mem} "
-                        f"--export=ALL,BIOMERO_PULL_CPUS={self.image_pull_cpus} "
-                        f"--output=pull_images-%j.log {script_name}"
-                    )
-                else:
-                    cmd = f"time sh {script_name}"
-                r = self.run_commands([cmd])
-                if not r.ok:
-                    raise SSHException(r)
-                logger.info(r.stdout)
-                logger.info("Initiated downloading and building" +
-                            " container images on Slurm." +
-                            " This will probably take a while in the background." +
-                            " Check 'sing.log' on Slurm for progress.")
-                # # cleanup giant singularity cache!
-                # using --disable-cache because we run in the background
-                # cmd = "singularity cache clean -f"
-                # r = self.run_commands([cmd])
+    def _partition_existing_images(
+            self, specs: List[Dict[str, str]]
+            ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Return already-valid and pending specs without building on login."""
+        if not specs:
+            return [], []
+        commands = []
+        for spec in specs:
+            destination = shlex.quote(spec["destination"])
+            commands.append(
+                "container_runtime=$(command -v apptainer 2>/dev/null || "
+                "command -v singularity 2>/dev/null || true); "
+                f"if [ -n \"$container_runtime\" ] && [ -s {destination} ] "
+                f"&& \"$container_runtime\" inspect {destination} "
+                ">/dev/null 2>&1; then echo READY; else echo PENDING; fi")
+        results = self.run_commands_split_out(commands)
+        ready = []
+        pending = []
+        for spec, result in zip(specs, results):
+            (ready if result.strip() == "READY" else pending).append(spec)
+        return ready, pending
+
+    def _submit_image_pull_array(
+            self, specs: List[Dict[str, str]]) -> Optional[int]:
+        """Stage and submit image work, returning the Slurm array ID."""
+        if not specs:
+            return None
+        ready, pending = self._partition_existing_images(specs)
+        submission_id = uuid4().hex
+        status_root = posixpath.join(self.slurm_script_path, "image-pulls")
+        status_dir = posixpath.join(status_root, submission_id)
+        r = self.run_commands([f"mkdir -p {shlex.quote(status_dir)}"])
+        if not r.ok:
+            raise SSHException(r)
+
+        if ready:
+            ready_status = "".join(
+                self._image_status_record(
+                    spec, "READY", "0", "existing SIF validated")
+                for spec in ready)
+            self.put(io.StringIO(ready_status),
+                     posixpath.join(status_dir, "existing.status"))
+
+        manifest_path = posixpath.join(status_dir, "manifest.tsv")
+        self.put(io.StringIO(self._render_image_manifest(pending)),
+                 manifest_path)
+        script_path = posixpath.join(self.slurm_script_path, "pull_images.sh")
+        template_script = files("resources").joinpath("pull_images.sh")
+        with template_script.open("r") as source_file:
+            self.put(io.StringIO(source_file.read()), script_path)
+
+        for index, spec in enumerate(pending):
+            self.put(io.StringIO(self._image_status_record(
+                spec, "RUNNING", "", "submitted; waiting for array task")),
+                posixpath.join(status_dir, f"status-{index}.status"))
+
+        array_job_id = None
+        if pending and self.slurm_image_pull_via_sbatch:
+            command = self._build_image_pull_sbatch_command(
+                script_path, manifest_path, status_dir, len(pending))
+            result = self.run_commands([command])
+            if not result.ok:
+                raise SSHException(result)
+            array_job_id = self.extract_job_id(result)
+            if array_job_id < 0:
+                raise SSHException(
+                    f"Unable to parse image array ID from: {result.stdout}")
+        elif pending:
+            commands = []
+            for index in range(len(pending)):
+                logfile = posixpath.join(
+                    status_dir, f"pull-image-direct_{index}.log")
+                commands.append(
+                    "nohup env "
+                    f"SLURM_ARRAY_TASK_ID={index} "
+                    f"SLURM_ARRAY_JOB_ID=direct-{submission_id} "
+                    f"bash {shlex.quote(script_path)} "
+                    f"{shlex.quote(manifest_path)} {shlex.quote(status_dir)} "
+                    f"{shlex.quote(self.apptainer_tmpdir or '')} "
+                    f"{shlex.quote(self.apptainer_cachedir or '')} "
+                    f"> {shlex.quote(logfile)} 2>&1 </dev/null &")
+            result = self.run_commands(commands, sep=" ; ")
+            if not result.ok:
+                raise SSHException(result)
+
+        metadata = (
+            f"submission_id\t{submission_id}\n"
+            f"array_job_id\t{array_job_id or ''}\n"
+            f"expected\t{len(specs)}\n"
+            f"pending\t{len(pending)}\n")
+        self.put(io.StringIO(metadata),
+                 posixpath.join(status_dir, "submission.meta"))
+        latest_tmp = posixpath.join(status_root, f"latest.tmp.{submission_id}")
+        self.put(io.StringIO(status_dir + "\n"), latest_tmp)
+        result = self.run_commands([
+            f"mv {shlex.quote(latest_tmp)} "
+            f"{shlex.quote(posixpath.join(status_root, 'latest'))}"])
+        if not result.ok:
+            raise SSHException(result)
+        logger.info(
+            "Image initialization submission %s: %d ready, %d pending, array %s",
+            submission_id, len(ready), len(pending), array_job_id)
+        return array_job_id
+
+    def get_image_pull_status(self) -> Dict[str, Any]:
+        """Return structured status for the most recent image submission."""
+        status_root = posixpath.join(self.slurm_script_path, "image-pulls")
+        command = (
+            f"latest=$(cat {shlex.quote(posixpath.join(status_root, 'latest'))} "
+            "2>/dev/null) || exit 0; "
+            "for status in \"$latest\"/*.status; do "
+            "[ -f \"$status\" ] && cat \"$status\"; done")
+        result = self.run_commands([command])
+        if not result.ok:
+            raise SSHException(result)
+        return self._parse_image_pull_status(result.stdout)
+
+    def setup_container_images(
+            self, extra_image_specs: List[Dict[str, str]] = None
+            ) -> Optional[int]:
+        """Create workflow image directories and submit one combined array."""
+        directories = [
+            posixpath.join(self.slurm_images_path, path)
+            for path in (self.slurm_model_paths or {}).values()]
+        if directories:
+            quoted = " ".join(shlex.quote(path) for path in directories)
+            result = self.run_commands([f"mkdir -p {quoted}"])
+            if not result.ok:
+                raise SSHException(result)
+        specs = self._workflow_image_specs()
+        specs.extend(extra_image_specs or [])
+        return self._submit_image_pull_array(specs)
 
     def list_available_converter_versions(self) -> Dict:
         """
@@ -1142,7 +1325,9 @@ class SlurmClient(Connection):
         result_dict = {}
         if r.ok:
             # Iterate over each line in the output
-            for line in r.stdout.strip().split('\n'):
+            for line in r.stdout.splitlines():
+                if not line.strip():
+                    continue
                 # Split the line into key and version
                 key, version = line.rsplit(' ', 1)
                 # Check if the key already exists in the dictionary
@@ -1154,21 +1339,14 @@ class SlurmClient(Connection):
                     result_dict[key] = [version]
         return result_dict
 
-    def setup_converters(self):
-        """
-        Sets up converters for Slurm operations.
-
-        This function creates necessary directories for converters and copies
-        converter scripts and definitions to the appropriate locations. It also
-        builds Singularity containers from the provided definitions.
-
-        Raises:
-            SSHException: If there is an issue executing commands or copying files.
-        """
+    def prepare_converters(self) -> List[Dict[str, str]]:
+        """Stage converter runtime files and return their image specifications."""
         convert_cmds = []
         if self.slurm_converters_path:
             convert_cmds.append(f"mkdir -p \"{self.slurm_converters_path}\"")
         r = self.run_commands(convert_cmds)
+        if not r.ok:
+            raise SSHException(r)
 
         # copy generic job array script over to slurm
         convert_script_file = "convert_job_array.sh"
@@ -1195,11 +1373,9 @@ class SlurmClient(Connection):
         _ = self.put(local=io.StringIO(convert_script),
                      remote=convert_script_remote)
 
-        # PULL converter if provided in config
+        specs = []
         if self.converter_images:
-            pull_commands = []
             for path, image in self.converter_images.items():
-                apptainer_env_prefix = self._apptainer_pull_env_prefix()
                 version, image = self.parse_docker_image_version(image)
                 if version:
                     chosen_converter = f"convert_{path}_{version}.sif"
@@ -1208,65 +1384,16 @@ class SlurmClient(Connection):
                     logger.warning(
                         f"Pulling 'latest' as no version was provided for {image}")
                     chosen_converter = f"convert_{path}_latest.sif"
-                with self.cd(self.slurm_converters_path):
-                    if self.slurm_image_pull_via_sbatch:
-                        pull_template = (
-                            "echo 'starting $path $version' >> sing.log\n"
-                            "$EXTRA_MKDIRS\n"
-                            "if [ -s \"$conv_name\" ]; then echo 'skipping $path $version; SIF already exists' >> sing.log; "
-                            "else ${APPTAINER_ENV}singularity build --force --disable-cache --mksquashfs-args \"-processors ${BIOMERO_PULL_CPUS:-8}\" $conv_name docker://$image:$version >> sing.log 2>&1; fi\n"
-                            "rc=$?\n"
-                            "if [ $rc -eq 0 ]; then echo 'finished $path $version' >> sing.log; else echo 'failed $path $version exit='$rc >> sing.log; exit $rc; fi"
-                        )
-                    else:
-                        pull_template = "echo 'starting $path $version' >> sing.log\n$EXTRA_MKDIRS\nnohup sh -c \"${APPTAINER_ENV}singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'\" >> sing.log 2>&1 & disown"
-                    t = Template(pull_template)
-                    substitutes = {}
-                    substitutes['APPTAINER_ENV'] = apptainer_env_prefix
-                    substitutes['TMPDIR_CREATE'] = shlex.quote(self.apptainer_tmpdir) if self.apptainer_tmpdir else ""
-                    substitutes['CACHEDIR_CREATE'] = shlex.quote(self.apptainer_cachedir) if self.apptainer_cachedir else ""
-                    _extra_dirs = " ".join(shlex.quote(d) for d in [self.apptainer_tmpdir, self.apptainer_cachedir] if d)
-                    substitutes['EXTRA_MKDIRS'] = f"mkdir -p {_extra_dirs}" if _extra_dirs else ":"
-                    substitutes['path'] = path
-                    substitutes['image'] = image
-                    substitutes['version'] = version
-                    substitutes['conv_name'] = chosen_converter
-                    cmd = t.safe_substitute(substitutes)
-                    logger.debug(f"substituted: {cmd}")
-                    pull_commands.append(cmd)
-            script_name = "pull_images.sh"
-            template_script = files("resources").joinpath(script_name)
-            with template_script.open('r') as f:
-                src = Template(f.read())
-                substitute = {'pullcommands': "\n".join(pull_commands)}
-                job_script = src.safe_substitute(substitute)
-            logger.debug(f"substituted:\n {job_script}")
-            # copy to remote file
-            full_path = self.slurm_converters_path+"/"+script_name
-            _ = self.put(local=io.StringIO(job_script), remote=full_path)
-            if self.slurm_image_pull_via_sbatch:
-                cmd = (
-                    "sbatch --parsable --job-name=biomero-pull-converters "
-                    f"--cpus-per-task={self.image_pull_cpus} --mem={self.image_pull_mem} "
-                    f"--export=ALL,BIOMERO_PULL_CPUS={self.image_pull_cpus} "
-                    f"--output=pull_converters-%j.log {script_name}"
-                )
-            else:
-                cmd = f"time sh {script_name}"
-            with self.cd(self.slurm_converters_path):
-                r = self.run_commands([cmd])
-                if not r.ok:
-                    raise SSHException(r)
-                logger.info(r.stdout)
-                logger.info("Initiated downloading and building" +
-                            " container images on Slurm." +
-                            " This will probably take a while in the background." +
-                            " Check 'sing.log' on Slurm for progress.")
+                specs.append({
+                    "kind": "converter",
+                    "name": path,
+                    "version": version,
+                    "source_type": "registry",
+                    "source": image,
+                    "destination": posixpath.join(
+                        self.slurm_converters_path, chosen_converter),
+                })
         else:
-            # BUILD converter from singularity def file
-            # currently known converters
-            # 3a. ZARR to TIFF
-            # TODO extract these values to e.g. config if we have more
             convert_name = "convert_zarr_to_tiff"
             convert_py = f"{convert_name}.py"
             convert_script_local = files("resources").joinpath(
@@ -1278,19 +1405,22 @@ class SlurmClient(Connection):
                          remote=self.slurm_converters_path)
             _ = self.put(local=convert_def_local,
                          remote=self.slurm_converters_path)
-            # Build singularity container from definition
-            with self.cd(self.slurm_converters_path):
-                convert_cmds = []
-                if self.slurm_images_path:
-                    # TODO Change the tmp dir?
-                    # export SINGULARITY_TMPDIR=~/my-scratch/tmp;
-                    # only if file does not exist yet
-                    # convert_cmds.append(f"[ ! -f {convert_name}.sif ]")
-                    # EDIT -- NO, then we can't update! Force rebuild!
-                    # download /build new container
-                    convert_cmds.append(
-                        f"singularity build -F \"{convert_name}_latest.sif\" {convert_def} >> sing.log 2>&1 ; echo 'finished {convert_name}_latest.sif' &")
-                _ = self.run_commands(convert_cmds)
+            specs.append({
+                "kind": "converter",
+                "name": "zarr_to_tiff",
+                "version": "latest",
+                "source_type": "definition",
+                "source": posixpath.join(
+                    self.slurm_converters_path, convert_def),
+                "destination": posixpath.join(
+                    self.slurm_converters_path,
+                    f"{convert_name}_latest.sif"),
+            })
+        return specs
+
+    def setup_converters(self) -> Optional[int]:
+        """Stage converters and submit them through the shared image runner."""
+        return self._submit_image_pull_array(self.prepare_converters())
 
     def setup_job_scripts(self):
         """
@@ -1539,6 +1669,7 @@ class SlurmClient(Connection):
             option="image_pull_cpus",
             default="8",
             env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_cpus")],
+            empty_is_none=True,
         )
 
         image_pull_mem = cls._get_config_value(
@@ -1547,6 +1678,41 @@ class SlurmClient(Connection):
             option="image_pull_mem",
             default="32G",
             env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_mem")],
+            empty_is_none=True,
+        )
+
+        image_pull_time = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_time",
+            default=None,
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_time")],
+            empty_is_none=True,
+        )
+
+        image_pull_concurrency = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_concurrency",
+            default=1,
+            env_vars=cls._CONFIG_ENV_VARS[
+                ("SLURM", "image_pull_concurrency")],
+            value_type=int,
+            empty_is_none=True,
+        )
+        if image_pull_concurrency < 1:
+            logger.warning(
+                "image_pull_concurrency must be at least 1; using 1")
+            image_pull_concurrency = 1
+
+        image_pull_partition = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="image_pull_partition",
+            default=None,
+            env_vars=cls._CONFIG_ENV_VARS[
+                ("SLURM", "image_pull_partition")],
+            empty_is_none=True,
         )
 
         apptainer_tmpdir = cls._get_config_value(
@@ -1710,6 +1876,9 @@ class SlurmClient(Connection):
                    slurm_image_pull_via_sbatch=slurm_image_pull_via_sbatch,
                    image_pull_cpus=image_pull_cpus,
                    image_pull_mem=image_pull_mem,
+                   image_pull_time=image_pull_time,
+                   image_pull_concurrency=image_pull_concurrency,
+                   image_pull_partition=image_pull_partition,
                    apptainer_tmpdir=apptainer_tmpdir,
                    apptainer_cachedir=apptainer_cachedir,
                    slurm_zip_cmd=slurm_zip_cmd,
@@ -2606,9 +2775,14 @@ class SlurmClient(Connection):
                 The Slurm job ID extracted from the result,
                 or -1 if not found.
         """
-        slurm_job_id = next((int(s.strip()) for s in result.stdout.split(
-                            "Submitted batch job") if s.strip().isdigit()), -1)
-        return slurm_job_id
+        stdout = result.stdout
+        if not isinstance(stdout, str):
+            return -1
+        submitted = re.search(r"Submitted batch job\s+(\d+)", stdout)
+        if submitted:
+            return int(submitted.group(1))
+        parsable = re.fullmatch(r"\s*(\d+)(?:;[^\s]+)?\s*", stdout)
+        return int(parsable.group(1)) if parsable else -1
 
     def get_update_slurm_scripts_command(self) -> str:
         """Generate the command to update the Git repository containing
@@ -3606,8 +3780,10 @@ class SlurmClient(Connection):
         # split responses per command
         response_list = self.run_commands_split_out(cmdlist)
         # split lines further into sublists
-        response_list = [response.strip().split('\n')
-                         for response in response_list]
+        response_list = [
+            [line.strip() for line in response.splitlines() if line.strip()]
+            for response in response_list
+        ]
         response_list[0] = sorted(response_list[0], reverse=True)
         return response_list[0], response_list[1]
 
@@ -3640,8 +3816,10 @@ class SlurmClient(Connection):
         response_list = self.run_commands_split_out(cmdlist)
 
         # Split lines further into sublists
-        response_list = [response.strip().split('\n')
-                         for response in response_list]
+        response_list = [
+            [line.strip() for line in response.splitlines() if line.strip()]
+            for response in response_list
+        ]
 
         for i, k in enumerate(self.slurm_model_paths):
             # Return highest version first

@@ -1,5 +1,5 @@
 SLURM Configuration Guide
-========================
+=========================
 
 This guide covers how the BIOMERO Python client reads ``slurm-config.ini``,
 which settings affect runtime behaviour, and when environment variables should
@@ -219,20 +219,32 @@ Image pull execution mode
 Impact:
 
 * When ``false``: BIOMERO starts image pulls/builds via the existing remote shell path.
-* When ``true``: BIOMERO submits image pulls/builds through ``sbatch`` instead.
-* This applies to both workflow image setup and configured converter image setup.
+* When ``true``: BIOMERO submits one combined workflow-and-converter Slurm job
+  array with one task per missing or invalid image.
+* Valid existing versioned SIFs are inspected and omitted on rerun.
 
 Use this when:
 
 * container pulls/builds are too heavy for the login node
 * your cluster requires build work to run as scheduled jobs
 
-``image_pull_cpus`` and ``image_pull_mem``
+``image_pull_cpus``, ``image_pull_mem``, ``image_pull_time``,
+``image_pull_concurrency``, and ``image_pull_partition``
 
 Impact:
 
-* Control the resources requested when ``slurm_image_pull_via_sbatch=true``.
-* These values are passed to the pull/build submission jobs for workflow and converter images.
+* Control resources and the ``%N`` concurrency throttle when
+  ``slurm_image_pull_via_sbatch=true``.
+* Global ``sbatch_*`` parameters, including ``sbatch_time``, apply to the array.
+  Dedicated ``image_pull_*`` resource values override matching global flags.
+* The compatibility default concurrency is ``1``; ``2`` to ``4`` is recommended
+  to limit metadata and I/O pressure on shared storage.
+* Each compute task auto-detects ``apptainer`` first and then ``singularity``.
+  The selected runtime resolves the OCI manifest as the first phase of its
+  native build, so no separate registry utility is required.
+* Permanent manifest, authentication, and reference errors fail immediately;
+  classified transient registry and network errors are retried.
+* Each task writes its own ``pull-image-%A_%a.log`` and structured status.
 
 Apptainer temp and cache directories
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -242,9 +254,11 @@ or cache location is too small for large image pulls/builds.
 
 Impact:
 
-* If set, BIOMERO exports the corresponding Apptainer/Singularity env vars into pull/build commands.
-* The same settings apply to both image setup modes: direct and sbatch-based.
-* If unset, BIOMERO leaves Apptainer/Singularity at the cluster defaults.
+* Array tasks prefer ``SLURM_TMPDIR`` for OCI extraction, SquashFS creation,
+  and a task-private cache. Configured paths are fallbacks when it is absent.
+* Temporary data and partial shared SIFs are removed after success or failure.
+* A completed SIF is published only after local and shared-copy inspection,
+  using an atomic rename in the destination directory.
 
 Default GPU fallback settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -277,8 +291,9 @@ Full precedence order for GPU resource params:
 Global sbatch parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Any ``[SLURM]`` key that starts with ``sbatch_`` is treated as a global sbatch parameter
-that BIOMERO adds to every workflow **and conversion** submission.
+Any ``[SLURM]`` key that starts with ``sbatch_`` is treated as a global sbatch
+parameter that BIOMERO adds to workflow, conversion, and scheduler-native image
+pull submissions.
 
 The key pattern is ``sbatch_<flag>=<value>``, which produces ``--<flag>=<value>`` on the
 sbatch command line.
@@ -291,14 +306,17 @@ Examples:
    sbatch_reservation=biomero
    sbatch_nice=1
 
-This appends ``--reservation=biomero`` and ``--nice=1`` to every workflow job and to
-each data conversion job.
+This appends ``--reservation=biomero`` and ``--nice=1`` to workflow, conversion,
+and scheduled image initialization jobs.
 
 Impact:
 
 * Global params are applied after per-workflow ``[WORKFLOWS]`` sbatch overrides.
 * If a per-workflow override already sets the same flag (e.g. ``cellpose_job_reservation``), the global default for that flag is skipped.
 * For conversion jobs, a ``--partition`` set via ``slurm_conversion_partition`` (or the ``slurm_default_partition`` fallback) takes precedence over a global ``sbatch_partition``.
+* For image arrays, dedicated ``image_pull_cpus``, ``image_pull_mem``,
+  ``image_pull_time``, and ``image_pull_partition`` values take precedence over
+  matching global flags.
 * Global params with empty values are ignored.
 * There is no environment variable override for these — they are intentionally admin-only at config time.
 
@@ -476,6 +494,9 @@ client-level options introduced, including:
 * ``slurm_image_pull_via_sbatch``
 * ``image_pull_cpus``
 * ``image_pull_mem``
+* ``image_pull_time``
+* ``image_pull_concurrency``
+* ``image_pull_partition``
 * ``apptainer_tmpdir``
 * ``apptainer_cachedir``
 * ``slurm_zip_cmd``

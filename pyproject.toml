@@ -54,6 +54,7 @@ test = [
     "psycopg2-binary>=2.9.12"
 ]
 full = [
+    "biomero-importer[identity]>=1.5.0b2,<2",
     "ezomero==3.2.3",
     "tifffile==2020.9.3",
     "omero-metadata==0.12.0",

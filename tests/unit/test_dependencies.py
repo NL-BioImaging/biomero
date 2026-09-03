@@ -19,3 +19,4 @@ def test_full_extra_includes_script_runtime_dependencies():
     assert importer.extras == {"identity"}
     assert str(importer.specifier) == "<2,>=1.5.0b2"
     assert str(requirements["ezomero"].specifier) == "==3.2.3"
+    assert str(requirements["numpy"].specifier) == "<3,>=2"

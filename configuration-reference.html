@@ -83,6 +83,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#environment-variable-lookup-table">Environment Variable Lookup Table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#slurm-config-ini-lookup-table"><code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Lookup Table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#behaviour-notes">Behaviour Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#parsing-scope">Parsing scope</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#boolean-parsing">Boolean parsing</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#integer-parsing">Integer parsing</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#empty-string-handling">Empty-string handling</a></li>
@@ -128,17 +129,23 @@
              
   <section id="configuration-reference">
 <h1>Configuration Reference<a class="headerlink" href="#configuration-reference" title="Permalink to this heading"></a></h1>
-<p>This page is a searchable lookup table for BIOMERO Python client configuration.
-It focuses on options read by <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code> and their runtime impact.</p>
+<p>This page is a searchable lookup table for BIOMERO Python client configuration
+and shared runtime environment variables. It covers options read by
+<code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code> as well as names registered in
+<code class="docutils literal notranslate"><span class="pre">biomero.constants.slurm_env</span></code> for integration layers to forward to BIOMERO
+scripts.</p>
 <section id="resolution-and-precedence">
 <h2>Resolution And Precedence<a class="headerlink" href="#resolution-and-precedence" title="Permalink to this heading"></a></h2>
-<p>For the settings on this page, BIOMERO resolves values in this order:</p>
+<p>For settings mapped to <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>, BIOMERO resolves values in this
+order:</p>
 <ol class="arabic simple">
 <li><p>built-in defaults</p></li>
 <li><p>values from <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code></p></li>
 <li><p>environment variable overrides, when supported</p></li>
 </ol>
 <p>For <code class="docutils literal notranslate"><span class="pre">sacct</span></code> history settings, relative-day settings override absolute-date settings.</p>
+<p>Runtime-only variables have no corresponding ini key. The component identified
+in the table consumes them directly.</p>
 <p>Use this page as the quick lookup companion to <a class="reference internal" href="slurm-configuration.html"><span class="doc">SLURM Configuration Guide</span></a>, which
 explains when and why you would choose each setting.</p>
 </section>
@@ -159,45 +166,55 @@ explains when and why you would choose each setting.</p>
 <td><p>filesystem path</p></td>
 <td><p>Enables authoritative-file mode; only this ini file is read instead of merging the default config paths</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code></p></td>
+<td><p>not applicable</p></td>
+<td><p>boolean</p></td>
+<td><p>Opts BIOMERO.scripts into canonical Zarr caching and shallow-result normalization when the importer integration is available; defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code> and does not disable reconstruction of existing shallow inputs</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sqlalchemy_url</span></code></p></td>
 <td><p>database URL</p></td>
 <td><p>Overrides the <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code> database connection URL used for workflow tracking and analytics storage</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></td>
 <td><p>string date</p></td>
 <td><p>Absolute default start date for job history queries via <code class="docutils literal notranslate"><span class="pre">sacct</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sacct_days_ago</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>Rolling history window in days; overrides absolute start time when valid</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p>Switches submission from direct env passing to per-job env-file submission</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">inject_gpu_flag</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p>Enables dynamic GPU flag handling in generated scripts and GPU-aware submissions</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Default fallback GPU partition for workflow submissions when GPU mode is requested</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Default fallback <code class="docutils literal notranslate"><span class="pre">--gres=</span></code> value appended to GPU workflow submissions; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Default fallback <code class="docutils literal notranslate"><span class="pre">--gpus=</span></code> value appended to GPU workflow submissions; mutually exclusive with <code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_DEFAULT_PARTITION</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Default fallback Slurm partition for workflow and conversion jobs that do not already select one</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_IMAGE_PULL_VIA_SBATCH</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></td>
@@ -406,6 +423,14 @@ to use the Info-ZIP <code class="docutils literal notranslate"><span class="pre"
 </section>
 <section id="behaviour-notes">
 <h2>Behaviour Notes<a class="headerlink" href="#behaviour-notes" title="Permalink to this heading"></a></h2>
+<section id="parsing-scope">
+<h3>Parsing scope<a class="headerlink" href="#parsing-scope" title="Permalink to this heading"></a></h3>
+<p>The boolean and integer fallback rules below apply to options resolved by
+<code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code>. Runtime-only variables define their own parsing
+contract. <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code> is enabled only by the case-insensitive
+literal value <code class="docutils literal notranslate"><span class="pre">true</span></code>; an absent or different value leaves the opt-in feature
+disabled.</p>
+</section>
 <section id="boolean-parsing">
 <h3>Boolean parsing<a class="headerlink" href="#boolean-parsing" title="Permalink to this heading"></a></h3>
 <p>Supported truthy values are:</p>
@@ -460,12 +485,14 @@ This is relevant for values such as <code class="docutils literal notranslate"><
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ENV_FILE_SUBMISSION</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_INJECT_GPU_FLAG</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_DEFAULT_PARTITION</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_IMAGE_PULL_VIA_SBATCH</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_CPUS</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_MEM</span></code></p></li>

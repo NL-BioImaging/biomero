@@ -20,3 +20,8 @@ def test_full_extra_includes_script_runtime_dependencies():
     assert str(importer.specifier) == "<2,>=1.5.0b2"
     assert str(requirements["ezomero"].specifier) == "==3.2.3"
     assert str(requirements["numpy"].specifier) == "<3,>=2"
+    assert str(requirements["tifffile"].specifier) == "==2026.3.3"
+    assert str(requirements["scikit-image"].specifier) == "==0.25.2"
+    assert str(requirements["omero-rois"].specifier) == "==0.4.1"
+    assert str(requirements["dask"].specifier) == "==2026.1.1"
+    assert str(requirements["distributed"].specifier) == "==2026.1.1"

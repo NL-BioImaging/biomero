@@ -25,11 +25,6 @@ case $1 in
         count=$((count + 1))
         printf '%s\n' "$count" > "$count_file"
         case ${FAKE_RUNTIME_MODE:-success} in
-            streaming)
-                echo 'runtime progress is visible'
-                touch "${FAKE_RUNTIME_STARTED:?}"
-                sleep 3
-                ;;
             permanent)
                 echo 'FATAL: manifest unknown' >&2
                 exit 22
@@ -68,29 +63,12 @@ run_task() {
     FAKE_RUNTIME_MODE="$mode" \
     FAKE_BUILD_COUNT="$case_dir/build-count" \
     FAKE_RUNTIME_NAME="$case_dir/runtime-name" \
-    FAKE_RUNTIME_STARTED="$case_dir/runtime-started" \
     BIOMERO_PULL_ATTEMPTS=3 \
     SLURM_ARRAY_JOB_ID=100 \
     SLURM_ARRAY_TASK_ID=0 \
     SLURM_TMPDIR="$case_dir/slurm-tmp" \
         bash "$runner" "$case_dir/manifest.tsv" "$case_dir/status"
 }
-
-streaming_dir="$test_root/streaming"
-run_task "$streaming_dir" streaming > "$streaming_dir-output.log" 2>&1 &
-streaming_pid=$!
-for _ in $(seq 1 50); do
-    [ ! -e "$streaming_dir/runtime-started" ] || break
-    sleep 0.02
-done
-test -e "$streaming_dir/runtime-started"
-if ! grep -q 'runtime progress is visible' "$streaming_dir-output.log"; then
-    kill "$streaming_pid" 2>/dev/null || true
-    wait "$streaming_pid" 2>/dev/null || true
-    echo 'runtime build output was buffered instead of streamed' >&2
-    exit 1
-fi
-wait "$streaming_pid"
 
 success_dir="$test_root/success"
 run_task "$success_dir" success

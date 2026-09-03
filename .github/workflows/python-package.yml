@@ -19,9 +19,9 @@ jobs:
         python-version: ["3.11", "3.13"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -39,7 +39,8 @@ jobs:
         python -m pytest tests/unit/ --cov=biomero --cov-report=xml
     - name: Coveralls GitHub Action
       if: matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
-      uses: coverallsapp/github-action@v2.3.6
+      continue-on-error: true
+      uses: coverallsapp/github-action@v2.3.8
       with:
         fail-on-error: false
 

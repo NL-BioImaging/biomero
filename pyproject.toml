@@ -33,7 +33,7 @@ dependencies = [
     "psycopg2==2.9.12",
     "eventsourcing_sqlalchemy==1.0.1",
     "pyyaml==6.0.3",
-    "biomero-schema==0.1"
+    "biomero-schema>=0.2,<0.3"
 ]
 
 [tool.setuptools.packages]
@@ -54,13 +54,18 @@ test = [
     "psycopg2-binary>=2.9.12"
 ]
 full = [
-    "ezomero==1.1.1",
-    "tifffile==2020.9.3",
+    "biomero-importer[identity]>=1.5.0b2,<2",
+    "ezomero==3.2.3",
+    "tifffile==2026.3.3",
+    "scikit-image==0.25.2",
+    "omero-rois==0.4.1",
+    "dask==2026.1.1",
+    "distributed==2026.1.1",
     "omero-metadata==0.12.0",
     "omero-cli-zarr==0.8.0",
     "ome-zarr==0.14.0",
     "zarr==3.1.5",
-    "numpy<2.0",
+    "numpy>=2,<3",
     "omero-upload==0.4.0"
 ]
 

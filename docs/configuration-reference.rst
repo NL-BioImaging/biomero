@@ -39,6 +39,22 @@ Environment Variable Lookup Table
      - —
      - filesystem path
      - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+   * - ``BIOMERO_DETACHED_WORKFLOWS``
+     - not applicable
+     - boolean
+     - Queues supported BIOMERO workflow scripts for an external supervisor instead of executing them inline; defaults to ``false`` and requires a deployment that provides the supervisor
+   * - ``BIOMERO_MAX_ACTIVE_WORKFLOWS``
+     - not applicable
+     - integer
+     - Maximum number of non-batched workflow runs driven concurrently by the detached worker supervisor; defaults to ``4``
+   * - ``BIOMERO_SUPERVISOR_POLL_SECONDS``
+     - not applicable
+     - integer seconds
+     - Interval between detached workflow queue polls; defaults to ``10``
+   * - ``BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS``
+     - not applicable
+     - integer seconds
+     - Delay before the first detached workflow recovery poll, allowing the OMERO processor to register and accept sub-scripts; defaults to ``60``
    * - ``BIOMERO_SHALLOW_ZARR``
      - not applicable
      - boolean
@@ -251,7 +267,25 @@ The boolean and integer fallback rules below apply to options resolved by
 ``SlurmClient.from_config()``. Runtime-only variables define their own parsing
 contract. ``BIOMERO_SHALLOW_ZARR`` is enabled only by the case-insensitive
 literal value ``true``; an absent or different value leaves the opt-in feature
-disabled.
+disabled. ``BIOMERO_DETACHED_WORKFLOWS`` accepts the case-insensitive values
+``1``, ``true``, ``yes`` and ``on``; it is disabled when absent or set to any
+other value.
+
+Detached worker supervisor
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The four detached variable names are centralized in
+``biomero.constants.slurm_env`` and form one deployment contract. The workflow
+scripts and worker both read ``BIOMERO_DETACHED_WORKFLOWS``. The three
+supervisor settings are consumed only by deployments that provide a detached
+workflow supervisor, such as the NL-BIOMERO ``biomeroworker`` container; they
+do not configure ``SlurmClient`` and do not need entries in
+``slurm-config.ini``.
+
+Supervisor values are converted to integers when the worker process starts, so
+non-integer values prevent that process from loading. Use a positive value for
+``BIOMERO_MAX_ACTIVE_WORKFLOWS`` and non-negative second values for both timing
+settings. A startup grace of ``0`` skips the initial delay.
 
 Boolean parsing
 ~~~~~~~~~~~~~~~
@@ -311,6 +345,10 @@ If you are looking for a specific name, try searching the docs for any of these 
 
 * ``BIOMERO_SACCT_START_TIME``
 * ``SQLALCHEMY_URL``
+* ``BIOMERO_DETACHED_WORKFLOWS``
+* ``BIOMERO_MAX_ACTIVE_WORKFLOWS``
+* ``BIOMERO_SUPERVISOR_POLL_SECONDS``
+* ``BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS``
 * ``BIOMERO_SHALLOW_ZARR``
 * ``BIOMERO_SACCT_START_DAYS_AGO``
 * ``BIOMERO_ENV_FILE_SUBMISSION``

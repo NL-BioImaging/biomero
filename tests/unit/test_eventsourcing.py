@@ -7,7 +7,13 @@ import unittest.mock
 from biomero.eventsourcing import Task, WorkflowTracker
 from biomero.zarr_contracts import CanonicalInput, CanonicalZarrSource, PixelIdentity
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
-from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution
+from biomero.database import (
+    EngineManager,
+    JobProgressView,
+    JobView,
+    TaskExecution,
+    WorkflowProgressView,
+)
 from biomero.constants import workflow_status as wfs
 from uuid import UUID
 import logging
@@ -929,6 +935,100 @@ def test_workflow_progress_task_added(workflow_tracker_and_workflow_progress):
     assert workflow_progress.tasks[task_id]["workflow_id"] == workflow_id
     assert workflow_progress.workflows[workflow_id]["task"] == "task1"
 
+    # TaskAdded must persist the task change, not just retain it in memory.
+    with EngineManager.get_session() as session:
+        workflow_view = session.query(WorkflowProgressView).filter_by(
+            workflow_id=workflow_id).one()
+        assert workflow_view.task == "task1"
+        assert workflow_view.main_task_name == "task1"
+
+
+def test_workflow_progress_task_started_persists_phase(
+        workflow_tracker_and_workflow_progress):
+    workflow_tracker, workflow_progress = (
+        workflow_tracker_and_workflow_progress)
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "_SLURM_Image_Transfer.py", "v1", {}, {})
+
+    workflow_tracker.start_task(task_id)
+
+    assert workflow_progress.workflows[workflow_id]["status"] == (
+        wfs.TRANSFERRING)
+    assert workflow_progress.workflows[workflow_id]["progress"] == "5%"
+    with EngineManager.get_session() as session:
+        workflow_view = session.query(WorkflowProgressView).filter_by(
+            workflow_id=workflow_id).one()
+        assert workflow_view.task == "_SLURM_Image_Transfer.py"
+        assert workflow_view.status == wfs.TRANSFERRING
+        assert workflow_view.progress == "5%"
+
+    conversion_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "SLURM_Remote_Conversion.py", "v1", {}, {})
+    workflow_tracker.start_task(conversion_id)
+
+    with EngineManager.get_session() as session:
+        workflow_view = session.query(WorkflowProgressView).filter_by(
+            workflow_id=workflow_id).one()
+        assert workflow_view.task == "SLURM_Remote_Conversion.py"
+        assert workflow_view.status == wfs.CONVERTING
+        assert workflow_view.progress == "25%"
+
+
+def test_workflow_progress_ignores_detached_launcher_claim(
+        workflow_tracker_and_workflow_progress):
+    workflow_tracker, workflow_progress = (
+        workflow_tracker_and_workflow_progress)
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+    launcher_id = workflow_tracker.add_task_to_workflow(
+        workflow_id,
+        "SLURM_Run_Workflow.py",
+        "v1",
+        {},
+        {"_biomero_detached_launcher": "v1"},
+    )
+
+    workflow_tracker.update_task_status(launcher_id, "CLAIMED")
+
+    assert workflow_progress.workflows[workflow_id]["status"] == (
+        wfs.INITIALIZING)
+    assert workflow_progress.workflows[workflow_id]["progress"] == "0%"
+    with EngineManager.get_session() as session:
+        workflow_view = session.query(WorkflowProgressView).filter_by(
+            workflow_id=workflow_id).one()
+        assert workflow_view.status == wfs.INITIALIZING
+        assert workflow_view.progress == "0%"
+
+
+def test_workflow_progress_reconstructs_main_task_after_restart(
+        workflow_tracker_and_workflow_progress):
+    workflow_tracker, workflow_progress = (
+        workflow_tracker_and_workflow_progress)
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+    workflow_tracker.add_task_to_workflow(
+        workflow_id, "_SLURM_Image_Transfer.py", "v1", {}, {})
+    workflow_tracker.add_task_to_workflow(
+        workflow_id, "simple-zarr-plate-processor", "v1", {}, {})
+    workflow_tracker.add_task_to_workflow(
+        workflow_id, "SLURM_Import_Results.py", "v1", {}, {})
+
+    # Model a restarted projection whose dictionaries contain no task history.
+    workflow_progress.workflows.clear()
+    workflow_progress.tasks.clear()
+    with patch(
+            "biomero.views.tracker_repository",
+            return_value=workflow_tracker.repository):
+        workflow_progress.resolve_workflow(workflow_id)
+        workflow_progress.update_view_table(workflow_id)
+
+    with EngineManager.get_session() as session:
+        workflow_view = session.query(WorkflowProgressView).filter_by(
+            workflow_id=workflow_id).one()
+        assert workflow_view.main_task_name == "simple-zarr-plate-processor"
+
 
 def test_workflow_progress_task_status_updated(workflow_tracker_and_workflow_progress):
     # GIVEN a WorkflowTracker event system and workflow progress listener
@@ -1272,6 +1372,13 @@ def test_wfanalytics_task_added(workflow_tracker_and_workflow_analytics, caplog)
     assert wf_id in workflow_analytics.workflows
     assert workflow_analytics.workflows[wf_id]["user"] == 1
 
+    # TaskAdded must persist the now-known workflow ownership.
+    with EngineManager.get_session() as session:
+        task_execution = session.query(TaskExecution).filter_by(
+            task_id=task_id).one()
+        assert task_execution.user_id == 1
+        assert task_execution.group_id == 2
+
     # THEN check logs for WorkflowInitiated event
     assert f"Workflow initiated: wf_id={workflow_id}, user=1, group=2" in caplog.text
 
@@ -1310,6 +1417,26 @@ def test_wfanalytics_task_created(workflow_tracker_and_workflow_analytics):
     assert wf_id == workflow_id
     assert wf_id in workflow_analytics.workflows
     assert workflow_analytics.workflows[wf_id]["user"] == 1
+
+
+def test_wfanalytics_task_started_uses_actual_start_time(
+        workflow_tracker_and_workflow_analytics):
+    workflow_tracker, workflow_analytics = (
+        workflow_tracker_and_workflow_analytics)
+    workflow_id = workflow_tracker.initiate_workflow(
+        "Test Workflow", "Test Description", user=1, group=2)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "task", "v1", {}, {})
+    created_time = workflow_analytics.tasks[task_id]["start_time"]
+
+    workflow_tracker.start_task(task_id)
+
+    started_time = workflow_analytics.tasks[task_id]["start_time"]
+    assert started_time >= created_time
+    with EngineManager.get_session() as session:
+        task_execution = session.query(TaskExecution).filter_by(
+            task_id=task_id).one()
+        assert task_execution.start_time == started_time.replace(tzinfo=None)
     
     
 def test_wfanalytics_task_completed(workflow_tracker_and_workflow_analytics, caplog):
@@ -1422,8 +1549,8 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
         assert task_execution.task_version == "v1"
         assert task_execution.status == "CREATED"
         assert task_execution.start_time is not None
-        assert task_execution.user_id is None  # No update sent to DB yet
-        assert task_execution.group_id is None  # No update sent to DB yet
+        assert task_execution.user_id == 1
+        assert task_execution.group_id == 2
 
     # Verify that the entry was added to the SQLAlchemy table
     workflow_analytics.update_view_table(task_id)

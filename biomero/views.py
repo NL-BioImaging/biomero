@@ -19,7 +19,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 from biomero.eventsourcing import WorkflowRun, Task
 from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
-from biomero.constants import workflow_status as wfs
+from biomero.constants import (
+    RUN_WF_BATCHED_SCRIPT,
+    RUN_WF_SCRIPT,
+    workflow_status as wfs,
+)
+from biomero.detached import CLAIMED, LAUNCHER_MARKER
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +256,13 @@ class WorkflowProgress(ProcessApplication):
                 self.tasks[task_id] = {
                     "task_name": task_agg.task_name,
                     "workflow_id": task_agg.workflow_id,
+                    "is_launcher": (
+                        task_agg.task_name in (
+                            RUN_WF_SCRIPT,
+                            RUN_WF_BATCHED_SCRIPT,
+                        )
+                        and LAUNCHER_MARKER in (task_agg.params or {})
+                    ),
                     # Progress is reported by events, not kept on the task.
                     "progress": None
                 }
@@ -328,6 +340,8 @@ class WorkflowProgress(ProcessApplication):
             if workflow_info:
                 workflow_info["task"] = task_info["task_name"]
         logger.debug(f"[WFP] Task added: task_id={task_id}, wf_id={wf_id} -- {domain_event.__dict__}")
+        if self.resolve_workflow(wf_id):
+            self.update_view_table(wf_id)
         EngineManager.commit()
 
     @policy.register(Task.TaskCreated)
@@ -338,10 +352,55 @@ class WorkflowProgress(ProcessApplication):
         # store task name
         self.tasks[task_id] = {
             "task_name": task_name,
-            "workflow_id": None, 
-            "progress": None 
+            "workflow_id": None,
+            "is_launcher": (
+                task_name in (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
+                and LAUNCHER_MARKER in (domain_event.params or {})
+            ),
+            "progress": None
             }
         logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
+        EngineManager.commit()
+
+    @policy.register(Task.TaskStarted)
+    def _(self, domain_event, process_event):
+        """Persist the current task and its initial workflow phase."""
+        task_id = domain_event.originator_id
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            wf_id = task_info["workflow_id"]
+            workflow_info = self.resolve_workflow(wf_id)
+            if workflow_info:
+                task_name = task_info["task_name"]
+                workflow_info["task"] = task_name
+                task_name_lower = task_name.lower()
+
+                if task_name_lower == '_slurm_image_transfer.py':
+                    workflow_info["status"] = wfs.TRANSFERRING
+                    workflow_info["progress"] = "5%"
+                elif (task_name_lower.startswith('convert_') or
+                      task_name_lower == 'slurm_remote_conversion.py'):
+                    workflow_info["status"] = wfs.CONVERTING
+                    workflow_info["progress"] = "25%"
+                elif task_name_lower == 'slurm_get_results.py':
+                    workflow_info["status"] = wfs.RETRIEVING
+                    workflow_info["progress"] = "90%"
+                elif task_name_lower == 'slurm_import_results.py':
+                    workflow_info["status"] = wfs.IMPORTING
+                    workflow_info["progress"] = "90%"
+                elif task_name_lower in ('slurm_run_workflow.py',
+                                          'slurm_run_workflow_batched.py'):
+                    workflow_info["status"] = wfs.RUNNING
+                    workflow_info["progress"] = "50%"
+                else:
+                    workflow_info["status"] = wfs.JOB_STATUS + wfs.RUNNING
+                    workflow_info["progress"] = "50%"
+
+                logger.debug(
+                    f"[WFP] Task started: wf_id={wf_id}, task_id={task_id}, "
+                    f"task_name={task_name} -- {domain_event.__dict__}"
+                )
+                self.update_view_table(wf_id)
         EngineManager.commit()
 
     @retry_on_database_conflict(max_retries=3)
@@ -356,6 +415,16 @@ class WorkflowProgress(ProcessApplication):
         if task_info:
             wf_id = task_info["workflow_id"]
             task_name = task_info["task_name"].lower()
+
+            # CLAIMED is supervisor bookkeeping, not workflow execution. The
+            # first real task's TaskStarted event will set the visible phase.
+            if task_info.get("is_launcher") and status == CLAIMED:
+                logger.debug(
+                    f"[WFP] Ignoring detached launcher claim: "
+                    f"task_id={task_id}, wf_id={wf_id}"
+                )
+                EngineManager.commit()
+                return
 
             workflow_info = self.resolve_workflow(wf_id)
             if workflow_info:
@@ -467,20 +536,42 @@ class WorkflowProgress(ProcessApplication):
                 
     def _determine_main_task_name(self, wf_id):
         """Determine the main user-facing task name for a workflow."""
-        # Look through all tasks for this workflow to find the main one
-        main_tasks = []
-        for task_id, task_info in self.tasks.items():
-            if task_info.get("workflow_id") == wf_id:
+        def find_main_task(tasks):
+            """Return the first non-infrastructure task in task order."""
+            for task_info in tasks:
                 task_name = task_info.get("task_name", "").lower()
-                # Skip infrastructure tasks, keep the actual workflow tasks
-                if not (task_name.startswith("_slurm_") or 
-                        task_name.startswith("slurm_") or 
+                if not (task_name.startswith("_slurm_") or
+                        task_name.startswith("slurm_") or
                         task_name.startswith("convert_")):
-                    main_tasks.append(task_info.get("task_name", ""))  # Keep original case for display
-        
-        # Return the first non-infrastructure task, or fallback to current task
-        if main_tasks:
-            return main_tasks[0]  # e.g., "cellexpansion"
+                    return task_info.get("task_name", "")
+            return None
+
+        # Fast path for a listener that has observed the whole workflow.
+        in_memory_tasks = []
+        for task_info in self.tasks.values():
+            if task_info.get("workflow_id") == wf_id:
+                in_memory_tasks.append(task_info)
+        main_task = find_main_task(in_memory_tasks)
+        if main_task:
+            return main_task
+
+        # A restarted projection does not have the earlier tasks in memory.
+        # Rehydrate them from the persisted WorkflowRun task list so an import
+        # or completion event cannot erase main_task_name from the view.
+        try:
+            workflow = tracker_repository().get(wf_id)
+            persisted_tasks = []
+            for task_id in getattr(workflow, "tasks", []):
+                task_info = self.resolve_task(task_id)
+                if task_info:
+                    persisted_tasks.append(task_info)
+            main_task = find_main_task(persisted_tasks)
+            if main_task:
+                return main_task
+        except Exception as e:
+            logger.warning(
+                f"[WFP] Could not reconstruct tasks for workflow {wf_id}: {e}"
+            )
         
         # Fallback to current task if no main task found
         return self.workflows[wf_id].get("task", "unknown")
@@ -645,6 +736,8 @@ class WorkflowAnalytics(ProcessApplication):
         if task_info:
             task_info["wf_id"] = wf_id
         logger.debug(f"[WFA] Task added: task_id={task_id}, wf_id={wf_id} -- {domain_event.__dict__}")
+        if task_info:
+            self.update_view_table(task_id)
         EngineManager.commit()
 
     @policy.register(Task.TaskCreated)
@@ -667,6 +760,21 @@ class WorkflowAnalytics(ProcessApplication):
         })
         logger.debug(f"[WFA] Task created: task_id={task_id}, task_name={task_name}, timestamp={timestamp_created} -- {domain_event.__dict__}")
         self.update_view_table(task_id)
+        EngineManager.commit()
+
+    @policy.register(Task.TaskStarted)
+    def _(self, domain_event, process_event):
+        """Record the actual task start instead of only its creation time."""
+        task_id = domain_event.originator_id
+        task_info = self.resolve_task(task_id)
+        if task_info:
+            task_info["start_time"] = domain_event.timestamp
+            logger.debug(
+                f"[WFA] Task started: task_id={task_id}, "
+                f"start_time={domain_event.timestamp} -- "
+                f"{domain_event.__dict__}"
+            )
+            self.update_view_table(task_id)
         EngineManager.commit()
 
     @policy.register(Task.StatusUpdated)

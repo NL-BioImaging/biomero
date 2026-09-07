@@ -341,11 +341,12 @@ htc up infinite 2 idle~ biomero-cluster-basic-htc-[1-2]
   - Uncheck the `Run Python` box
   - Check the `Run Other Commmand` box
   - Change the Linux Command to `ls -la **/*` (we want to check all subfolders too).
-  - Run it. Press the `i` button for proper formatting and scroll down to see what we made
+  - Run it. Press the `i` button for proper formatting and scroll down to see what we made. Current BIOMERO versions keep the image worker under `slurm-scripts` and write one log and status record per image initialization task; there is no shared `sing.log`.
 
 ```sh
 === stdout ===
 -rw-r--r-- 1 azureadmin azureadmin 1336 Mar 21 17:44 slurm-scripts/convert_job_array.sh
+-rw-r--r-- 1 azureadmin azureadmin 695 Mar 21 17:45 slurm-scripts/pull_images.sh
 
 my-scratch/singularity_images:
 total 0
@@ -360,9 +361,11 @@ drwxrwxr-x 3 azureadmin azureadmin    23 Mar 21 17:31 ..
 drwxrwxr-x 2 azureadmin azureadmin    40 Mar 21 17:42 cellexpansion
 drwxrwxr-x 2 azureadmin azureadmin    54 Mar 21 17:36 cellpose
 drwxrwxr-x 2 azureadmin azureadmin    52 Mar 21 17:40 cellprofiler_spot
--rw-rw-r-- 1 azureadmin azureadmin   695 Mar 21 17:45 pull_images.sh
--rw-rw-r-- 1 azureadmin azureadmin 10802 Mar 21 17:45 sing.log
 drwxrwxr-x 2 azureadmin azureadmin    43 Mar 21 17:44 spotcounting
+
+slurm-scripts/image-pulls:
+-rw-rw-r-- 1 azureadmin azureadmin    73 Mar 21 17:45 latest
+drwxrwxr-x 2 azureadmin azureadmin   160 Mar 21 17:45 <submission-id>
 
 slurm-scripts/jobs:
 total 16
@@ -374,6 +377,10 @@ drwxrwxr-x 3 azureadmin azureadmin   46 Mar 21 17:31 ..
 -rw-rw-r-- 1 azureadmin azureadmin 3500 Mar 21 17:44 spotcounting.sh
 ```
 
+The `image-pulls/latest` file contains the path of the newest submission
+directory. That directory contains `manifest.tsv`, one `status-*.status` record
+per image, and separate `pull-image-<array-id>_<task-id>.log` files.
+
  - Or better yet, run this linux command for full info on _all_ (non-hidden) subdirectories: `find . -type d -not -path '*/.*' -exec ls -la {} +`. This should show that we downloaded some of the workflows to our Slurm cluster already:
 
  ```sh
@@ -384,8 +391,6 @@ drwxrwxr-x 3 azureadmin azureadmin    23 Mar 21 17:31 ..
 drwxrwxr-x 2 azureadmin azureadmin    40 Mar 21 17:42 cellexpansion
 drwxrwxr-x 2 azureadmin azureadmin    54 Mar 21 17:36 cellpose
 drwxrwxr-x 2 azureadmin azureadmin    52 Mar 21 17:40 cellprofiler_spot
--rw-rw-r-- 1 azureadmin azureadmin   695 Mar 21 17:45 pull_images.sh
--rw-rw-r-- 1 azureadmin azureadmin 10802 Mar 21 17:45 sing.log
 drwxrwxr-x 2 azureadmin azureadmin    43 Mar 21 17:44 spotcounting
 
 ./singularity_images/workflows/cellexpansion:
@@ -470,9 +475,6 @@ We will do this ad-hoc, by changing the configuration for CellPose in the `slurm
 # Extra thoughts
 
 - Perhaps also make the Cluster have a static IP, instead of changing whenever you terminate it: https://learn.microsoft.com/en-us/azure/cyclecloud/how-to/network-security?view=cyclecloud-8
-
-
-
 
 
 

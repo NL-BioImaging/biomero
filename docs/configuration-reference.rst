@@ -1,19 +1,26 @@
 Configuration Reference
 =======================
 
-This page is a searchable lookup table for BIOMERO Python client configuration.
-It focuses on options read by ``SlurmClient.from_config()`` and their runtime impact.
+This page is a searchable lookup table for BIOMERO Python client configuration
+and shared runtime environment variables. It covers options read by
+``SlurmClient.from_config()`` as well as names registered in
+``biomero.constants.slurm_env`` for integration layers to forward to BIOMERO
+scripts.
 
 Resolution And Precedence
 -------------------------
 
-For the settings on this page, BIOMERO resolves values in this order:
+For settings mapped to ``slurm-config.ini``, BIOMERO resolves values in this
+order:
 
 1. built-in defaults
 2. values from ``slurm-config.ini``
 3. environment variable overrides, when supported
 
 For ``sacct`` history settings, relative-day settings override absolute-date settings.
+
+Runtime-only variables have no corresponding ini key. The component identified
+in the table consumes them directly.
 
 Use this page as the quick lookup companion to :doc:`slurm-configuration`, which
 explains when and why you would choose each setting.
@@ -32,6 +39,10 @@ Environment Variable Lookup Table
      - —
      - filesystem path
      - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+   * - ``BIOMERO_SHALLOW_ZARR``
+     - not applicable
+     - boolean
+     - Opts BIOMERO.scripts into canonical Zarr caching and shallow-result normalization when the importer integration is available; defaults to ``false`` and does not disable reconstruction of existing shallow inputs
    * - ``SQLALCHEMY_URL``
      - ``sqlalchemy_url``
      - database URL
@@ -64,6 +75,10 @@ Environment Variable Lookup Table
      - ``gpu_gpus``
      - string
      - Default fallback ``--gpus=`` value appended to GPU workflow submissions; mutually exclusive with ``gpu_gres``
+   * - ``BIOMERO_DEFAULT_PARTITION``
+     - ``slurm_default_partition``
+     - string
+     - Default fallback Slurm partition for workflow and conversion jobs that do not already select one
    * - ``BIOMERO_IMAGE_PULL_VIA_SBATCH``
      - ``slurm_image_pull_via_sbatch``
      - boolean
@@ -229,6 +244,15 @@ Environment Variable Lookup Table
 Behaviour Notes
 ---------------
 
+Parsing scope
+~~~~~~~~~~~~~
+
+The boolean and integer fallback rules below apply to options resolved by
+``SlurmClient.from_config()``. Runtime-only variables define their own parsing
+contract. ``BIOMERO_SHALLOW_ZARR`` is enabled only by the case-insensitive
+literal value ``true``; an absent or different value leaves the opt-in feature
+disabled.
+
 Boolean parsing
 ~~~~~~~~~~~~~~~
 
@@ -287,12 +311,14 @@ If you are looking for a specific name, try searching the docs for any of these 
 
 * ``BIOMERO_SACCT_START_TIME``
 * ``SQLALCHEMY_URL``
+* ``BIOMERO_SHALLOW_ZARR``
 * ``BIOMERO_SACCT_START_DAYS_AGO``
 * ``BIOMERO_ENV_FILE_SUBMISSION``
 * ``BIOMERO_INJECT_GPU_FLAG``
 * ``BIOMERO_GPU_PARTITION``
 * ``BIOMERO_GPU_GRES``
 * ``BIOMERO_GPU_GPUS``
+* ``BIOMERO_DEFAULT_PARTITION``
 * ``BIOMERO_IMAGE_PULL_VIA_SBATCH``
 * ``BIOMERO_PULL_CPUS``
 * ``BIOMERO_PULL_MEM``

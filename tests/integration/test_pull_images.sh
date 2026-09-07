@@ -24,6 +24,7 @@ case $1 in
         [ ! -f "$count_file" ] || count=$(cat "$count_file")
         count=$((count + 1))
         printf '%s\n' "$count" > "$count_file"
+        printf '%s\n' "$*" > "${FAKE_RUNTIME_ARGS:?}"
         case ${FAKE_RUNTIME_MODE:-success} in
             permanent)
                 echo 'FATAL: manifest unknown' >&2
@@ -62,6 +63,7 @@ run_task() {
     PATH="$fake_bin:$PATH" \
     FAKE_RUNTIME_MODE="$mode" \
     FAKE_BUILD_COUNT="$case_dir/build-count" \
+    FAKE_RUNTIME_ARGS="$case_dir/runtime-args" \
     FAKE_RUNTIME_NAME="$case_dir/runtime-name" \
     BIOMERO_PULL_ATTEMPTS=3 \
     SLURM_ARRAY_JOB_ID=100 \
@@ -73,6 +75,7 @@ run_task() {
 success_dir="$test_root/success"
 run_task "$success_dir" success
 test "$(cat "$success_dir/runtime-name")" = apptainer
+grep -q -- '-processors 1' "$success_dir/runtime-args"
 test -s "$success_dir/shared/imagej_v1.sif"
 grep -q $'workflow\timagej\tv1\tREADY\t0\tbuilt and validated' \
     "$success_dir/status/status-0.status"

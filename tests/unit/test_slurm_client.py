@@ -4910,13 +4910,16 @@ def test_image_pull_sbatch_command_is_bounded_and_merges_params(slurm_client):
     )
 
 
-def test_image_pull_sbatch_command_inherits_global_time(slurm_client):
+def test_image_pull_sbatch_command_inherits_global_resources(slurm_client):
     slurm_client.slurm_global_job_params = [
         " --time=1-00:00:00",
+        " --partition=shared",
+        " --cpus-per-task=2",
+        " --mem=4G",
         " --qos=normal",
     ]
-    slurm_client.image_pull_cpus = "8"
-    slurm_client.image_pull_mem = "32G"
+    slurm_client.image_pull_cpus = None
+    slurm_client.image_pull_mem = None
     slurm_client.image_pull_time = None
     slurm_client.image_pull_partition = None
     slurm_client.image_pull_concurrency = 2
@@ -4926,7 +4929,42 @@ def test_image_pull_sbatch_command_inherits_global_time(slurm_client):
 
     assert "--array=0-2%2" in cmd
     assert "--time=1-00:00:00" in cmd
+    assert "--partition=shared" in cmd
+    assert "--cpus-per-task=2" in cmd
+    assert "--mem=4G" in cmd
     assert "--qos=normal" in cmd
+    assert "BIOMERO_PULL_CPUS=2" in cmd
+
+
+def test_image_pull_sbatch_command_uses_scheduler_resource_defaults(
+        slurm_client):
+    slurm_client.slurm_global_job_params = [" --account=project"]
+    slurm_client.image_pull_cpus = None
+    slurm_client.image_pull_mem = None
+    slurm_client.image_pull_time = None
+    slurm_client.image_pull_partition = None
+    slurm_client.image_pull_concurrency = 1
+
+    cmd = slurm_client._build_image_pull_sbatch_command(
+        "pull_images.sh", "manifest.tsv", "status", 1)
+
+    assert "--cpus-per-task=" not in cmd
+    assert "--mem=" not in cmd
+    assert "--time=" not in cmd
+    assert "--partition=" not in cmd
+    assert "--account=project" in cmd
+    assert "BIOMERO_PULL_CPUS=1" in cmd
+
+
+def test_from_config_empty_image_pull_resources_inherit_globals(
+        slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(config_values={
+        "image_pull_cpus": "",
+        "image_pull_mem": "",
+    })
+
+    assert client.image_pull_cpus is None
+    assert client.image_pull_mem is None
 
 
 def test_extract_job_id_supports_sbatch_parsable(slurm_client):

@@ -60,6 +60,11 @@ Read only the relevant reference before acting:
   resolution, pulling, and SIF inspection; do not introduce a separate registry
   client as a required dependency when the native runtime provides the needed
   behavior.
+- Keep scheduled image-pull resource precedence portable: a non-empty
+  ``image_pull_*`` value overrides the matching global ``sbatch_*`` value;
+  otherwise inherit the global value, then let Slurm apply its scheduler
+  default. Do not invent large CPU or memory requests. If no CPU allocation is
+  exposed to the image worker, limit SquashFS to one process.
 - Any change to an ini setting (new option, migration, or a change to its
   scope/precedence/meaning) is not done until every documentation and config
   surface is updated to match: the sample `resources/slurm-config.ini`, both

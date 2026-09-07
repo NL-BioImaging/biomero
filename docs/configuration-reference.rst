@@ -216,13 +216,13 @@ Environment Variable Lookup Table
      - ``false``
      - Uses sbatch jobs instead of direct remote execution for workflow/converter image pulls
    * - ``image_pull_cpus``
-     - string
-     - ``8``
-     - CPU request for sbatch-based image pull/build jobs
+     - string or empty
+     - unset
+     - CPU request for sbatch-based image pull/build jobs; blank inherits ``sbatch_cpus-per-task``, then the scheduler default
    * - ``image_pull_mem``
-     - string
-     - ``32G``
-     - Memory request for sbatch-based image pull/build jobs
+     - string or empty
+     - unset
+     - Memory request for sbatch-based image pull/build jobs; blank inherits ``sbatch_mem``, then the scheduler default
    * - ``image_pull_time``
      - string or empty
      - unset

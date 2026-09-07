@@ -237,6 +237,10 @@ Impact:
   ``slurm_image_pull_via_sbatch=true``.
 * Global ``sbatch_*`` parameters, including ``sbatch_time``, apply to the array.
   Dedicated ``image_pull_*`` resource values override matching global flags.
+* Blank ``image_pull_cpus`` and ``image_pull_mem`` values inherit
+  ``sbatch_cpus-per-task`` and ``sbatch_mem`` respectively. When neither level
+  is configured, Slurm uses its scheduler defaults; SquashFS falls back to one
+  worker if the allocation does not expose ``SLURM_CPUS_PER_TASK``.
 * The compatibility default concurrency is ``1``; ``2`` to ``4`` is recommended
   to limit metadata and I/O pressure on shared storage.
 * Each compute task auto-detects ``apptainer`` first and then ``singularity``.
@@ -316,7 +320,8 @@ Impact:
 * For conversion jobs, a ``--partition`` set via ``slurm_conversion_partition`` (or the ``slurm_default_partition`` fallback) takes precedence over a global ``sbatch_partition``.
 * For image arrays, dedicated ``image_pull_cpus``, ``image_pull_mem``,
   ``image_pull_time``, and ``image_pull_partition`` values take precedence over
-  matching global flags.
+  matching global flags. Blank dedicated values inherit their matching global
+  flag; if that is also unset, the scheduler default applies.
 * Global params with empty values are ignored.
 * There is no environment variable override for these — they are intentionally admin-only at config time.
 

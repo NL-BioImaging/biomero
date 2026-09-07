@@ -510,8 +510,8 @@ class SlurmClient(Connection):
                  gpu_gpus: str = None,
                  slurm_global_job_params: list = None,
                  slurm_image_pull_via_sbatch: bool = False,
-                 image_pull_cpus: str = "8",
-                 image_pull_mem: str = "32G",
+                 image_pull_cpus: str = None,
+                 image_pull_mem: str = None,
                  image_pull_time: str = None,
                  image_pull_concurrency: int = 1,
                  image_pull_partition: str = None,
@@ -666,10 +666,12 @@ class SlurmClient(Connection):
                 False.
             image_pull_cpus (str, optional): CPU request for sbatch-based
                 image pull jobs. Overridable via ``BIOMERO_PULL_CPUS``.
-                Defaults to ``8``.
+                Defaults to None, inheriting a global
+                ``sbatch_cpus-per-task`` value or the scheduler default.
             image_pull_mem (str, optional): Memory request for sbatch-based
                 image pull jobs. Overridable via ``BIOMERO_PULL_MEM``.
-                Defaults to ``32G``.
+                Defaults to None, inheriting a global ``sbatch_mem`` value or
+                the scheduler default.
             image_pull_time (str, optional): Time request for sbatch-based
                 image pull arrays. Overrides a global ``sbatch_time`` value.
                 Overridable via ``BIOMERO_PULL_TIME``. Defaults to None.
@@ -810,8 +812,8 @@ class SlurmClient(Connection):
             raise ValueError("task_count must be at least 1")
 
         dedicated = {
-            "cpus-per-task": self.image_pull_cpus or "8",
-            "mem": self.image_pull_mem or "32G",
+            "cpus-per-task": self.image_pull_cpus,
+            "mem": self.image_pull_mem,
             "time": self.image_pull_time,
             "partition": self.image_pull_partition,
         }
@@ -820,11 +822,13 @@ class SlurmClient(Connection):
             *[key for key, value in dedicated.items() if value],
         }
         params = []
+        inherited = {}
         for raw_param in self.slurm_global_job_params:
             param = raw_param.strip()
-            match = re.match(r"--([^=\s]+)", param)
+            match = re.match(r"--([^=\s]+)(?:=(\S+))?", param)
             if match and match.group(1) not in reserved:
                 params.append(param)
+                inherited[match.group(1)] = match.group(2)
 
         concurrency = max(1, int(self.image_pull_concurrency or 1))
         params.extend([
@@ -834,8 +838,13 @@ class SlurmClient(Connection):
         for flag, value in dedicated.items():
             if value:
                 params.append(f"--{flag}={value}")
+        effective_cpus = (
+            dedicated["cpus-per-task"] or
+            inherited.get("cpus-per-task") or
+            "1"
+        )
         params.extend([
-            f"--export=ALL,BIOMERO_PULL_CPUS={dedicated['cpus-per-task']}",
+            f"--export=ALL,BIOMERO_PULL_CPUS={effective_cpus}",
             f"--output={posixpath.join(status_dir, 'pull-image-%A_%a.log')}",
         ])
         args = " ".join(shlex.quote(value or "") for value in (
@@ -1254,6 +1263,7 @@ class SlurmClient(Connection):
                     status_dir, f"pull-image-direct_{index}.log")
                 commands.append(
                     "nohup env "
+                    f"BIOMERO_PULL_CPUS={shlex.quote(self.image_pull_cpus or '1')} "
                     f"SLURM_ARRAY_TASK_ID={index} "
                     f"SLURM_ARRAY_JOB_ID=direct-{submission_id} "
                     f"bash {shlex.quote(script_path)} "
@@ -1667,7 +1677,7 @@ class SlurmClient(Connection):
             configs,
             section="SLURM",
             option="image_pull_cpus",
-            default="8",
+            default=None,
             env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_cpus")],
             empty_is_none=True,
         )
@@ -1676,7 +1686,7 @@ class SlurmClient(Connection):
             configs,
             section="SLURM",
             option="image_pull_mem",
-            default="32G",
+            default=None,
             env_vars=cls._CONFIG_ENV_VARS[("SLURM", "image_pull_mem")],
             empty_is_none=True,
         )

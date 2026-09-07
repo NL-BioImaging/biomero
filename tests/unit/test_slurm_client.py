@@ -4986,6 +4986,24 @@ def test_parse_image_pull_status_counts_and_failure_reason(slurm_client):
     assert result["images"][1]["exit_code"] == 22
 
 
+def test_get_image_pull_status_reads_latest_structured_records(slurm_client):
+    slurm_client.slurm_script_path = "/shared/scripts"
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(
+        ok=True,
+        stdout=(
+            "workflow\tcellpose\tv1.0\tREADY\t0\tvalidated\t/a.sif\n"
+        ),
+    ))
+
+    result = slurm_client.get_image_pull_status()
+
+    command = slurm_client.run_commands.call_args.args[0][0]
+    assert "/shared/scripts/image-pulls/latest" in command
+    assert '"$latest"/*.status' in command
+    assert "sing.log" not in command
+    assert result["counts"] == {"READY": 1, "RUNNING": 0, "FAILED": 0}
+
+
 def test_get_all_image_versions_filters_empty_output(slurm_client):
     slurm_client.slurm_model_paths = {"imagej": "imagej"}
     slurm_client.run_commands_split_out = MagicMock(

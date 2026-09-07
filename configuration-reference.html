@@ -231,43 +231,58 @@ explains when and why you would choose each setting.</p>
 <td><p>string</p></td>
 <td><p>Memory request used for sbatch-based image pull/build jobs</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_TIME</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">image_pull_time</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Time limit for the image-pull array; overrides global <code class="docutils literal notranslate"><span class="pre">sbatch_time</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_CONCURRENCY</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">image_pull_concurrency</span></code></p></td>
+<td><p>integer</p></td>
+<td><p>Maximum simultaneously running image-pull array tasks</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_PULL_PARTITION</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">image_pull_partition</span></code></p></td>
+<td><p>string</p></td>
+<td><p>Partition for the image-pull array; overrides global <code class="docutils literal notranslate"><span class="pre">sbatch_partition</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Tmp directory exported for Apptainer/Singularity image pull/build commands</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Cache directory exported for Apptainer/Singularity image pull/build commands</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Overrides the ZIP command used on the cluster; <code class="docutils literal notranslate"><span class="pre">zip</span></code> selects Info-ZIP
 and its matching <code class="docutils literal notranslate"><span class="pre">unzip</span></code> command, while other values use 7-Zip syntax</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
 <td><p>string date</p></td>
 <td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU partition; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU gres; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU gpus; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
@@ -365,7 +380,7 @@ and its matching <code class="docutils literal notranslate"><span class="pre">un
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sbatch_&lt;key&gt;</span></code></p></td>
 <td><p>string or empty</p></td>
 <td><p>unset</p></td>
-<td><p>Any <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> key starting with <code class="docutils literal notranslate"><span class="pre">sbatch_</span></code> adds <code class="docutils literal notranslate"><span class="pre">--&lt;key&gt;=&lt;value&gt;</span></code> to every workflow <strong>and conversion</strong> submission; per-workflow sbatch overrides (and <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> for the conversion <code class="docutils literal notranslate"><span class="pre">--partition</span></code>) always take precedence</p></td>
+<td><p>Any <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> key starting with <code class="docutils literal notranslate"><span class="pre">sbatch_</span></code> adds <code class="docutils literal notranslate"><span class="pre">--&lt;key&gt;=&lt;value&gt;</span></code> to workflow, conversion, and scheduled image-pull submissions; more-specific workflow, conversion, or <code class="docutils literal notranslate"><span class="pre">image_pull_*</span></code> values take precedence</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></td>
 <td><p>boolean</p></td>
@@ -373,47 +388,62 @@ and its matching <code class="docutils literal notranslate"><span class="pre">un
 <td><p>Uses sbatch jobs instead of direct remote execution for workflow/converter image pulls</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code></p></td>
-<td><p>string</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">8</span></code></p></td>
-<td><p>CPU request for sbatch-based image pull/build jobs</p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>CPU request for sbatch-based image pull/build jobs; blank inherits <code class="docutils literal notranslate"><span class="pre">sbatch_cpus-per-task</span></code>, then the scheduler default</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p></td>
-<td><p>string</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">32G</span></code></p></td>
-<td><p>Memory request for sbatch-based image pull/build jobs</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></td>
 <td><p>string or empty</p></td>
 <td><p>unset</p></td>
-<td><p>Tmp directory exported for Apptainer/Singularity image pull/build commands</p></td>
+<td><p>Memory request for sbatch-based image pull/build jobs; blank inherits <code class="docutils literal notranslate"><span class="pre">sbatch_mem</span></code>, then the scheduler default</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_time</span></code></p></td>
 <td><p>string or empty</p></td>
 <td><p>unset</p></td>
-<td><p>Cache directory exported for Apptainer/Singularity image pull/build commands</p></td>
+<td><p>Time limit for the image-pull array; blank inherits <code class="docutils literal notranslate"><span class="pre">sbatch_time</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_concurrency</span></code></p></td>
+<td><p>integer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p></td>
+<td><p>Maximum simultaneously running array tasks; configure 2-4 to bound filesystem pressure</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">image_pull_partition</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Partition for image initialization; blank inherits <code class="docutils literal notranslate"><span class="pre">sbatch_partition</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Fallback build-temp parent when <code class="docutils literal notranslate"><span class="pre">SLURM_TMPDIR</span></code> is unavailable</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></td>
+<td><p>string or empty</p></td>
+<td><p>unset</p></td>
+<td><p>Fallback task-cache parent when <code class="docutils literal notranslate"><span class="pre">SLURM_TMPDIR</span></code> is unavailable</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></td>
 <td><p>string or empty</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">$(command</span> <span class="pre">-v</span> <span class="pre">7z</span> <span class="pre">||</span> <span class="pre">command</span> <span class="pre">-v</span> <span class="pre">7za)</span></code></p></td>
 <td><p>Command used for ZIP creation and extraction on the HPC. Set to <code class="docutils literal notranslate"><span class="pre">zip</span></code>
 to use the Info-ZIP <code class="docutils literal notranslate"><span class="pre">zip</span></code>/<code class="docutils literal notranslate"><span class="pre">unzip</span></code> pair.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
 <td><p>string date or empty</p></td>
 <td><p>unset</p></td>
 <td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events. Configured under <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
 <td><p>integer or empty</p></td>
 <td><p>unset</p></td>
 <td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set. Configured under <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
 <td><p>Per-workflow GPU default in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> for legacy configs); e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_use_gpu=true</span></code> marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument at submission time</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_repo</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_repo</span></code></p></td>
 <td><p>string URL</p></td>
 <td><p>—</p></td>
 <td><p>GitHub URL for a workflow in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>). Accepts either a repository tree URL (<code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z</span></code>) or a direct URL to a specific descriptor file (<code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z/descriptor.json</span></code>, <code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z/config.yaml</span></code>). With a plain tree URL, BIOMERO auto-discovers the descriptor (tries <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> → <code class="docutils literal notranslate"><span class="pre">descriptor.yaml</span></code> → <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> in order). With a direct URL, only that exact file is fetched — useful when a repository contains both a BIAflows <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> and a bilayers <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> and you want to choose which interface to expose.</p></td>

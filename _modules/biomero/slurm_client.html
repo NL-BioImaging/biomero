@@ -126,7 +126,7 @@
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid4</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">fabric</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">Result</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">fabric.transfer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Result</span> <span class="k">as</span> <span class="n">TransferResult</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">invoke.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnexpectedExit</span>
@@ -420,6 +420,11 @@
             <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_IMAGE_PULL_VIA_SBATCH</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_cpus"</span><span class="p">):</span> <span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_CPUS</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_mem"</span><span class="p">):</span> <span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_MEM</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_time"</span><span class="p">):</span> <span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_TIME</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_concurrency"</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_CONCURRENCY</span><span class="p">],</span>
+        <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_partition"</span><span class="p">):</span> <span class="p">[</span>
+            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_PULL_PARTITION</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"apptainer_tmpdir"</span><span class="p">):</span> <span class="p">[</span>
             <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_APPTAINER_TMPDIR</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"apptainer_cachedir"</span><span class="p">):</span> <span class="p">[</span>
@@ -618,8 +623,11 @@
                  <span class="n">gpu_gpus</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_global_job_params</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_image_pull_via_sbatch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                 <span class="n">image_pull_cpus</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"8"</span><span class="p">,</span>
-                 <span class="n">image_pull_mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"32G"</span><span class="p">,</span>
+                 <span class="n">image_pull_cpus</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_pull_mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_pull_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_pull_concurrency</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="n">image_pull_partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">apptainer_tmpdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">apptainer_cachedir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">slurm_zip_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -760,20 +768,33 @@
 <span class="sd">                ``a100:1``). Mutually exclusive with ``gpu_gres``.</span>
 <span class="sd">                Overridable via ``BIOMERO_GPU_GPUS``. Defaults to None.</span>
 <span class="sd">            slurm_global_job_params (list, optional): Extra sbatch parameters</span>
-<span class="sd">                applied to every workflow submission as a fallback, e.g.</span>
-<span class="sd">                ``[" --reservation=biomero"]``. Per-workflow job params always</span>
-<span class="sd">                take precedence. Configured via ``sbatch_&lt;key&gt;=&lt;value&gt;`` keys</span>
-<span class="sd">                in the ``[SLURM]`` config section. Defaults to None (empty).</span>
+<span class="sd">                applied to workflow, conversion, and scheduled image-pull</span>
+<span class="sd">                submissions as fallbacks, e.g. ``[" --reservation=biomero"]``.</span>
+<span class="sd">                More-specific job parameters always take precedence.</span>
+<span class="sd">                Configured via ``sbatch_&lt;key&gt;=&lt;value&gt;`` keys in the ``[SLURM]``</span>
+<span class="sd">                config section. Defaults to None (empty).</span>
 <span class="sd">            slurm_image_pull_via_sbatch (bool, optional): When True, workflow</span>
 <span class="sd">                and converter image pulls/builds are submitted as sbatch jobs</span>
 <span class="sd">                instead of running directly on the login node. Defaults to</span>
 <span class="sd">                False.</span>
 <span class="sd">            image_pull_cpus (str, optional): CPU request for sbatch-based</span>
 <span class="sd">                image pull jobs. Overridable via ``BIOMERO_PULL_CPUS``.</span>
-<span class="sd">                Defaults to ``8``.</span>
+<span class="sd">                Defaults to None, inheriting a global</span>
+<span class="sd">                ``sbatch_cpus-per-task`` value or the scheduler default.</span>
 <span class="sd">            image_pull_mem (str, optional): Memory request for sbatch-based</span>
 <span class="sd">                image pull jobs. Overridable via ``BIOMERO_PULL_MEM``.</span>
-<span class="sd">                Defaults to ``32G``.</span>
+<span class="sd">                Defaults to None, inheriting a global ``sbatch_mem`` value or</span>
+<span class="sd">                the scheduler default.</span>
+<span class="sd">            image_pull_time (str, optional): Time request for sbatch-based</span>
+<span class="sd">                image pull arrays. Overrides a global ``sbatch_time`` value.</span>
+<span class="sd">                Overridable via ``BIOMERO_PULL_TIME``. Defaults to None.</span>
+<span class="sd">            image_pull_concurrency (int, optional): Maximum number of image</span>
+<span class="sd">                array tasks that may run simultaneously. Overridable via</span>
+<span class="sd">                ``BIOMERO_PULL_CONCURRENCY``. Defaults to ``1`` for backward</span>
+<span class="sd">                compatibility with the former sequential sbatch job.</span>
+<span class="sd">            image_pull_partition (str, optional): Partition for sbatch-based</span>
+<span class="sd">                image pull arrays. Overrides a global ``sbatch_partition``.</span>
+<span class="sd">                Overridable via ``BIOMERO_PULL_PARTITION``. Defaults to None.</span>
 <span class="sd">            apptainer_tmpdir (str, optional): Exported as</span>
 <span class="sd">                ``APPTAINER_TMPDIR`` and ``SINGULARITY_TMPDIR`` for image</span>
 <span class="sd">                pull/build commands when set. Use when the default tmp</span>
@@ -840,6 +861,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_image_pull_via_sbatch</span> <span class="o">=</span> <span class="n">slurm_image_pull_via_sbatch</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span> <span class="o">=</span> <span class="n">image_pull_cpus</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_mem</span> <span class="o">=</span> <span class="n">image_pull_mem</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_time</span> <span class="o">=</span> <span class="n">image_pull_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_concurrency</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">image_pull_concurrency</span> <span class="ow">or</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_partition</span> <span class="o">=</span> <span class="n">image_pull_partition</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span> <span class="o">=</span> <span class="n">apptainer_tmpdir</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span> <span class="o">=</span> <span class="n">apptainer_cachedir</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_zip_cmd</span> <span class="o">=</span> <span class="n">slurm_zip_cmd</span>
@@ -884,6 +908,96 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">env_parts</span><span class="p">:</span>
             <span class="k">return</span> <span class="s2">""</span>
         <span class="k">return</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">env_parts</span><span class="p">)</span> <span class="o">+</span> <span class="s2">" "</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_image_pull_sbatch_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">script_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">manifest_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">status_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">task_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build the scheduler command for one bounded image-pull array.</span>
+
+<span class="sd">        Generic ``sbatch_*`` values apply to image initialization as they do</span>
+<span class="sd">        to workflow and conversion submissions. Array-owned flags and explicit</span>
+<span class="sd">        ``image_pull_*`` resources take precedence over matching globals.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">task_count</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"task_count must be at least 1"</span><span class="p">)</span>
+
+        <span class="n">dedicated</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"cpus-per-task"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span><span class="p">,</span>
+            <span class="s2">"mem"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_mem</span><span class="p">,</span>
+            <span class="s2">"time"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_time</span><span class="p">,</span>
+            <span class="s2">"partition"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_partition</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">reserved</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"array"</span><span class="p">,</span> <span class="s2">"output"</span><span class="p">,</span> <span class="s2">"error"</span><span class="p">,</span> <span class="s2">"job-name"</span><span class="p">,</span> <span class="s2">"export"</span><span class="p">,</span>
+            <span class="o">*</span><span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dedicated</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span><span class="p">],</span>
+        <span class="p">}</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">inherited</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">raw_param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_global_job_params</span><span class="p">:</span>
+            <span class="n">param</span> <span class="o">=</span> <span class="n">raw_param</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">"--([^=\s]+)(?:=(\S+))?"</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">match</span> <span class="ow">and</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reserved</span><span class="p">:</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+                <span class="n">inherited</span><span class="p">[</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">concurrency</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_concurrency</span> <span class="ow">or</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+            <span class="sa">f</span><span class="s2">"--array=0-</span><span class="si">{</span><span class="n">task_count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">%</span><span class="si">{</span><span class="n">concurrency</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="s2">"--job-name=biomero-pull-images"</span><span class="p">,</span>
+        <span class="p">])</span>
+        <span class="k">for</span> <span class="n">flag</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dedicated</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"--</span><span class="si">{</span><span class="n">flag</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">effective_cpus</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dedicated</span><span class="p">[</span><span class="s2">"cpus-per-task"</span><span class="p">]</span> <span class="ow">or</span>
+            <span class="n">inherited</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"cpus-per-task"</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="s2">"1"</span>
+        <span class="p">)</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+            <span class="sa">f</span><span class="s2">"--export=ALL,BIOMERO_PULL_CPUS=</span><span class="si">{</span><span class="n">effective_cpus</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"--output=</span><span class="si">{</span><span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_dir</span><span class="p">,</span><span class="w"> </span><span class="s1">'pull-image-%A_</span><span class="si">%a</span><span class="s1">.log'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="p">])</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">value</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="n">script_path</span><span class="p">,</span> <span class="n">manifest_path</span><span class="p">,</span> <span class="n">status_dir</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span><span class="p">))</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"sbatch --parsable </span><span class="si">{</span><span class="s1">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">args</span><span class="si">}</span><span class="s2">"</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_image_pull_status</span><span class="p">(</span><span class="n">status_output</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Parse fixed-column per-image status records from the cluster."""</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"READY"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">"RUNNING"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">"FAILED"</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">raw_line</span> <span class="ow">in</span> <span class="n">status_output</span><span class="o">.</span><span class="n">splitlines</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">raw_line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                <span class="k">continue</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="n">raw_line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">7</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Ignoring malformed image status: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">raw_line</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">kind</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">exit_code</span><span class="p">,</span> <span class="n">reason</span><span class="p">,</span> <span class="n">destination</span> <span class="o">=</span> <span class="n">fields</span>
+            <span class="k">if</span> <span class="n">state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">counts</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Ignoring unknown image state: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">parsed_exit</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">exit_code</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">parsed_exit</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="n">parsed_exit</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">images</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">"kind"</span><span class="p">:</span> <span class="n">kind</span><span class="p">,</span>
+                <span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">"version"</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span>
+                <span class="s2">"state"</span><span class="p">:</span> <span class="n">state</span><span class="p">,</span>
+                <span class="s2">"exit_code"</span><span class="p">:</span> <span class="n">parsed_exit</span><span class="p">,</span>
+                <span class="s2">"reason"</span><span class="p">:</span> <span class="n">reason</span><span class="p">,</span>
+                <span class="s2">"destination"</span><span class="p">:</span> <span class="n">destination</span><span class="p">,</span>
+            <span class="p">})</span>
+            <span class="n">counts</span><span class="p">[</span><span class="n">state</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"counts"</span><span class="p">:</span> <span class="n">counts</span><span class="p">,</span> <span class="s2">"images"</span><span class="p">:</span> <span class="n">images</span><span class="p">}</span>
 
 <div class="viewcode-block" id="SlurmClient.initialize_analytics_system"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.initialize_analytics_system">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">initialize_analytics_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset_tables</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -1123,125 +1237,204 @@
                 <span class="n">image</span> <span class="o">=</span> <span class="n">descriptor</span><span class="p">[</span><span class="s1">'container-image'</span><span class="p">][</span><span class="s1">'image'</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="p">[</span><span class="n">workflow</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span></div>
 
-<div class="viewcode-block" id="SlurmClient.setup_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_slurm">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        Validates or creates the required setup on the Slurm cluster.</span>
+<div class="viewcode-block" id="SlurmClient.setup_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_slurm">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Create the cluster setup and return the image array job ID."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="s2">"Failure in connecting to Slurm cluster"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_directories</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_job_scripts</span><span class="p">()</span>
+        <span class="n">converter_specs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_converters</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_container_images</span><span class="p">(</span><span class="n">extra_image_specs</span><span class="o">=</span><span class="n">converter_specs</span><span class="p">)</span></div>
 
-<span class="sd">        Raises:</span>
-<span class="sd">            SSHException: if it cannot connect to Slurm, or runs into an error</span>
-<span class="sd">        """</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">():</span>
-            <span class="c1"># 1. Create directories</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">setup_directories</span><span class="p">()</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_image_status_record</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                             <span class="n">exit_code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+                             <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">reason</span> <span class="o">=</span> <span class="n">reason</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">,</span> <span class="s2">" "</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"</span><span class="se">\r</span><span class="s2">"</span><span class="p">,</span> <span class="s2">" "</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">" "</span><span class="p">)[:</span><span class="mi">240</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="n">spec</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">],</span> <span class="n">spec</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span> <span class="n">spec</span><span class="p">[</span><span class="s2">"version"</span><span class="p">],</span> <span class="n">state</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">exit_code</span><span class="p">),</span> <span class="n">reason</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">],</span>
+        <span class="p">])</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span>
 
-            <span class="c1"># 2. Clone git</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">setup_job_scripts</span><span class="p">()</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_render_image_manifest</span><span class="p">(</span><span class="n">specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">"kind"</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">,</span> <span class="s2">"source_type"</span><span class="p">,</span> <span class="s2">"source"</span><span class="p">,</span>
+            <span class="s2">"destination"</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">columns</span><span class="p">)]</span>
+        <span class="n">destinations</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">specs</span><span class="p">:</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="n">column</span><span class="p">])</span> <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">value</span> <span class="ow">or</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">value</span> <span class="ow">or</span> <span class="s2">"</span><span class="se">\r</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">value</span>
+                   <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Image manifest values cannot contain tabs or newlines"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">spec</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">]</span> <span class="ow">in</span> <span class="n">destinations</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Duplicate image destination: </span><span class="si">{</span><span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">destinations</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">])</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+        <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span>
 
-            <span class="c1"># 3. Setup converters</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">setup_converters</span><span class="p">()</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_workflow_image_specs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+        <span class="n">specs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">workflow</span><span class="p">,</span> <span class="n">configured_image</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">configured_image</span>
+            <span class="n">image_tag</span><span class="p">,</span> <span class="n">image_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">image_tag</span><span class="p">:</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">image_name</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="n">image_tag</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span><span class="p">[</span><span class="n">workflow</span><span class="p">]</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_parts_from_url</span><span class="p">(</span><span class="n">repo</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">"master"</span><span class="p">:</span>
+                    <span class="n">version</span> <span class="o">=</span> <span class="s2">"latest"</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">posixpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">.sif"</span>
+            <span class="n">specs</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"workflow"</span><span class="p">,</span>
+                <span class="s2">"name"</span><span class="p">:</span> <span class="n">workflow</span><span class="p">,</span>
+                <span class="s2">"version"</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span>
+                <span class="s2">"source_type"</span><span class="p">:</span> <span class="s2">"registry"</span><span class="p">,</span>
+                <span class="s2">"source"</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span>
+                <span class="s2">"destination"</span><span class="p">:</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">[</span><span class="n">workflow</span><span class="p">],</span> <span class="n">filename</span><span class="p">),</span>
+            <span class="p">})</span>
+        <span class="k">return</span> <span class="n">specs</span>
 
-            <span class="c1"># 4. Download workflow images</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">setup_container_images</span><span class="p">()</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_partition_existing_images</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]:</span>
+<span class="w">        </span><span class="sd">"""Return already-valid and pending specs without building on login."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">specs</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="n">commands</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">specs</span><span class="p">:</span>
+            <span class="n">destination</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">])</span>
+            <span class="n">commands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">"container_runtime=$(command -v apptainer 2&gt;/dev/null || "</span>
+                <span class="s2">"command -v singularity 2&gt;/dev/null || true); "</span>
+                <span class="sa">f</span><span class="s2">"if [ -n </span><span class="se">\"</span><span class="s2">$container_runtime</span><span class="se">\"</span><span class="s2"> ] &amp;&amp; [ -s </span><span class="si">{</span><span class="n">destination</span><span class="si">}</span><span class="s2"> ] "</span>
+                <span class="sa">f</span><span class="s2">"&amp;&amp; </span><span class="se">\"</span><span class="s2">$container_runtime</span><span class="se">\"</span><span class="s2"> inspect </span><span class="si">{</span><span class="n">destination</span><span class="si">}</span><span class="s2"> "</span>
+                <span class="s2">"&gt;/dev/null 2&gt;&amp;1; then echo READY; else echo PENDING; fi"</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands_split_out</span><span class="p">(</span><span class="n">commands</span><span class="p">)</span>
+        <span class="n">ready</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pending</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">spec</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">specs</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+            <span class="p">(</span><span class="n">ready</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"READY"</span> <span class="k">else</span> <span class="n">pending</span><span class="p">)</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ready</span><span class="p">,</span> <span class="n">pending</span>
 
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="s2">"Failure in connecting to Slurm cluster"</span><span class="p">)</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_submit_image_pull_array</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Stage and submit image work, returning the Slurm array ID."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">specs</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">ready</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_partition_existing_images</span><span class="p">(</span><span class="n">specs</span><span class="p">)</span>
+        <span class="n">submission_id</span> <span class="o">=</span> <span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span>
+        <span class="n">status_root</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">,</span> <span class="s2">"image-pulls"</span><span class="p">)</span>
+        <span class="n">status_dir</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_root</span><span class="p">,</span> <span class="n">submission_id</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">status_dir</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SlurmClient.setup_container_images"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_container_images">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_container_images</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        Sets up container images for Slurm operations.</span>
+        <span class="k">if</span> <span class="n">ready</span><span class="p">:</span>
+            <span class="n">ready_status</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_image_status_record</span><span class="p">(</span>
+                    <span class="n">spec</span><span class="p">,</span> <span class="s2">"READY"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">,</span> <span class="s2">"existing SIF validated"</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">ready</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">ready_status</span><span class="p">),</span>
+                     <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_dir</span><span class="p">,</span> <span class="s2">"existing.status"</span><span class="p">))</span>
 
-<span class="sd">        This function creates specific directories for container images and pulls</span>
-<span class="sd">        necessary images from Docker repositories. It generates and executes</span>
-<span class="sd">        a script to pull images and copies it to the remote location.</span>
+        <span class="n">manifest_path</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_dir</span><span class="p">,</span> <span class="s2">"manifest.tsv"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_render_image_manifest</span><span class="p">(</span><span class="n">pending</span><span class="p">)),</span>
+                 <span class="n">manifest_path</span><span class="p">)</span>
+        <span class="n">script_path</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">,</span> <span class="s2">"pull_images.sh"</span><span class="p">)</span>
+        <span class="n">template_script</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">"resources"</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">"pull_images.sh"</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">template_script</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">source_file</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">source_file</span><span class="o">.</span><span class="n">read</span><span class="p">()),</span> <span class="n">script_path</span><span class="p">)</span>
 
-<span class="sd">        Raises:</span>
-<span class="sd">            SSHException: If there is an issue executing commands or copying files.</span>
-<span class="sd">        """</span>
-        <span class="c1"># Create specific workflow dirs</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">:</span>
-                <span class="n">modelpaths</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\"</span><span class="s2"> </span><span class="se">\"</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-                <span class="c1"># mkdir cellprofiler imagej ...</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="se">\"</span><span class="si">{</span><span class="n">modelpaths</span><span class="si">}</span><span class="se">\"</span><span class="s2">"</span><span class="p">])</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">spec</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pending</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_image_status_record</span><span class="p">(</span>
+                <span class="n">spec</span><span class="p">,</span> <span class="s2">"RUNNING"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"submitted; waiting for array task"</span><span class="p">)),</span>
+                <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"status-</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">.status"</span><span class="p">))</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="p">:</span>
-                <span class="n">pull_commands</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">wf</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                    <span class="n">repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_repos</span><span class="p">[</span><span class="n">wf</span><span class="p">]</span>
-                    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">[</span><span class="n">wf</span><span class="p">]</span>
-                    <span class="n">apptainer_env_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apptainer_pull_env_prefix</span><span class="p">()</span>
-                    <span class="c1"># If the image already includes a tag (e.g. "org/image:v1.2"),</span>
-                    <span class="c1"># use that tag and strip it from the image name to avoid</span>
-                    <span class="c1"># producing docker://org/image:v1.2:v1.2.</span>
-                    <span class="n">image_tag</span><span class="p">,</span> <span class="n">image_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span>
-                        <span class="n">image</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">image_tag</span><span class="p">:</span>
-                        <span class="n">image</span> <span class="o">=</span> <span class="n">image_name</span>
-                        <span class="n">version</span> <span class="o">=</span> <span class="n">image_tag</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">_</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_parts_from_url</span><span class="p">(</span><span class="n">repo</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">"master"</span><span class="p">:</span>
-                            <span class="n">version</span> <span class="o">=</span> <span class="s2">"latest"</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_image_pull_via_sbatch</span><span class="p">:</span>
-                        <span class="n">pull_template</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="s2">"echo 'starting $path $version' &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"mkdir -p $path $TMPDIR_CREATE $CACHEDIR_CREATE</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"image_name=$(basename </span><span class="se">\"</span><span class="s2">$image</span><span class="se">\"</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"output=</span><span class="se">\"</span><span class="s2">$path/$</span><span class="si">{image_name}</span><span class="s2">_$version.sif</span><span class="se">\"\n</span><span class="s2">"</span>
-                            <span class="s2">"if [ -s </span><span class="se">\"</span><span class="s2">$output</span><span class="se">\"</span><span class="s2"> ]; then echo 'skipping $path $version; SIF already exists' &gt;&gt; sing.log; "</span>
-                            <span class="s2">"else $</span><span class="si">{APPTAINER_ENV}</span><span class="s2">singularity build --force --disable-cache --mksquashfs-args </span><span class="se">\"</span><span class="s2">-processors $</span><span class="si">{BIOMERO_PULL_CPUS:-8}</span><span class="se">\"</span><span class="s2"> </span><span class="se">\"</span><span class="s2">$output</span><span class="se">\"</span><span class="s2"> docker://$image:$version &gt;&gt; sing.log 2&gt;&amp;1; fi</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"rc=$?</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"if [ $rc -eq 0 ]; then echo 'finished $path $version' &gt;&gt; sing.log; else echo 'failed $path $version exit='$rc &gt;&gt; sing.log; exit $rc; fi"</span>
-                        <span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">pull_template</span> <span class="o">=</span> <span class="s2">"echo 'starting $path $version' &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">$EXTRA_MKDIRS</span><span class="se">\n</span><span class="s2">nohup sh -c </span><span class="se">\"</span><span class="s2">$</span><span class="si">{APPTAINER_ENV}</span><span class="s2">singularity pull --disable-cache --dir $path docker://$image:$version; echo 'finished $path $version'</span><span class="se">\"</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 &amp; disown"</span>
-                    <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">pull_template</span><span class="p">)</span>
-                    <span class="n">substitutes</span> <span class="o">=</span> <span class="p">{}</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'APPTAINER_ENV'</span><span class="p">]</span> <span class="o">=</span> <span class="n">apptainer_env_prefix</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'TMPDIR_CREATE'</span><span class="p">]</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span> <span class="k">else</span> <span class="s2">""</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'CACHEDIR_CREATE'</span><span class="p">]</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span> <span class="k">else</span> <span class="s2">""</span>
-                    <span class="n">_extra_dirs</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span><span class="p">]</span> <span class="k">if</span> <span class="n">d</span><span class="p">)</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'EXTRA_MKDIRS'</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"mkdir -p </span><span class="si">{</span><span class="n">_extra_dirs</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">_extra_dirs</span> <span class="k">else</span> <span class="s2">":"</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'path'</span><span class="p">]</span> <span class="o">=</span> <span class="n">path</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'image'</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'version'</span><span class="p">]</span> <span class="o">=</span> <span class="n">version</span>
-                    <span class="n">cmd</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitutes</span><span class="p">)</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"substituted: </span><span class="si">{</span><span class="n">cmd</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-                    <span class="n">pull_commands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
-                <span class="n">script_name</span> <span class="o">=</span> <span class="s2">"pull_images.sh"</span>
-                <span class="n">template_script</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">"resources"</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">script_name</span><span class="p">)</span>
-                <span class="k">with</span> <span class="n">template_script</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">'r'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-                    <span class="n">src</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-                    <span class="n">substitute</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'pullcommands'</span><span class="p">:</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pull_commands</span><span class="p">)}</span>
-                    <span class="n">job_script</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitute</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"substituted:</span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job_script</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-                <span class="c1"># copy to remote file</span>
-                <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="o">+</span><span class="s2">"/"</span><span class="o">+</span><span class="n">script_name</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span>
-                             <span class="n">remote</span><span class="o">=</span><span class="n">full_path</span><span class="p">)</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_image_pull_via_sbatch</span><span class="p">:</span>
-                    <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span>
-                        <span class="s2">"sbatch --parsable --job-name=biomero-pull-images "</span>
-                        <span class="sa">f</span><span class="s2">"--cpus-per-task=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span><span class="si">}</span><span class="s2"> --mem=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_mem</span><span class="si">}</span><span class="s2"> "</span>
-                        <span class="sa">f</span><span class="s2">"--export=ALL,BIOMERO_PULL_CPUS=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span><span class="si">}</span><span class="s2"> "</span>
-                        <span class="sa">f</span><span class="s2">"--output=pull_images-%j.log </span><span class="si">{</span><span class="n">script_name</span><span class="si">}</span><span class="s2">"</span>
-                    <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"time sh </span><span class="si">{</span><span class="n">script_name</span><span class="si">}</span><span class="s2">"</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">])</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Initiated downloading and building"</span> <span class="o">+</span>
-                            <span class="s2">" container images on Slurm."</span> <span class="o">+</span>
-                            <span class="s2">" This will probably take a while in the background."</span> <span class="o">+</span>
-                            <span class="s2">" Check 'sing.log' on Slurm for progress."</span><span class="p">)</span></div>
-                <span class="c1"># # cleanup giant singularity cache!</span>
-                <span class="c1"># using --disable-cache because we run in the background</span>
-                <span class="c1"># cmd = "singularity cache clean -f"</span>
-                <span class="c1"># r = self.run_commands([cmd])</span>
+        <span class="n">array_job_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">pending</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_image_pull_via_sbatch</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_image_pull_sbatch_command</span><span class="p">(</span>
+                <span class="n">script_path</span><span class="p">,</span> <span class="n">manifest_path</span><span class="p">,</span> <span class="n">status_dir</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pending</span><span class="p">))</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">command</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="n">array_job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">array_job_id</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Unable to parse image array ID from: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">pending</span><span class="p">:</span>
+            <span class="n">commands</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pending</span><span class="p">)):</span>
+                <span class="n">logfile</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="n">status_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"pull-image-direct_</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">.log"</span><span class="p">)</span>
+                <span class="n">commands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">"nohup env "</span>
+                    <span class="sa">f</span><span class="s2">"BIOMERO_PULL_CPUS=</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'1'</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"SLURM_ARRAY_TASK_ID=</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"SLURM_ARRAY_JOB_ID=direct-</span><span class="si">{</span><span class="n">submission_id</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"bash </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">script_path</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">manifest_path</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">status_dir</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"&gt; </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span><span class="si">}</span><span class="s2"> 2&gt;&amp;1 &lt;/dev/null &amp;"</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">commands</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">" ; "</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"submission_id</span><span class="se">\t</span><span class="si">{</span><span class="n">submission_id</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"array_job_id</span><span class="se">\t</span><span class="si">{</span><span class="n">array_job_id</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"expected</span><span class="se">\t</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">specs</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"pending</span><span class="se">\t</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">metadata</span><span class="p">),</span>
+                 <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_dir</span><span class="p">,</span> <span class="s2">"submission.meta"</span><span class="p">))</span>
+        <span class="n">latest_tmp</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_root</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"latest.tmp.</span><span class="si">{</span><span class="n">submission_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">status_dir</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">),</span> <span class="n">latest_tmp</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+            <span class="sa">f</span><span class="s2">"mv </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">latest_tmp</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_root</span><span class="p">,</span><span class="w"> </span><span class="s1">'latest'</span><span class="p">))</span><span class="si">}</span><span class="s2">"</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">"Image initialization submission </span><span class="si">%s</span><span class="s2">: </span><span class="si">%d</span><span class="s2"> ready, </span><span class="si">%d</span><span class="s2"> pending, array </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span>
+            <span class="n">submission_id</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ready</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">pending</span><span class="p">),</span> <span class="n">array_job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">array_job_id</span>
+
+<div class="viewcode-block" id="SlurmClient.get_image_pull_status"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_image_pull_status">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_image_pull_status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return structured status for the most recent image submission."""</span>
+        <span class="n">status_root</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="p">,</span> <span class="s2">"image-pulls"</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"latest=$(cat </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">status_root</span><span class="p">,</span><span class="w"> </span><span class="s1">'latest'</span><span class="p">))</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="s2">"2&gt;/dev/null) || exit 0; "</span>
+            <span class="s2">"for status in </span><span class="se">\"</span><span class="s2">$latest</span><span class="se">\"</span><span class="s2">/*.status; do "</span>
+            <span class="s2">"[ -f </span><span class="se">\"</span><span class="s2">$status</span><span class="se">\"</span><span class="s2"> ] &amp;&amp; cat </span><span class="se">\"</span><span class="s2">$status</span><span class="se">\"</span><span class="s2">; done"</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">command</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_image_pull_status</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlurmClient.setup_container_images"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_container_images">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_container_images</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">extra_image_specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Create workflow image directories and submit one combined array."""</span>
+        <span class="n">directories</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="k">if</span> <span class="n">directories</span><span class="p">:</span>
+            <span class="n">quoted</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">directories</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="si">{</span><span class="n">quoted</span><span class="si">}</span><span class="s2">"</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="n">specs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_image_specs</span><span class="p">()</span>
+        <span class="n">specs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">extra_image_specs</span> <span class="ow">or</span> <span class="p">[])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_image_pull_array</span><span class="p">(</span><span class="n">specs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.list_available_converter_versions"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.list_available_converter_versions">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">list_available_converter_versions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -1255,7 +1448,9 @@
         <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="c1"># Iterate over each line in the output</span>
-            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">splitlines</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="k">continue</span>
                 <span class="c1"># Split the line into key and version</span>
                 <span class="n">key</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">' '</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                 <span class="c1"># Check if the key already exists in the dictionary</span>
@@ -1267,21 +1462,14 @@
                     <span class="n">result_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">version</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">result_dict</span></div>
 
-<div class="viewcode-block" id="SlurmClient.setup_converters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_converters">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        Sets up converters for Slurm operations.</span>
-
-<span class="sd">        This function creates necessary directories for converters and copies</span>
-<span class="sd">        converter scripts and definitions to the appropriate locations. It also</span>
-<span class="sd">        builds Singularity containers from the provided definitions.</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            SSHException: If there is an issue executing commands or copying files.</span>
-<span class="sd">        """</span>
+<div class="viewcode-block" id="SlurmClient.prepare_converters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.prepare_converters">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">prepare_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">"""Stage converter runtime files and return their image specifications."""</span>
         <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">:</span>
             <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="se">\"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="si">}</span><span class="se">\"</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 
         <span class="c1"># copy generic job array script over to slurm</span>
         <span class="n">convert_script_file</span> <span class="o">=</span> <span class="s2">"convert_job_array.sh"</span>
@@ -1308,11 +1496,9 @@
         <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">convert_script</span><span class="p">),</span>
                      <span class="n">remote</span><span class="o">=</span><span class="n">convert_script_remote</span><span class="p">)</span>
 
-        <span class="c1"># PULL converter if provided in config</span>
+        <span class="n">specs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="p">:</span>
-            <span class="n">pull_commands</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">converter_images</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">apptainer_env_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apptainer_pull_env_prefix</span><span class="p">()</span>
                 <span class="n">version</span><span class="p">,</span> <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_docker_image_version</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
                     <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"convert_</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">.sif"</span>
@@ -1321,65 +1507,16 @@
                     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s2">"Pulling 'latest' as no version was provided for </span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
                     <span class="n">chosen_converter</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"convert_</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_latest.sif"</span>
-                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_image_pull_via_sbatch</span><span class="p">:</span>
-                        <span class="n">pull_template</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="s2">"echo 'starting $path $version' &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"$EXTRA_MKDIRS</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"if [ -s </span><span class="se">\"</span><span class="s2">$conv_name</span><span class="se">\"</span><span class="s2"> ]; then echo 'skipping $path $version; SIF already exists' &gt;&gt; sing.log; "</span>
-                            <span class="s2">"else $</span><span class="si">{APPTAINER_ENV}</span><span class="s2">singularity build --force --disable-cache --mksquashfs-args </span><span class="se">\"</span><span class="s2">-processors $</span><span class="si">{BIOMERO_PULL_CPUS:-8}</span><span class="se">\"</span><span class="s2"> $conv_name docker://$image:$version &gt;&gt; sing.log 2&gt;&amp;1; fi</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"rc=$?</span><span class="se">\n</span><span class="s2">"</span>
-                            <span class="s2">"if [ $rc -eq 0 ]; then echo 'finished $path $version' &gt;&gt; sing.log; else echo 'failed $path $version exit='$rc &gt;&gt; sing.log; exit $rc; fi"</span>
-                        <span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">pull_template</span> <span class="o">=</span> <span class="s2">"echo 'starting $path $version' &gt;&gt; sing.log</span><span class="se">\n</span><span class="s2">$EXTRA_MKDIRS</span><span class="se">\n</span><span class="s2">nohup sh -c </span><span class="se">\"</span><span class="s2">$</span><span class="si">{APPTAINER_ENV}</span><span class="s2">singularity pull --force --disable-cache $conv_name docker://$image:$version; echo 'finished $path $version'</span><span class="se">\"</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 &amp; disown"</span>
-                    <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">pull_template</span><span class="p">)</span>
-                    <span class="n">substitutes</span> <span class="o">=</span> <span class="p">{}</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'APPTAINER_ENV'</span><span class="p">]</span> <span class="o">=</span> <span class="n">apptainer_env_prefix</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'TMPDIR_CREATE'</span><span class="p">]</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span> <span class="k">else</span> <span class="s2">""</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'CACHEDIR_CREATE'</span><span class="p">]</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span> <span class="k">else</span> <span class="s2">""</span>
-                    <span class="n">_extra_dirs</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">apptainer_tmpdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">apptainer_cachedir</span><span class="p">]</span> <span class="k">if</span> <span class="n">d</span><span class="p">)</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'EXTRA_MKDIRS'</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"mkdir -p </span><span class="si">{</span><span class="n">_extra_dirs</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">_extra_dirs</span> <span class="k">else</span> <span class="s2">":"</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'path'</span><span class="p">]</span> <span class="o">=</span> <span class="n">path</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'image'</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'version'</span><span class="p">]</span> <span class="o">=</span> <span class="n">version</span>
-                    <span class="n">substitutes</span><span class="p">[</span><span class="s1">'conv_name'</span><span class="p">]</span> <span class="o">=</span> <span class="n">chosen_converter</span>
-                    <span class="n">cmd</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitutes</span><span class="p">)</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"substituted: </span><span class="si">{</span><span class="n">cmd</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-                    <span class="n">pull_commands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
-            <span class="n">script_name</span> <span class="o">=</span> <span class="s2">"pull_images.sh"</span>
-            <span class="n">template_script</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">"resources"</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">script_name</span><span class="p">)</span>
-            <span class="k">with</span> <span class="n">template_script</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">'r'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-                <span class="n">src</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-                <span class="n">substitute</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'pullcommands'</span><span class="p">:</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pull_commands</span><span class="p">)}</span>
-                <span class="n">job_script</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">safe_substitute</span><span class="p">(</span><span class="n">substitute</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"substituted:</span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job_script</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="c1"># copy to remote file</span>
-            <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="o">+</span><span class="s2">"/"</span><span class="o">+</span><span class="n">script_name</span>
-            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span> <span class="n">remote</span><span class="o">=</span><span class="n">full_path</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_image_pull_via_sbatch</span><span class="p">:</span>
-                <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="s2">"sbatch --parsable --job-name=biomero-pull-converters "</span>
-                    <span class="sa">f</span><span class="s2">"--cpus-per-task=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span><span class="si">}</span><span class="s2"> --mem=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_mem</span><span class="si">}</span><span class="s2"> "</span>
-                    <span class="sa">f</span><span class="s2">"--export=ALL,BIOMERO_PULL_CPUS=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pull_cpus</span><span class="si">}</span><span class="s2"> "</span>
-                    <span class="sa">f</span><span class="s2">"--output=pull_converters-%j.log </span><span class="si">{</span><span class="n">script_name</span><span class="si">}</span><span class="s2">"</span>
-                <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"time sh </span><span class="si">{</span><span class="n">script_name</span><span class="si">}</span><span class="s2">"</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">])</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Initiated downloading and building"</span> <span class="o">+</span>
-                            <span class="s2">" container images on Slurm."</span> <span class="o">+</span>
-                            <span class="s2">" This will probably take a while in the background."</span> <span class="o">+</span>
-                            <span class="s2">" Check 'sing.log' on Slurm for progress."</span><span class="p">)</span>
+                <span class="n">specs</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"converter"</span><span class="p">,</span>
+                    <span class="s2">"name"</span><span class="p">:</span> <span class="n">path</span><span class="p">,</span>
+                    <span class="s2">"version"</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span>
+                    <span class="s2">"source_type"</span><span class="p">:</span> <span class="s2">"registry"</span><span class="p">,</span>
+                    <span class="s2">"source"</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span>
+                    <span class="s2">"destination"</span><span class="p">:</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">,</span> <span class="n">chosen_converter</span><span class="p">),</span>
+                <span class="p">})</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># BUILD converter from singularity def file</span>
-            <span class="c1"># currently known converters</span>
-            <span class="c1"># 3a. ZARR to TIFF</span>
-            <span class="c1"># TODO extract these values to e.g. config if we have more</span>
             <span class="n">convert_name</span> <span class="o">=</span> <span class="s2">"convert_zarr_to_tiff"</span>
             <span class="n">convert_py</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">convert_name</span><span class="si">}</span><span class="s2">.py"</span>
             <span class="n">convert_script_local</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">"resources"</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
@@ -1391,19 +1528,22 @@
                          <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
             <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">convert_def_local</span><span class="p">,</span>
                          <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">)</span>
-            <span class="c1"># Build singularity container from definition</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">):</span>
-                <span class="n">convert_cmds</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span><span class="p">:</span>
-                    <span class="c1"># TODO Change the tmp dir?</span>
-                    <span class="c1"># export SINGULARITY_TMPDIR=~/my-scratch/tmp;</span>
-                    <span class="c1"># only if file does not exist yet</span>
-                    <span class="c1"># convert_cmds.append(f"[ ! -f {convert_name}.sif ]")</span>
-                    <span class="c1"># EDIT -- NO, then we can't update! Force rebuild!</span>
-                    <span class="c1"># download /build new container</span>
-                    <span class="n">convert_cmds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">"singularity build -F </span><span class="se">\"</span><span class="si">{</span><span class="n">convert_name</span><span class="si">}</span><span class="s2">_latest.sif</span><span class="se">\"</span><span class="s2"> </span><span class="si">{</span><span class="n">convert_def</span><span class="si">}</span><span class="s2"> &gt;&gt; sing.log 2&gt;&amp;1 ; echo 'finished </span><span class="si">{</span><span class="n">convert_name</span><span class="si">}</span><span class="s2">_latest.sif' &amp;"</span><span class="p">)</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">convert_cmds</span><span class="p">)</span></div>
+            <span class="n">specs</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"converter"</span><span class="p">,</span>
+                <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"zarr_to_tiff"</span><span class="p">,</span>
+                <span class="s2">"version"</span><span class="p">:</span> <span class="s2">"latest"</span><span class="p">,</span>
+                <span class="s2">"source_type"</span><span class="p">:</span> <span class="s2">"definition"</span><span class="p">,</span>
+                <span class="s2">"source"</span><span class="p">:</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">,</span> <span class="n">convert_def</span><span class="p">),</span>
+                <span class="s2">"destination"</span><span class="p">:</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">convert_name</span><span class="si">}</span><span class="s2">_latest.sif"</span><span class="p">),</span>
+            <span class="p">})</span>
+        <span class="k">return</span> <span class="n">specs</span></div>
+
+<div class="viewcode-block" id="SlurmClient.setup_converters"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_converters">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_converters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Stage converters and submit them through the shared image runner."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_image_pull_array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prepare_converters</span><span class="p">())</span></div>
 
 <div class="viewcode-block" id="SlurmClient.setup_job_scripts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_job_scripts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_job_scripts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -1650,16 +1790,52 @@
             <span class="n">configs</span><span class="p">,</span>
             <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">"image_pull_cpus"</span><span class="p">,</span>
-            <span class="n">default</span><span class="o">=</span><span class="s2">"8"</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_cpus"</span><span class="p">)],</span>
+            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">image_pull_mem</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
             <span class="n">configs</span><span class="p">,</span>
             <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">"image_pull_mem"</span><span class="p">,</span>
-            <span class="n">default</span><span class="o">=</span><span class="s2">"32G"</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_mem"</span><span class="p">)],</span>
+            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">image_pull_time</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
+            <span class="n">configs</span><span class="p">,</span>
+            <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
+            <span class="n">option</span><span class="o">=</span><span class="s2">"image_pull_time"</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_time"</span><span class="p">)],</span>
+            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">image_pull_concurrency</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
+            <span class="n">configs</span><span class="p">,</span>
+            <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
+            <span class="n">option</span><span class="o">=</span><span class="s2">"image_pull_concurrency"</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[</span>
+                <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_concurrency"</span><span class="p">)],</span>
+            <span class="n">value_type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">image_pull_concurrency</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">"image_pull_concurrency must be at least 1; using 1"</span><span class="p">)</span>
+            <span class="n">image_pull_concurrency</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">image_pull_partition</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
+            <span class="n">configs</span><span class="p">,</span>
+            <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
+            <span class="n">option</span><span class="o">=</span><span class="s2">"image_pull_partition"</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[</span>
+                <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"image_pull_partition"</span><span class="p">)],</span>
+            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">apptainer_tmpdir</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
@@ -1823,6 +1999,9 @@
                    <span class="n">slurm_image_pull_via_sbatch</span><span class="o">=</span><span class="n">slurm_image_pull_via_sbatch</span><span class="p">,</span>
                    <span class="n">image_pull_cpus</span><span class="o">=</span><span class="n">image_pull_cpus</span><span class="p">,</span>
                    <span class="n">image_pull_mem</span><span class="o">=</span><span class="n">image_pull_mem</span><span class="p">,</span>
+                   <span class="n">image_pull_time</span><span class="o">=</span><span class="n">image_pull_time</span><span class="p">,</span>
+                   <span class="n">image_pull_concurrency</span><span class="o">=</span><span class="n">image_pull_concurrency</span><span class="p">,</span>
+                   <span class="n">image_pull_partition</span><span class="o">=</span><span class="n">image_pull_partition</span><span class="p">,</span>
                    <span class="n">apptainer_tmpdir</span><span class="o">=</span><span class="n">apptainer_tmpdir</span><span class="p">,</span>
                    <span class="n">apptainer_cachedir</span><span class="o">=</span><span class="n">apptainer_cachedir</span><span class="p">,</span>
                    <span class="n">slurm_zip_cmd</span><span class="o">=</span><span class="n">slurm_zip_cmd</span><span class="p">,</span>
@@ -2719,9 +2898,14 @@
 <span class="sd">                The Slurm job ID extracted from the result,</span>
 <span class="sd">                or -1 if not found.</span>
 <span class="sd">        """</span>
-        <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-                            <span class="s2">"Submitted batch job"</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">slurm_job_id</span></div>
+        <span class="n">stdout</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stdout</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">submitted</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Submitted batch job\s+(\d+)"</span><span class="p">,</span> <span class="n">stdout</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">submitted</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">submitted</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">parsable</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">"\s*(\d+)(?:;[^\s]+)?\s*"</span><span class="p">,</span> <span class="n">stdout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">parsable</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="k">if</span> <span class="n">parsable</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_update_slurm_scripts_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_update_slurm_scripts_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_update_slurm_scripts_command</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Generate the command to update the Git repository containing</span>
@@ -3719,8 +3903,10 @@
         <span class="c1"># split responses per command</span>
         <span class="n">response_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands_split_out</span><span class="p">(</span><span class="n">cmdlist</span><span class="p">)</span>
         <span class="c1"># split lines further into sublists</span>
-        <span class="n">response_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
-                         <span class="k">for</span> <span class="n">response</span> <span class="ow">in</span> <span class="n">response_list</span><span class="p">]</span>
+        <span class="n">response_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span> <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">response</span> <span class="ow">in</span> <span class="n">response_list</span>
+        <span class="p">]</span>
         <span class="n">response_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">response_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">response_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">response_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span></div>
 
@@ -3753,8 +3939,10 @@
         <span class="n">response_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands_split_out</span><span class="p">(</span><span class="n">cmdlist</span><span class="p">)</span>
 
         <span class="c1"># Split lines further into sublists</span>
-        <span class="n">response_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
-                         <span class="k">for</span> <span class="n">response</span> <span class="ow">in</span> <span class="n">response_list</span><span class="p">]</span>
+        <span class="n">response_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span> <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">response</span> <span class="ow">in</span> <span class="n">response_list</span>
+        <span class="p">]</span>
 
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_paths</span><span class="p">):</span>
             <span class="c1"># Return highest version first</span>

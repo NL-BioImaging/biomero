@@ -360,19 +360,35 @@ back it looks:</p>
 <p>Impact:</p>
 <ul class="simple">
 <li><p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>: BIOMERO starts image pulls/builds via the existing remote shell path.</p></li>
-<li><p>When <code class="docutils literal notranslate"><span class="pre">true</span></code>: BIOMERO submits image pulls/builds through <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> instead.</p></li>
-<li><p>This applies to both workflow image setup and configured converter image setup.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">true</span></code>: BIOMERO submits one combined workflow-and-converter Slurm job
+array with one task per missing or invalid image.</p></li>
+<li><p>Valid existing versioned SIFs are inspected and omitted on rerun.</p></li>
 </ul>
 <p>Use this when:</p>
 <ul class="simple">
 <li><p>container pulls/builds are too heavy for the login node</p></li>
 <li><p>your cluster requires build work to run as scheduled jobs</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code> and <code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code>, <code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code>, <code class="docutils literal notranslate"><span class="pre">image_pull_time</span></code>,
+<code class="docutils literal notranslate"><span class="pre">image_pull_concurrency</span></code>, and <code class="docutils literal notranslate"><span class="pre">image_pull_partition</span></code></p>
 <p>Impact:</p>
 <ul class="simple">
-<li><p>Control the resources requested when <code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch=true</span></code>.</p></li>
-<li><p>These values are passed to the pull/build submission jobs for workflow and converter images.</p></li>
+<li><p>Control resources and the <code class="docutils literal notranslate"><span class="pre">%N</span></code> concurrency throttle when
+<code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch=true</span></code>.</p></li>
+<li><p>Global <code class="docutils literal notranslate"><span class="pre">sbatch_*</span></code> parameters, including <code class="docutils literal notranslate"><span class="pre">sbatch_time</span></code>, apply to the array.
+Dedicated <code class="docutils literal notranslate"><span class="pre">image_pull_*</span></code> resource values override matching global flags.</p></li>
+<li><p>Blank <code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code> and <code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code> values inherit
+<code class="docutils literal notranslate"><span class="pre">sbatch_cpus-per-task</span></code> and <code class="docutils literal notranslate"><span class="pre">sbatch_mem</span></code> respectively. When neither level
+is configured, Slurm uses its scheduler defaults; SquashFS falls back to one
+worker if the allocation does not expose <code class="docutils literal notranslate"><span class="pre">SLURM_CPUS_PER_TASK</span></code>.</p></li>
+<li><p>The compatibility default concurrency is <code class="docutils literal notranslate"><span class="pre">1</span></code>; <code class="docutils literal notranslate"><span class="pre">2</span></code> to <code class="docutils literal notranslate"><span class="pre">4</span></code> is recommended
+to limit metadata and I/O pressure on shared storage.</p></li>
+<li><p>Each compute task auto-detects <code class="docutils literal notranslate"><span class="pre">apptainer</span></code> first and then <code class="docutils literal notranslate"><span class="pre">singularity</span></code>.
+The selected runtime resolves the OCI manifest as the first phase of its
+native build, so no separate registry utility is required.</p></li>
+<li><p>Permanent manifest, authentication, and reference errors fail immediately;
+classified transient registry and network errors are retried.</p></li>
+<li><p>Each task writes its own <code class="docutils literal notranslate"><span class="pre">pull-image-%A_%a.log</span></code> and structured status.</p></li>
 </ul>
 </section>
 <section id="apptainer-temp-and-cache-directories">
@@ -381,9 +397,11 @@ back it looks:</p>
 or cache location is too small for large image pulls/builds.</p>
 <p>Impact:</p>
 <ul class="simple">
-<li><p>If set, BIOMERO exports the corresponding Apptainer/Singularity env vars into pull/build commands.</p></li>
-<li><p>The same settings apply to both image setup modes: direct and sbatch-based.</p></li>
-<li><p>If unset, BIOMERO leaves Apptainer/Singularity at the cluster defaults.</p></li>
+<li><p>Array tasks prefer <code class="docutils literal notranslate"><span class="pre">SLURM_TMPDIR</span></code> for OCI extraction, SquashFS creation,
+and a task-private cache. Configured paths are fallbacks when it is absent.</p></li>
+<li><p>Temporary data and partial shared SIFs are removed after success or failure.</p></li>
+<li><p>A completed SIF is published only after local and shared-copy inspection,
+using an atomic rename in the destination directory.</p></li>
 </ul>
 </section>
 <section id="default-gpu-fallback-settings">
@@ -415,8 +433,9 @@ Use this when your cluster uses the <code class="docutils literal notranslate"><
 </section>
 <section id="global-sbatch-parameters">
 <h3>Global sbatch parameters<a class="headerlink" href="#global-sbatch-parameters" title="Permalink to this heading"></a></h3>
-<p>Any <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> key that starts with <code class="docutils literal notranslate"><span class="pre">sbatch_</span></code> is treated as a global sbatch parameter
-that BIOMERO adds to every workflow <strong>and conversion</strong> submission.</p>
+<p>Any <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> key that starts with <code class="docutils literal notranslate"><span class="pre">sbatch_</span></code> is treated as a global sbatch
+parameter that BIOMERO adds to workflow, conversion, and scheduler-native image
+pull submissions.</p>
 <p>The key pattern is <code class="docutils literal notranslate"><span class="pre">sbatch_&lt;flag&gt;=&lt;value&gt;</span></code>, which produces <code class="docutils literal notranslate"><span class="pre">--&lt;flag&gt;=&lt;value&gt;</span></code> on the
 sbatch command line.</p>
 <p>Examples:</p>
@@ -425,13 +444,17 @@ sbatch command line.</p>
 <span class="na">sbatch_nice</span><span class="o">=</span><span class="s">1</span>
 </pre></div>
 </div>
-<p>This appends <code class="docutils literal notranslate"><span class="pre">--reservation=biomero</span></code> and <code class="docutils literal notranslate"><span class="pre">--nice=1</span></code> to every workflow job and to
-each data conversion job.</p>
+<p>This appends <code class="docutils literal notranslate"><span class="pre">--reservation=biomero</span></code> and <code class="docutils literal notranslate"><span class="pre">--nice=1</span></code> to workflow, conversion,
+and scheduled image initialization jobs.</p>
 <p>Impact:</p>
 <ul class="simple">
 <li><p>Global params are applied after per-workflow <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> sbatch overrides.</p></li>
 <li><p>If a per-workflow override already sets the same flag (e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_job_reservation</span></code>), the global default for that flag is skipped.</p></li>
 <li><p>For conversion jobs, a <code class="docutils literal notranslate"><span class="pre">--partition</span></code> set via <code class="docutils literal notranslate"><span class="pre">slurm_conversion_partition</span></code> (or the <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code> fallback) takes precedence over a global <code class="docutils literal notranslate"><span class="pre">sbatch_partition</span></code>.</p></li>
+<li><p>For image arrays, dedicated <code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code>, <code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code>,
+<code class="docutils literal notranslate"><span class="pre">image_pull_time</span></code>, and <code class="docutils literal notranslate"><span class="pre">image_pull_partition</span></code> values take precedence over
+matching global flags. Blank dedicated values inherit their matching global
+flag; if that is also unset, the scheduler default applies.</p></li>
 <li><p>Global params with empty values are ignored.</p></li>
 <li><p>There is no environment variable override for these — they are intentionally admin-only at config time.</p></li>
 </ul>
@@ -595,6 +618,9 @@ client-level options introduced, including:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">slurm_image_pull_via_sbatch</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">image_pull_cpus</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">image_pull_mem</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">image_pull_time</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">image_pull_concurrency</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">image_pull_partition</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">apptainer_tmpdir</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">apptainer_cachedir</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">slurm_zip_cmd</span></code></p></li>

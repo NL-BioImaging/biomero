@@ -2093,10 +2093,11 @@ htc<span class="w"> </span>up<span class="w"> </span>infinite<span class="w"> </
 <li><p>Uncheck the <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Python</span></code> box</p></li>
 <li><p>Check the <code class="docutils literal notranslate"><span class="pre">Run</span> <span class="pre">Other</span> <span class="pre">Commmand</span></code> box</p></li>
 <li><p>Change the Linux Command to <code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">**/*</span></code> (we want to check all subfolders too).</p></li>
-<li><p>Run it. Press the <code class="docutils literal notranslate"><span class="pre">i</span></code> button for proper formatting and scroll down to see what we made</p></li>
+<li><p>Run it. Press the <code class="docutils literal notranslate"><span class="pre">i</span></code> button for proper formatting and scroll down to see what we made. Current BIOMERO versions keep the image worker under <code class="docutils literal notranslate"><span class="pre">slurm-scripts</span></code> and write one log and status record per image initialization task; there is no shared <code class="docutils literal notranslate"><span class="pre">sing.log</span></code>.</p></li>
 </ul>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="o">===</span><span class="w"> </span><span class="nv">stdout</span><span class="w"> </span><span class="o">===</span>
 -rw-r--r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">1336</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>slurm-scripts/convert_job_array.sh
+-rw-r--r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">695</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>slurm-scripts/pull_images.sh
 
 my-scratch/singularity_images:
 total<span class="w"> </span><span class="m">0</span>
@@ -2111,9 +2112,11 @@ drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </spa
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">40</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:42<span class="w"> </span>cellexpansion
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">54</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:36<span class="w"> </span>cellpose
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">52</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:40<span class="w"> </span>cellprofiler_spot
--rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">695</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>pull_images.sh
--rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">10802</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>sing.log
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">43</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting
+
+slurm-scripts/image-pulls:
+-rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">73</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>latest
+drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">160</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>&lt;submission-id&gt;
 
 slurm-scripts/jobs:
 total<span class="w"> </span><span class="m">16</span>
@@ -2125,6 +2128,9 @@ drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </spa
 -rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">3500</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting.sh
 </pre></div>
 </div>
+<p>The <code class="docutils literal notranslate"><span class="pre">image-pulls/latest</span></code> file contains the path of the newest submission
+directory. That directory contains <code class="docutils literal notranslate"><span class="pre">manifest.tsv</span></code>, one <code class="docutils literal notranslate"><span class="pre">status-*.status</span></code> record
+per image, and separate <code class="docutils literal notranslate"><span class="pre">pull-image-&lt;array-id&gt;_&lt;task-id&gt;.log</span></code> files.</p>
 <ul class="simple">
 <li><p>Or better yet, run this linux command for full info on <em>all</em> (non-hidden) subdirectories: <code class="docutils literal notranslate"><span class="pre">find</span> <span class="pre">.</span> <span class="pre">-type</span> <span class="pre">d</span> <span class="pre">-not</span> <span class="pre">-path</span> <span class="pre">'*/.*'</span> <span class="pre">-exec</span> <span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">{}</span> <span class="pre">+</span></code>. This should show that we downloaded some of the workflows to our Slurm cluster already:</p></li>
 </ul>
@@ -2135,8 +2141,6 @@ drwxrwxr-x<span class="w"> </span><span class="m">3</span><span class="w"> </spa
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">40</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:42<span class="w"> </span>cellexpansion
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">54</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:36<span class="w"> </span>cellpose
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">52</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:40<span class="w"> </span>cellprofiler_spot
--rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">   </span><span class="m">695</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>pull_images.sh
--rw-rw-r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w"> </span><span class="m">10802</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:45<span class="w"> </span>sing.log
 drwxrwxr-x<span class="w"> </span><span class="m">2</span><span class="w"> </span>azureadmin<span class="w"> </span>azureadmin<span class="w">    </span><span class="m">43</span><span class="w"> </span>Mar<span class="w"> </span><span class="m">21</span><span class="w"> </span><span class="m">17</span>:44<span class="w"> </span>spotcounting
 
 ./singularity_images/workflows/cellexpansion:

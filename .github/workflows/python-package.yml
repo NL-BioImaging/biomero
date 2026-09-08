@@ -37,6 +37,9 @@ jobs:
     - name: Test with pytest
       run: |
         python -m pytest tests/unit/ --cov=biomero --cov-report=xml
+    - name: Test image pull worker
+      if: runner.os == 'Linux' && matrix.python-version == '3.11'
+      run: bash tests/integration/test_pull_images.sh
     - name: Coveralls GitHub Action
       if: matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
       continue-on-error: true

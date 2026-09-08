@@ -282,6 +282,15 @@ workflow supervisor, such as the NL-BIOMERO ``biomeroworker`` container; they
 do not configure ``SlurmClient`` and do not need entries in
 ``slurm-config.ini``.
 
+After the launcher has recorded the workflow request, detached execution no
+longer depends on the browser tab or the OMERO session that submitted it. The
+Slurm run, monitoring, and result import may therefore outlive ordinary OMERO
+server and web-session timeouts. Do not increase those timeouts merely to cover
+the complete workflow duration. They must still be long enough for initial
+validation and hand-off, and for each OMERO-side transfer or import subprocess.
+Without a compatible supervisor, keep detached mode disabled: the established
+inline path still depends on the calling script and session until it finishes.
+
 Supervisor values are converted to integers when the worker process starts, so
 non-integer values prevent that process from loading. Use a positive value for
 ``BIOMERO_MAX_ACTIVE_WORKFLOWS`` and non-negative second values for both timing

@@ -274,6 +274,13 @@ other value.
 Detached worker supervisor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. versionadded:: 2.9.0
+
+   ``BIOMERO_DETACHED_WORKFLOWS`` is an opt-in feature flag. It is disabled
+   when absent or false. Existing deployments
+   retain inline execution until an administrator enables the feature and
+   provides a compatible worker supervisor.
+
 The four detached variable names are centralized in
 ``biomero.constants.slurm_env`` and form one deployment contract. The workflow
 scripts and worker both read ``BIOMERO_DETACHED_WORKFLOWS``. The three

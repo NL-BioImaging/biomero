@@ -40,10 +40,16 @@ The package includes the `SlurmClient` class, which provides **SSH-based connect
 
 Overall, the `biomero` package simplifies the integration of HPC functionality within the OMERO platform for admins and provides an efficient and end-user-friendly interface towards both the HPC and FAIR workflows.
 
+> **New in BIOMERO 2.9 — opt-in detached-workflow feature:** The
+> `BIOMERO_DETACHED_WORKFLOWS` feature flag is disabled when absent or false.
+> Installing or upgrading BIOMERO therefore preserves inline execution in
+> existing and custom deployments. Administrators can opt in after deploying a
+> compatible background worker supervisor.
+
 > ⚠️ **Warning:** Default settings are intended for short/medium jobs. For long workflows (>45min), review these limits and choose inline or detached execution deliberately:
 > - Slurm jobs will timeout after **45 minutes** — see [Time Limit on Slurm](#time-limit-on-slurm)  
 > - In **inline mode**, the top-level OMERO script and requesting OMERO session must remain available for the whole workflow. Long runs may therefore require increasing the [OMERO script timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero-scripts-timeout) and [OMERO session timeout](https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero-sessions-timeout), and the user must follow the UI warning to keep the session active.
-> - With `BIOMERO_DETACHED_WORKFLOWS=true` and a compatible worker supervisor, the launcher returns after a durable hand-off. The Slurm run, monitoring, and result import no longer depend on the browser or requesting session, so their total duration does **not** require long-lived OMERO sessions or an unusually large OMERO.web cookie. Normal timeouts must still cover launch validation and each OMERO-side subprocess. See the [NL-BIOMERO detached-workflow guide](https://nl-bioimaging.github.io/NL-BIOMERO/sysadmin/detached-workflows.html).
+> - With `BIOMERO_DETACHED_WORKFLOWS=true` and a compatible worker supervisor, an accepted request continues in the background. The Slurm run, monitoring, and result import no longer depend on the browser or requesting session, so their total duration does **not** require long-lived OMERO sessions or an unusually large OMERO.web cookie. Normal timeouts must still cover request validation and each OMERO-side subprocess. See the [NL-BIOMERO detached-workflow guide](https://nl-bioimaging.github.io/NL-BIOMERO/latest/sysadmin/detached-workflows.html).
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: biomero-dev
-description: BIOMERO core library (pylib) development runbook for the surf branch. Use when changing biomero/slurm_client.py or related modules, adding or migrating a config option, writing or running pytest tests, following TDD, or building the Sphinx docs. Covers the config precedence pattern (code default -> ini -> env), the existing pytest fixture style, the venvTest test runner, and the docs build.
+description: BIOMERO core library (pylib) development runbook for the surf branch. Use when changing biomero/slurm_client.py or related modules, debugging event-sourced workflow state and projections, adding or migrating a config option, writing or running pytest tests, following TDD, or building the Sphinx docs. Covers event and aggregate inspection, config precedence, the existing pytest fixture style, the venvTest test runner, and the docs build.
 ---
 
 # BIOMERO Core Development
@@ -41,6 +41,11 @@ Read only the relevant reference before acting:
   documented (sample ini, both Sphinx rst files, deployment inis, and the
   OMERO.biomero admin UI), the cross-surface consistency checklist, and how to
   build the Sphinx site.
+- [references/eventsourcing.md](references/eventsourcing.md): inspect immutable
+  notifications, replay workflow or task aggregates at exact versions, compare
+  aggregates with SQL projections and exported metadata, and rebuild derived
+  views. Read this before diagnosing workflow lifecycle, status ordering,
+  projection lag, or metadata provenance.
 
 ## Core Rules
 

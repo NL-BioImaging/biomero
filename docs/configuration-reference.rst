@@ -422,3 +422,42 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``GPU_PARTITION``
 * ``GPU_GRES``
 * ``GPU_GPUS``
+
+
+Optional result normalizer
+--------------------------
+
+The administrator-only CPU helper runs before result ZIP creation. All options
+are in ``[SLURM]``; environment values override ini values. The default remains
+the existing local importer shallow path. The helper requests no GPU; workers
+set CPUs per task, and global memory/time/account/reservation/QoS are inherited.
+Image pulls use the normal image-pull resource configuration.
+
+.. list-table:: Result normalizer configuration
+   :header-rows: 1
+   :widths: 28 32 40
+
+   * - Ini option
+     - Default
+     - Environment variable
+   * - ``remote_shallow_zarr``
+     - ``false``
+     - ``BIOMERO_REMOTE_SHALLOW_ZARR``
+   * - ``result_normalizer_image``
+     - ``cellularimagingcf/biomero-shallower:0.1.0``
+     - ``BIOMERO_RESULT_NORMALIZER_IMAGE``
+   * - ``result_normalizer_version``
+     - ``0.1.0``
+     - ``BIOMERO_RESULT_NORMALIZER_VERSION``
+   * - ``result_normalizer_workers``
+     - ``1``
+     - ``BIOMERO_RESULT_NORMALIZER_WORKERS``
+   * - ``result_normalizer_partition``
+     - Unset (scheduler default)
+     - ``BIOMERO_RESULT_NORMALIZER_PARTITION``
+
+Use a versioned tag or immutable digest and matching importer/schema/shallower
+versions. Importer enablement, existing shallow capability, and workflow tracking
+are required. Safe failures fall back to full transfer and local import;
+unresolved recovery preserves results and pauses retrieval. These options are
+managed through ini/environment, not the analysis parameter or web settings UI.

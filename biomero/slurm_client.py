@@ -499,6 +499,11 @@ class SlurmClient(Connection):
                  sqlalchemy_url: str = None,
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
+                 remote_shallow_zarr: bool = False,
+                 result_normalizer_image: str = 'cellularimagingcf/biomero-shallower:0.1.0',
+                 result_normalizer_version: str = '0.1.0',
+                 result_normalizer_workers: int = 1,
+                 result_normalizer_partition: str = None,
                  slurm_conversion_partition: str = None,
                  slurm_default_partition: str = None,
                  sacct_start_time: str = None,
@@ -616,6 +621,16 @@ class SlurmClient(Connection):
                 to the container. If your HPC administrator tells you to set 
                 APPTAINER_BINDPATH, configure this parameter. 
                 Defaults to None (no explicit binding).
+            remote_shallow_zarr (bool, optional): Administrator result-normalizer
+                setting; default False. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
+            result_normalizer_image (str, optional): Administrator result-normalizer
+                setting; default 'cellularimagingcf/biomero-shallower:0.1.0'. Environment: BIOMERO_RESULT_NORMALIZER_IMAGE.
+            result_normalizer_version (str, optional): Administrator result-normalizer
+                setting; default '0.1.0'. Environment: BIOMERO_RESULT_NORMALIZER_VERSION.
+            result_normalizer_workers (int, optional): Administrator result-normalizer
+                setting; default 1. Environment: BIOMERO_RESULT_NORMALIZER_WORKERS.
+            result_normalizer_partition (str, optional): Administrator result-normalizer
+                setting; default None. Environment: BIOMERO_RESULT_NORMALIZER_PARTITION.
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
@@ -731,6 +746,11 @@ class SlurmClient(Connection):
         self.slurm_model_jobs_params = slurm_model_jobs_params
         self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
+        self.remote_shallow_zarr = remote_shallow_zarr
+        self.result_normalizer_image = result_normalizer_image
+        self.result_normalizer_version = result_normalizer_version
+        self.result_normalizer_workers = result_normalizer_workers
+        self.result_normalizer_partition = result_normalizer_partition
         self.slurm_conversion_partition = slurm_conversion_partition
         self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
@@ -1134,6 +1154,9 @@ class SlurmClient(Connection):
         self.setup_directories()
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
+        if self.remote_shallow_zarr:
+            from .result_normalizer import image_spec
+            converter_specs = [*converter_specs, image_spec(self)]
         return self.setup_container_images(extra_image_specs=converter_specs)
 
     @staticmethod
@@ -1352,6 +1375,16 @@ class SlurmClient(Connection):
                     result_dict[key] = [version]
         return result_dict
 
+    def normalize_results_on_slurm(self, data_path, workflow_id, canonical_inputs):
+        """Run/adopt optional CPU normalization before result archiving."""
+        from .result_normalizer import run
+        return run(self, data_path, workflow_id, canonical_inputs)
+
+    def get_result_normalizer_receipts(self, workflow_id, canonical_inputs):
+        """Read trusted completed receipts from event-sourced helper tasks."""
+        from .result_normalizer import completed_receipts
+        return completed_receipts(self, workflow_id, canonical_inputs)
+
     def prepare_converters(self) -> List[Dict[str, str]]:
         """Stage converter runtime files and return their image specifications."""
         convert_cmds = []
@@ -1566,6 +1599,26 @@ class SlurmClient(Connection):
             default=None,
             empty_is_none=True,
         )
+        remote_shallow_zarr = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallow_zarr",
+            default=False, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOW_ZARR],
+            value_type=bool)
+        result_normalizer_image = cls._get_config_value(
+            configs, section="SLURM", option="result_normalizer_image",
+            default='cellularimagingcf/biomero-shallower:0.1.0', env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_IMAGE],
+            value_type=str)
+        result_normalizer_version = cls._get_config_value(
+            configs, section="SLURM", option="result_normalizer_version",
+            default='0.1.0', env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_VERSION],
+            value_type=str)
+        result_normalizer_workers = cls._get_config_value(
+            configs, section="SLURM", option="result_normalizer_workers",
+            default=1, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_WORKERS],
+            value_type=int)
+        result_normalizer_partition = cls._get_config_value(
+            configs, section="SLURM", option="result_normalizer_partition",
+            default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_PARTITION],
+            value_type=str)
         slurm_conversion_partition = cls._get_config_value(
             configs,
             section="SLURM",
@@ -1876,6 +1929,11 @@ class SlurmClient(Connection):
                    sqlalchemy_url=sqlalchemy_url,
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
+                   remote_shallow_zarr=remote_shallow_zarr,
+                   result_normalizer_image=result_normalizer_image,
+                   result_normalizer_version=result_normalizer_version,
+                   result_normalizer_workers=result_normalizer_workers,
+                   result_normalizer_partition=result_normalizer_partition,
                    slurm_conversion_partition=slurm_conversion_partition,
                    slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,
@@ -3599,14 +3657,16 @@ class SlurmClient(Connection):
             str: The command to create the zip file.
         """
         if self._uses_infozip():
+            exclusions = " -x '*.biomero-lock'" if self.remote_shallow_zarr else ""
             return (
                 f"cd \"{data_location}/data/out\" && "
                 f"{self.slurm_zip_cmd} -r "
-                f"\"{data_location}/{filename}.zip\" ."
+                f"\"{data_location}/{filename}.zip\" .{exclusions}"
             )
+        exclusions = " '-xr!*.biomero-lock'" if self.remote_shallow_zarr else ""
         return (
             f"cd \"{data_location}/data/out\" && "
-            f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
+            f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip .{exclusions}"
         )
 
     def _uses_infozip(self) -> bool:

@@ -334,6 +334,9 @@ class WorkflowProgress(ProcessApplication):
 
         # Track task to workflow mapping
         task_info = self.resolve_task(task_id)
+        if task_info and task_info["task_name"] == "_SLURM_Result_Normalizer":
+            EngineManager.commit()
+            return
         if task_info:
             task_info["workflow_id"] = wf_id
             workflow_info = self.resolve_workflow(wf_id)
@@ -367,6 +370,9 @@ class WorkflowProgress(ProcessApplication):
         """Persist the current task and its initial workflow phase."""
         task_id = domain_event.originator_id
         task_info = self.resolve_task(task_id)
+        if task_info and task_info["task_name"] == "_SLURM_Result_Normalizer":
+            EngineManager.commit()
+            return
         if task_info:
             wf_id = task_info["workflow_id"]
             workflow_info = self.resolve_workflow(wf_id)
@@ -412,6 +418,9 @@ class WorkflowProgress(ProcessApplication):
 
         # Get the workflow ID and task name associated with this task
         task_info = self.resolve_task(task_id)
+        if task_info and task_info["task_name"] == "_SLURM_Result_Normalizer":
+            EngineManager.commit()
+            return
         if task_info:
             wf_id = task_info["workflow_id"]
             task_name = task_info["task_name"].lower()
@@ -488,6 +497,9 @@ class WorkflowProgress(ProcessApplication):
         progress = domain_event.progress
         
         task_info = self.resolve_task(task_id)
+        if task_info and task_info["task_name"] == "_SLURM_Result_Normalizer":
+            EngineManager.commit()
+            return
         if task_info:
             task_info["progress"] = progress
             wf_id = task_info["workflow_id"]

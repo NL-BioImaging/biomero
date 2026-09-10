@@ -1030,6 +1030,23 @@ def test_workflow_progress_reconstructs_main_task_after_restart(
         assert workflow_view.main_task_name == "simple-zarr-plate-processor"
 
 
+def test_result_normalizer_does_not_change_analysis_progress(
+        workflow_tracker_and_workflow_progress):
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow('analysis', '', user=1, group=2)
+    main = tracker.add_task_to_workflow(workflow_id, 'analysis', 'v1', {}, {})
+    tracker.start_task(main)
+    tracker.update_task_progress(main, '70%')
+    before = dict(progress.workflows[workflow_id])
+    helper = tracker.add_task_to_workflow(
+        workflow_id, '_SLURM_Result_Normalizer', '0.1.0', {}, {})
+    tracker.start_task(helper)
+    tracker.update_task_status(helper, 'RUNNING')
+    tracker.update_task_progress(helper, '5%')
+    tracker.complete_task(helper, '{}')
+    assert progress.workflows[workflow_id] == before
+
+
 def test_workflow_progress_task_status_updated(workflow_tracker_and_workflow_progress):
     # GIVEN a WorkflowTracker event system and workflow progress listener
     workflow_tracker: WorkflowTracker

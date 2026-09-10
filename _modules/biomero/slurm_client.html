@@ -1210,8 +1210,11 @@
         <span class="c1"># Ensure to call the parent class's __exit__</span>
         <span class="c1"># to clean up Connection resources</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__exit__</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">)</span>
-        <span class="c1"># Cleanup resources specific to SlurmClient</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">close_engine</span><span class="p">()</span>
+        <span class="c1"># Cleanup resources specific to SlurmClient. Only this thread's session</span>
+        <span class="c1"># is released, not the engine: a long-lived process (the workflow</span>
+        <span class="c1"># supervisor) opens a client per workflow and the ones running</span>
+        <span class="c1"># alongside it still need the engine.</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">remove_session</span><span class="p">()</span>
         <span class="c1"># If we have any other resources to close or cleanup, do it here</span>
 
 <div class="viewcode-block" id="SlurmClient.init_workflows"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.init_workflows">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">init_workflows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
@@ -2674,6 +2677,7 @@
                      <span class="n">email</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                      <span class="n">time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                      <span class="n">wf_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">UUID</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">output_settings</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                      <span class="o">**</span><span class="n">kwargs</span>
                      <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Result</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">UUID</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -2714,6 +2718,8 @@
             <span class="n">workflow_name</span><span class="p">,</span> <span class="n">input_data</span><span class="p">)</span>
         <span class="c1"># user kwargs take precedence</span>
         <span class="n">recorded_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">server_params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">output_settings</span><span class="p">:</span>
+            <span class="n">recorded_params</span><span class="p">[</span><span class="s2">"output_settings"</span><span class="p">]</span> <span class="o">=</span> <span class="n">output_settings</span>
 
         <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
             <span class="n">wf_id</span><span class="p">,</span>
@@ -2745,6 +2751,7 @@
                          <span class="n">email</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                          <span class="n">time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                          <span class="n">wf_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">UUID</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                         <span class="n">output_settings</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                          <span class="o">**</span><span class="n">kwargs</span>
                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SlurmJob</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -2757,6 +2764,7 @@
 <span class="sd">            email (str, optional): Email address for Slurm job notifications.</span>
 <span class="sd">            time (str, optional): Time limit for the Slurm job in the format HH:MM:SS.</span>
 <span class="sd">            wf_id (UUID, optional): Workflow ID for tracking purposes. If not provided, a new one is created.</span>
+<span class="sd">            output_settings (dict, optional): Selected output settings for results import.</span>
 <span class="sd">            **kwargs: Additional keyword arguments for the workflow.</span>
 
 <span class="sd">        Returns:</span>
@@ -2764,6 +2772,7 @@
 <span class="sd">        """</span>
         <span class="n">result</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_workflow</span><span class="p">(</span>
             <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span>
+            <span class="n">output_settings</span><span class="o">=</span><span class="n">output_settings</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">SlurmJob</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span></div>
 
@@ -2944,54 +2953,62 @@
 <span class="sd">            SSHException: If the command execution fails or no response is</span>
 <span class="sd">                received after multiple retries.</span>
 <span class="sd">        """</span>
-        <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_status_command</span><span class="p">(</span><span class="n">slurm_job_ids</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Getting status of </span><span class="si">{</span><span class="n">slurm_job_ids</span><span class="si">}</span><span class="s2"> on Slurm"</span><span class="p">)</span>
+        <span class="c1"># Filter job IDs to only include valid positive integers</span>
+        <span class="n">valid_job_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">jid</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">jid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">jid</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">val</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">valid_job_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                <span class="k">continue</span>
+                
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">valid_job_ids</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{},</span> <span class="kc">None</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_status_command</span><span class="p">(</span><span class="n">valid_job_ids</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Getting status of </span><span class="si">{</span><span class="n">valid_job_ids</span><span class="si">}</span><span class="s2"> on Slurm"</span><span class="p">)</span>
         <span class="n">retry_status</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">last_result</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">while</span> <span class="n">retry_status</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
+            <span class="n">last_result</span> <span class="o">=</span> <span class="n">result</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
                     <span class="c1"># wait for 3 seconds before checking again</span>
                     <span class="n">timesleep</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
-                    <span class="c1"># retry</span>
                     <span class="n">retry_status</span> <span class="o">+=</span> <span class="mi">1</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">"Retry </span><span class="si">{</span><span class="n">retry_status</span><span class="si">}</span><span class="s2"> getting status </span><span class="se">\</span>
-<span class="s2">                            of </span><span class="si">{</span><span class="n">slurm_job_ids</span><span class="si">}</span><span class="s2">!"</span><span class="p">)</span>
+                        <span class="sa">f</span><span class="s2">"Retry </span><span class="si">{</span><span class="n">retry_status</span><span class="si">}</span><span class="s2"> getting status of </span><span class="si">{</span><span class="n">valid_job_ids</span><span class="si">}</span><span class="s2">!"</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="c1">#</span>
-                    <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'_'</span><span class="p">)[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-                    <span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span> <span class="k">if</span> <span class="n">line</span><span class="p">}</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Job statuses: </span><span class="si">{</span><span class="n">job_status_dict</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                                <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                                    <span class="n">raw_id</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'_'</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                                    <span class="n">job_status_dict</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">raw_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Job statuses: </span><span class="si">{</span><span class="n">job_status_dict</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error parsing job status: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+                        <span class="n">job_status_dict</span> <span class="o">=</span> <span class="p">{}</span>
 
-                    <span class="c1"># OK, we have to fix a stupid sacct functionality:</span>
-                    <span class="c1"># Problem:</span>
-                    <span class="c1"># When you query for a job-id, turns out that it queries</span>
-                    <span class="c1"># for this 'JobIdRaw'. And JobIdRaw for arrays is a</span>
-                    <span class="c1"># ridiculous sum, e.g. 'JobId' 11_2 gets assigned</span>
-                    <span class="c1"># 'JobIdRaw' 13 (= 11+2)!</span>
-                    <span class="c1"># Until you submit 2 more jobs and actual 'JobId' 13 comes</span>
-                    <span class="c1"># along, from then on you get that status returned...</span>
-                    <span class="c1"># For us, this creates a race condition, where we get th</span>
-                    <span class="c1"># e wrong data back. We expect 'JobId' 13, but its not</span>
-                    <span class="c1"># there yet for some reason, so we get some result</span>
-                    <span class="c1"># from '11_2' back instead.</span>
-                    <span class="c1"># And this causes a key_error later on, cause we expect</span>
-                    <span class="c1"># '13' since we queried for that one.</span>
-
-                    <span class="c1"># Current workaround: artificially add '13' to our results.</span>
-                    <span class="c1"># And remove the fake one(s).</span>
+                    <span class="c1"># sacct queries on 'JobIdRaw', which for job arrays is a</span>
+                    <span class="c1"># sum: 'JobId' 11_2 is 'JobIdRaw' 13, so asking for 13</span>
+                    <span class="c1"># before it exists can return 11_2's row instead. A job we</span>
+                    <span class="c1"># asked about but did not get a row for is therefore</span>
+                    <span class="c1"># reported as still pending, never as an unknown state:</span>
+                    <span class="c1"># callers treat an unrecognized state as a failure.</span>
                     <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
-                    <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">:</span>
-                        <span class="c1"># Check if the job ID is not already in the job_status_dict</span>
+                    <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">valid_job_ids</span><span class="p">:</span>
                         <span class="k">if</span> <span class="n">job_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job_status_dict</span><span class="p">:</span>
-                            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing job </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> in our </span><span class="se">\</span>
-<span class="s2">                                results! Adding it artificially."</span><span class="p">)</span>
-                            <span class="c1"># Add the job ID with a default status of 'PENDING'</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing job </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> in our "</span>
+                                         <span class="sa">f</span><span class="s2">"results! Reporting it as PENDING."</span><span class="p">)</span>
                             <span class="n">result_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'PENDING'</span>
                         <span class="k">else</span><span class="p">:</span>
-                            <span class="c1"># Copy those values that we want the keys from</span>
                             <span class="n">result_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span>
 
                     <span class="k">return</span> <span class="n">result_dict</span><span class="p">,</span> <span class="n">result</span>
@@ -2999,11 +3016,13 @@
                 <span class="n">error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Result is not ok: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">"</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
                 <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Error: Retried </span><span class="si">{</span><span class="n">retry_status</span><span class="si">}</span><span class="s2"> times to get </span><span class="se">\</span>
-<span class="s2">                status of </span><span class="si">{</span><span class="n">slurm_job_ids</span><span class="si">}</span><span class="s2">, but no response."</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="n">error</span><span class="p">)</span></div>
+        
+        <span class="c1"># Empty sacct output is not evidence that the jobs failed, so keep the</span>
+        <span class="c1"># callers polling instead of raising or failing their workflow.</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Slurm sacct returned empty output for "</span>
+                       <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">valid_job_ids</span><span class="si">}</span><span class="s2"> after </span><span class="si">{</span><span class="n">retry_status</span><span class="si">}</span><span class="s2"> retries; "</span>
+                       <span class="sa">f</span><span class="s2">"reporting them as PENDING."</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">jid</span><span class="p">:</span> <span class="s1">'PENDING'</span> <span class="k">for</span> <span class="n">jid</span> <span class="ow">in</span> <span class="n">valid_job_ids</span><span class="p">},</span> <span class="n">last_result</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_job_status_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_job_status_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_status_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>

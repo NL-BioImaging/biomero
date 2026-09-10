@@ -132,9 +132,29 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">func</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowRun</span><span class="p">,</span> <span class="n">Task</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">JobView</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="p">,</span> <span class="n">JobProgressView</span><span class="p">,</span> <span class="n">WorkflowProgressView</span><span class="p">,</span> <span class="n">retry_on_database_conflict</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">workflow_status</span> <span class="k">as</span> <span class="n">wfs</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">,</span>
+    <span class="n">RUN_WF_SCRIPT</span><span class="p">,</span>
+    <span class="n">workflow_status</span> <span class="k">as</span> <span class="n">wfs</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.detached</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLAIMED</span><span class="p">,</span> <span class="n">LAUNCHER_MARKER</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># A view application only has its own event store, so an aggregate the tracker</span>
+<span class="c1"># created is not in it. Since a workflow may now be run by a process that did</span>
+<span class="c1"># not create it (see biomero.detached), the views have to be able to look those</span>
+<span class="c1"># aggregates up rather than relying on what they saw go past in memory.</span>
+<span class="n">_tracker</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="tracker_repository"><a class="viewcode-back" href="../../biomero.html#biomero.views.tracker_repository">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">tracker_repository</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">"""Read-only access to the workflow tracker's aggregates."""</span>
+    <span class="k">global</span> <span class="n">_tracker</span>
+    <span class="k">if</span> <span class="n">_tracker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowTracker</span>
+        <span class="n">_tracker</span> <span class="o">=</span> <span class="n">WorkflowTracker</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">_tracker</span><span class="o">.</span><span class="n">repository</span></div>
 
     
 <span class="c1"># ------------------- View Listener Applications ------------------ #</span>
@@ -148,6 +168,30 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {wf_id: {"user": user, "group": group}}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{}</span>      <span class="c1"># {task_id: wf_id}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="p">{}</span>       <span class="c1"># {job_id: (task_id, user, group)}   </span>
+
+<div class="viewcode-block" id="JobAccounting.resolve_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.resolve_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Look a workflow up when we did not see it started ourselves."""</span>
+        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">wf_agg</span> <span class="o">=</span> <span class="n">tracker_repository</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"user"</span><span class="p">:</span> <span class="n">wf_agg</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                                         <span class="s2">"group"</span><span class="p">:</span> <span class="n">wf_agg</span><span class="o">.</span><span class="n">group</span><span class="p">}</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not resolve workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> in "</span>
+                               <span class="sa">f</span><span class="s2">"JobAccounting: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="JobAccounting.resolve_task"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.resolve_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Look a task up when we did not see it created ourselves."""</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">task_agg</span> <span class="o">=</span> <span class="n">tracker_repository</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not resolve task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> in "</span>
+                               <span class="sa">f</span><span class="s2">"JobAccounting: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
                    
 <div class="viewcode-block" id="JobAccounting.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
@@ -192,9 +236,9 @@
         <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
         
         <span class="c1"># Find workflow and user/group for the task</span>
-        <span class="n">wf_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">wf_id</span><span class="p">:</span>
-            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
                 <span class="n">user</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"user"</span><span class="p">]</span>
                 <span class="n">group</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"group"</span><span class="p">]</span>
@@ -298,6 +342,49 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {task_id: {"workflow_id": wf_id, "task_name": task_name}}</span>
 
+<div class="viewcode-block" id="WorkflowProgress.resolve_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.resolve_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">WorkflowProgressView</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                            <span class="s2">"status"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                            <span class="s2">"progress"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">progress</span><span class="p">,</span>
+                            <span class="s2">"user"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                            <span class="s2">"group"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">group</span><span class="p">,</span>
+                            <span class="s2">"name"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                            <span class="s2">"task"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">task</span><span class="p">,</span>
+                            <span class="s2">"start_time"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">start_time</span>
+                        <span class="p">}</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not resolve workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> in WorkflowProgress: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkflowProgress.resolve_task"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.resolve_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Look a task up when we did not see it created ourselves."""</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">task_agg</span> <span class="o">=</span> <span class="n">tracker_repository</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
+                    <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">,</span>
+                    <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="n">task_agg</span><span class="o">.</span><span class="n">task_name</span> <span class="ow">in</span> <span class="p">(</span>
+                            <span class="n">RUN_WF_SCRIPT</span><span class="p">,</span>
+                            <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="ow">and</span> <span class="n">LAUNCHER_MARKER</span> <span class="ow">in</span> <span class="p">(</span><span class="n">task_agg</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span>
+                    <span class="p">),</span>
+                    <span class="c1"># Progress is reported by events, not kept on the task.</span>
+                    <span class="s2">"progress"</span><span class="p">:</span> <span class="kc">None</span>
+                <span class="p">}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not resolve task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> in "</span>
+                               <span class="sa">f</span><span class="s2">"WorkflowProgress: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="WorkflowProgress.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Default policy"""</span>
@@ -328,7 +415,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
         <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
         <span class="c1"># Defensive check: ensure workflow exists in our dictionary</span>
-        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] WorkflowCompleted event for unknown workflow: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">. Skipping status update."</span><span class="p">)</span>
             <span class="k">return</span>
             
@@ -343,7 +430,7 @@
         <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
         <span class="n">error</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">error_message</span>
         <span class="c1"># Defensive check: ensure workflow exists in our dictionary</span>
-        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] WorkflowFailed event for unknown workflow: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">. Skipping status update."</span><span class="p">)</span>
             <span class="k">return</span>
             
@@ -359,11 +446,15 @@
         <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
 
         <span class="c1"># Track task to workflow mapping</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"workflow_id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
-            <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"task"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"task_name"</span><span class="p">]</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
+                <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"task"</span><span class="p">]</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Task added: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
     <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskCreated</span><span class="p">)</span>
@@ -374,10 +465,55 @@
         <span class="c1"># store task name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
-            <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> 
-            <span class="s2">"progress"</span><span class="p">:</span> <span class="kc">None</span> 
+            <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="n">task_name</span> <span class="ow">in</span> <span class="p">(</span><span class="n">RUN_WF_SCRIPT</span><span class="p">,</span> <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">LAUNCHER_MARKER</span> <span class="ow">in</span> <span class="p">(</span><span class="n">domain_event</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span>
+            <span class="p">),</span>
+            <span class="s2">"progress"</span><span class="p">:</span> <span class="kc">None</span>
             <span class="p">}</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Task created: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskStarted</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Persist the current task and its initial workflow phase."""</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
+                <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span>
+                <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"task"</span><span class="p">]</span> <span class="o">=</span> <span class="n">task_name</span>
+                <span class="n">task_name_lower</span> <span class="o">=</span> <span class="n">task_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="n">task_name_lower</span> <span class="o">==</span> <span class="s1">'_slurm_image_transfer.py'</span><span class="p">:</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">TRANSFERRING</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"5%"</span>
+                <span class="k">elif</span> <span class="p">(</span><span class="n">task_name_lower</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">'convert_'</span><span class="p">)</span> <span class="ow">or</span>
+                      <span class="n">task_name_lower</span> <span class="o">==</span> <span class="s1">'slurm_remote_conversion.py'</span><span class="p">):</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">CONVERTING</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"25%"</span>
+                <span class="k">elif</span> <span class="n">task_name_lower</span> <span class="o">==</span> <span class="s1">'slurm_get_results.py'</span><span class="p">:</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RETRIEVING</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"90%"</span>
+                <span class="k">elif</span> <span class="n">task_name_lower</span> <span class="o">==</span> <span class="s1">'slurm_import_results.py'</span><span class="p">:</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">IMPORTING</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"90%"</span>
+                <span class="k">elif</span> <span class="n">task_name_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'slurm_run_workflow.py'</span><span class="p">,</span>
+                                          <span class="s1">'slurm_run_workflow_batched.py'</span><span class="p">):</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RUNNING</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"50%"</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">JOB_STATUS</span> <span class="o">+</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RUNNING</span>
+                    <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"50%"</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"[WFP] Task started: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, "</span>
+                    <span class="sa">f</span><span class="s2">"task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
     <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
@@ -388,12 +524,23 @@
         <span class="n">status</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">status</span>
 
         <span class="c1"># Get the workflow ID and task name associated with this task</span>
-        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>
             <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
 
-            <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+            <span class="c1"># CLAIMED is supervisor bookkeeping, not workflow execution. The</span>
+            <span class="c1"># first real task's TaskStarted event will set the visible phase.</span>
+            <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"is_launcher"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="n">CLAIMED</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"[WFP] Ignoring detached launcher claim: "</span>
+                    <span class="sa">f</span><span class="s2">"task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+                <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="k">return</span>
+
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
                 <span class="c1"># Determine status based on task_name</span>
                 <span class="k">if</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">'_slurm_image_transfer.py'</span><span class="p">:</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">TRANSFERRING</span>
@@ -412,15 +559,16 @@
                     <span class="c1"># Map IMPORTING -&gt; wfs.IMPORTING, IMPORTED -&gt; wfs.IMPORTED, fallback to status</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">wfs</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">"95%"</span> <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="n">wfs</span><span class="o">.</span><span class="n">POSTPROCESSING</span> <span class="k">else</span> <span class="s2">"90%"</span>
-                <span class="k">elif</span> <span class="n">task_name</span> <span class="o">==</span> <span class="s1">'slurm_run_workflow.py'</span><span class="p">:</span>
+                <span class="k">elif</span> <span class="n">task_name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'slurm_run_workflow.py'</span><span class="p">,</span>
+                                   <span class="s1">'slurm_run_workflow_batched.py'</span><span class="p">):</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">RUNNING</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">"50%"</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c1"># Default to JOB_STATUS prefix for unknown task types</span>
                     <span class="n">workflow_status</span> <span class="o">=</span> <span class="n">wfs</span><span class="o">.</span><span class="n">JOB_STATUS</span> <span class="o">+</span> <span class="n">status</span>
                     <span class="n">workflow_prog</span> <span class="o">=</span> <span class="s2">"50%"</span>
-                    <span class="k">if</span> <span class="s2">"task_progress"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]:</span>
-                        <span class="n">task_prog</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"task_progress"</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="s2">"task_progress"</span> <span class="ow">in</span> <span class="n">workflow_info</span><span class="p">:</span>
+                        <span class="n">task_prog</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"task_progress"</span><span class="p">]</span>
                         <span class="k">if</span> <span class="n">task_prog</span><span class="p">:</span>
                             <span class="c1"># Initial string and baseline</span>
                             <span class="n">upper_limit_str</span> <span class="o">=</span> <span class="s2">"90%"</span>  <span class="c1"># Upper limit string</span>
@@ -437,8 +585,8 @@
                     
 
                 <span class="c1"># Update the workflow status</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_status</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_prog</span>
+                <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_status</span>
+                <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow_prog</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Status updated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">workflow_status</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -452,11 +600,13 @@
         <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
         <span class="n">progress</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">progress</span>
         
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
-            <span class="n">wf_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"workflow_id"</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"task_progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
+            <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
+                <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"task_progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] (Task) Progress updated: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">, progress=</span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -499,20 +649,42 @@
                 
     <span class="k">def</span><span class="w"> </span><span class="nf">_determine_main_task_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Determine the main user-facing task name for a workflow."""</span>
-        <span class="c1"># Look through all tasks for this workflow to find the main one</span>
-        <span class="n">main_tasks</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">task_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"workflow_id"</span><span class="p">)</span> <span class="o">==</span> <span class="n">wf_id</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">find_main_task</span><span class="p">(</span><span class="n">tasks</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">"""Return the first non-infrastructure task in task order."""</span>
+            <span class="k">for</span> <span class="n">task_info</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
                 <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"task_name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-                <span class="c1"># Skip infrastructure tasks, keep the actual workflow tasks</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"_slurm_"</span><span class="p">)</span> <span class="ow">or</span> 
-                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"slurm_"</span><span class="p">)</span> <span class="ow">or</span> 
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"_slurm_"</span><span class="p">)</span> <span class="ow">or</span>
+                        <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"slurm_"</span><span class="p">)</span> <span class="ow">or</span>
                         <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"convert_"</span><span class="p">)):</span>
-                    <span class="n">main_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"task_name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span>  <span class="c1"># Keep original case for display</span>
-        
-        <span class="c1"># Return the first non-infrastructure task, or fallback to current task</span>
-        <span class="k">if</span> <span class="n">main_tasks</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">main_tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># e.g., "cellexpansion"</span>
+                    <span class="k">return</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"task_name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Fast path for a listener that has observed the whole workflow.</span>
+        <span class="n">in_memory_tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">task_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"workflow_id"</span><span class="p">)</span> <span class="o">==</span> <span class="n">wf_id</span><span class="p">:</span>
+                <span class="n">in_memory_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_info</span><span class="p">)</span>
+        <span class="n">main_task</span> <span class="o">=</span> <span class="n">find_main_task</span><span class="p">(</span><span class="n">in_memory_tasks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">main_task</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">main_task</span>
+
+        <span class="c1"># A restarted projection does not have the earlier tasks in memory.</span>
+        <span class="c1"># Rehydrate them from the persisted WorkflowRun task list so an import</span>
+        <span class="c1"># or completion event cannot erase main_task_name from the view.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">workflow</span> <span class="o">=</span> <span class="n">tracker_repository</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="n">persisted_tasks</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">workflow</span><span class="p">,</span> <span class="s2">"tasks"</span><span class="p">,</span> <span class="p">[]):</span>
+                <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+                    <span class="n">persisted_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_info</span><span class="p">)</span>
+            <span class="n">main_task</span> <span class="o">=</span> <span class="n">find_main_task</span><span class="p">(</span><span class="n">persisted_tasks</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">main_task</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">main_task</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"[WFP] Could not reconstruct tasks for workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
         
         <span class="c1"># Fallback to current task if no main task found</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"task"</span><span class="p">,</span> <span class="s2">"unknown"</span><span class="p">)</span></div>
@@ -613,6 +785,42 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {wf_id: {"user": user, "group": group}}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{}</span>      <span class="c1"># {task_id: {"wf_id": wf_id, "task_name": task_name, "task_version": task_version, "start_time": timestamp, "status": status, "end_time": timestamp, "error_type": error_type}}</span>
 
+<div class="viewcode-block" id="WorkflowAnalytics.resolve_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.resolve_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">WorkflowProgressView</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"user"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="s2">"group"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">group</span><span class="p">}</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not resolve workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> in WorkflowAnalytics: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkflowAnalytics.resolve_task"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.resolve_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Look a task up when we did not see it created ourselves."""</span>
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">task_agg</span> <span class="o">=</span> <span class="n">tracker_repository</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">TaskExecution</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
+                        <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
+                        <span class="n">start_time</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">start_time</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">"wf_id"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">,</span>
+                    <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
+                    <span class="s2">"task_version"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span>
+                    <span class="s2">"start_time"</span><span class="p">:</span> <span class="n">start_time</span> <span class="ow">or</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">created_on</span><span class="p">,</span>
+                    <span class="s2">"status"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">status</span>
+                <span class="p">}</span>
+                <span class="k">if</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not resolve task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> in "</span>
+                               <span class="sa">f</span><span class="s2">"WorkflowAnalytics: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="WorkflowAnalytics.policy"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.policy">[docs]</a>    <span class="nd">@singledispatchmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Default policy"""</span>
@@ -637,13 +845,12 @@
         <span class="n">wf_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
 
         <span class="c1"># Add workflow ID to the existing task information</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"wf_id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># In case TaskAdded arrives before TaskCreated (unlikely but possible)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"wf_id"</span><span class="p">:</span> <span class="n">wf_id</span><span class="p">}</span>
-
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"wf_id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFA] Task added: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
     <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskCreated</span><span class="p">)</span>
@@ -655,24 +862,32 @@
         <span class="n">timestamp_created</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
 
         <span class="c1"># Track task creation details</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-                <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
-                <span class="s2">"task_version"</span><span class="p">:</span> <span class="n">task_version</span><span class="p">,</span>
-                <span class="s2">"start_time"</span><span class="p">:</span> <span class="n">timestamp_created</span><span class="p">,</span>
-                <span class="s2">"status"</span><span class="p">:</span> <span class="s2">"CREATED"</span>
-            <span class="p">})</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Initialize task tracking if TaskAdded hasn't been processed yet</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
-                <span class="s2">"task_version"</span><span class="p">:</span> <span class="n">task_version</span><span class="p">,</span>
-                <span class="s2">"start_time"</span><span class="p">:</span> <span class="n">timestamp_created</span><span class="p">,</span>
-                <span class="s2">"status"</span><span class="p">:</span> <span class="s2">"CREATED"</span>
-            <span class="p">}</span>
-
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span>
+        <span class="n">task_info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
+            <span class="s2">"task_version"</span><span class="p">:</span> <span class="n">task_version</span><span class="p">,</span>
+            <span class="s2">"start_time"</span><span class="p">:</span> <span class="n">timestamp_created</span><span class="p">,</span>
+            <span class="s2">"status"</span><span class="p">:</span> <span class="s2">"CREATED"</span>
+        <span class="p">})</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFA] Task created: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">, timestamp=</span><span class="si">{</span><span class="n">timestamp_created</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">TaskStarted</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">,</span> <span class="n">process_event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Record the actual task start instead of only its creation time."""</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"start_time"</span><span class="p">]</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"[WFA] Task started: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, "</span>
+                <span class="sa">f</span><span class="s2">"start_time=</span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span><span class="si">}</span><span class="s2"> -- "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
     <span class="nd">@policy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">StatusUpdated</span><span class="p">)</span>
@@ -682,8 +897,9 @@
         <span class="n">status</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">status</span>
 
         <span class="c1"># Update task with status</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">status</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">status</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFA] Task status updated: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, status=</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
@@ -695,8 +911,9 @@
         <span class="n">timestamp_completed</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">timestamp</span>
 
         <span class="c1"># Update task with end time</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"end_time"</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp_completed</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"end_time"</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp_completed</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFA] Task completed: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, end_time=</span><span class="si">{</span><span class="n">timestamp_completed</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
@@ -709,9 +926,10 @@
         <span class="n">error_message</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">error_message</span>
 
         <span class="c1"># Update task with end time and error message</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"end_time"</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp_failed</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">][</span><span class="s2">"error_type"</span><span class="p">]</span> <span class="o">=</span> <span class="n">error_message</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"end_time"</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp_failed</span>
+            <span class="n">task_info</span><span class="p">[</span><span class="s2">"error_type"</span><span class="p">]</span> <span class="o">=</span> <span class="n">error_message</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFA] Task failed: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, end_time=</span><span class="si">{</span><span class="n">timestamp_failed</span><span class="si">}</span><span class="s2">, error=</span><span class="si">{</span><span class="n">error_message</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_view_table</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
@@ -719,7 +937,7 @@
 <div class="viewcode-block" id="WorkflowAnalytics.update_view_table"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.update_view_table">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_view_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Update the view table with new task execution information."""</span>
-        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="k">return</span>  <span class="c1"># Skip if task information is incomplete</span>
 
@@ -728,9 +946,11 @@
         <span class="n">group_id</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># Retrieve user and group from workflow</span>
-        <span class="k">if</span> <span class="n">wf_id</span> <span class="ow">and</span> <span class="n">wf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">:</span>
-            <span class="n">user_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"user"</span><span class="p">]</span>
-            <span class="n">group_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">][</span><span class="s2">"group"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">wf_id</span><span class="p">:</span>
+            <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">workflow_info</span><span class="p">:</span>
+                <span class="n">user_id</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"user"</span><span class="p">]</span>
+                <span class="n">group_id</span> <span class="o">=</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"group"</span><span class="p">]</span>
 
         <span class="k">with</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>

@@ -84,6 +84,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#slurm-config-ini-lookup-table"><code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> Lookup Table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#behaviour-notes">Behaviour Notes</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#parsing-scope">Parsing scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#detached-worker-supervisor">Detached worker supervisor</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#boolean-parsing">Boolean parsing</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#integer-parsing">Integer parsing</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#empty-string-handling">Empty-string handling</a></li>
@@ -165,6 +166,26 @@ explains when and why you would choose each setting.</p>
 <td><p>—</p></td>
 <td><p>filesystem path</p></td>
 <td><p>Enables authoritative-file mode; only this ini file is read instead of merging the default config paths</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code></p></td>
+<td><p>not applicable</p></td>
+<td><p>boolean</p></td>
+<td><p>Queues supported BIOMERO workflow scripts for an external supervisor instead of executing them inline; defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code> and requires a deployment that provides the supervisor</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_MAX_ACTIVE_WORKFLOWS</span></code></p></td>
+<td><p>not applicable</p></td>
+<td><p>integer</p></td>
+<td><p>Maximum number of non-batched workflow runs driven concurrently by the detached worker supervisor; defaults to <code class="docutils literal notranslate"><span class="pre">4</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SUPERVISOR_POLL_SECONDS</span></code></p></td>
+<td><p>not applicable</p></td>
+<td><p>integer seconds</p></td>
+<td><p>Interval between detached workflow queue polls; defaults to <code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS</span></code></p></td>
+<td><p>not applicable</p></td>
+<td><p>integer seconds</p></td>
+<td><p>Delay before the first detached workflow recovery poll, allowing the OMERO processor to register and accept sub-scripts; defaults to <code class="docutils literal notranslate"><span class="pre">60</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code></p></td>
 <td><p>not applicable</p></td>
@@ -464,7 +485,37 @@ to use the Info-ZIP <code class="docutils literal notranslate"><span class="pre"
 <code class="docutils literal notranslate"><span class="pre">SlurmClient.from_config()</span></code>. Runtime-only variables define their own parsing
 contract. <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code> is enabled only by the case-insensitive
 literal value <code class="docutils literal notranslate"><span class="pre">true</span></code>; an absent or different value leaves the opt-in feature
-disabled.</p>
+disabled. <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code> accepts the case-insensitive values
+<code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">yes</span></code> and <code class="docutils literal notranslate"><span class="pre">on</span></code>; it is disabled when absent or set to any
+other value.</p>
+</section>
+<section id="detached-worker-supervisor">
+<h3>Detached worker supervisor<a class="headerlink" href="#detached-worker-supervisor" title="Permalink to this heading"></a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">New in version 2.9.0: </span><code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code> is an opt-in feature flag. It is disabled
+when absent or false. Existing deployments
+retain inline execution until an administrator enables the feature and
+provides a compatible worker supervisor.</p>
+</div>
+<p>The four detached variable names are centralized in
+<code class="docutils literal notranslate"><span class="pre">biomero.constants.slurm_env</span></code> and form one deployment contract. The workflow
+scripts and worker both read <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code>. The three
+supervisor settings are consumed only by deployments that provide a detached
+workflow supervisor, such as the NL-BIOMERO <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> container; they
+do not configure <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and do not need entries in
+<code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>.</p>
+<p>After the launcher has recorded the workflow request, detached execution no
+longer depends on the browser tab or the OMERO session that submitted it. The
+Slurm run, monitoring, and result import may therefore outlive ordinary OMERO
+server and web-session timeouts. Do not increase those timeouts merely to cover
+the complete workflow duration. They must still be long enough for initial
+validation and hand-off, and for each OMERO-side transfer or import subprocess.
+Without a compatible supervisor, keep detached mode disabled: the established
+inline path still depends on the calling script and session until it finishes.</p>
+<p>Supervisor values are converted to integers when the worker process starts, so
+non-integer values prevent that process from loading. Use a positive value for
+<code class="docutils literal notranslate"><span class="pre">BIOMERO_MAX_ACTIVE_WORKFLOWS</span></code> and non-negative second values for both timing
+settings. A startup grace of <code class="docutils literal notranslate"><span class="pre">0</span></code> skips the initial delay.</p>
 <p><code class="docutils literal notranslate"><span class="pre">PROCESSED_DATA_FOLDER</span></code> is read by the importer library at module import time,
 not from <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>. Its value is used as supplied (for example,
 <code class="docutils literal notranslate"><span class="pre">.import</span></code>); an explicitly empty value does not select the default. NL-BIOMERO’s
@@ -528,6 +579,10 @@ This is relevant for values such as <code class="docutils literal notranslate"><
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_TIME</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_MAX_ACTIVE_WORKFLOWS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SUPERVISOR_POLL_SECONDS</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">PROCESSED_DATA_FOLDER</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SACCT_START_DAYS_AGO</span></code></p></li>

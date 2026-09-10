@@ -80,6 +80,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">SLURM Configuration Guide</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#how-biomero-finds-configuration">How BIOMERO Finds Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#configuration-sections">Configuration Sections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#runtime-processed-data-folder">Runtime Processed Data Folder</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#minimal-working-example">Minimal Working Example</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#core-path-settings">Core Path Settings</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#operational-settings">Operational Settings</a><ul>
@@ -193,6 +194,23 @@ the resolved <code class="docutils literal notranslate"><span class="pre">slurm-
 <p>The <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code> section enables BIOMERO 2.x provenance and workflow tracking.
 See the <a class="reference internal" href="#analytics-and-provenance-settings">Analytics and Provenance Settings</a> section below for details.</p>
 <p>See <a class="reference internal" href="developer/eventsourcing.html"><span class="doc">Eventsourcing and Views (Developer)</span></a> for the event model and view table details.</p>
+</section>
+<section id="runtime-processed-data-folder">
+<h2>Runtime Processed Data Folder<a class="headerlink" href="#runtime-processed-data-folder" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">PROCESSED_DATA_FOLDER</span></code> is a runtime environment variable consumed by the
+importer library, with no <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code> key. It defaults to <code class="docutils literal notranslate"><span class="pre">.processed</span></code>
+when unset. Set it on the importer container to change preprocessing output.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR=true</span></code> and you use a custom processed folder, set the
+same <code class="docutils literal notranslate"><span class="pre">PROCESSED_DATA_FOLDER</span></code> value on <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code>: Image Transfer calls
+the importer library there to create new canonical Zarr copies. NL-BIOMERO’s
+processor forwards this name automatically from <code class="docutils literal notranslate"><span class="pre">biomero.constants.slurm_env</span></code>.
+Both libraries in the worker must include support for this setting. With
+shallow-Zarr disabled, no worker-side setting is needed.</p>
+<p>For example, supply <code class="docutils literal notranslate"><span class="pre">PROCESSED_DATA_FOLDER=.import</span></code> in the relevant container
+environments, then recreate those containers. Adding a value only to Compose’s
+<code class="docutils literal notranslate"><span class="pre">.env</span></code> file does not pass it into a service unless its <code class="docutils literal notranslate"><span class="pre">environment</span></code> or
+<code class="docutils literal notranslate"><span class="pre">env_file</span></code> configuration includes it. Existing canonical paths remain stored
+in metadata and are not migrated; keep the original data paths accessible.</p>
 </section>
 <section id="minimal-working-example">
 <h2>Minimal Working Example<a class="headerlink" href="#minimal-working-example" title="Permalink to this heading"></a></h2>

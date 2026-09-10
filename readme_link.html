@@ -543,6 +543,12 @@ before starting services that construct a client.</p>
 <span class="nb">export</span><span class="w"> </span><span class="nv">ANALYZER_ENABLED</span><span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># Enable workflow analysis features</span>
 </pre></div>
 </div>
+<p>For an optional custom processed folder, set <code class="docutils literal notranslate"><span class="pre">PROCESSED_DATA_FOLDER</span></code> on the
+importer container (default: <code class="docutils literal notranslate"><span class="pre">.processed</span></code>). If <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR=true</span></code>, also
+set the same value on <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> for new canonical Zarr copies. No worker
+setting is needed when shallow-Zarr is disabled. See the
+<a class="reference internal" href="#docs/configuration-reference.rst"><span class="xref myst">configuration reference</span></a> for forwarding and
+existing-data behavior.</p>
 <ol class="arabic simple" start="5">
 <li><p><strong>Set up Metabase dashboards</strong>: Configure dashboard IDs for imports and workflows tracking</p></li>
 </ol>

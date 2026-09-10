@@ -337,7 +337,10 @@ class EngineManager:
         database.
 
         If the engine doesn't already exist, it initializes the SQLAlchemy
-        engine and sets up the scoped session.
+        engine and sets up the scoped session. The engine and the session are
+        set up independently: a long-lived process (such as the workflow
+        supervisor) can outlive a session that was removed on the way out of a
+        SlurmClient context, and still needs a working session afterwards.
 
         Args:
             sqlalchemy_url (str, optional): The SQLAlchemy database URL. If
@@ -352,9 +355,16 @@ class EngineManager:
             if not sqlalchemy_url:
                 sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
             cls._engine = create_engine(sqlalchemy_url)
-            # Setup tables if they don't exist yet, and detect fresh installs
-            Base.metadata.create_all(cls._engine)
+            # Setup tables if they don't exist yet, and detect fresh installs.
+            # Concurrent starts can race here, and losing that race is fine:
+            # the tables exist either way.
+            try:
+                Base.metadata.create_all(cls._engine)
+            except Exception as e:
+                logger.warning(f"Could not create tables (they may already "
+                               f"exist): {e}")
 
+        if cls._session is None:
             # Create a scoped_session object.
             cls._session = scoped_session(
                 sessionmaker(
@@ -372,15 +382,17 @@ class EngineManager:
             cls._scoped_session_topic = get_topic(MyScopedSessionAdapter)
 
         return cls._scoped_session_topic
-    
+
     @classmethod
     def get_session(cls):
         """
-        Retrieves the current scoped session.
+        Retrieves the current scoped session, setting one up when needed.
 
         Returns:
             Session: The SQLAlchemy session for interacting with the database.
         """
+        if cls._session is None:
+            cls.create_scoped_session()
         return cls._session()
     
     @classmethod
@@ -412,8 +424,12 @@ class EngineManager:
     def remove_session(cls):
         """
         Removes the current session from the scoped session registry.
+
+        Safe to call when no session was ever set up, so that it can be used
+        for cleanup on any exit path.
         """
-        cls._session.remove()
+        if cls._session is not None:
+            cls._session.remove()
     
     @classmethod
     @retry_on_database_conflict(max_retries=10)

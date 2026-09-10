@@ -37,6 +37,23 @@ def test_shallow_zarr_feature_flag_is_forwardable_to_omero_scripts():
     )
 
 
+def test_detached_worker_environment_names_are_stable():
+    assert (
+        constants.slurm_env.BIOMERO_DETACHED_WORKFLOWS
+        == "BIOMERO_DETACHED_WORKFLOWS"
+    )
+    assert (
+        constants.slurm_env.BIOMERO_MAX_ACTIVE_WORKFLOWS
+        == "BIOMERO_MAX_ACTIVE_WORKFLOWS"
+    )
+    assert (
+        constants.slurm_env.BIOMERO_SUPERVISOR_POLL_SECONDS
+        == "BIOMERO_SUPERVISOR_POLL_SECONDS"
+    )
+    assert (
+        constants.slurm_env.BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS
+        == "BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS"
+    )
 def test_processed_data_folder_environment_name_is_stable():
     assert constants.slurm_env.PROCESSED_DATA_FOLDER == "PROCESSED_DATA_FOLDER"
 

@@ -37,6 +37,10 @@ def test_shallow_zarr_feature_flag_is_forwardable_to_omero_scripts():
     )
 
 
+def test_processed_data_folder_environment_name_is_stable():
+    assert constants.slurm_env.PROCESSED_DATA_FOLDER == "PROCESSED_DATA_FOLDER"
+
+
 def test_shallow_reconstruction_transfer_input_is_stable():
     assert (
         constants.transfer.RECONSTRUCT_SHALLOW_ZARR

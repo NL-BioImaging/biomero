@@ -47,6 +47,10 @@ Environment Variable Lookup Table
      - ``sqlalchemy_url``
      - database URL
      - Overrides the ``[ANALYTICS]`` database connection URL used for workflow tracking and analytics storage
+   * - ``PROCESSED_DATA_FOLDER``
+     - not applicable
+     - subfolder name
+     - Importer-library setting for new preprocessing outputs and canonical Zarr copies; defaults to ``.processed`` when unset. For a custom folder with ``BIOMERO_SHALLOW_ZARR=true``, set the same value on ``biomeroworker`` as on the importer container. No worker setting is needed when shallow-Zarr is disabled.
    * - ``BIOMERO_SACCT_START_TIME``
      - ``sacct_start_time``
      - string date
@@ -277,6 +281,15 @@ contract. ``BIOMERO_SHALLOW_ZARR`` is enabled only by the case-insensitive
 literal value ``true``; an absent or different value leaves the opt-in feature
 disabled.
 
+``PROCESSED_DATA_FOLDER`` is read by the importer library at module import time,
+not from ``slurm-config.ini``. Its value is used as supplied (for example,
+``.import``); an explicitly empty value does not select the default. NL-BIOMERO's
+processor forwards names registered in ``biomero.constants.slurm_env`` to OMERO
+script subprocesses. The variable must still be present in the worker container's
+environment, and its BIOMERO and importer libraries must support this setting.
+Existing canonical locations are read from stored metadata; changing the variable
+neither relocates existing data nor rewrites those references.
+
 Boolean parsing
 ~~~~~~~~~~~~~~~
 
@@ -336,6 +349,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_SACCT_START_TIME``
 * ``SQLALCHEMY_URL``
 * ``BIOMERO_SHALLOW_ZARR``
+* ``PROCESSED_DATA_FOLDER``
 * ``BIOMERO_SACCT_START_DAYS_AGO``
 * ``BIOMERO_ENV_FILE_SUBMISSION``
 * ``BIOMERO_INJECT_GPU_FLAG``

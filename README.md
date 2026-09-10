@@ -327,6 +327,13 @@ export IMPORTER_ENABLED=false  # Disables BIOMERO.importer requirement
 export ANALYZER_ENABLED=true   # Enable workflow analysis features
 ```
 
+For an optional custom processed folder, set `PROCESSED_DATA_FOLDER` on the
+importer container (default: `.processed`). If `BIOMERO_SHALLOW_ZARR=true`, also
+set the same value on `biomeroworker` for new canonical Zarr copies. No worker
+setting is needed when shallow-Zarr is disabled. See the
+[configuration reference](docs/configuration-reference.rst) for forwarding and
+existing-data behavior.
+
 5. **Set up Metabase dashboards**: Configure dashboard IDs for imports and workflows tracking
 
 For detailed installation instructions, see the [NL-BIOMERO sysadmin documentation](https://nl-bioimaging.github.io/NL-BIOMERO/sysadmin/) and [here](https://nl-bioimaging.github.io/NL-BIOMERO/developer/containers/metabase.html)

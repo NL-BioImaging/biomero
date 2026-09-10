@@ -54,6 +54,8 @@ def test_detached_worker_environment_names_are_stable():
         constants.slurm_env.BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS
         == "BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS"
     )
+def test_processed_data_folder_environment_name_is_stable():
+    assert constants.slurm_env.PROCESSED_DATA_FOLDER == "PROCESSED_DATA_FOLDER"
 
 
 def test_shallow_reconstruction_transfer_input_is_stable():

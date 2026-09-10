@@ -46,6 +46,26 @@ See the `Analytics and Provenance Settings`_ section below for details.
 
 See :doc:`developer/eventsourcing` for the event model and view table details.
 
+Runtime Processed Data Folder
+-----------------------------
+
+``PROCESSED_DATA_FOLDER`` is a runtime environment variable consumed by the
+importer library, with no ``slurm-config.ini`` key. It defaults to ``.processed``
+when unset. Set it on the importer container to change preprocessing output.
+
+If ``BIOMERO_SHALLOW_ZARR=true`` and you use a custom processed folder, set the
+same ``PROCESSED_DATA_FOLDER`` value on ``biomeroworker``: Image Transfer calls
+the importer library there to create new canonical Zarr copies. NL-BIOMERO's
+processor forwards this name automatically from ``biomero.constants.slurm_env``.
+Both libraries in the worker must include support for this setting. With
+shallow-Zarr disabled, no worker-side setting is needed.
+
+For example, supply ``PROCESSED_DATA_FOLDER=.import`` in the relevant container
+environments, then recreate those containers. Adding a value only to Compose's
+``.env`` file does not pass it into a service unless its ``environment`` or
+``env_file`` configuration includes it. Existing canonical paths remain stored
+in metadata and are not migrated; keep the original data paths accessible.
+
 Minimal Working Example
 -----------------------
 

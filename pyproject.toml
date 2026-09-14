@@ -54,7 +54,7 @@ test = [
     "psycopg2-binary>=2.9.12"
 ]
 full = [
-    "biomero-importer[identity]>=1.5.0b2,<2",
+    "biomero-importer[identity]>=1.5.0b5,<2",
     "ezomero==3.2.3",
     "tifffile==2026.3.3",
     "scikit-image==0.25.2",

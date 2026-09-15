@@ -15,6 +15,21 @@ Backward compatibility is a hard requirement. Every new option must default to
 the current behavior so existing deployments are byte-for-byte unaffected unless
 they opt in.
 
+## Pull-request branch workflow
+
+On an existing non-default branch intended for a pull request, make focused,
+coherent commits and push them as normal completion of authorized development
+work. Do not hold the branch locally merely to run a slow full suite: run cheap,
+relevant checks that catch immediate mistakes, inspect the diff, then let the
+required GitHub Actions checks be the full-suite gate. If CI fails, inspect it
+and push a follow-up fix. Incremental branch commits may stay small because the
+pull request will normally be squash-merged.
+
+Use proportionate local verification before a direct default-branch push,
+release, change without suitable CI coverage, or higher-risk operation. This
+workflow does not authorize unrelated publication, merging, deployment, or
+destructive actions.
+
 ## Environment
 
 Tests and docs run from the repo-local `venvTest`. Run everything from this

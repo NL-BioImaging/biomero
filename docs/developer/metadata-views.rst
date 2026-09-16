@@ -61,7 +61,7 @@ than guessed. Unknown namespaces and additional custom keys are preserved.
 Existing CSV references for oversized values are retained.
 
 The administrative refresh adapter is provided by biomero-scripts in
-``_data/SLURM_Import_Results.py``. Its documentation describes dry runs, backups,
+``admin/SLURM_Refresh_Metadata.py``. Its documentation describes dry runs, backups,
 shared-annotation checks and updating existing views in place. No automatic
 migration runs during initialization. New result scripts continue to write
 ``v0``; there is currently no deployment-wide setting to select ``v1`` for new

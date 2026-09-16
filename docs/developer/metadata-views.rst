@@ -34,7 +34,7 @@ during import can therefore legitimately retain ``IMPORTING`` even after the
 workflow finishes. Refreshing its view does not advance that snapshot.
 
 Refreshing existing annotations
-------------------------------
+-------------------------------
 
 An administrator can explicitly refresh one result Image or Plate using the
 Python API. No automatic migration runs during initialization, and there is

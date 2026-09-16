@@ -15,20 +15,64 @@ def client_fixture(*, jobs=(123,), terminal=False):
     canonical = SimpleNamespace(inputs=(1,), to_dict=lambda: {'inputs': [1]})
     batch = SimpleNamespace(receipts=(), to_dict=lambda: {'result': 'complete'})
     task = SimpleNamespace(id=task_id, task_name=TASK_NAME, input_data='/data',
+                           task_version='0.1.0',
                            result_message='complete' if terminal else None,
                            job_ids=list(jobs), params={'image': 'helper:0.1.0'})
     workflow = SimpleNamespace(tasks=[task_id])
     tracker = MagicMock()
     tracker.repository.get.side_effect = lambda key: workflow if key == workflow_id else task
+    tracker.add_task_to_workflow.return_value = task_id
+    tracker.add_job_id.side_effect = lambda _task_id, job_id: task.job_ids.append(job_id)
     client = SimpleNamespace(remote_shallow_zarr=True, track_workflows=True,
                              workflowTracker=tracker, result_normalizer_image='helper:0.1.0',
                              result_normalizer_version='0.1.0', result_normalizer_workers=1,
                              result_normalizer_partition=None, slurm_global_job_params=[],
                              get_normalizer_job_params=lambda: ['--cpus-per-task=1'],
                              slurm_converters_path='/sifs', put=MagicMock(),
-                             run_commands=MagicMock(side_effect=lambda commands:
-                                 SimpleNamespace(ok=True, stdout='' if commands[0].startswith('if test') else '{}')))
+                             run_commands=MagicMock(side_effect=lambda commands, **kwargs:
+                                 SimpleNamespace(ok=True, stdout=(
+                                     json.dumps(canonical.to_dict())
+                                     if 'canonical.json' in commands[0] else
+                                     '' if commands[0].startswith('if test') else '{}'))))
     return client, workflow_id, canonical, batch
+
+
+def test_resume_verifies_manifest_without_uploading_again():
+    client, workflow_id, canonical, batch = client_fixture()
+    original_run = client.run_commands.side_effect
+    client.run_commands.side_effect = lambda commands, **kwargs: (
+        SimpleNamespace(ok=True, stdout=json.dumps(canonical.to_dict()))
+        if commands[0].startswith('if test -f') and 'canonical.json' in commands[0]
+        else original_run(commands))
+    with patch('biomero.result_normalizer._batch', return_value=batch), \
+         patch('biomero.result_normalizer._wait', return_value='COMPLETED'):
+        run(client, '/data', workflow_id, canonical)
+    client.put.assert_not_called()
+
+
+def test_resume_rejects_changed_manifest_before_polling():
+    client, workflow_id, canonical, _ = client_fixture()
+    client.run_commands.return_value = SimpleNamespace(ok=True, stdout='{"inputs": [2]}')
+    client.run_commands.side_effect = None
+    with patch('biomero.result_normalizer._wait') as wait:
+        with pytest.raises(ValueError, match='manifest'):
+            run(client, '/data', workflow_id, canonical)
+    wait.assert_not_called()
+    client.put.assert_not_called()
+
+
+def test_resume_recovery_uses_recorded_image_after_configuration_change():
+    client, workflow_id, canonical, batch = client_fixture()
+    client.result_normalizer_image = 'new-helper:2.0.0'
+    client.result_normalizer_version = '2.0.0'
+    with patch('biomero.result_normalizer._batch', return_value=batch), \
+         patch('biomero.result_normalizer._submit_once', return_value=124) as submit, \
+         patch('biomero.result_normalizer._wait', side_effect=['FAILED', 'COMPLETED']):
+        run(client, '/data', workflow_id, canonical)
+    command = submit.call_args.args[1]
+    assert '--image helper:0.1.0' in command
+    assert 'new-helper' not in command
+    assert client.result_normalizer_image == 'new-helper:2.0.0'
 
 
 def test_resume_adopts_existing_job_without_submission():

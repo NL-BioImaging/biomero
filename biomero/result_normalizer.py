@@ -12,7 +12,7 @@ import logging
 import posixpath
 import re
 import shlex
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from .slurm_client import SlurmJob
 
@@ -20,9 +20,10 @@ TASK_NAME = "_SLURM_Result_Normalizer"
 logger = logging.getLogger(__name__)
 
 
-def image_spec(client):
+def image_spec(client, *, image=None):
     """Describe the versioned helper image for SlurmClient image acquisition."""
-    image = client.result_normalizer_image.removeprefix('docker://')
+    image = (image if image is not None else
+             client.result_normalizer_image).removeprefix('docker://')
     if '@sha256:' in image:
         source, digest = image.split('@sha256:', 1)
         if not re.fullmatch('[0-9a-f]{64}', digest):
@@ -49,13 +50,15 @@ def _job_name(task_id, *, recovery=False):
     return f'biomero-{operation}-{task_id}'
 
 
-def build_command(client, output, sif, manifest, task_id, *, recovery=False):
+def build_command(client, output, sif, manifest, task_id, *, recovery=False,
+                  image=None):
     """Build normalization or recovery using the same helper resource policy.
 
     Paths refer to the remote filesystem. The result directory is writable in
     the container; the canonical input manifest is mounted read-only.
     """
     quote = shlex.quote
+    image = image if image is not None else client.result_normalizer_image
     if (isinstance(client.result_normalizer_workers, bool)
             or not isinstance(client.result_normalizer_workers, int)
             or client.result_normalizer_workers < 1):
@@ -71,7 +74,7 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False):
                '--contract-version 1 --failure-policy keep-full '
                '--report /results/.biomero-shallow-batch.json '
                f'--identity-workers {client.result_normalizer_workers} '
-               f'--image {quote(client.result_normalizer_image)} '
+               f'--image {quote(image)} '
                f'--task-id {quote(task_id)}')
     if recovery:
         runtime += ' --recover-only'
@@ -81,24 +84,102 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False):
             ' --wrap=' + quote(runtime))
 
 
-def _batch(client, raw, canonical):
+def _batch(client, raw, canonical, *, task=None):
     """Parse a batch report and check its input, image and tool version.
 
-    Task/job ownership is checked separately by the orchestration caller.
+    When a task is supplied, its recorded image/version and submission own the
+    report; current deployment defaults must not invalidate historical results.
     Import the optional schema dependency only when normalization is used.
     """
     from biomero_schema.shallower import ShallowBatchReport
     batch = ShallowBatchReport.from_dict(json.loads(raw))
+    image = task.params['image'] if task else client.result_normalizer_image
+    version = task.task_version if task else client.result_normalizer_version
     if (batch.canonical_inputs != canonical
-            or batch.image != client.result_normalizer_image
-            or batch.tool_version != client.result_normalizer_version):
+            or batch.image != image or batch.tool_version != version):
         raise ValueError(
             'Result normalizer report does not match configuration/input')
     if any(receipt.image != batch.image
            or receipt.tool_version != batch.tool_version
            for receipt in batch.receipts):
         raise ValueError('Inconsistent helper receipts')
+    if task is not None:
+        _check_canonical(task, canonical)
+        if any(receipt.task_id != task.id or not task.job_ids
+               or int(receipt.slurm_job_id) != int(task.job_ids[0])
+               for receipt in batch.receipts):
+            raise ValueError('Report belongs to a different helper task/job')
     return batch
+
+
+def _canonical_digest(payload):
+    """Fingerprint JSON content independently of key order and whitespace."""
+    encoded = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
+
+
+def _check_canonical(task, canonical):
+    expected = task.params.get('canonical_sha256')
+    if expected and expected != _canonical_digest(canonical.to_dict()):
+        raise ValueError('Canonical manifest differs from the recorded task')
+
+
+def _prepare_manifest(client, manifest, canonical, *, submitted):
+    """Verify an existing manifest or publish a new one without overwriting.
+
+    A sibling temporary file is fully uploaded before an atomic hard-link
+    publishes it under a lock. Readers never see a partly uploaded manifest.
+    Existing content is verified, not replaced, including on legacy resumes.
+    """
+    quote = shlex.quote
+    target = quote(manifest)
+    payload = canonical.to_dict()
+
+    def verify(raw):
+        if _canonical_digest(json.loads(raw)) != _canonical_digest(payload):
+            raise ValueError('Remote canonical manifest differs from workflow input')
+
+    found = client.run_commands([
+        f'if test -f {target} && ! test -L {target}; then cat {target}; '
+        f'elif test -e {target} || test -L {target}; then exit 1; fi'],
+        log_stdout=False)
+    if not found.ok:
+        raise RuntimeError('Cannot read canonical manifest; output preserved')
+    if found.stdout.strip():
+        verify(found.stdout)
+        return
+    if submitted:
+        raise RuntimeError('Missing canonical manifest for submitted job; output preserved')
+
+    temporary = manifest + '.' + uuid4().hex + '.tmp'
+    state_dir = posixpath.dirname(manifest)
+    guards = ' || '.join(
+        'test -e ' + quote(posixpath.join(state_dir, operation + suffix))
+        for operation in ('normalize', 'recovery')
+        for suffix in ('.intent', '.job'))
+    script = (
+        f'set -eu; if test -L {target}; then exit 1; fi; '
+        f'if test -e {target}; then cat {target}; '
+        f'elif {guards}; then '
+        'echo "Missing manifest after submission intent" >&2; exit 1; '
+        f'else ln {quote(temporary)} {target}; cat {target}; fi')
+    try:
+        client.put(io.StringIO(json.dumps(payload)), temporary)
+        published = client.run_commands([
+            f'flock -w 30 {quote(manifest + ".lock")} sh -c {quote(script)}'],
+            log_stdout=False)
+        if not published.ok:
+            raise RuntimeError('Cannot publish canonical manifest; output preserved')
+        verify(published.stdout)
+    finally:
+        # Only the unique staging file owned by this call is removed.
+        try:
+            cleanup = client.run_commands(['rm -f -- ' + quote(temporary)])
+            if not cleanup.ok:
+                logger.warning('Could not remove manifest staging file %s', temporary)
+        except Exception:
+            logger.warning('Could not remove manifest staging file %s',
+                           temporary, exc_info=True)
 
 
 def completed_receipts(client, workflow_id, canonical):
@@ -110,7 +191,8 @@ def completed_receipts(client, workflow_id, canonical):
     for task_id in workflow.tasks:
         task = client.workflowTracker.repository.get(task_id)
         if task.task_name == TASK_NAME and task.result_message:
-            receipts.extend(_batch(client, task.result_message, canonical).receipts)
+            receipts.extend(_batch(client, task.result_message, canonical,
+                                   task=task).receipts)
     return tuple(receipts)
 
 
@@ -186,8 +268,11 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
                if task.task_name == TASK_NAME and task.input_data == data_path]
     if len(matches) > 1:
         raise RuntimeError('Ambiguous result normalizer tasks')
+    if matches:
+        _check_canonical(matches[0], canonical)
     if matches and matches[0].result_message:
-        return _batch(client, matches[0].result_message, canonical)
+        return _batch(client, matches[0].result_message, canonical,
+                      task=matches[0])
     if matches and matches[0].job_ids:
         report_path = posixpath.join(
             data_path, 'data/out/.biomero-shallow-batch.json')
@@ -196,18 +281,15 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
             f'then cat {shlex.quote(report_path)}; fi'])
         if found.ok and found.stdout.strip():
             try:
-                batch = _batch(client, found.stdout, canonical)
-                if any(receipt.task_id != matches[0].id
-                       or int(receipt.slurm_job_id) != int(matches[0].job_ids[0])
-                       for receipt in batch.receipts):
-                    raise ValueError('Report belongs to another task')
+                batch = _batch(client, found.stdout, canonical, task=matches[0])
             except (ValueError, KeyError):
                 pass  # Partial/stale report: poll the recorded job below.
             else:
                 tracker.complete_task(
                     matches[0].id, json.dumps(batch.to_dict()))
                 return batch
-    spec = image_spec(client)
+    image = matches[0].params['image'] if matches else client.result_normalizer_image
+    spec = image_spec(client, image=image)
     if not matches:
         # Acquisition cannot modify result data. Failures retain full output.
         try:
@@ -223,41 +305,43 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
             return None
         task_id = tracker.add_task_to_workflow(
             workflow_id, TASK_NAME, client.result_normalizer_version, data_path,
-            {'image': client.result_normalizer_image, 'contract': 1})
+            {'image': image, 'contract': 1, 'sif': spec['destination'],
+             'canonical_sha256': _canonical_digest(canonical.to_dict())})
         tracker.start_task(task_id)
         task = tracker.repository.get(task_id)
     else:
         task = matches[0]
         task_id = task.id
-        if task.params['image'] != client.result_normalizer_image:
-            raise ValueError('Resume requires the originally configured helper image')
+    sif = task.params.get('sif', spec['destination'])
     state_dir = posixpath.join(data_path, '.biomero-normalizer', str(task_id))
-    client.run_commands(['mkdir -p ' + shlex.quote(state_dir)])
+    prepared = client.run_commands(['mkdir -p ' + shlex.quote(state_dir)])
+    if not prepared.ok:
+        raise RuntimeError('Cannot prepare normalizer state directory')
     manifest = posixpath.join(state_dir, 'canonical.json')
-    client.put(io.StringIO(json.dumps(canonical.to_dict())), manifest)
+    _prepare_manifest(client, manifest, canonical, submitted=bool(task.job_ids))
     output = posixpath.join(data_path, 'data/out')
     command = build_command(
-        client, output, spec['destination'], manifest, str(task_id))
+        client, output, sif, manifest, str(task_id), image=image)
     job_id = (int(task.job_ids[0]) if task.job_ids
               else _submit_once(client, command, state_dir + '/normalize',
                                 job_name=_job_name(task_id)))
     if job_id is None:
         from biomero_schema.shallower import ShallowBatchReport
         batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
-                                   image=client.result_normalizer_image,
-                                   toolVersion=client.result_normalizer_version,
+                                   image=image, toolVersion=task.task_version,
                                    result='complete', receipts=())
         tracker.complete_task(task_id, json.dumps(batch.to_dict()))
         logger.warning('Normalizer submission rejected; retaining full results')
         return batch
     if not task.job_ids:
         tracker.add_job_id(task_id, job_id)
+        task = tracker.repository.get(task_id)
     status = _wait(client, job_id, omero_conn)
     if status != 'COMPLETED':
         # Recover in the same configured image on CPU. Completed stores retain
         # receipts; interrupted stores roll back before any archive is allowed.
-        recovery = build_command(client, output, spec['destination'], manifest,
-                                 str(task_id), recovery=True)
+        recovery = build_command(client, output, sif, manifest,
+                                 str(task_id), recovery=True, image=image)
         # Recorded IDs remain authoritative, including pre-upgrade recovery
         # jobs that used the normalization job name. An old unresolved intent
         # must never be guessed to be a normalization job or resubmitted.
@@ -277,9 +361,6 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
         'cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
     if not report.ok:
         raise RuntimeError('Missing normalizer report; cannot archive safely')
-    batch = _batch(client, report.stdout, canonical)
-    if any(receipt.task_id != task_id or int(receipt.slurm_job_id) != job_id
-           for receipt in batch.receipts):
-        raise ValueError('Report belongs to a different helper task/job')
+    batch = _batch(client, report.stdout, canonical, task=task)
     tracker.complete_task(task_id, json.dumps(batch.to_dict()))
     return batch

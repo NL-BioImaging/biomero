@@ -724,6 +724,18 @@ detached workflows alike. An existing job ID is adopted without resubmission;
 unavailable status pauses retrieval rather than triggering recovery. The helper
 task is completed only after its output report has been validated.
 
+Normalization and recovery have distinct submission identities. Recorded job
+IDs remain authoritative when resuming older tasks; an unresolved pre-upgrade
+recovery intent may require administrator reconciliation, rather than automatic
+resubmission.
+
+Canonical input manifests are published atomically and verified on resume,
+never overwritten. Missing manifests after submission or changed inputs stop
+retrieval. New tasks record an input fingerprint and the helper SIF path;
+existing tasks retain their recorded image and tool version for recovery and
+receipt validation even when deployment defaults change. Keep the original SIF
+available until those tasks finish. Resource settings remain configurable.
+
 .. list-table:: Result normalizer configuration
    :header-rows: 1
    :widths: 28 32 40

@@ -67,7 +67,8 @@ def test_submission_uses_explicit_reconciliation_identity():
 @pytest.mark.parametrize('executable,expected', [('7z', "'-xr!*.biomero-lock'"),
                                                ('zip', "-x '*.biomero-lock'")])
 def test_internal_locks_are_excluded_only_when_enabled(executable, expected):
-    client = SlurmClient(config_only=True, slurm_zip_cmd=executable)
+    client = SlurmClient(config_only=True, slurm_zip_cmd=executable,
+                         remote_shallow_zarr=False)
     assert 'biomero-lock' not in client.get_zip_command('/data', 'results')
     client.remote_shallow_zarr = True
     assert expected in client.get_zip_command('/data', 'results')

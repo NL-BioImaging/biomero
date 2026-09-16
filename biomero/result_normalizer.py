@@ -1,4 +1,9 @@
-"""Optional CPU result normalization with durable Slurm submission adoption."""
+"""Optional CPU result normalization before result archiving.
+
+SlurmClient owns remote execution, image acquisition and scheduling policy;
+SlurmJob owns monitoring. This module coordinates the shallower's manifest,
+durable submission records, recovery command and receipt validation.
+"""
 
 import hashlib
 import io
@@ -16,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def image_spec(client):
+    """Describe the versioned helper image for SlurmClient image acquisition."""
     image = client.result_normalizer_image.removeprefix('docker://')
     if '@sha256:' in image:
         source, digest = image.split('@sha256:', 1)
@@ -24,17 +30,25 @@ def image_spec(client):
         version = 'sha256:' + digest
     else:
         source, separator, version = image.rpartition(':')
-        if not separator or '/' in version or version in ('latest', 'main', 'master', ''):
+        if (not separator or '/' in version
+                or version in ('latest', 'main', 'master', '')):
             raise ValueError('Result normalizer requires an explicit image version')
     return {
         'kind': 'result-normalizer', 'name': 'biomero-shallower',
         'version': version, 'source_type': 'registry', 'source': source,
-        'destination': posixpath.join(client.slurm_converters_path,
-                                     'shallower-' + hashlib.sha256(image.encode()).hexdigest()[:24] + '.sif'),
+        'destination': posixpath.join(
+            client.slurm_converters_path,
+            'shallower-' + hashlib.sha256(image.encode()).hexdigest()[:24]
+            + '.sif'),
     }
 
 
 def build_command(client, output, sif, manifest, task_id, *, recovery=False):
+    """Build normalization or recovery using the same helper resource policy.
+
+    Paths refer to the remote filesystem. The result directory is writable in
+    the container; the canonical input manifest is mounted read-only.
+    """
     quote = shlex.quote
     if (isinstance(client.result_normalizer_workers, bool)
             or not isinstance(client.result_normalizer_workers, int)
@@ -56,23 +70,33 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False):
     if recovery:
         runtime += ' --recover-only'
     return ('sbatch --parsable --export=NONE ' + ' '.join(params) +
-            f' --job-name=biomero-normalizer-{task_id} --output={quote(manifest + ".%j.log")}' +
+            f' --job-name=biomero-normalizer-{task_id}'
+            f' --output={quote(manifest + ".%j.log")}' +
             ' --wrap=' + quote(runtime))
 
 
 def _batch(client, raw, canonical):
+    """Parse a batch report and check its input, image and tool version.
+
+    Task/job ownership is checked separately by the orchestration caller.
+    Import the optional schema dependency only when normalization is used.
+    """
     from biomero_schema.shallower import ShallowBatchReport
     batch = ShallowBatchReport.from_dict(json.loads(raw))
-    if (batch.canonical_inputs != canonical or batch.image != client.result_normalizer_image
+    if (batch.canonical_inputs != canonical
+            or batch.image != client.result_normalizer_image
             or batch.tool_version != client.result_normalizer_version):
-        raise ValueError('Result normalizer report does not match configuration/input')
-    if any(receipt.image != batch.image or receipt.tool_version != batch.tool_version
+        raise ValueError(
+            'Result normalizer report does not match configuration/input')
+    if any(receipt.image != batch.image
+           or receipt.tool_version != batch.tool_version
            for receipt in batch.receipts):
         raise ValueError('Inconsistent helper receipts')
     return batch
 
 
 def completed_receipts(client, workflow_id, canonical):
+    """Read persisted helper receipts without contacting the cluster."""
     if not client.remote_shallow_zarr or not client.track_workflows:
         return ()
     workflow = client.workflowTracker.repository.get(UUID(str(workflow_id)))
@@ -85,6 +109,12 @@ def completed_receipts(client, workflow_id, canonical):
 
 
 def _submit_once(client, command, state):
+    """Submit or adopt a job under a remote filesystem lock.
+
+    ``state`` is the remote filename prefix for the lock, submission intent
+    and recorded job ID. Return the job ID, or None for a rejected submission.
+    Ambiguous submission state raises instead of risking a duplicate job.
+    """
     # An intent without a job ID is ambiguous: never blindly submit again.
     # The unique job name and sacct allow an administrator to reconcile it.
     quote = shlex.quote
@@ -110,11 +140,18 @@ def _submit_once(client, command, state):
     if result.ok and result.stdout.strip() == 'NOT_SUBMITTED':
         return None
     if not result.ok or not result.stdout.strip().isdigit():
-        raise RuntimeError('Normalizer submission is unresolved; preserve results and resume after reconciliation')
+        raise RuntimeError(
+            'Normalizer submission is unresolved; preserve results and resume '
+            'after reconciliation')
     return int(result.stdout.strip())
 
 
 def _wait(client, job_id, omero_conn=None):
+    """Monitor an adopted job without analysis-log or task-status updates.
+
+    The helper task is completed by ``run`` after report validation, not merely
+    because its Slurm process exited successfully.
+    """
     job = SlurmJob.from_job_id(job_id, slurm_polling_interval=15)
     state = job.wait_for_completion(
         client, omero_conn, track_progress=False, update_task=False,
@@ -123,6 +160,13 @@ def _wait(client, job_id, omero_conn=None):
 
 
 def run(client, data_path, workflow_id, canonical, omero_conn=None):
+    """Run or resume normalization and return the validated batch report.
+
+    Disabled/inapplicable normalization and unavailable images return None.
+    A rejected normalization submission returns an empty-receipt batch so the
+    caller can retain full results. Unresolved submission, recovery or report
+    validation raises; callers must not archive potentially incomplete output.
+    """
     if not client.remote_shallow_zarr or canonical is None or not canonical.inputs:
         return None
     if not client.track_workflows:
@@ -131,15 +175,18 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
     workflow_id = UUID(str(workflow_id))
     workflow = tracker.repository.get(workflow_id)
     tasks = [tracker.repository.get(task_id) for task_id in workflow.tasks]
-    matches = [task for task in tasks if task.task_name == TASK_NAME and task.input_data == data_path]
+    matches = [task for task in tasks
+               if task.task_name == TASK_NAME and task.input_data == data_path]
     if len(matches) > 1:
         raise RuntimeError('Ambiguous result normalizer tasks')
     if matches and matches[0].result_message:
         return _batch(client, matches[0].result_message, canonical)
     if matches and matches[0].job_ids:
-        report_path = posixpath.join(data_path, 'data/out/.biomero-shallow-batch.json')
+        report_path = posixpath.join(
+            data_path, 'data/out/.biomero-shallow-batch.json')
         found = client.run_commands([
-            f'if test -f {shlex.quote(report_path)}; then cat {shlex.quote(report_path)}; fi'])
+            f'if test -f {shlex.quote(report_path)}; '
+            f'then cat {shlex.quote(report_path)}; fi'])
         if found.ok and found.stdout.strip():
             try:
                 batch = _batch(client, found.stdout, canonical)
@@ -150,11 +197,12 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
             except (ValueError, KeyError):
                 pass  # Partial/stale report: poll the recorded job below.
             else:
-                tracker.complete_task(matches[0].id, json.dumps(batch.to_dict()))
+                tracker.complete_task(
+                    matches[0].id, json.dumps(batch.to_dict()))
                 return batch
     spec = image_spec(client)
     if not matches:
-        # Acquisition cannot modify result data. Failure here safely keeps full output.
+        # Acquisition cannot modify result data. Failures retain full output.
         try:
             pull_id = client._submit_image_pull_array([spec])
             if pull_id and _wait(client, pull_id, omero_conn) != 'COMPLETED':
@@ -163,7 +211,8 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
             if pending or not ready:
                 return None
         except Exception:
-            logger.exception('Result normalizer image unavailable; retaining full results')
+            logger.exception(
+                'Result normalizer image unavailable; retaining full results')
             return None
         task_id = tracker.add_task_to_workflow(
             workflow_id, TASK_NAME, client.result_normalizer_version, data_path,
@@ -180,8 +229,10 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
     manifest = posixpath.join(state_dir, 'canonical.json')
     client.put(io.StringIO(json.dumps(canonical.to_dict())), manifest)
     output = posixpath.join(data_path, 'data/out')
-    command = build_command(client, output, spec['destination'], manifest, str(task_id))
-    job_id = int(task.job_ids[0]) if task.job_ids else _submit_once(client, command, state_dir + '/normalize')
+    command = build_command(
+        client, output, spec['destination'], manifest, str(task_id))
+    job_id = (int(task.job_ids[0]) if task.job_ids
+              else _submit_once(client, command, state_dir + '/normalize'))
     if job_id is None:
         from biomero_schema.shallower import ShallowBatchReport
         batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
@@ -201,12 +252,15 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
                                  str(task_id), recovery=True)
         recovery_id = _submit_once(client, recovery, state_dir + '/recovery')
         if recovery_id is None:
-            raise RuntimeError('Normalizer recovery submission rejected; output preserved')
+            raise RuntimeError(
+                'Normalizer recovery submission rejected; output preserved')
         if recovery_id not in task.job_ids:
             tracker.add_job_id(task_id, recovery_id)
         if _wait(client, recovery_id, omero_conn) != 'COMPLETED':
-            raise RuntimeError('Normalizer recovery failed; output preserved for recovery')
-    report = client.run_commands(['cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
+            raise RuntimeError(
+                'Normalizer recovery failed; output preserved for recovery')
+    report = client.run_commands([
+        'cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
     if not report.ok:
         raise RuntimeError('Missing normalizer report; cannot archive safely')
     batch = _batch(client, report.stdout, canonical)

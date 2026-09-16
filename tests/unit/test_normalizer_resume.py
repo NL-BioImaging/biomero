@@ -68,7 +68,19 @@ def test_failed_helper_runs_recovery_before_receipt_publication():
          patch('biomero.result_normalizer._wait', side_effect=['FAILED', 'COMPLETED']):
         run(client, '/data', workflow_id, canonical)
     assert '--recover-only' in submit.call_args.args[1]
+    assert submit.call_args.kwargs['job_name'].startswith('biomero-recovery-')
     client.workflowTracker.complete_task.assert_called_once()
+
+
+def test_recorded_legacy_recovery_id_is_adopted_without_submission():
+    client, workflow_id, canonical, batch = client_fixture(jobs=(123, 124))
+    with patch('biomero.result_normalizer._batch', return_value=batch), \
+         patch('biomero.result_normalizer._submit_once') as submit, \
+         patch('biomero.result_normalizer._wait',
+               side_effect=['FAILED', 'COMPLETED']) as wait:
+        run(client, '/data', workflow_id, canonical)
+    submit.assert_not_called()
+    assert [call.args[1] for call in wait.call_args_list] == [123, 124]
 
 
 def test_shared_monitor_keeps_connection_through_normalization_and_recovery():

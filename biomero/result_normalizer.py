@@ -43,6 +43,12 @@ def image_spec(client):
     }
 
 
+def _job_name(task_id, *, recovery=False):
+    """Keep submission reconciliation specific to one task and operation."""
+    operation = 'recovery' if recovery else 'normalizer'
+    return f'biomero-{operation}-{task_id}'
+
+
 def build_command(client, output, sif, manifest, task_id, *, recovery=False):
     """Build normalization or recovery using the same helper resource policy.
 
@@ -70,7 +76,7 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False):
     if recovery:
         runtime += ' --recover-only'
     return ('sbatch --parsable --export=NONE ' + ' '.join(params) +
-            f' --job-name=biomero-normalizer-{task_id}'
+            f' --job-name={quote(_job_name(task_id, recovery=recovery))}'
             f' --output={quote(manifest + ".%j.log")}' +
             ' --wrap=' + quote(runtime))
 
@@ -108,21 +114,22 @@ def completed_receipts(client, workflow_id, canonical):
     return tuple(receipts)
 
 
-def _submit_once(client, command, state):
+def _submit_once(client, command, state, *, job_name):
     """Submit or adopt a job under a remote filesystem lock.
 
     ``state`` is the remote filename prefix for the lock, submission intent
     and recorded job ID. Return the job ID, or None for a rejected submission.
-    Ambiguous submission state raises instead of risking a duplicate job.
+    ``job_name`` is the operation-specific identity used for reconciliation,
+    not a value inferred by parsing shell commands. Ambiguous submission state
+    raises instead of risking a duplicate job.
     """
     # An intent without a job ID is ambiguous: never blindly submit again.
     # The unique job name and sacct allow an administrator to reconcile it.
     quote = shlex.quote
-    name = re.search(r'--job-name=(\S+)', command).group(1)
     script = (
         f'if test -s {quote(state + ".job")}; then cat {quote(state + ".job")}; '
         f'elif test -e {quote(state + ".intent")}; then '
-        f'jobs=$(sacct -n -X --name={quote(name)} --format=JobIDRaw '
+        f'jobs=$(sacct -n -X --name={quote(job_name)} --format=JobIDRaw '
         f'-S "$(cat {quote(state + ".intent")})" | awk \'NF {{print $1}}\' | sort -u); '
         'case "$jobs" in ""|*[!0-9]*) '
         'echo "Unresolved normalizer submission intent" >&2; exit 75;; esac; '
@@ -232,7 +239,8 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
     command = build_command(
         client, output, spec['destination'], manifest, str(task_id))
     job_id = (int(task.job_ids[0]) if task.job_ids
-              else _submit_once(client, command, state_dir + '/normalize'))
+              else _submit_once(client, command, state_dir + '/normalize',
+                                job_name=_job_name(task_id)))
     if job_id is None:
         from biomero_schema.shallower import ShallowBatchReport
         batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
@@ -250,7 +258,13 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
         # receipts; interrupted stores roll back before any archive is allowed.
         recovery = build_command(client, output, spec['destination'], manifest,
                                  str(task_id), recovery=True)
-        recovery_id = _submit_once(client, recovery, state_dir + '/recovery')
+        # Recorded IDs remain authoritative, including pre-upgrade recovery
+        # jobs that used the normalization job name. An old unresolved intent
+        # must never be guessed to be a normalization job or resubmitted.
+        recovery_id = (int(task.job_ids[1]) if len(task.job_ids) > 1
+                       else _submit_once(
+                           client, recovery, state_dir + '/recovery',
+                           job_name=_job_name(task_id, recovery=True)))
         if recovery_id is None:
             raise RuntimeError(
                 'Normalizer recovery submission rejected; output preserved')

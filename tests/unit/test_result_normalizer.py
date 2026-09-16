@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from uuid import uuid4
+import shlex
 
 import pytest
 
@@ -37,6 +38,30 @@ def test_unknown_image_version_rejected():
                              slurm_converters_path='/images')
     with pytest.raises(ValueError, match='version'):
         image_spec(client)
+
+
+def test_normalization_and_recovery_have_distinct_job_names():
+    from biomero.result_normalizer import build_command
+    client = SlurmClient(config_only=True)
+    task_id = str(uuid4())
+    names = []
+    for recovery in (False, True):
+        command = build_command(client, '/out', '/helper.sif', '/manifest',
+                                task_id, recovery=recovery)
+        names.append(next(arg for arg in shlex.split(command)
+                          if arg.startswith('--job-name=')))
+    assert names[0] == '--job-name=biomero-normalizer-' + task_id
+    assert names[1] == '--job-name=biomero-recovery-' + task_id
+
+
+def test_submission_uses_explicit_reconciliation_identity():
+    from biomero.result_normalizer import _submit_once
+    client = SimpleNamespace(run_commands=MagicMock(
+        return_value=SimpleNamespace(ok=True, stdout='123')))
+    assert _submit_once(client, 'sbatch --parsable worker.sh', '/state/recovery',
+                        job_name='biomero-recovery-task') == 123
+    script = shlex.split(client.run_commands.call_args.args[0][0])[-1]
+    assert '--name=biomero-recovery-task' in script
 
 
 @pytest.mark.parametrize('executable,expected', [('7z', "'-xr!*.biomero-lock'"),

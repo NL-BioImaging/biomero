@@ -33,45 +33,36 @@ A workflow and its tasks have independent aggregate versions. Metadata written
 during import can therefore legitimately retain ``IMPORTING`` even after the
 workflow finishes. Refreshing its view does not advance that snapshot.
 
-Refreshing existing annotations
--------------------------------
+Planning a view refresh
+-----------------------
 
-An administrator can explicitly refresh one result Image or Plate using the
-Python API. No automatic migration runs during initialization, and there is
-currently no deployment-wide setting for selecting ``v1`` on new writes.
-New result scripts continue to write ``v0``.
+Core creates data structures; the scripts layer owns connections, backups and
+annotation updates. Core does not import annotation client libraries.
 
 .. code-block:: python
 
-   from biomero.metadata_refresh import refresh_workflow_metadata
+   from biomero.provenance import MetadataAnnotation, plan_metadata_refresh
 
-   # conn is an administrator's BlitzGateway; tracker is WorkflowTracker.
-   plan = refresh_workflow_metadata(
-       conn, tracker, "Plate", plate_id, workflow_uuid, view_version="v1")
-   # Inspect the dry-run plan before applying. Use a private backup location.
-   result = refresh_workflow_metadata(
-       conn, tracker, "Plate", plate_id, workflow_uuid,
-       view_version="v1", dry_run=False,
-       backup_path="/private/backups/plate-metadata-before-refresh.json")
+   existing = [
+       MetadataAnnotation(namespace=namespace, values=values)
+       for namespace, values in stored_annotations
+   ]
+   changes = plan_metadata_refresh(
+       tracker, workflow_uuid, existing, view_version="v1")
 
-The updater edits retained MapAnnotations in place, preserving their IDs,
-namespaces and creation events. Obsolete internal-task annotations are unlinked
-from the selected object, not globally deleted. Reapplying a view is idempotent.
-The backup contains original key/value pairs and annotation IDs, including
-unlinked annotations; protect it like other provenance containing execution
-details. Restore retained values with ``MapAnnotationWrapper.setValue`` and
-``save``; unlinked original annotations can be linked to the object again.
+Each change contains a before and after view. An absent after view requests
+removal of the object's link to that annotation, not deletion of the annotation.
+The caller is responsible for applying these changes safely.
 
 Legacy snapshots are resolved by an exact, unique ``Modified_On`` match against
 aggregate history. New annotations use their explicit aggregate version.
-Ambiguous or incomplete snapshots, conflicting identities, shared annotations,
-or duplicate non-list keys are refused rather than guessed. Repeated
-``Input_Data`` keys retain the legacy list representation. Unknown namespaces
-and additional custom keys are preserved. Existing CSV references for oversized
-values are retained.
+Ambiguous or incomplete snapshots and conflicting identities are refused rather
+than guessed. Unknown namespaces and additional custom keys are preserved.
+Existing CSV references for oversized values are retained.
 
-Run refreshes while metadata writers for the selected result are idle. The
-updater checks for intervening changes, but multiple OMERO writes are not one
-transaction. Errors propagate; inspect the backup and current annotations
-before retrying a partially applied refresh. Image data, full CSV attachments,
-shallow/canonical metadata and events are never rewritten by this API.
+The administrative refresh adapter is provided by biomero-scripts in
+``_data/SLURM_Import_Results.py``. Its documentation describes dry runs, backups,
+shared-annotation checks and updating existing views in place. No automatic
+migration runs during initialization. New result scripts continue to write
+``v0``; there is currently no deployment-wide setting to select ``v1`` for new
+writes.

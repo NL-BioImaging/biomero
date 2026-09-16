@@ -25,6 +25,21 @@ from eventsourcing.system import System, SingleThreadedRunner
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
+
+def test_storage_provenance_records_replayable_target_snapshot(workflow_tracker):
+    tracker = workflow_tracker
+    wid = tracker.initiate_workflow('run', 'test', 1, 1)
+    tid = tracker.add_task_to_workflow(wid, 'SLURM_Import_Results.py', '1', {}, {})
+    before = tracker.repository.get(tid).version
+    evidence = {'storage': 'shallow-zarr', 'location': 'importer'}
+    tracker.record_storage_provenance(tid, 'Plate:10', evidence)
+    evidence['storage'] = 'full-zarr'
+    task = tracker.repository.get(tid)
+    assert task.storage_provenance['Plate:10']['storage'] == 'shallow-zarr'
+    assert not getattr(tracker.repository.get(tid, version=before), 'storage_provenance', {})
+    tracker.record_storage_provenance(tid, 'Plate:10', task.storage_provenance['Plate:10'])
+    assert tracker.repository.get(tid).version == task.version
+
 # Fixture for setting up the environment variables and session
 
 

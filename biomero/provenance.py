@@ -47,7 +47,8 @@ def _parameters(task):
 
 
 def render_workflow_metadata(tracker, workflow_id, *, view_version='v0',
-                             aggregate_versions=None, revision_fields=True):
+                             aggregate_versions=None, revision_fields=True,
+                             target_key=None):
     """Return ordered namespace/value pairs without writing to any datastore.
 
     ``v0`` retains legacy task/job fields; ``v1`` additionally omits verbose
@@ -116,6 +117,9 @@ def render_workflow_metadata(tracker, workflow_id, *, view_version='v0',
         }
         values.update({f'Param_{k}': str(v)
                        for k, v in _parameters(task).items()})
+        evidence = getattr(task, 'storage_provenance', {}).get(target_key)
+        if evidence and task.task_name in ('SLURM_Import_Results.py', 'SLURM_Get_Results.py'):
+            values.update(storage_metadata_view(evidence, target_key))
         append(namespace, values, task)
         for jid in task.job_ids:
             values = {'Job_ID': str(jid), 'Task_ID': str(task._id),
@@ -180,7 +184,8 @@ class MetadataChange:
     after: MetadataAnnotation | None
 
 
-def plan_metadata_refresh(tracker, workflow_id, annotations, *, view_version='v0'):
+def plan_metadata_refresh(tracker, workflow_id, annotations, *, view_version='v0',
+                          target_key=None):
     """Plan a snapshot-preserving update. None means unlink, not global delete.
 
     Unknown namespaces and extra keys are preserved. Missing task snapshots,
@@ -190,7 +195,7 @@ def plan_metadata_refresh(tracker, workflow_id, annotations, *, view_version='v0
     versions = resolve_metadata_versions(tracker, workflow_id, annotations)
     rendered = render_workflow_metadata(
         tracker, workflow_id, view_version=view_version,
-        aggregate_versions=versions)
+        aggregate_versions=versions, target_key=target_key)
 
     def identity(row):
         return (row.namespace, row.values.get('Task_ID'), row.values.get('Job_ID'))
@@ -239,3 +244,30 @@ def plan_metadata_refresh(tracker, workflow_id, annotations, *, view_version='v0
     if not set(expected).issubset(seen):
         raise ValueError('Missing annotations; refusing an incomplete refresh')
     return changes
+
+
+def storage_metadata_view(evidence, target_key):
+    """Compact per-result storage facts; feature flags are not evidence."""
+    storage = evidence.get('storage')
+    if storage not in ('shallow-zarr', 'full-zarr'):
+        return {}
+    values = {'Storage_Target': target_key, 'Storage_Format': storage,
+              'Storage_Shallow': str(storage == 'shallow-zarr').lower()}
+    fields = {
+        'location': 'Shallowing_Location', 'tool_version': 'Shallower_Tool_Version',
+        'container': 'Shallower_Container', 'manifest': 'Shallow_Manifest',
+        'manifest_sha256': 'Shallow_Manifest_SHA256',
+        'report_sha256': 'Shallower_Report_SHA256',
+        'task_id': 'Shallower_Task_ID', 'job_id': 'Shallower_Job_ID',
+        'reason': 'Storage_Outcome_Reason',
+    }
+    for key, label in fields.items():
+        if evidence.get(key) is not None:
+            values[label] = str(evidence[key])
+    codes = sorted(set(evidence.get('source_biocodes', [])))
+    if codes:
+        values['Canonical_Biocode_Count'] = str(len(codes))
+        joined = ', '.join(codes)
+        values['Canonical_Biocodes'] = (joined if len(joined.encode('utf-8')) <= 800
+                                        else f'{len(codes)} codes; see Shallow_Manifest')
+    return values

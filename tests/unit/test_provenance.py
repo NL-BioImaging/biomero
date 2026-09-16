@@ -61,6 +61,41 @@ def test_default_preserves_legacy_fields_and_excludes_coordination(source):
     assert [wf, tasks] == before
 
 
+@pytest.mark.parametrize('view', ['v0', 'v1'])
+def test_import_storage_provenance_is_target_specific_and_compact(source, view):
+    tracker, wf, tasks = source
+    tasks[2].storage_provenance = {
+        'Plate:10': {'storage': 'shallow-zarr', 'location': 'remote',
+                     'tool_version': '0.1.0', 'container': 'helper@sha256:abc',
+                     'manifest': 'import-mount-data/results/.biomero-shallow.json',
+                     'source_biocodes': ['ISCC:AAA', 'ISCC:BBB']},
+        'Plate:11': {'storage': 'full-zarr', 'location': 'importer'},
+    }
+    rows = render_workflow_metadata(tracker, wf._id, view_version=view,
+                                    target_key='Plate:10')
+    values = rows[3].values
+    assert values['Storage_Format'] == 'shallow-zarr'
+    assert values['Storage_Shallow'] == 'true'
+    assert values['Shallower_Container'] == 'helper@sha256:abc'
+    assert values['Canonical_Biocodes'] == 'ISCC:AAA, ISCC:BBB'
+    full = render_workflow_metadata(tracker, wf._id, target_key='Plate:11')[3].values
+    assert full['Storage_Shallow'] == 'false'
+    assert 'Shallower_Container' not in full
+    assert 'Storage_Format' not in render_workflow_metadata(tracker, wf._id)[3].values
+    tasks[2].storage_provenance['Plate:10']['source_biocodes'] = ['ISCC:' + str(i) for i in range(1000)]
+    compact = render_workflow_metadata(tracker, wf._id, target_key='Plate:10')[3].values
+    assert len(compact['Canonical_Biocodes']) < 200
+    assert compact['Canonical_Biocode_Count'] == '1000'
+
+
+def test_refresh_replays_storage_for_target(source):
+    tracker, wf, tasks = source
+    tasks[2].storage_provenance = {'Image:1': {'storage': 'shallow-zarr', 'location': 'importer'}}
+    rows = render_workflow_metadata(tracker, wf._id, target_key='Image:1')
+    changes = plan_metadata_refresh(tracker, wf._id, rows, target_key='Image:1', view_version='v1')
+    assert changes[3].after.values['Storage_Format'] == 'shallow-zarr'
+
+
 def test_slim_is_explicit_and_preserves_batch_discovery(source):
     tracker, wf, _ = source
     maps = render_workflow_metadata(tracker, wf._id, view_version='v1')

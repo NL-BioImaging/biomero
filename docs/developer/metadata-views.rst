@@ -33,6 +33,31 @@ A workflow and its tasks have independent aggregate versions. Metadata written
 during import can therefore legitimately retain ``IMPORTING`` even after the
 workflow finishes. Refreshing its view does not advance that snapshot.
 
+Result storage provenance
+-------------------------
+
+Both views include additive storage fields on the import task when the event
+store contains observed provenance for the requested ``target_key`` (for example
+``Plate:123``). ``Storage_Format`` distinguishes ``shallow-zarr`` from
+``full-zarr`` and ``Storage_Shallow`` is an explicit boolean string. These are
+per-result facts, not workflow feature flags.
+
+The scripts collect importer outcome receipts and the result's shallow manifest,
+then record a ``Task.StorageProvenanceRecorded`` event before rendering metadata.
+Core stores plain evidence and renders it without accessing files or connections.
+Recorded execution location, tool version, container reference, remote task/job
+IDs and report checksum are retained in both views. Missing historical tool or
+location evidence is not inferred from current configuration.
+
+Canonical source biocodes appear inline when small. Larger collections use a
+count and reference to ``Shallow_Manifest`` with its SHA-256 checksum. Full
+per-target evidence also remains in CSV provenance and the event store.
+``render_workflow_metadata`` and ``plan_metadata_refresh`` accept an optional
+``target_key``; callers must supply it to select a result's storage facts.
+
+Existing snapshots without this event remain unchanged by a historical refresh;
+the updater does not invent missing storage history from current disk contents.
+
 Planning a view refresh
 -----------------------
 

@@ -5,6 +5,56 @@ import pytest
 from biomero.slurm_client import SlurmJob
 
 
+def test_heartbeat_runs_each_poll_and_failure_propagates_unchanged():
+    client = MagicMock()
+    client.check_job_status.return_value = ({7: 'PENDING'}, MagicMock(ok=True))
+    failure = RuntimeError('caller heartbeat failed')
+    heartbeat = MagicMock(side_effect=[None, failure])
+    job = SlurmJob.from_job_id(7)
+    with patch('biomero.slurm_client.timesleep.sleep'), pytest.raises(RuntimeError) as error:
+        job.wait_for_completion(client, heartbeat=heartbeat,
+                                track_progress=False, update_task=False)
+    assert error.value is failure
+    assert heartbeat.call_count == 2
+    assert job.job_state == 'PENDING'
+
+
+def test_connection_and_heartbeat_are_mutually_exclusive():
+    with pytest.raises(ValueError, match='heartbeat'):
+        SlurmJob.from_job_id(7).wait_for_completion(
+            MagicMock(), MagicMock(), heartbeat=MagicMock())
+
+
+def test_legacy_connection_warns_and_preserves_default_false_return_behavior():
+    client, conn = MagicMock(), MagicMock()
+    conn.keepAlive.return_value = False
+    client.check_job_status.return_value = ({7: 'COMPLETED'}, MagicMock(ok=True))
+    with pytest.warns(DeprecationWarning, match='heartbeat'):
+        assert SlurmJob.from_job_id(7).wait_for_completion(client, conn) == 'COMPLETED'
+    conn.keepAlive.assert_called_once()
+
+
+def test_public_normalizer_adapts_legacy_connection_once():
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True)
+    conn = MagicMock()
+    with patch('biomero.result_normalizer.run') as run, \
+         pytest.warns(DeprecationWarning, match='heartbeat'):
+        client.normalize_results_on_slurm('/data', 'workflow', None, conn)
+    run.call_args.args[4]()
+    conn.keepAlive.assert_called_once()
+
+
+def test_public_normalizer_passes_callback_unchanged():
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True)
+    heartbeat = MagicMock()
+    with patch('biomero.result_normalizer.run') as run:
+        client.normalize_results_on_slurm('/data', 'workflow', None,
+                                          heartbeat=heartbeat)
+    assert run.call_args.args[4] is heartbeat
+
+
 def test_adopted_job_keeps_connection_alive_without_analysis_progress():
     client, conn = MagicMock(), MagicMock()
     client.check_job_status.side_effect = [

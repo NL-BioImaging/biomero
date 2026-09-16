@@ -439,9 +439,11 @@ by the helper (array, command, export and log paths). Optional helper memory and
 time limits override their global counterparts; otherwise global values apply.
 Image pulls use the normal image-pull resource configuration.
 
-The import script passes its OMERO connection to the shared ``SlurmJob`` monitor
-for image acquisition, normalization and recovery. This applies to inline and
-detached workflows alike. An existing job ID is adopted without resubmission;
+The import script owns session keepalive and supplies a heartbeat callback to
+the shared ``SlurmJob`` monitor for image acquisition, normalization and
+recovery. Callback failures propagate without triggering an image fallback.
+This applies to inline and detached workflows alike.
+An existing job ID is adopted without resubmission;
 unavailable status pauses retrieval rather than triggering recovery. The helper
 task is completed only after its output report has been validated.
 

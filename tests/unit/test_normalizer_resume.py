@@ -52,8 +52,8 @@ def test_resume_verifies_manifest_without_uploading_again():
 
 def test_resume_rejects_changed_manifest_before_polling():
     client, workflow_id, canonical, _ = client_fixture()
-    client.run_commands.return_value = SimpleNamespace(ok=True, stdout='{"inputs": [2]}')
-    client.run_commands.side_effect = None
+    client.run_commands.side_effect = lambda commands, **kwargs: SimpleNamespace(
+        ok=True, stdout='{"inputs": [2]}' if 'canonical.json' in commands[0] else '')
     with patch('biomero.result_normalizer._wait') as wait:
         with pytest.raises(ValueError, match='manifest'):
             run(client, '/data', workflow_id, canonical)
@@ -139,7 +139,7 @@ def test_shared_monitor_keeps_connection_through_normalization_and_recovery():
     with patch('biomero.result_normalizer._batch', return_value=batch), \
          patch('biomero.result_normalizer._submit_once', return_value=124), \
          patch('biomero.slurm_client.timesleep.sleep') as sleep:
-        assert run(client, '/data', workflow_id, canonical, conn) is batch
+        assert run(client, '/data', workflow_id, canonical, conn.keepAlive) is batch
     assert conn.keepAlive.call_count == 4
     assert sleep.call_count == 2
     client.workflowTracker.update_task_status.assert_not_called()
@@ -171,5 +171,35 @@ def test_image_acquisition_also_keeps_connection_alive():
     with patch('biomero.result_normalizer._batch', return_value=batch), \
          patch('biomero.result_normalizer._submit_once', return_value=123), \
          patch('biomero.slurm_client.timesleep.sleep'):
-        assert run(client, '/data', workflow_id, canonical, conn) is batch
+        assert run(client, '/data', workflow_id, canonical, conn.keepAlive) is batch
     assert conn.keepAlive.call_count == 3
+
+
+def test_image_pull_heartbeat_failure_is_not_silent_fallback():
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    client.workflowTracker.repository.get(workflow_id).tasks = []
+    client._submit_image_pull_array = MagicMock(return_value=9)
+    client._partition_existing_images = MagicMock()
+    failure = RuntimeError('heartbeat failed')
+    with pytest.raises(RuntimeError) as error:
+        run(client, '/data', workflow_id, canonical,
+            heartbeat=MagicMock(side_effect=failure))
+    assert error.value is failure
+    client._partition_existing_images.assert_not_called()
+    client.workflowTracker.add_task_to_workflow.assert_not_called()
+
+
+@pytest.mark.parametrize('during_recovery', [False, True])
+def test_heartbeat_failure_preserves_normalization_or_recovery_job(during_recovery):
+    client, workflow_id, canonical, _ = client_fixture()
+    client.check_job_status = MagicMock(return_value=(
+        {123: 'FAILED'}, SimpleNamespace(ok=True)))
+    failure = RuntimeError('caller heartbeat failed')
+    heartbeat = MagicMock(side_effect=([None, failure] if during_recovery else [failure]))
+    with patch('biomero.result_normalizer._submit_once', return_value=124) as submit:
+        with pytest.raises(RuntimeError) as error:
+            run(client, '/data', workflow_id, canonical, heartbeat=heartbeat)
+    assert error.value is failure
+    assert submit.call_count == int(during_recovery)
+    client.workflowTracker.complete_task.assert_not_called()
+    client.workflowTracker.fail_task.assert_not_called()

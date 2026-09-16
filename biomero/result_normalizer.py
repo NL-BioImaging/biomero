@@ -235,7 +235,7 @@ def _submit_once(client, command, state, *, job_name):
     return int(result.stdout.strip())
 
 
-def _wait(client, job_id, omero_conn=None):
+def _wait(client, job_id, heartbeat=None):
     """Monitor an adopted job without analysis-log or task-status updates.
 
     The helper task is completed by ``run`` after report validation, not merely
@@ -243,12 +243,12 @@ def _wait(client, job_id, omero_conn=None):
     """
     job = SlurmJob.from_job_id(job_id, slurm_polling_interval=15)
     state = job.wait_for_completion(
-        client, omero_conn, track_progress=False, update_task=False,
+        client, heartbeat=heartbeat, track_progress=False, update_task=False,
         strict_status=True)
     return 'COMPLETED' if job.completed() else state
 
 
-def run(client, data_path, workflow_id, canonical, omero_conn=None):
+def run(client, data_path, workflow_id, canonical, heartbeat=None):
     """Run or resume normalization and return the validated batch report.
 
     Disabled/inapplicable normalization and unavailable images return None.
@@ -294,8 +294,15 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
         # Acquisition cannot modify result data. Failures retain full output.
         try:
             pull_id = client._submit_image_pull_array([spec])
-            if pull_id and _wait(client, pull_id, omero_conn) != 'COMPLETED':
-                return None
+        except Exception:
+            logger.exception(
+                'Result normalizer image unavailable; retaining full results')
+            return None
+        # A caller heartbeat failure must propagate, not become an image
+        # acquisition fallback. Monitoring errors preserve the submitted job.
+        if pull_id and _wait(client, pull_id, heartbeat) != 'COMPLETED':
+            return None
+        try:
             ready, pending = client._partition_existing_images([spec])
             if pending or not ready:
                 return None
@@ -336,7 +343,7 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
     if not task.job_ids:
         tracker.add_job_id(task_id, job_id)
         task = tracker.repository.get(task_id)
-    status = _wait(client, job_id, omero_conn)
+    status = _wait(client, job_id, heartbeat)
     if status != 'COMPLETED':
         # Recover in the same configured image on CPU. Completed stores retain
         # receipts; interrupted stores roll back before any archive is allowed.
@@ -354,7 +361,7 @@ def run(client, data_path, workflow_id, canonical, omero_conn=None):
                 'Normalizer recovery submission rejected; output preserved')
         if recovery_id not in task.job_ids:
             tracker.add_job_id(task_id, recovery_id)
-        if _wait(client, recovery_id, omero_conn) != 'COMPLETED':
+        if _wait(client, recovery_id, heartbeat) != 'COMPLETED':
             raise RuntimeError(
                 'Normalizer recovery failed; output preserved for recovery')
     report = client.run_commands([

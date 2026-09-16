@@ -97,6 +97,20 @@ Typical workflow for view schema changes:
 This will drop and recreate all view tables with the new schema, then replay
 all events to repopulate them with the updated structure.
 
+Metadata maintenance requests
+-----------------------------
+
+``biomero.maintenance.MetadataRefresh`` stores administrative metadata-refresh
+requests in the same ``WorkflowTracker`` event store, separately from
+``WorkflowRun`` and ``Task``. These requests do not create analysis projection
+rows. The aggregate contains plain options, requester IDs, lifecycle status,
+progress counters and a compact final outcome; annotation operations remain in
+the scripts layer. Inspect it with ``tracker.repository.get(UUID(request_id))``
+and use its aggregate versions for historical replay. The processor discovers
+unfinished requests through topic-filtered notifications and retries interrupted
+idempotent sweeps. See NL-BIOMERO's developer supervisor documentation for the
+execution and recovery policy.
+
 Gotchas
 -------
 

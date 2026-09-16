@@ -26,6 +26,20 @@ from eventsourcing.system import System, SingleThreadedRunner
 logging.basicConfig(level=logging.INFO)
 
 
+def test_metadata_maintenance_does_not_create_analysis_projection(workflow_tracker_and_workflow_progress):
+    from biomero.maintenance import queue_metadata_refresh, pending_metadata_refreshes
+    tracker, progress = workflow_tracker_and_workflow_progress
+    request_id = queue_metadata_refresh(tracker, 1, 1, {'workers': 4})
+    request = tracker.repository.get(request_id)
+    request.started()
+    request.progressed({'processed': 25, 'counts': {'updated': 25}})
+    request.finished({'counts': {'failed': 0}})
+    tracker.save(request)
+    assert pending_metadata_refreshes(tracker)[1] == set()
+    with EngineManager.get_session() as session:
+        assert session.query(WorkflowProgressView).count() == 0
+
+
 def test_storage_provenance_records_replayable_target_snapshot(workflow_tracker):
     tracker = workflow_tracker
     wid = tracker.initiate_workflow('run', 'test', 1, 1)

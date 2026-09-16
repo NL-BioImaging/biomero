@@ -33,7 +33,6 @@ import os
 import posixpath
 import yaml
 import shlex
-import warnings
 from biomero.constants import slurm_env
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
@@ -148,28 +147,7 @@ class SlurmJob:
             'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED',
         }
 
-    @staticmethod
-    def _resolve_heartbeat(heartbeat, connection, *, strict=False):
-        """Compatibility adapter; new callers supply a no-argument callback."""
-        if heartbeat is not None and connection is not None:
-            raise ValueError('Supply heartbeat or the legacy connection, not both')
-        if heartbeat is not None and not callable(heartbeat):
-            raise TypeError('heartbeat must be callable')
-        if connection is None:
-            return heartbeat
-        warnings.warn(
-            'Passing a connection is deprecated; supply heartbeat=callback instead',
-            DeprecationWarning, stacklevel=3)
-
-        def legacy_heartbeat():
-            if connection.keepAlive() is False and strict:
-                raise RuntimeError(
-                    'OMERO connection is no longer active; '
-                    'preserve the Slurm job and resume with a new connection')
-
-        return legacy_heartbeat
-
-    def wait_for_completion(self, slurmClient, omeroConn=None, *, heartbeat=None,
+    def wait_for_completion(self, slurmClient, *, heartbeat=None,
                             track_progress=True, update_task=True,
                             strict_status=False) -> str:
         """
@@ -177,7 +155,6 @@ class SlurmJob:
 
         Args:
             slurmClient: The Slurm client.
-            omeroConn: Deprecated connection argument retained for compatibility.
             heartbeat: Optional no-argument callback, invoked before each poll.
                 Return values are ignored; raise to abort monitoring. Exceptions
                 propagate unchanged without marking the Slurm job failed.
@@ -190,8 +167,8 @@ class SlurmJob:
         Returns:
             str: The final state of the Slurm job.
         """
-        heartbeat = self._resolve_heartbeat(
-            heartbeat, omeroConn, strict=strict_status)
+        if heartbeat is not None and not callable(heartbeat):
+            raise TypeError('heartbeat must be callable')
         while not self.is_terminal(self.job_state):
             if heartbeat is not None:
                 heartbeat()
@@ -1488,15 +1465,15 @@ class SlurmClient(Connection):
         return result_dict
 
     def normalize_results_on_slurm(self, data_path, workflow_id, canonical_inputs,
-                                   omero_conn=None, *, heartbeat=None):
+                                   *, heartbeat=None):
         """Run/adopt optional CPU normalization before result archiving.
 
         ``heartbeat`` is a caller-owned no-argument callback invoked during
-        job waits. ``omero_conn`` is deprecated and retained for compatibility.
+        job waits.
         """
         from .result_normalizer import run
-        heartbeat = SlurmJob._resolve_heartbeat(
-            heartbeat, omero_conn, strict=True)
+        if heartbeat is not None and not callable(heartbeat):
+            raise TypeError('heartbeat must be callable')
         return run(self, data_path, workflow_id, canonical_inputs, heartbeat)
 
     def get_result_normalizer_receipts(self, workflow_id, canonical_inputs):

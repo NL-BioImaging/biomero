@@ -3475,14 +3475,14 @@ def test_slurm_job_wait_for_completion_single_poll():
     mock_client.get_active_job_progress.return_value = "50%"
     mock_client.workflowTracker = MagicMock()
 
-    mock_conn = MagicMock()
+    heartbeat = MagicMock()
 
     with patch('biomero.slurm_client.timesleep') as mock_sleep:
-        state = job.wait_for_completion(mock_client, mock_conn)
+        state = job.wait_for_completion(mock_client, heartbeat=heartbeat)
 
     assert state == "COMPLETED"
     mock_sleep.sleep.assert_not_called()
-    mock_conn.keepAlive.assert_called_once()
+    heartbeat.assert_called_once()
     mock_client.get_active_job_progress.assert_called_once_with(7)
     mock_client.workflowTracker.update_task_status.assert_called_once_with(
         job.task_id, 'COMPLETED')
@@ -3504,10 +3504,10 @@ def test_slurm_job_wait_poll_not_ok_sets_failed():
     mock_client.check_job_status.return_value = ({7: "FAILED"}, bad_result)
     mock_client.get_active_job_progress.return_value = None
     mock_client.workflowTracker = MagicMock()
-    mock_conn = MagicMock()
+    heartbeat = MagicMock()
 
     with patch('biomero.slurm_client.timesleep'):
-        state = job.wait_for_completion(mock_client, mock_conn)
+        state = job.wait_for_completion(mock_client, heartbeat=heartbeat)
 
     assert state == "FAILED"
     assert job.error_message == "ssh error"

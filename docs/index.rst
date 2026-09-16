@@ -61,6 +61,7 @@ For publication references and guidance on which BIOMERO paper to cite, see
    :maxdepth: 2
 
    developer/eventsourcing
+   developer/metadata-views
 
 Indices and tables
 ==================

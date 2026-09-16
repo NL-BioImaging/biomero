@@ -1,4 +1,4 @@
-"""Execute generated remote commands on a temporary POSIX filesystem, no HPC."""
+"""Execute shallower remote commands on a temporary POSIX filesystem, no HPC."""
 
 import json
 import os
@@ -11,7 +11,7 @@ from threading import Barrier
 
 import pytest
 
-from biomero.result_normalizer import _prepare_manifest, _submit_once
+from biomero.remote_shallower import _prepare_manifest, _submit_once
 
 
 pytestmark = pytest.mark.skipif(
@@ -50,7 +50,7 @@ def test_manifest_is_published_once_and_not_rewritten(tmp_path):
     assert not list(tmp_path.glob('*.tmp'))
 
 
-@pytest.mark.parametrize('marker', ['normalize.intent', 'normalize.job',
+@pytest.mark.parametrize('marker', ['shallow.intent', 'shallow.job',
                                    'recovery.intent', 'recovery.job'])
 def test_missing_manifest_after_intent_is_never_recreated(tmp_path, marker):
     (tmp_path / marker).write_text('123')

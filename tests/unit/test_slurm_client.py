@@ -2574,12 +2574,12 @@ def test_from_config(mock_ConfigParser,
         config_only=config_only,
         slurm_data_bind_path=mv,
         remote_shallow_zarr=True,
-        result_normalizer_image=mv,
-        result_normalizer_version=mv,
-        result_normalizer_workers=1,
-        result_normalizer_partition=mv,
-        result_normalizer_mem=mv,
-        result_normalizer_time=mv,
+        remote_shallower_image=mv,
+        remote_shallower_version=mv,
+        remote_shallower_workers=1,
+        remote_shallower_partition=mv,
+        remote_shallower_mem=mv,
+        remote_shallower_time=mv,
         slurm_conversion_partition=mv,
         slurm_default_partition=mv,
         sacct_start_time=None,
@@ -3406,9 +3406,9 @@ def test_slurm_job_cleanup_passes_explicit_log_file():
 @pytest.mark.parametrize('dedicated,default,expected', [
     ('helper', 'default', 'helper'), (None, 'default', 'default'),
     (None, None, 'global')])
-def test_normalizer_scheduler_precedence(slurm_client, dedicated, default, expected):
-    from biomero.result_normalizer import build_command
-    slurm_client.result_normalizer_partition = dedicated
+def test_shallower_scheduler_precedence(slurm_client, dedicated, default, expected):
+    from biomero.remote_shallower import build_command
+    slurm_client.remote_shallower_partition = dedicated
     slurm_client.slurm_default_partition = default
     slurm_client.slurm_global_job_params = [
         ' --partition=global', ' --constraint=fast', ' --reservation=reserved',
@@ -3429,10 +3429,10 @@ def test_normalizer_scheduler_precedence(slurm_client, dedicated, default, expec
         assert '--export=ALL' not in command
 
 
-def test_normalizer_resource_overrides(slurm_client):
-    from biomero.result_normalizer import build_command
-    slurm_client.result_normalizer_mem = '8G'
-    slurm_client.result_normalizer_time = '03:00:00'
+def test_shallower_resource_overrides(slurm_client):
+    from biomero.remote_shallower import build_command
+    slurm_client.remote_shallower_mem = '8G'
+    slurm_client.remote_shallower_time = '03:00:00'
     slurm_client.slurm_global_job_params = [' --mem=4G', ' --time=01:00:00',
                                           ' --mem-per-cpu=1G']
     command = build_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()))
@@ -3441,26 +3441,26 @@ def test_normalizer_resource_overrides(slurm_client):
     assert '--time=03:00:00' in command and '--time=01:00:00' not in command
 
 
-def test_normalizer_resource_config(slurm_client_from_config_factory):
+def test_shallower_resource_config(slurm_client_from_config_factory):
     client = slurm_client_from_config_factory(
-        config_values={'result_normalizer_mem': '4G',
-                       'result_normalizer_time': '01:00:00'},
-        env_values={'BIOMERO_RESULT_NORMALIZER_MEM': '8G',
-                    'BIOMERO_RESULT_NORMALIZER_TIME': '03:00:00'})
-    assert client.result_normalizer_mem == '8G'
-    assert client.result_normalizer_time == '03:00:00'
+        config_values={'remote_shallower_mem': '4G',
+                       'remote_shallower_time': '01:00:00'},
+        env_values={'BIOMERO_REMOTE_SHALLOWER_MEM': '8G',
+                    'BIOMERO_REMOTE_SHALLOWER_TIME': '03:00:00'})
+    assert client.remote_shallower_mem == '8G'
+    assert client.remote_shallower_time == '03:00:00'
 
 
 @pytest.mark.parametrize('memory,limit', [('', ''), ('4G', '01:00:00')])
-def test_normalizer_resource_ini_and_empty_env(
+def test_shallower_resource_ini_and_empty_env(
         slurm_client_from_config_factory, memory, limit):
     client = slurm_client_from_config_factory(
-        config_values={'result_normalizer_mem': memory,
-                       'result_normalizer_time': limit},
-        env_values={'BIOMERO_RESULT_NORMALIZER_MEM': '',
-                    'BIOMERO_RESULT_NORMALIZER_TIME': ''})
-    assert client.result_normalizer_mem == (memory or None)
-    assert client.result_normalizer_time == (limit or None)
+        config_values={'remote_shallower_mem': memory,
+                       'remote_shallower_time': limit},
+        env_values={'BIOMERO_REMOTE_SHALLOWER_MEM': '',
+                    'BIOMERO_REMOTE_SHALLOWER_TIME': ''})
+    assert client.remote_shallower_mem == (memory or None)
+    assert client.remote_shallower_time == (limit or None)
 
 
 def test_slurm_job_wait_for_completion_single_poll():

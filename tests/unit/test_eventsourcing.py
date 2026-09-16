@@ -1044,7 +1044,7 @@ def test_workflow_progress_reconstructs_main_task_after_restart(
             workflow_id=workflow_id).one()
         assert workflow_view.main_task_name == "simple-zarr-plate-processor"
 
-def test_result_normalizer_does_not_change_analysis_progress(
+def test_remote_shallower_does_not_change_analysis_progress(
         workflow_tracker_and_workflow_progress):
     tracker, progress = workflow_tracker_and_workflow_progress
     workflow_id = tracker.initiate_workflow('analysis', '', user=1, group=2)
@@ -1053,7 +1053,7 @@ def test_result_normalizer_does_not_change_analysis_progress(
     tracker.update_task_progress(main, '70%')
     before = dict(progress.workflows[workflow_id])
     helper = tracker.add_task_to_workflow(
-        workflow_id, '_SLURM_Result_Normalizer', '0.1.0', {}, {})
+        workflow_id, '_SLURM_Remote_Shallower', '0.1.0', {}, {})
     tracker.start_task(helper)
     tracker.update_task_status(helper, 'RUNNING')
     tracker.update_task_progress(helper, '5%')

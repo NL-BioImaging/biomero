@@ -58,7 +58,7 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SHALLOW_ZARR``
      - not applicable
      - boolean
-     - Opts BIOMERO.scripts into canonical Zarr caching and shallow-result normalization when the importer integration is available; defaults to ``false`` and does not disable reconstruction of existing shallow inputs
+     - Opts BIOMERO.scripts into canonical Zarr caching and shallow-result shallowing when the importer integration is available; defaults to ``false`` and does not disable reconstruction of existing shallow inputs
    * - ``SQLALCHEMY_URL``
      - ``sqlalchemy_url``
      - database URL
@@ -424,7 +424,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``GPU_GPUS``
 
 
-Optional result normalizer
+Optional result shallower
 --------------------------
 
 The administrator-only CPU helper runs before result ZIP creation. All options
@@ -433,7 +433,7 @@ opt-in; when enabled, remote shallowing is the default. Set
 ``remote_shallow_zarr=false`` or ``BIOMERO_REMOTE_SHALLOW_ZARR=false`` to use
 local importer shallowing instead, for example to avoid extra Slurm costs.
 The helper requests no GPU; workers
-set CPUs per task. Normalization and recovery share conversion's resource
+set CPUs per task. Shallowing and recovery share conversion's resource
 merging: the helper partition overrides ``slurm_default_partition``, which
 overrides global ``sbatch_partition``. Otherwise Slurm chooses its default.
 Global ``sbatch_*`` options (including account, reservation, QoS and constraint)
@@ -443,14 +443,19 @@ time limits override their global counterparts; otherwise global values apply.
 Image pulls use the normal image-pull resource configuration.
 
 The import script owns session keepalive and supplies a heartbeat callback to
-the shared ``SlurmJob`` monitor for image acquisition, normalization and
-recovery. Callback failures propagate without triggering an image fallback.
+the shared ``SlurmJob`` monitor for shallowing and recovery.
+Callback failures propagate unchanged.
 This applies to inline and detached workflows alike.
 An existing job ID is adopted without resubmission;
 unavailable status pauses retrieval rather than triggering recovery. The helper
 task is completed only after its output report has been validated.
 
-Normalization and recovery have distinct submission identities. Recorded job
+Only ``SLURM_Init_environment`` acquires the shallower image. Verify setup with
+``SLURM_check_setup`` before running workflows. Runtime shallowing validates the
+installed image and raises a setup error if it is missing or invalid; it never
+downloads an image or silently falls back because setup is incomplete.
+
+Shallowing and recovery have distinct submission identities. Recorded job
 IDs remain authoritative when resuming older tasks; an unresolved pre-upgrade
 recovery intent may require administrator reconciliation, rather than automatic
 resubmission.
@@ -462,7 +467,7 @@ existing tasks retain their recorded image and tool version for recovery and
 receipt validation even when deployment defaults change. Keep the original SIF
 available until those tasks finish. Resource settings remain configurable.
 
-.. list-table:: Result normalizer configuration
+.. list-table:: Result shallower configuration
    :header-rows: 1
    :widths: 28 32 40
 
@@ -472,24 +477,24 @@ available until those tasks finish. Resource settings remain configurable.
    * - ``remote_shallow_zarr``
      - ``true`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
-   * - ``result_normalizer_image``
+   * - ``remote_shallower_image``
      - ``cellularimagingcf/biomero-shallower:0.1.0``
-     - ``BIOMERO_RESULT_NORMALIZER_IMAGE``
-   * - ``result_normalizer_version``
+     - ``BIOMERO_REMOTE_SHALLOWER_IMAGE``
+   * - ``remote_shallower_version``
      - ``0.1.0``
-     - ``BIOMERO_RESULT_NORMALIZER_VERSION``
-   * - ``result_normalizer_workers``
+     - ``BIOMERO_REMOTE_SHALLOWER_VERSION``
+   * - ``remote_shallower_workers``
      - ``1``
-     - ``BIOMERO_RESULT_NORMALIZER_WORKERS``
-   * - ``result_normalizer_partition``
+     - ``BIOMERO_REMOTE_SHALLOWER_WORKERS``
+   * - ``remote_shallower_partition``
      - Unset (inherit generic partition)
-     - ``BIOMERO_RESULT_NORMALIZER_PARTITION``
-   * - ``result_normalizer_mem``
+     - ``BIOMERO_REMOTE_SHALLOWER_PARTITION``
+   * - ``remote_shallower_mem``
      - Unset (inherit global memory)
-     - ``BIOMERO_RESULT_NORMALIZER_MEM``
-   * - ``result_normalizer_time``
+     - ``BIOMERO_REMOTE_SHALLOWER_MEM``
+   * - ``remote_shallower_time``
      - Unset (inherit global time limit)
-     - ``BIOMERO_RESULT_NORMALIZER_TIME``
+     - ``BIOMERO_REMOTE_SHALLOWER_TIME``
 
 Use a versioned tag or immutable digest and matching importer/schema/shallower
 versions. Importer enablement, existing shallow capability, and workflow tracking

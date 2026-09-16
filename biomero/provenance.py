@@ -19,7 +19,7 @@ class MetadataAnnotation:
 
 def _internal(task):
     return ('_biomero_detached_launcher' in (task.params or {}) or
-            task.task_name == '_SLURM_Result_Normalizer')
+            task.task_name == '_SLURM_Remote_Shallower')
 
 
 def _parameters(task):

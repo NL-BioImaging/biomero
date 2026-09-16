@@ -539,10 +539,10 @@ class SlurmClient(Connection):
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
                  remote_shallow_zarr: bool = True,
-                 result_normalizer_image: str = 'cellularimagingcf/biomero-shallower:0.1.0',
-                 result_normalizer_version: str = '0.1.0',
-                 result_normalizer_workers: int = 1,
-                 result_normalizer_partition: str = None,
+                 remote_shallower_image: str = 'cellularimagingcf/biomero-shallower:0.1.0',
+                 remote_shallower_version: str = '0.1.0',
+                 remote_shallower_workers: int = 1,
+                 remote_shallower_partition: str = None,
                  slurm_conversion_partition: str = None,
                  slurm_default_partition: str = None,
                  sacct_start_time: str = None,
@@ -564,8 +564,8 @@ class SlurmClient(Connection):
                  slurm_zip_cmd: str = None,
                  analytics_rebuild_start_time: str = None,
                  analytics_rebuild_days_ago: int = None,
-                 result_normalizer_mem: str = None,
-                 result_normalizer_time: str = None):
+                 remote_shallower_mem: str = None,
+                 remote_shallower_time: str = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -662,23 +662,23 @@ class SlurmClient(Connection):
                 to the container. If your HPC administrator tells you to set 
                 APPTAINER_BINDPATH, configure this parameter. 
                 Defaults to None (no explicit binding).
-            remote_shallow_zarr (bool, optional): Administrator result-normalizer
+            remote_shallow_zarr (bool, optional): Administrator remote-shallower
                 setting; default True when shallow Zarr is enabled. Set False
                 for local shallowing. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
-            result_normalizer_image (str, optional): Administrator result-normalizer
-                setting; default 'cellularimagingcf/biomero-shallower:0.1.0'. Environment: BIOMERO_RESULT_NORMALIZER_IMAGE.
-            result_normalizer_version (str, optional): Administrator result-normalizer
-                setting; default '0.1.0'. Environment: BIOMERO_RESULT_NORMALIZER_VERSION.
-            result_normalizer_workers (int, optional): Administrator result-normalizer
-                setting; default 1. Environment: BIOMERO_RESULT_NORMALIZER_WORKERS.
-            result_normalizer_partition (str, optional): Administrator result-normalizer
+            remote_shallower_image (str, optional): Administrator remote-shallower
+                setting; default 'cellularimagingcf/biomero-shallower:0.1.0'. Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
+            remote_shallower_version (str, optional): Administrator remote-shallower
+                setting; default '0.1.0'. Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
+            remote_shallower_workers (int, optional): Administrator remote-shallower
+                setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.
+            remote_shallower_partition (str, optional): Administrator remote-shallower
                 partition; otherwise slurm_default_partition, then global
                 sbatch_partition, then scheduler default.
-                Environment: BIOMERO_RESULT_NORMALIZER_PARTITION.
-            result_normalizer_mem (str, optional): Memory override; default None
-                inherits global sbatch memory. Environment: BIOMERO_RESULT_NORMALIZER_MEM.
-            result_normalizer_time (str, optional): Time limit override; default
-                None inherits global sbatch_time. Environment: BIOMERO_RESULT_NORMALIZER_TIME.
+                Environment: BIOMERO_REMOTE_SHALLOWER_PARTITION.
+            remote_shallower_mem (str, optional): Memory override; default None
+                inherits global sbatch memory. Environment: BIOMERO_REMOTE_SHALLOWER_MEM.
+            remote_shallower_time (str, optional): Time limit override; default
+                None inherits global sbatch_time. Environment: BIOMERO_REMOTE_SHALLOWER_TIME.
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
@@ -795,12 +795,12 @@ class SlurmClient(Connection):
         self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
         self.remote_shallow_zarr = remote_shallow_zarr
-        self.result_normalizer_image = result_normalizer_image
-        self.result_normalizer_version = result_normalizer_version
-        self.result_normalizer_workers = result_normalizer_workers
-        self.result_normalizer_partition = result_normalizer_partition
-        self.result_normalizer_mem = result_normalizer_mem
-        self.result_normalizer_time = result_normalizer_time
+        self.remote_shallower_image = remote_shallower_image
+        self.remote_shallower_version = remote_shallower_version
+        self.remote_shallower_workers = remote_shallower_workers
+        self.remote_shallower_partition = remote_shallower_partition
+        self.remote_shallower_mem = remote_shallower_mem
+        self.remote_shallower_time = remote_shallower_time
         self.slurm_conversion_partition = slurm_conversion_partition
         self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
@@ -887,7 +887,7 @@ class SlurmClient(Connection):
                 present.add(flag)
         return params
 
-    def get_normalizer_job_params(self):
+    def get_shallower_job_params(self):
         """Single-process CPU helper resources, also used for recovery jobs."""
         excluded = {'array', 'output', 'error', 'job-name', 'export', 'wrap',
                     'parsable', 'wait', 'quiet', 'ntasks', 'nodes', 'overcommit',
@@ -896,13 +896,13 @@ class SlurmClient(Connection):
             flag = raw.strip().split('=', 1)[0].removeprefix('--')
             if flag.startswith(('gpus', 'gpu-', 'ntasks-')):
                 excluded.add(flag)
-        if self.result_normalizer_mem:
+        if self.remote_shallower_mem:
             excluded.add('mem-per-cpu')
         return self.get_job_params({
-            'cpus-per-task': self.result_normalizer_workers,
-            'partition': self.result_normalizer_partition,
-            'mem': self.result_normalizer_mem,
-            'time': self.result_normalizer_time,
+            'cpus-per-task': self.remote_shallower_workers,
+            'partition': self.remote_shallower_partition,
+            'mem': self.remote_shallower_mem,
+            'time': self.remote_shallower_time,
         }, excluded=excluded)
 
     def _build_image_pull_sbatch_command(
@@ -1244,7 +1244,7 @@ class SlurmClient(Connection):
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
         if self.remote_shallow_zarr:
-            from .result_normalizer import image_spec
+            from .remote_shallower import image_spec
             converter_specs = [*converter_specs, image_spec(self)]
         return self.setup_container_images(extra_image_specs=converter_specs)
 
@@ -1464,21 +1464,21 @@ class SlurmClient(Connection):
                     result_dict[key] = [version]
         return result_dict
 
-    def normalize_results_on_slurm(self, data_path, workflow_id, canonical_inputs,
+    def shallow_results_on_slurm(self, data_path, workflow_id, canonical_inputs,
                                    *, heartbeat=None):
-        """Run/adopt optional CPU normalization before result archiving.
+        """Run/adopt optional CPU shallowing before result archiving.
 
         ``heartbeat`` is a caller-owned no-argument callback invoked during
         job waits.
         """
-        from .result_normalizer import run
+        from .remote_shallower import run
         if heartbeat is not None and not callable(heartbeat):
             raise TypeError('heartbeat must be callable')
         return run(self, data_path, workflow_id, canonical_inputs, heartbeat)
 
-    def get_result_normalizer_receipts(self, workflow_id, canonical_inputs):
+    def get_remote_shallower_receipts(self, workflow_id, canonical_inputs):
         """Read trusted completed receipts from event-sourced helper tasks."""
-        from .result_normalizer import completed_receipts
+        from .remote_shallower import completed_receipts
         return completed_receipts(self, workflow_id, canonical_inputs)
 
     def prepare_converters(self) -> List[Dict[str, str]]:
@@ -1699,29 +1699,29 @@ class SlurmClient(Connection):
             configs, section="SLURM", option="remote_shallow_zarr",
             default=True, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOW_ZARR],
             value_type=bool)
-        result_normalizer_image = cls._get_config_value(
-            configs, section="SLURM", option="result_normalizer_image",
-            default='cellularimagingcf/biomero-shallower:0.1.0', env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_IMAGE],
+        remote_shallower_image = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_image",
+            default='cellularimagingcf/biomero-shallower:0.1.0', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
             value_type=str)
-        result_normalizer_version = cls._get_config_value(
-            configs, section="SLURM", option="result_normalizer_version",
-            default='0.1.0', env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_VERSION],
+        remote_shallower_version = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_version",
+            default='0.1.0', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
             value_type=str)
-        result_normalizer_workers = cls._get_config_value(
-            configs, section="SLURM", option="result_normalizer_workers",
-            default=1, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_WORKERS],
+        remote_shallower_workers = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_workers",
+            default=1, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_WORKERS],
             value_type=int)
-        result_normalizer_partition = cls._get_config_value(
-            configs, section="SLURM", option="result_normalizer_partition",
-            default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_PARTITION],
+        remote_shallower_partition = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_partition",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_PARTITION],
             value_type=str)
-        result_normalizer_mem = cls._get_config_value(
-            configs, section="SLURM", option="result_normalizer_mem",
-            default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_MEM],
+        remote_shallower_mem = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_mem",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_MEM],
             value_type=str, empty_is_none=True)
-        result_normalizer_time = cls._get_config_value(
-            configs, section="SLURM", option="result_normalizer_time",
-            default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_TIME],
+        remote_shallower_time = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_time",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_TIME],
             value_type=str, empty_is_none=True)
         slurm_conversion_partition = cls._get_config_value(
             configs,
@@ -2034,12 +2034,12 @@ class SlurmClient(Connection):
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
                    remote_shallow_zarr=remote_shallow_zarr,
-                   result_normalizer_image=result_normalizer_image,
-                   result_normalizer_version=result_normalizer_version,
-                   result_normalizer_workers=result_normalizer_workers,
-                   result_normalizer_partition=result_normalizer_partition,
-                   result_normalizer_mem=result_normalizer_mem,
-                   result_normalizer_time=result_normalizer_time,
+                   remote_shallower_image=remote_shallower_image,
+                   remote_shallower_version=remote_shallower_version,
+                   remote_shallower_workers=remote_shallower_workers,
+                   remote_shallower_partition=remote_shallower_partition,
+                   remote_shallower_mem=remote_shallower_mem,
+                   remote_shallower_time=remote_shallower_time,
                    slurm_conversion_partition=slurm_conversion_partition,
                    slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,

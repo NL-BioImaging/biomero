@@ -22,7 +22,7 @@ def source():
         ('cisegmentation', {'diameter': 0, 'enabled': False,
                             'output_settings': {'internal': True}}),
         ('SLURM_Import_Results.py', {'import': True}),
-        ('_SLURM_Result_Normalizer', {'internal': True}),
+        ('_SLURM_Remote_Shallower', {'internal': True}),
     ]:
         tasks.append(SimpleNamespace(
             _id=uuid4(), version=3, INITIAL_VERSION=0,

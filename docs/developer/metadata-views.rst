@@ -15,7 +15,7 @@ View policies
 
 ``v0`` is the default, legacy-compatible layout. It retains scientific task
 parameters, including false and zero values, and the existing task/job fields.
-It excludes detached launcher and result-normalizer coordination annotations,
+It excludes detached launcher and result-shallower coordination annotations,
 duplicate ``output_settings`` parameters, and unselected workflow parameters
 in orchestration tasks where workflow selection is known. These records remain
 available in the event store and full CSV.

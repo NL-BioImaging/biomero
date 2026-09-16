@@ -11,17 +11,17 @@ from biomero.slurm_client import SlurmClient
 def test_default_is_disabled_without_remote_calls():
     client = SlurmClient(config_only=True)
     client.run_commands = MagicMock()
-    assert client.normalize_results_on_slurm('/data', uuid4(), None) is None
+    assert client.shallow_results_on_slurm('/data', uuid4(), None) is None
     client.run_commands.assert_not_called()
-    assert client.get_normalizer_job_params() == ['--cpus-per-task=1']
+    assert client.get_shallower_job_params() == ['--cpus-per-task=1']
 
 
-def test_normalizer_is_cpu_only_and_quotes_paths():
+def test_shallower_is_cpu_only_and_quotes_paths():
     client = SlurmClient(config_only=True, remote_shallow_zarr=True,
-                         result_normalizer_image='registry/helper:0.1.0',
-                         result_normalizer_partition='cpu',
+                         remote_shallower_image='registry/helper:0.1.0',
+                         remote_shallower_partition='cpu',
                          slurm_global_job_params=[' --gres=gpu:1', ' --gpus=1', ' --mem=4G'])
-    from biomero.result_normalizer import build_command
+    from biomero.remote_shallower import build_command
     command = build_command(client, '/scratch/path with spaces', '/sif/helper.sif',
                             '/state/input.json', str(uuid4()))
     assert '--gres' not in command
@@ -33,15 +33,15 @@ def test_normalizer_is_cpu_only_and_quotes_paths():
 
 
 def test_unknown_image_version_rejected():
-    from biomero.result_normalizer import image_spec
-    client = SimpleNamespace(result_normalizer_image='registry/helper:latest',
+    from biomero.remote_shallower import image_spec
+    client = SimpleNamespace(remote_shallower_image='registry/helper:latest',
                              slurm_converters_path='/images')
     with pytest.raises(ValueError, match='version'):
         image_spec(client)
 
 
-def test_normalization_and_recovery_have_distinct_job_names():
-    from biomero.result_normalizer import build_command
+def test_shallowing_and_recovery_have_distinct_job_names():
+    from biomero.remote_shallower import build_command
     client = SlurmClient(config_only=True)
     task_id = str(uuid4())
     names = []
@@ -50,12 +50,12 @@ def test_normalization_and_recovery_have_distinct_job_names():
                                 task_id, recovery=recovery)
         names.append(next(arg for arg in shlex.split(command)
                           if arg.startswith('--job-name=')))
-    assert names[0] == '--job-name=biomero-normalizer-' + task_id
+    assert names[0] == '--job-name=biomero-shallower-' + task_id
     assert names[1] == '--job-name=biomero-recovery-' + task_id
 
 
 def test_submission_uses_explicit_reconciliation_identity():
-    from biomero.result_normalizer import _submit_once
+    from biomero.remote_shallower import _submit_once
     client = SimpleNamespace(run_commands=MagicMock(
         return_value=SimpleNamespace(ok=True, stdout='123')))
     assert _submit_once(client, 'sbatch --parsable worker.sh', '/state/recovery',

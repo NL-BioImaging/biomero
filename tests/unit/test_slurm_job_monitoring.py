@@ -25,20 +25,20 @@ def test_core_monitor_has_no_connection_argument():
             MagicMock(), omeroConn=MagicMock())
 
 
-def test_public_normalizer_has_no_connection_argument():
+def test_public_shallower_has_no_connection_argument():
     from biomero.slurm_client import SlurmClient
     client = SlurmClient(config_only=True)
     with pytest.raises(TypeError, match='omero_conn'):
-        client.normalize_results_on_slurm(
+        client.shallow_results_on_slurm(
             '/data', 'workflow', None, omero_conn=MagicMock())
 
 
-def test_public_normalizer_passes_callback_unchanged():
+def test_public_shallower_passes_callback_unchanged():
     from biomero.slurm_client import SlurmClient
     client = SlurmClient(config_only=True)
     heartbeat = MagicMock()
-    with patch('biomero.result_normalizer.run') as run:
-        client.normalize_results_on_slurm('/data', 'workflow', None,
+    with patch('biomero.remote_shallower.run') as run:
+        client.shallow_results_on_slurm('/data', 'workflow', None,
                                           heartbeat=heartbeat)
     assert run.call_args.args[4] is heartbeat
 

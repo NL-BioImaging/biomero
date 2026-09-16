@@ -1,4 +1,4 @@
-"""Optional CPU result normalization before result archiving.
+"""Optional CPU result shallowing before result archiving.
 
 SlurmClient owns remote execution, image acquisition and scheduling policy;
 SlurmJob owns monitoring. This module coordinates the shallower's manifest,
@@ -16,14 +16,14 @@ from uuid import UUID, uuid4
 
 from .slurm_client import SlurmJob
 
-TASK_NAME = "_SLURM_Result_Normalizer"
+TASK_NAME = "_SLURM_Remote_Shallower"
 logger = logging.getLogger(__name__)
 
 
 def image_spec(client, *, image=None):
     """Describe the versioned helper image for SlurmClient image acquisition."""
     image = (image if image is not None else
-             client.result_normalizer_image).removeprefix('docker://')
+             client.remote_shallower_image).removeprefix('docker://')
     if '@sha256:' in image:
         source, digest = image.split('@sha256:', 1)
         if not re.fullmatch('[0-9a-f]{64}', digest):
@@ -33,9 +33,9 @@ def image_spec(client, *, image=None):
         source, separator, version = image.rpartition(':')
         if (not separator or '/' in version
                 or version in ('latest', 'main', 'master', '')):
-            raise ValueError('Result normalizer requires an explicit image version')
+            raise ValueError('Result shallower requires an explicit image version')
     return {
-        'kind': 'result-normalizer', 'name': 'biomero-shallower',
+        'kind': 'result-shallower', 'name': 'biomero-shallower',
         'version': version, 'source_type': 'registry', 'source': source,
         'destination': posixpath.join(
             client.slurm_converters_path,
@@ -46,24 +46,24 @@ def image_spec(client, *, image=None):
 
 def _job_name(task_id, *, recovery=False):
     """Keep submission reconciliation specific to one task and operation."""
-    operation = 'recovery' if recovery else 'normalizer'
+    operation = 'recovery' if recovery else 'shallower'
     return f'biomero-{operation}-{task_id}'
 
 
 def build_command(client, output, sif, manifest, task_id, *, recovery=False,
                   image=None):
-    """Build normalization or recovery using the same helper resource policy.
+    """Build shallowing or recovery using the same helper resource policy.
 
     Paths refer to the remote filesystem. The result directory is writable in
     the container; the canonical input manifest is mounted read-only.
     """
     quote = shlex.quote
-    image = image if image is not None else client.result_normalizer_image
-    if (isinstance(client.result_normalizer_workers, bool)
-            or not isinstance(client.result_normalizer_workers, int)
-            or client.result_normalizer_workers < 1):
-        raise ValueError('Result normalizer worker count must be positive')
-    params = client.get_normalizer_job_params()
+    image = image if image is not None else client.remote_shallower_image
+    if (isinstance(client.remote_shallower_workers, bool)
+            or not isinstance(client.remote_shallower_workers, int)
+            or client.remote_shallower_workers < 1):
+        raise ValueError('Result shallower worker count must be positive')
+    params = client.get_shallower_job_params()
     runtime = ('runtime=$(command -v apptainer || command -v singularity); '
                'test -n "$runtime"; exec "$runtime" exec --containall --cleanenv '
                '--env SLURM_JOB_ID="$SLURM_JOB_ID" '
@@ -73,7 +73,7 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False,
                '--returned-zarr /results --canonical-inputs /canonical.json '
                '--contract-version 1 --failure-policy keep-full '
                '--report /results/.biomero-shallow-batch.json '
-               f'--identity-workers {client.result_normalizer_workers} '
+               f'--identity-workers {client.remote_shallower_workers} '
                f'--image {quote(image)} '
                f'--task-id {quote(task_id)}')
     if recovery:
@@ -89,16 +89,16 @@ def _batch(client, raw, canonical, *, task=None):
 
     When a task is supplied, its recorded image/version and submission own the
     report; current deployment defaults must not invalidate historical results.
-    Import the optional schema dependency only when normalization is used.
+    Import the optional schema dependency only when shallowing is used.
     """
     from biomero_schema.shallower import ShallowBatchReport
     batch = ShallowBatchReport.from_dict(json.loads(raw))
-    image = task.params['image'] if task else client.result_normalizer_image
-    version = task.task_version if task else client.result_normalizer_version
+    image = task.params['image'] if task else client.remote_shallower_image
+    version = task.task_version if task else client.remote_shallower_version
     if (batch.canonical_inputs != canonical
             or batch.image != image or batch.tool_version != version):
         raise ValueError(
-            'Result normalizer report does not match configuration/input')
+            'Result shallower report does not match configuration/input')
     if any(receipt.image != batch.image
            or receipt.tool_version != batch.tool_version
            for receipt in batch.receipts):
@@ -129,7 +129,7 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
 
     A sibling temporary file is fully uploaded before an atomic hard-link
     publishes it under a lock. Readers never see a partly uploaded manifest.
-    Existing content is verified, not replaced, including on legacy resumes.
+    Existing content is verified, not replaced on resume.
     """
     quote = shlex.quote
     target = quote(manifest)
@@ -155,7 +155,7 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
     state_dir = posixpath.dirname(manifest)
     guards = ' || '.join(
         'test -e ' + quote(posixpath.join(state_dir, operation + suffix))
-        for operation in ('normalize', 'recovery')
+        for operation in ('shallow', 'recovery')
         for suffix in ('.intent', '.job'))
     script = (
         f'set -eu; if test -L {target}; then exit 1; fi; '
@@ -214,7 +214,7 @@ def _submit_once(client, command, state, *, job_name):
         f'jobs=$(sacct -n -X --name={quote(job_name)} --format=JobIDRaw '
         f'-S "$(cat {quote(state + ".intent")})" | awk \'NF {{print $1}}\' | sort -u); '
         'case "$jobs" in ""|*[!0-9]*) '
-        'echo "Unresolved normalizer submission intent" >&2; exit 75;; esac; '
+        'echo "Unresolved shallower submission intent" >&2; exit 75;; esac; '
         f'printf "%s\\n" "$jobs" > {quote(state + ".job")}; printf "%s\\n" "$jobs"; '
         f'else date +%Y-%m-%dT%H:%M:%S > {quote(state + ".intent")}; '
         f'job=$({command}) || {{ rm -f {quote(state + ".intent")}; '
@@ -230,7 +230,7 @@ def _submit_once(client, command, state, *, job_name):
         return None
     if not result.ok or not result.stdout.strip().isdigit():
         raise RuntimeError(
-            'Normalizer submission is unresolved; preserve results and resume '
+            'Shallower submission is unresolved; preserve results and resume '
             'after reconciliation')
     return int(result.stdout.strip())
 
@@ -249,10 +249,11 @@ def _wait(client, job_id, heartbeat=None):
 
 
 def run(client, data_path, workflow_id, canonical, heartbeat=None):
-    """Run or resume normalization and return the validated batch report.
+    """Run or resume shallowing and return the validated batch report.
 
-    Disabled/inapplicable normalization and unavailable images return None.
-    A rejected normalization submission returns an empty-receipt batch so the
+    Disabled/inapplicable shallowing returns None. Missing images raise an
+    actionable setup error; only initialization acquires container images.
+    A rejected shallowing submission returns an empty-receipt batch so the
     caller can retain full results. Unresolved submission, recovery or report
     validation raises; callers must not archive potentially incomplete output.
     """
@@ -267,7 +268,7 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
     matches = [task for task in tasks
                if task.task_name == TASK_NAME and task.input_data == data_path]
     if len(matches) > 1:
-        raise RuntimeError('Ambiguous result normalizer tasks')
+        raise RuntimeError('Ambiguous result shallower tasks')
     if matches:
         _check_canonical(matches[0], canonical)
     if matches and matches[0].result_message:
@@ -288,30 +289,19 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                 tracker.complete_task(
                     matches[0].id, json.dumps(batch.to_dict()))
                 return batch
-    image = matches[0].params['image'] if matches else client.result_normalizer_image
+    image = matches[0].params['image'] if matches else client.remote_shallower_image
     spec = image_spec(client, image=image)
+    if matches:
+        spec['destination'] = matches[0].params.get('sif', spec['destination'])
+    ready, pending = client._partition_existing_images([spec])
+    if pending or not ready:
+        raise RuntimeError(
+            f'Remote shallower image missing or invalid: {spec["destination"]}. '
+            'Run SLURM_Init_environment and verify image setup with '
+            'SLURM_check_setup before retrying.')
     if not matches:
-        # Acquisition cannot modify result data. Failures retain full output.
-        try:
-            pull_id = client._submit_image_pull_array([spec])
-        except Exception:
-            logger.exception(
-                'Result normalizer image unavailable; retaining full results')
-            return None
-        # A caller heartbeat failure must propagate, not become an image
-        # acquisition fallback. Monitoring errors preserve the submitted job.
-        if pull_id and _wait(client, pull_id, heartbeat) != 'COMPLETED':
-            return None
-        try:
-            ready, pending = client._partition_existing_images([spec])
-            if pending or not ready:
-                return None
-        except Exception:
-            logger.exception(
-                'Result normalizer image unavailable; retaining full results')
-            return None
         task_id = tracker.add_task_to_workflow(
-            workflow_id, TASK_NAME, client.result_normalizer_version, data_path,
+            workflow_id, TASK_NAME, client.remote_shallower_version, data_path,
             {'image': image, 'contract': 1, 'sif': spec['destination'],
              'canonical_sha256': _canonical_digest(canonical.to_dict())})
         tracker.start_task(task_id)
@@ -320,17 +310,18 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
         task = matches[0]
         task_id = task.id
     sif = task.params.get('sif', spec['destination'])
-    state_dir = posixpath.join(data_path, '.biomero-normalizer', str(task_id))
+    state_dir = posixpath.join(data_path, '.biomero-shallower', str(task_id))
     prepared = client.run_commands(['mkdir -p ' + shlex.quote(state_dir)])
     if not prepared.ok:
-        raise RuntimeError('Cannot prepare normalizer state directory')
+        raise RuntimeError('Cannot prepare shallower state directory')
     manifest = posixpath.join(state_dir, 'canonical.json')
     _prepare_manifest(client, manifest, canonical, submitted=bool(task.job_ids))
     output = posixpath.join(data_path, 'data/out')
     command = build_command(
         client, output, sif, manifest, str(task_id), image=image)
     job_id = (int(task.job_ids[0]) if task.job_ids
-              else _submit_once(client, command, state_dir + '/normalize',
+              else _submit_once(client, command,
+                                state_dir + '/shallow',
                                 job_name=_job_name(task_id)))
     if job_id is None:
         from biomero_schema.shallower import ShallowBatchReport
@@ -338,7 +329,7 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                                    image=image, toolVersion=task.task_version,
                                    result='complete', receipts=())
         tracker.complete_task(task_id, json.dumps(batch.to_dict()))
-        logger.warning('Normalizer submission rejected; retaining full results')
+        logger.warning('Shallower submission rejected; retaining full results')
         return batch
     if not task.job_ids:
         tracker.add_job_id(task_id, job_id)
@@ -349,25 +340,23 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
         # receipts; interrupted stores roll back before any archive is allowed.
         recovery = build_command(client, output, sif, manifest,
                                  str(task_id), recovery=True, image=image)
-        # Recorded IDs remain authoritative, including pre-upgrade recovery
-        # jobs that used the normalization job name. An old unresolved intent
-        # must never be guessed to be a normalization job or resubmitted.
+        # Recorded IDs remain authoritative on resume.
         recovery_id = (int(task.job_ids[1]) if len(task.job_ids) > 1
                        else _submit_once(
                            client, recovery, state_dir + '/recovery',
                            job_name=_job_name(task_id, recovery=True)))
         if recovery_id is None:
             raise RuntimeError(
-                'Normalizer recovery submission rejected; output preserved')
+                'Shallower recovery submission rejected; output preserved')
         if recovery_id not in task.job_ids:
             tracker.add_job_id(task_id, recovery_id)
         if _wait(client, recovery_id, heartbeat) != 'COMPLETED':
             raise RuntimeError(
-                'Normalizer recovery failed; output preserved for recovery')
+                'Shallower recovery failed; output preserved for recovery')
     report = client.run_commands([
         'cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
     if not report.ok:
-        raise RuntimeError('Missing normalizer report; cannot archive safely')
+        raise RuntimeError('Missing shallower report; cannot archive safely')
     batch = _batch(client, report.stdout, canonical, task=task)
     tracker.complete_task(task_id, json.dumps(batch.to_dict()))
     return batch

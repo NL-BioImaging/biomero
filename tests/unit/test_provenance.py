@@ -61,8 +61,7 @@ def test_default_preserves_legacy_fields_and_excludes_coordination(source):
     assert [wf, tasks] == before
 
 
-@pytest.mark.parametrize('view', ['v0', 'v1'])
-def test_import_storage_provenance_is_target_specific_and_compact(source, view):
+def test_import_storage_provenance_is_target_specific_and_compact(source):
     tracker, wf, tasks = source
     tasks[2].storage_provenance = {
         'Plate:10': {'storage': 'shallow-zarr', 'location': 'remote',
@@ -71,7 +70,7 @@ def test_import_storage_provenance_is_target_specific_and_compact(source, view):
                      'source_biocodes': ['ISCC:AAA', 'ISCC:BBB']},
         'Plate:11': {'storage': 'full-zarr', 'location': 'importer'},
     }
-    rows = render_workflow_metadata(tracker, wf._id, view_version=view,
+    rows = render_workflow_metadata(tracker, wf._id, view_version='v0',
                                     target_key='Plate:10')
     values = rows[3].values
     assert values['Storage_Format'] == 'shallow-zarr'
@@ -92,21 +91,18 @@ def test_refresh_replays_storage_for_target(source):
     tracker, wf, tasks = source
     tasks[2].storage_provenance = {'Image:1': {'storage': 'shallow-zarr', 'location': 'importer'}}
     rows = render_workflow_metadata(tracker, wf._id, target_key='Image:1')
-    changes = plan_metadata_refresh(tracker, wf._id, rows, target_key='Image:1', view_version='v1')
+    changes = plan_metadata_refresh(tracker, wf._id, rows, target_key='Image:1', view_version='v0')
     assert changes[3].after.values['Storage_Format'] == 'shallow-zarr'
 
 
-def test_slim_is_explicit_and_preserves_batch_discovery(source):
+@pytest.mark.parametrize('view', ['v1', 'latest'])
+def test_unsupported_view_is_rejected_by_renderer_and_refresh(source, view):
     tracker, wf, _ = source
-    maps = render_workflow_metadata(tracker, wf._id, view_version='v1')
-    assert 'Command' not in maps[2].values
-    assert 'Result_Message' not in maps[2].values
-    assert 'Env_VALUE' not in maps[2].values
-    assert maps[3].values['Input_Data'] == '1551'
-    assert 'Created_On' in maps[3].values
-    assert maps[1].values['Param_enabled'] == 'False'
-    with pytest.raises(ValueError):
-        render_workflow_metadata(tracker, wf._id, view_version='latest')
+    rows = render_workflow_metadata(tracker, wf._id)
+    with pytest.raises(ValueError, match='Unknown metadata view'):
+        render_workflow_metadata(tracker, wf._id, view_version=view)
+    with pytest.raises(ValueError, match='Unknown metadata view'):
+        plan_metadata_refresh(tracker, wf._id, rows, view_version=view)
 
 
 def test_legacy_task_has_exact_original_keys_without_revision_fields(source):
@@ -135,12 +131,13 @@ def test_refresh_is_idempotent_and_preserves_unknown_keys(source):
     tracker, wf, _ = source
     rows = render_workflow_metadata(tracker, wf._id)
     rows[1].values['User_Note'] = 'keep me'
-    plan = plan_metadata_refresh(tracker, wf._id, rows, view_version='v1')
+    plan = plan_metadata_refresh(tracker, wf._id, rows, view_version='v0')
     assert plan[1].after.values['User_Note'] == 'keep me'
-    assert 'Env_VALUE' not in plan[2].after.values
-    assert 'Command' not in plan[2].after.values
+    assert plan[2].after.values['Env_VALUE'] == '1'
+    assert plan[2].after.values['Command'] == 'run'
+    assert plan[2].after.values['Result_Message'] == 'ok'
     updated = [change.after for change in plan if change.after is not None]
-    again = plan_metadata_refresh(tracker, wf._id, updated, view_version='v1')
+    again = plan_metadata_refresh(tracker, wf._id, updated, view_version='v0')
     assert all(change.before == change.after for change in again)
 
 

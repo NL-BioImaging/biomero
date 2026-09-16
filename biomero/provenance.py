@@ -51,16 +51,16 @@ def render_workflow_metadata(tracker, workflow_id, *, view_version='v0',
                              target_key=None):
     """Return ordered namespace/value pairs without writing to any datastore.
 
-    ``v0`` retains legacy task/job fields; ``v1`` additionally omits verbose
-    job command, environment and result-message fields. Both omit detached
-    coordination tasks and duplicated output settings. Scientific false/zero
+    ``v0`` is the only supported view and retains legacy task/job fields,
+    including job command, environment and result-message fields. It omits
+    detached coordination tasks and duplicated output settings. Scientific false/zero
     values are retained. ``Version`` still means the software version.
 
     An explicit ``aggregate_versions`` mapping pins the workflow and every
     retained task independently. Missing versions fail instead of mixing a
     historical workflow with current task state.
     """
-    if view_version not in ('v0', 'v1'):
+    if view_version != 'v0':
         raise ValueError(f'Unknown metadata view: {view_version}')
 
     def get(ident):
@@ -124,13 +124,12 @@ def render_workflow_metadata(tracker, workflow_id, *, view_version='v0',
         for jid in task.job_ids:
             values = {'Job_ID': str(jid), 'Task_ID': str(task._id),
                       'Workflow_ID': str(workflow_id)}
-            if view_version == 'v0':
-                values['Result_Message'] = task.result_message
-                result = task.results[0] if task.results else {}
-                if 'command' in result:
-                    values['Command'] = result['command']
-                values.update({f'Env_{k}': str(v)
-                               for k, v in result.get('env', {}).items()})
+            values['Result_Message'] = task.result_message
+            result = task.results[0] if task.results else {}
+            if 'command' in result:
+                values['Command'] = result['command']
+            values.update({f'Env_{k}': str(v)
+                           for k, v in result.get('env', {}).items()})
             append(namespace + '/job', values, task)
     return rows
 
@@ -230,9 +229,6 @@ def plan_metadata_refresh(tracker, workflow_id, annotations, *, view_version='v0
                 tid = row.values['Task_ID']
                 task = tracker.repository.get(UUID(tid), version=versions[tid])
                 excluded |= name[6:] in (task.params or {})
-            if view_version == 'v1' and 'Job_ID' in row.values:
-                excluded |= (name.startswith('Env_') or
-                             name in ('Command', 'Result_Message'))
             if excluded:
                 values.pop(name)
         for name, value in target.values.items():

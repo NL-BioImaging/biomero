@@ -561,7 +561,7 @@ class SlurmClient(Connection):
                  sqlalchemy_url: str = None,
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
-                 remote_shallow_zarr: bool = False,
+                 remote_shallow_zarr: bool = True,
                  result_normalizer_image: str = 'cellularimagingcf/biomero-shallower:0.1.0',
                  result_normalizer_version: str = '0.1.0',
                  result_normalizer_workers: int = 1,
@@ -686,7 +686,8 @@ class SlurmClient(Connection):
                 APPTAINER_BINDPATH, configure this parameter. 
                 Defaults to None (no explicit binding).
             remote_shallow_zarr (bool, optional): Administrator result-normalizer
-                setting; default False. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
+                setting; default True when shallow Zarr is enabled. Set False
+                for local shallowing. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
             result_normalizer_image (str, optional): Administrator result-normalizer
                 setting; default 'cellularimagingcf/biomero-shallower:0.1.0'. Environment: BIOMERO_RESULT_NORMALIZER_IMAGE.
             result_normalizer_version (str, optional): Administrator result-normalizer
@@ -1719,7 +1720,7 @@ class SlurmClient(Connection):
         )
         remote_shallow_zarr = cls._get_config_value(
             configs, section="SLURM", option="remote_shallow_zarr",
-            default=False, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOW_ZARR],
+            default=True, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOW_ZARR],
             value_type=bool)
         result_normalizer_image = cls._get_config_value(
             configs, section="SLURM", option="result_normalizer_image",

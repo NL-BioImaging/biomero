@@ -428,8 +428,11 @@ Optional result normalizer
 --------------------------
 
 The administrator-only CPU helper runs before result ZIP creation. All options
-are in ``[SLURM]``; environment values override ini values. The default remains
-the existing local importer shallow path. The helper requests no GPU; workers
+are in ``[SLURM]``; environment values override ini values. Shallow Zarr remains
+opt-in; when enabled, remote shallowing is the default. Set
+``remote_shallow_zarr=false`` or ``BIOMERO_REMOTE_SHALLOW_ZARR=false`` to use
+local importer shallowing instead, for example to avoid extra Slurm costs.
+The helper requests no GPU; workers
 set CPUs per task. Normalization and recovery share conversion's resource
 merging: the helper partition overrides ``slurm_default_partition``, which
 overrides global ``sbatch_partition``. Otherwise Slurm chooses its default.
@@ -467,7 +470,7 @@ available until those tasks finish. Resource settings remain configurable.
      - Default
      - Environment variable
    * - ``remote_shallow_zarr``
-     - ``false``
+     - ``true`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
    * - ``result_normalizer_image``
      - ``cellularimagingcf/biomero-shallower:0.1.0``

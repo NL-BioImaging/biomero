@@ -215,7 +215,8 @@ def slurm_client(_mock_run,
                  _mock_put, _mock_open,
                  _mock_session):
     logging.info("EngineManager.__dict__: %s", EngineManager.__dict__)
-    return SlurmClient("localhost", 8022, "slurm")
+    # Legacy command tests explicitly exercise the local-shallow opt-out.
+    return SlurmClient("localhost", 8022, "slurm", remote_shallow_zarr=False)
 
 
 def test_list_available_converter_versions(slurm_client):
@@ -2572,7 +2573,7 @@ def test_from_config(mock_ConfigParser,
         sqlalchemy_url="sqlite:///:memory:",
         config_only=config_only,
         slurm_data_bind_path=mv,
-        remote_shallow_zarr=False,
+        remote_shallow_zarr=True,
         result_normalizer_image=mv,
         result_normalizer_version=mv,
         result_normalizer_workers=1,
@@ -2771,6 +2772,7 @@ def test_setup_slurm(_mock_CachedSession,
                                slurm_script_path=spath,
                                slurm_converters_path=cpath,
                                slurm_script_repo=srepo,
+                               remote_shallow_zarr=False,
                                slurm_model_paths=mpaths,
                                slurm_model_images=mimages,
                                slurm_model_repos=mrepos)
@@ -4241,6 +4243,19 @@ def test_default_partition_defaults_to_none(slurm_client_from_config_factory):
         config_values={"slurm_default_partition": ""}
     )
     assert client.slurm_default_partition is None
+
+
+def test_remote_shallow_defaults_to_enabled(slurm_client_from_config_factory):
+    assert SlurmClient(config_only=True).remote_shallow_zarr is True
+    assert slurm_client_from_config_factory().remote_shallow_zarr is True
+
+
+def test_remote_shallow_can_opt_out(slurm_client_from_config_factory):
+    assert slurm_client_from_config_factory(
+        config_values={'remote_shallow_zarr': 'false'}).remote_shallow_zarr is False
+    assert slurm_client_from_config_factory(
+        config_values={'remote_shallow_zarr': 'true'},
+        env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': 'false'}).remote_shallow_zarr is False
 
 
 def test_default_partition_parsed_from_config(slurm_client_from_config_factory):

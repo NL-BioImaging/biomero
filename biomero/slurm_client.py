@@ -126,44 +126,82 @@ class SlurmJob:
         self.error_message = self.submit_result.stderr if hasattr(
             self.submit_result, 'stderr') else ''
 
-    def wait_for_completion(self, slurmClient, omeroConn) -> str:
+    @classmethod
+    def from_job_id(cls, job_id, wf_id=None, task_id=None, **kwargs):
+        """Monitor an already submitted job without submitting it again.
+
+        The successful synthetic Result denotes adoption, not job completion.
+        Submission reconciliation remains the caller's responsibility.
+        """
+        return cls(Result(connection=None, exited=0), int(job_id),
+                   wf_id, task_id, **kwargs)
+
+    @staticmethod
+    def is_terminal(state):
+        """Accept sacct suffixes and cancellation details as well as states."""
+        parts = (state or '').split()
+        name = parts[0].rstrip('+') if parts else ''
+        return name in {
+            'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
+            'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED',
+        }
+
+    def wait_for_completion(self, slurmClient, omeroConn=None, *,
+                            track_progress=True, update_task=True,
+                            strict_status=False) -> str:
         """
         Wait for the Slurm job to reach completion, cancellation, failure, or timeout.
 
         Args:
             slurmClient: The Slurm client.
-            omeroConn: The OMERO connection.
+            omeroConn: Optional OMERO connection, kept alive on every poll.
+            track_progress: Read analysis progress from job logs (default True).
+            update_task: Publish task status/progress (default True). Helpers
+                whose success also requires report validation can disable this.
+            strict_status: Raise on unavailable status instead of recording a
+                failure. This lets resumable callers preserve an existing job.
 
         Returns:
             str: The final state of the Slurm job.
         """
-        while self.job_state not in ("FAILED",
-                                     "COMPLETED",
-                                     "CANCELLED",
-                                     "TIMEOUT",
-                                     "FAILED+",
-                                     "COMPLETED+",
-                                     "CANCELLED+",
-                                     "TIMEOUT+"):
+        while not self.is_terminal(self.job_state):
+            if omeroConn is not None:
+                alive = omeroConn.keepAlive()
+                if strict_status and alive is False:
+                    raise RuntimeError(
+                        'OMERO connection is no longer active; '
+                        'preserve the Slurm job and resume with a new connection')
             job_status_dict, poll_result = slurmClient.check_job_status(
                 [self.job_id])
-            self.progress = slurmClient.get_active_job_progress(self.job_id)
-            if not poll_result.ok:
-                logger.warning(
-                    f"Error checking job status:{poll_result.stderr}")
+            state = job_status_dict.get(self.job_id, 'UNKNOWN')
+            if strict_status and (
+                    poll_result is None or not poll_result.ok
+                    or state == 'UNKNOWN'):
+                raise RuntimeError(
+                    f'Slurm job {self.job_id} state unavailable; '
+                    'retry monitoring to adopt the existing job')
+            if poll_result is None or not poll_result.ok:
                 self.job_state = "FAILED"
-                self.error_message = poll_result.stderr
-            self.job_state = job_status_dict[self.job_id]
-            # wait for 10 seconds before checking again
-            omeroConn.keepAlive()  # keep the OMERO connection alive
-            slurmClient.workflowTracker.update_task_status(self.task_id,
-                                                           self.job_state)
-            slurmClient.workflowTracker.update_task_progress(
-                self.task_id, self.progress)
-            timesleep.sleep(self.slurm_polling_interval)
+                self.error_message = getattr(poll_result, 'stderr', '')
+                logger.warning('Error checking job status: %s', self.error_message)
+            else:
+                self.job_state = state
+            if track_progress:
+                self.progress = slurmClient.get_active_job_progress(self.job_id)
+            if update_task:
+                slurmClient.workflowTracker.update_task_status(
+                    self.task_id, self.job_state)
+                if track_progress:
+                    slurmClient.workflowTracker.update_task_progress(
+                        self.task_id, self.progress)
+            if not self.is_terminal(self.job_state):
+                timesleep.sleep(self.slurm_polling_interval)
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
-        logger.info(
-            f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
+        if self.log_file:
+            logger.info('Slurm output: %s', self.log_file)
+        elif track_progress:
+            logger.info(
+                f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
         return self.job_state
 
     def cleanup(self, slurmClient) -> Result:
@@ -524,7 +562,9 @@ class SlurmClient(Connection):
                  apptainer_cachedir: str = None,
                  slurm_zip_cmd: str = None,
                  analytics_rebuild_start_time: str = None,
-                 analytics_rebuild_days_ago: int = None):
+                 analytics_rebuild_days_ago: int = None,
+                 result_normalizer_mem: str = None,
+                 result_normalizer_time: str = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -630,7 +670,13 @@ class SlurmClient(Connection):
             result_normalizer_workers (int, optional): Administrator result-normalizer
                 setting; default 1. Environment: BIOMERO_RESULT_NORMALIZER_WORKERS.
             result_normalizer_partition (str, optional): Administrator result-normalizer
-                setting; default None. Environment: BIOMERO_RESULT_NORMALIZER_PARTITION.
+                partition; otherwise slurm_default_partition, then global
+                sbatch_partition, then scheduler default.
+                Environment: BIOMERO_RESULT_NORMALIZER_PARTITION.
+            result_normalizer_mem (str, optional): Memory override; default None
+                inherits global sbatch memory. Environment: BIOMERO_RESULT_NORMALIZER_MEM.
+            result_normalizer_time (str, optional): Time limit override; default
+                None inherits global sbatch_time. Environment: BIOMERO_RESULT_NORMALIZER_TIME.
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
@@ -751,6 +797,8 @@ class SlurmClient(Connection):
         self.result_normalizer_version = result_normalizer_version
         self.result_normalizer_workers = result_normalizer_workers
         self.result_normalizer_partition = result_normalizer_partition
+        self.result_normalizer_mem = result_normalizer_mem
+        self.result_normalizer_time = result_normalizer_time
         self.slurm_conversion_partition = slurm_conversion_partition
         self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
@@ -815,6 +863,45 @@ class SlurmClient(Connection):
         if not env_parts:
             return ""
         return " ".join(env_parts) + " "
+
+    def get_job_params(self, overrides=None, *, excluded=()):
+        """Merge job-specific resources, default partition and global sbatch flags.
+
+        Explicit nonempty overrides win. Callers reserve flags owned by their
+        command through ``excluded``. Values retain the existing administrator
+        supplied shell syntax used by workflow/conversion submissions.
+        """
+        overrides = dict(overrides or {})
+        if not overrides.get('partition'):
+            overrides['partition'] = self.slurm_default_partition
+        params = [f'--{flag}={value}' for flag, value in overrides.items()
+                  if value is not None and value != '']
+        present = {p.split('=', 1)[0] for p in params}
+        for raw in self.slurm_global_job_params:
+            param = raw.strip()
+            flag = param.split('=', 1)[0]
+            if flag not in present and flag.removeprefix('--') not in excluded:
+                params.append(param)
+                present.add(flag)
+        return params
+
+    def get_normalizer_job_params(self):
+        """Single-process CPU helper resources, also used for recovery jobs."""
+        excluded = {'array', 'output', 'error', 'job-name', 'export', 'wrap',
+                    'parsable', 'wait', 'quiet', 'ntasks', 'nodes', 'overcommit',
+                    'gres', 'gres-flags', 'cpus-per-gpu', 'mem-per-gpu'}
+        for raw in self.slurm_global_job_params:
+            flag = raw.strip().split('=', 1)[0].removeprefix('--')
+            if flag.startswith(('gpus', 'gpu-', 'ntasks-')):
+                excluded.add(flag)
+        if self.result_normalizer_mem:
+            excluded.add('mem-per-cpu')
+        return self.get_job_params({
+            'cpus-per-task': self.result_normalizer_workers,
+            'partition': self.result_normalizer_partition,
+            'mem': self.result_normalizer_mem,
+            'time': self.result_normalizer_time,
+        }, excluded=excluded)
 
     def _build_image_pull_sbatch_command(
             self,
@@ -1375,10 +1462,11 @@ class SlurmClient(Connection):
                     result_dict[key] = [version]
         return result_dict
 
-    def normalize_results_on_slurm(self, data_path, workflow_id, canonical_inputs):
+    def normalize_results_on_slurm(self, data_path, workflow_id, canonical_inputs,
+                                   omero_conn=None):
         """Run/adopt optional CPU normalization before result archiving."""
         from .result_normalizer import run
-        return run(self, data_path, workflow_id, canonical_inputs)
+        return run(self, data_path, workflow_id, canonical_inputs, omero_conn)
 
     def get_result_normalizer_receipts(self, workflow_id, canonical_inputs):
         """Read trusted completed receipts from event-sourced helper tasks."""
@@ -1619,6 +1707,14 @@ class SlurmClient(Connection):
             configs, section="SLURM", option="result_normalizer_partition",
             default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_PARTITION],
             value_type=str)
+        result_normalizer_mem = cls._get_config_value(
+            configs, section="SLURM", option="result_normalizer_mem",
+            default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_MEM],
+            value_type=str, empty_is_none=True)
+        result_normalizer_time = cls._get_config_value(
+            configs, section="SLURM", option="result_normalizer_time",
+            default=None, env_vars=[slurm_env.BIOMERO_RESULT_NORMALIZER_TIME],
+            value_type=str, empty_is_none=True)
         slurm_conversion_partition = cls._get_config_value(
             configs,
             section="SLURM",
@@ -1934,6 +2030,8 @@ class SlurmClient(Connection):
                    result_normalizer_version=result_normalizer_version,
                    result_normalizer_workers=result_normalizer_workers,
                    result_normalizer_partition=result_normalizer_partition,
+                   result_normalizer_mem=result_normalizer_mem,
+                   result_normalizer_time=result_normalizer_time,
                    slurm_conversion_partition=slurm_conversion_partition,
                    slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,
@@ -3497,16 +3595,9 @@ class SlurmClient(Connection):
         # slurm_default_partition fallback) and any global sbatch params
         # (e.g. --reservation). The conversion-specific partition wins over the
         # generic default, and an explicit partition flag wins over a global one.
-        conversion_params = []
-        partition = (
-            self.slurm_conversion_partition or self.slurm_default_partition)
-        if partition:
-            conversion_params.append(f" --partition={partition}")
-        for global_param in self.slurm_global_job_params:
-            flag_prefix = global_param.split("=")[0] + "="
-            if not any(p.startswith(flag_prefix) for p in conversion_params):
-                conversion_params.append(global_param)
-        conversion_param = "".join(conversion_params)
+        conversion_params = self.get_job_params({
+            'partition': self.slurm_conversion_partition})
+        conversion_param = ''.join(' ' + param for param in conversion_params)
         conversion_cmd = (
             f"sbatch{conversion_param} --job-name=conversion "
             "--output=omero-%A_%a.log "

@@ -12,6 +12,7 @@ def test_default_is_disabled_without_remote_calls():
     client.run_commands = MagicMock()
     assert client.normalize_results_on_slurm('/data', uuid4(), None) is None
     client.run_commands.assert_not_called()
+    assert client.get_normalizer_job_params() == ['--cpus-per-task=1']
 
 
 def test_normalizer_is_cpu_only_and_quotes_paths():

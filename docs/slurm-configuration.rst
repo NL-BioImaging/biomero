@@ -709,8 +709,20 @@ Optional result normalizer
 The administrator-only CPU helper runs before result ZIP creation. All options
 are in ``[SLURM]``; environment values override ini values. The default remains
 the existing local importer shallow path. The helper requests no GPU; workers
-set CPUs per task, and global memory/time/account/reservation/QoS are inherited.
+set CPUs per task. Normalization and recovery share conversion's resource
+merging: the helper partition overrides ``slurm_default_partition``, which
+overrides global ``sbatch_partition``. Otherwise Slurm chooses its default.
+Global ``sbatch_*`` options (including account, reservation, QoS and constraint)
+are inherited, except GPU resources, multi-task/node allocation and flags owned
+by the helper (array, command, export and log paths). Optional helper memory and
+time limits override their global counterparts; otherwise global values apply.
 Image pulls use the normal image-pull resource configuration.
+
+The import script passes its OMERO connection to the shared ``SlurmJob`` monitor
+for image acquisition, normalization and recovery. This applies to inline and
+detached workflows alike. An existing job ID is adopted without resubmission;
+unavailable status pauses retrieval rather than triggering recovery. The helper
+task is completed only after its output report has been validated.
 
 .. list-table:: Result normalizer configuration
    :header-rows: 1
@@ -732,8 +744,14 @@ Image pulls use the normal image-pull resource configuration.
      - ``1``
      - ``BIOMERO_RESULT_NORMALIZER_WORKERS``
    * - ``result_normalizer_partition``
-     - Unset (scheduler default)
+     - Unset (inherit generic partition)
      - ``BIOMERO_RESULT_NORMALIZER_PARTITION``
+   * - ``result_normalizer_mem``
+     - Unset (inherit global memory)
+     - ``BIOMERO_RESULT_NORMALIZER_MEM``
+   * - ``result_normalizer_time``
+     - Unset (inherit global time limit)
+     - ``BIOMERO_RESULT_NORMALIZER_TIME``
 
 Use a versioned tag or immutable digest and matching importer/schema/shallower
 versions. Importer enablement, existing shallow capability, and workflow tracking

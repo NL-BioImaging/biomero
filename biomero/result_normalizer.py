@@ -7,8 +7,9 @@ import logging
 import posixpath
 import re
 import shlex
-import time
 from uuid import UUID
+
+from .slurm_client import SlurmJob
 
 TASK_NAME = "_SLURM_Result_Normalizer"
 logger = logging.getLogger(__name__)
@@ -39,14 +40,7 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False):
             or not isinstance(client.result_normalizer_workers, int)
             or client.result_normalizer_workers < 1):
         raise ValueError('Result normalizer worker count must be positive')
-    params = [f'--cpus-per-task={client.result_normalizer_workers}']
-    if client.result_normalizer_partition:
-        params.append('--partition=' + quote(client.result_normalizer_partition))
-    # Explicit CPU allowlist: never inherit workflow GPU or array flags.
-    for param in client.slurm_global_job_params:
-        flag, _, value = param.strip().partition('=')
-        if flag in ('--mem', '--time', '--account', '--reservation', '--qos'):
-            params.append(flag + '=' + quote(value))
+    params = client.get_normalizer_job_params()
     runtime = ('runtime=$(command -v apptainer || command -v singularity); '
                'test -n "$runtime"; exec "$runtime" exec --containall --cleanenv '
                '--env SLURM_JOB_ID="$SLURM_JOB_ID" '
@@ -120,19 +114,15 @@ def _submit_once(client, command, state):
     return int(result.stdout.strip())
 
 
-def _wait(client, job_id):
-    while True:
-        statuses, _ = client.check_job_status([job_id])
-        state = statuses.get(job_id, 'UNKNOWN')
-        if state in ('PENDING', 'RUNNING', 'CONFIGURING', 'COMPLETING', 'SUSPENDED', 'REQUEUED'):
-            time.sleep(15)
-            continue
-        if state == 'UNKNOWN':
-            raise RuntimeError('Normalizer job state unavailable; retry retrieval to adopt it')
-        return state
+def _wait(client, job_id, omero_conn=None):
+    job = SlurmJob.from_job_id(job_id, slurm_polling_interval=15)
+    state = job.wait_for_completion(
+        client, omero_conn, track_progress=False, update_task=False,
+        strict_status=True)
+    return 'COMPLETED' if job.completed() else state
 
 
-def run(client, data_path, workflow_id, canonical):
+def run(client, data_path, workflow_id, canonical, omero_conn=None):
     if not client.remote_shallow_zarr or canonical is None or not canonical.inputs:
         return None
     if not client.track_workflows:
@@ -167,7 +157,7 @@ def run(client, data_path, workflow_id, canonical):
         # Acquisition cannot modify result data. Failure here safely keeps full output.
         try:
             pull_id = client._submit_image_pull_array([spec])
-            if pull_id and _wait(client, pull_id) != 'COMPLETED':
+            if pull_id and _wait(client, pull_id, omero_conn) != 'COMPLETED':
                 return None
             ready, pending = client._partition_existing_images([spec])
             if pending or not ready:
@@ -203,7 +193,7 @@ def run(client, data_path, workflow_id, canonical):
         return batch
     if not task.job_ids:
         tracker.add_job_id(task_id, job_id)
-    status = _wait(client, job_id)
+    status = _wait(client, job_id, omero_conn)
     if status != 'COMPLETED':
         # Recover in the same configured image on CPU. Completed stores retain
         # receipts; interrupted stores roll back before any archive is allowed.
@@ -214,7 +204,7 @@ def run(client, data_path, workflow_id, canonical):
             raise RuntimeError('Normalizer recovery submission rejected; output preserved')
         if recovery_id not in task.job_ids:
             tracker.add_job_id(task_id, recovery_id)
-        if _wait(client, recovery_id) != 'COMPLETED':
+        if _wait(client, recovery_id, omero_conn) != 'COMPLETED':
             raise RuntimeError('Normalizer recovery failed; output preserved for recovery')
     report = client.run_commands(['cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
     if not report.ok:

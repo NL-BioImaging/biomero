@@ -2577,6 +2577,8 @@ def test_from_config(mock_ConfigParser,
         result_normalizer_version=mv,
         result_normalizer_workers=1,
         result_normalizer_partition=mv,
+        result_normalizer_mem=mv,
+        result_normalizer_time=mv,
         slurm_conversion_partition=mv,
         slurm_default_partition=mv,
         sacct_start_time=None,
@@ -3399,6 +3401,66 @@ def test_slurm_job_cleanup_passes_explicit_log_file():
         42, logfile="omero-42_*.log")
 
 
+@pytest.mark.parametrize('dedicated,default,expected', [
+    ('helper', 'default', 'helper'), (None, 'default', 'default'),
+    (None, None, 'global')])
+def test_normalizer_scheduler_precedence(slurm_client, dedicated, default, expected):
+    from biomero.result_normalizer import build_command
+    slurm_client.result_normalizer_partition = dedicated
+    slurm_client.slurm_default_partition = default
+    slurm_client.slurm_global_job_params = [
+        ' --partition=global', ' --constraint=fast', ' --reservation=reserved',
+        ' --account=project', ' --qos=normal', ' --mem=4G', ' --time=01:00:00',
+        ' --gpus-per-node=1', ' --array=1-9', ' --export=ALL',
+        ' --output=wrong', ' --ntasks=8']
+    for recovery in (False, True):
+        command = build_command(slurm_client, '/out', '/helper.sif', '/manifest',
+                                str(uuid4()), recovery=recovery)
+        assert f'--partition={expected}' in command
+        assert command.count('--partition=') == 1
+        for flag in ('--constraint=fast', '--reservation=reserved',
+                     '--account=project', '--qos=normal', '--mem=4G',
+                     '--time=01:00:00'):
+            assert flag in command
+        assert '--gpus' not in command and '--array=' not in command
+        assert '--ntasks=8' not in command and '--output=wrong' not in command
+        assert '--export=ALL' not in command
+
+
+def test_normalizer_resource_overrides(slurm_client):
+    from biomero.result_normalizer import build_command
+    slurm_client.result_normalizer_mem = '8G'
+    slurm_client.result_normalizer_time = '03:00:00'
+    slurm_client.slurm_global_job_params = [' --mem=4G', ' --time=01:00:00',
+                                          ' --mem-per-cpu=1G']
+    command = build_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()))
+    assert '--mem=8G' in command and '--mem=4G' not in command
+    assert '--mem-per-cpu' not in command
+    assert '--time=03:00:00' in command and '--time=01:00:00' not in command
+
+
+def test_normalizer_resource_config(slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(
+        config_values={'result_normalizer_mem': '4G',
+                       'result_normalizer_time': '01:00:00'},
+        env_values={'BIOMERO_RESULT_NORMALIZER_MEM': '8G',
+                    'BIOMERO_RESULT_NORMALIZER_TIME': '03:00:00'})
+    assert client.result_normalizer_mem == '8G'
+    assert client.result_normalizer_time == '03:00:00'
+
+
+@pytest.mark.parametrize('memory,limit', [('', ''), ('4G', '01:00:00')])
+def test_normalizer_resource_ini_and_empty_env(
+        slurm_client_from_config_factory, memory, limit):
+    client = slurm_client_from_config_factory(
+        config_values={'result_normalizer_mem': memory,
+                       'result_normalizer_time': limit},
+        env_values={'BIOMERO_RESULT_NORMALIZER_MEM': '',
+                    'BIOMERO_RESULT_NORMALIZER_TIME': ''})
+    assert client.result_normalizer_mem == (memory or None)
+    assert client.result_normalizer_time == (limit or None)
+
+
 def test_slurm_job_wait_for_completion_single_poll():
     """wait_for_completion() returns job_state once a terminal state is reached."""
     from biomero.slurm_client import SlurmJob
@@ -3417,7 +3479,13 @@ def test_slurm_job_wait_for_completion_single_poll():
         state = job.wait_for_completion(mock_client, mock_conn)
 
     assert state == "COMPLETED"
-    mock_sleep.sleep.assert_called_once_with(0)
+    mock_sleep.sleep.assert_not_called()
+    mock_conn.keepAlive.assert_called_once()
+    mock_client.get_active_job_progress.assert_called_once_with(7)
+    mock_client.workflowTracker.update_task_status.assert_called_once_with(
+        job.task_id, 'COMPLETED')
+    mock_client.workflowTracker.update_task_progress.assert_called_once_with(
+        job.task_id, '50%')
 
 
 def test_slurm_job_wait_poll_not_ok_sets_failed():

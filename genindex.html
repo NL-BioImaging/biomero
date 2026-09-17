@@ -61,6 +61,7 @@
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#testing-the-python-code">Testing the Python code</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="components.html">BIOMERO components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="citing.html">Citing BIOMERO</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -84,6 +85,8 @@
 <p class="caption" role="heading"><span class="caption-text">Developer</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/metadata-views.html">Workflow metadata views</a></li>
 </ul>
 
         </div>
@@ -127,6 +130,7 @@
  | <a href="#N"><strong>N</strong></a>
  | <a href="#O"><strong>O</strong></a>
  | <a href="#P"><strong>P</strong></a>
+ | <a href="#Q"><strong>Q</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
@@ -169,14 +173,35 @@
 </li>
       </ul></li>
       <li>
+    biomero.maintenance
+
+      <ul>
+        <li><a href="biomero.html#module-biomero.maintenance">module</a>
+</li>
+      </ul></li>
+      <li>
+    biomero.provenance
+
+      <ul>
+        <li><a href="biomero.html#module-biomero.provenance">module</a>
+</li>
+      </ul></li>
+      <li>
+    biomero.remote_shallower
+
+      <ul>
+        <li><a href="biomero.html#module-biomero.remote_shallower">module</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
     biomero.slurm_client
 
       <ul>
         <li><a href="biomero.html#module-biomero.slurm_client">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     biomero.views
 
@@ -185,6 +210,8 @@
 </li>
       </ul></li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.bring_listener_uptodate">bring_listener_uptodate() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="biomero.html#biomero.remote_shallower.build_command">build_command() (in module biomero.remote_shallower)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -212,6 +239,8 @@
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmJob.completed">completed() (biomero.slurm_client.SlurmJob method)</a>
 </li>
+      <li><a href="biomero.html#biomero.remote_shallower.completed_receipts">completed_receipts() (in module biomero.remote_shallower)</a>
+</li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.convert_param_type_to_omtype">convert_param_type_to_omtype() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.convert_url">convert_url() (biomero.slurm_client.SlurmClient method)</a>
@@ -236,6 +265,8 @@
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmJob.error_message">error_message (biomero.slurm_client.SlurmJob attribute)</a>
 </li>
+      <li><a href="biomero.html#biomero.eventsourcing.Task.StorageProvenanceRecorded.evidence">evidence (biomero.eventsourcing.Task.StorageProvenanceRecorded attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.extract_data_location_from_log">extract_data_location_from_log() (biomero.slurm_client.SlurmClient method)</a>
@@ -254,13 +285,15 @@
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.WorkflowTracker.fail_task">fail_task() (biomero.eventsourcing.WorkflowTracker method)</a>, <a href="biomero.html#id15">[1]</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="biomero.html#biomero.eventsourcing.WorkflowRun.fail_workflow">fail_workflow (biomero.eventsourcing.WorkflowRun attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="biomero.html#biomero.eventsourcing.WorkflowTracker.fail_workflow">fail_workflow() (biomero.eventsourcing.WorkflowTracker method)</a>, <a href="biomero.html#id16">[1]</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.from_config">from_config() (biomero.slurm_client.SlurmClient class method)</a>
+</li>
+      <li><a href="biomero.html#biomero.slurm_client.SlurmJob.from_job_id">from_job_id() (biomero.slurm_client.SlurmJob class method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -302,6 +335,8 @@
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_image_versions_and_data_files">get_image_versions_and_data_files() (biomero.slurm_client.SlurmClient method)</a>
 </li>
+      <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_job_params">get_job_params() (biomero.slurm_client.SlurmClient method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_job_status_command">get_job_status_command() (biomero.slurm_client.SlurmClient method)</a>
@@ -317,6 +352,10 @@
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_or_create_github_session">get_or_create_github_session() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_recent_log_command">get_recent_log_command() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_remote_shallower_receipts">get_remote_shallower_receipts() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="biomero.html#biomero.slurm_client.SlurmClient.get_shallower_job_params">get_shallower_job_params() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.views.WorkflowAnalytics.get_task_counts">get_task_counts() (biomero.views.WorkflowAnalytics method)</a>
 </li>
@@ -344,6 +383,8 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="biomero.html#biomero.remote_shallower.image_spec">image_spec() (in module biomero.remote_shallower)</a>
+</li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.init_workflows">init_workflows() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.INITIAL_VERSION">INITIAL_VERSION (biomero.eventsourcing.Task attribute)</a>
@@ -359,6 +400,10 @@
       <li><a href="biomero.html#biomero.eventsourcing.WorkflowTracker.initiate_workflow">initiate_workflow() (biomero.eventsourcing.WorkflowTracker method)</a>, <a href="biomero.html#id17">[1]</a>
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.input_data">input_data (biomero.eventsourcing.Task attribute)</a>
+</li>
+      <li><a href="biomero.html#biomero.remote_shallower.installed_tool_version">installed_tool_version() (in module biomero.remote_shallower)</a>
+</li>
+      <li><a href="biomero.html#biomero.slurm_client.SlurmJob.is_terminal">is_terminal() (biomero.slurm_client.SlurmJob static method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -402,11 +447,37 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="biomero.html#biomero.maintenance.metadata_refresh_statuses">metadata_refresh_statuses() (in module biomero.maintenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.provenance.MetadataAnnotation">MetadataAnnotation (class in biomero.provenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.provenance.MetadataChange">MetadataChange (class in biomero.provenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.maintenance.MetadataRefresh">MetadataRefresh (class in biomero.maintenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Created">MetadataRefresh.Created (class in biomero.maintenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Event">MetadataRefresh.Event (class in biomero.maintenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Finished">MetadataRefresh.Finished (class in biomero.maintenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Progress">MetadataRefresh.Progress (class in biomero.maintenance)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Started">MetadataRefresh.Started (class in biomero.maintenance)</a>
+</li>
       <li>
     module
 
       <ul>
         <li><a href="biomero.html#module-biomero.eventsourcing">biomero.eventsourcing</a>
+</li>
+        <li><a href="biomero.html#module-biomero.maintenance">biomero.maintenance</a>
+</li>
+        <li><a href="biomero.html#module-biomero.provenance">biomero.provenance</a>
+</li>
+        <li><a href="biomero.html#module-biomero.remote_shallower">biomero.remote_shallower</a>
 </li>
         <li><a href="biomero.html#module-biomero.slurm_client">biomero.slurm_client</a>
 </li>
@@ -458,6 +529,10 @@
 </li>
         <li><a href="biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowInitiated.originator_id_type">(biomero.eventsourcing.WorkflowRun.WorkflowInitiated attribute)</a>
 </li>
+        <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Created.originator_id_type">(biomero.maintenance.MetadataRefresh.Created attribute)</a>
+</li>
+        <li><a href="biomero.html#biomero.maintenance.MetadataRefresh.Event.originator_id_type">(biomero.maintenance.MetadataRefresh.Event attribute)</a>
+</li>
       </ul></li>
   </ul></td>
 </tr></table>
@@ -468,6 +543,10 @@
       <li><a href="biomero.html#biomero.eventsourcing.Task.params">params (biomero.eventsourcing.Task attribute)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.parse_docker_image_version">parse_docker_image_version() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="biomero.html#biomero.maintenance.pending_metadata_refreshes">pending_metadata_refreshes() (in module biomero.maintenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.provenance.plan_metadata_refresh">plan_metadata_refresh() (in module biomero.provenance)</a>
 </li>
       <li><a href="biomero.html#biomero.views.JobAccounting.policy">policy() (biomero.views.JobAccounting method)</a>
 
@@ -488,12 +567,28 @@
   </ul></td>
 </tr></table>
 
+<h2 id="Q">Q</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="biomero.html#biomero.maintenance.queue_metadata_refresh">queue_metadata_refresh() (in module biomero.maintenance)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="biomero.html#biomero.eventsourcing.WorkflowRun.record_canonical_inputs">record_canonical_inputs (biomero.eventsourcing.WorkflowRun attribute)</a>
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.WorkflowTracker.record_canonical_inputs">record_canonical_inputs() (biomero.eventsourcing.WorkflowTracker method)</a>
+</li>
+      <li><a href="biomero.html#biomero.eventsourcing.Task.record_storage_provenance">record_storage_provenance (biomero.eventsourcing.Task attribute)</a>
+</li>
+      <li><a href="biomero.html#biomero.eventsourcing.WorkflowTracker.record_storage_provenance">record_storage_provenance() (biomero.eventsourcing.WorkflowTracker method)</a>
+</li>
+      <li><a href="biomero.html#biomero.provenance.render_workflow_metadata">render_workflow_metadata() (in module biomero.provenance)</a>
+</li>
+      <li><a href="biomero.html#biomero.provenance.resolve_metadata_versions">resolve_metadata_versions() (in module biomero.provenance)</a>
 </li>
       <li><a href="biomero.html#biomero.views.JobAccounting.resolve_task">resolve_task() (biomero.views.JobAccounting method)</a>
 
@@ -518,6 +613,8 @@
       <li><a href="biomero.html#biomero.eventsourcing.ResultDict">ResultDict (class in biomero.eventsourcing)</a>
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.results">results (biomero.eventsourcing.Task attribute)</a>
+</li>
+      <li><a href="biomero.html#biomero.remote_shallower.run">run() (in module biomero.remote_shallower)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.run_commands">run_commands() (biomero.slurm_client.SlurmClient method)</a>
 </li>
@@ -546,6 +643,8 @@
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.setup_listeners">setup_listeners() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.setup_slurm">setup_slurm() (biomero.slurm_client.SlurmClient method)</a>
+</li>
+      <li><a href="biomero.html#biomero.slurm_client.SlurmClient.shallow_results_on_slurm">shallow_results_on_slurm() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.slurm_converters_path">slurm_converters_path (biomero.slurm_client.SlurmClient attribute)</a>
 </li>
@@ -587,6 +686,8 @@
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.ResultDict.stdout">stdout (biomero.eventsourcing.ResultDict attribute)</a>
 </li>
+      <li><a href="biomero.html#biomero.provenance.storage_metadata_view">storage_metadata_view() (in module biomero.provenance)</a>
+</li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmClient.str_to_class">str_to_class() (biomero.slurm_client.SlurmClient method)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmJob.submit_result">submit_result (biomero.slurm_client.SlurmJob attribute)</a>
@@ -597,6 +698,8 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="biomero.html#biomero.eventsourcing.Task.StorageProvenanceRecorded.target_key">target_key (biomero.eventsourcing.Task.StorageProvenanceRecorded attribute)</a>
+</li>
       <li><a href="biomero.html#biomero.eventsourcing.Task">Task (class in biomero.eventsourcing)</a>
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.Created">Task.Created (class in biomero.eventsourcing)</a>
@@ -611,14 +714,16 @@
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.StatusUpdated">Task.StatusUpdated (class in biomero.eventsourcing)</a>
 </li>
+      <li><a href="biomero.html#biomero.eventsourcing.Task.StorageProvenanceRecorded">Task.StorageProvenanceRecorded (class in biomero.eventsourcing)</a>
+</li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.TaskCompleted">Task.TaskCompleted (class in biomero.eventsourcing)</a>
 </li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.TaskCreated">Task.TaskCreated (class in biomero.eventsourcing)</a>
 </li>
-      <li><a href="biomero.html#biomero.eventsourcing.Task.TaskFailed">Task.TaskFailed (class in biomero.eventsourcing)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="biomero.html#biomero.eventsourcing.Task.TaskFailed">Task.TaskFailed (class in biomero.eventsourcing)</a>
+</li>
       <li><a href="biomero.html#biomero.eventsourcing.Task.TaskStarted">Task.TaskStarted (class in biomero.eventsourcing)</a>
 </li>
       <li><a href="biomero.html#biomero.slurm_client.SlurmJob.task_id">task_id (biomero.slurm_client.SlurmJob attribute)</a>

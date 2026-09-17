@@ -64,6 +64,7 @@
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#testing-the-python-code">Testing the Python code</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="components.html">BIOMERO components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="citing.html">Citing BIOMERO</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -92,6 +93,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#search-hints">Search Hints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-result-shallower">Optional result shallower</a></li>
 </ul>
 </li>
 </ul>
@@ -102,6 +104,8 @@
 <p class="caption" role="heading"><span class="caption-text">Developer</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/metadata-views.html">Workflow metadata views</a></li>
 </ul>
 
         </div>
@@ -190,7 +194,7 @@ explains when and why you would choose each setting.</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code></p></td>
 <td><p>not applicable</p></td>
 <td><p>boolean</p></td>
-<td><p>Opts BIOMERO.scripts into canonical Zarr caching and shallow-result normalization when the importer integration is available; defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code> and does not disable reconstruction of existing shallow inputs</p></td>
+<td><p>Opts BIOMERO.scripts into canonical Zarr caching and shallow-result shallowing when the importer integration is available; defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code> and does not disable reconstruction of existing shallow inputs</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_URL</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sqlalchemy_url</span></code></p></td>
@@ -604,6 +608,112 @@ This is relevant for values such as <code class="docutils literal notranslate"><
 <li><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></li>
 </ul>
+</section>
+<section id="optional-result-shallower">
+<h2>Optional result shallower<a class="headerlink" href="#optional-result-shallower" title="Permalink to this heading"></a></h2>
+<p>The administrator-only CPU helper runs before result ZIP creation. All options
+are in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code>; environment values override ini values. Shallow Zarr remains
+opt-in; when enabled, remote shallowing is the default. Set
+<code class="docutils literal notranslate"><span class="pre">remote_shallow_zarr=false</span></code> or <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=false</span></code> to use
+local importer shallowing instead, for example to avoid extra Slurm costs.
+The helper requests no GPU; workers
+set CPUs per task. Shallowing and recovery share conversion’s resource
+merging: the helper partition overrides <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code>, which
+overrides global <code class="docutils literal notranslate"><span class="pre">sbatch_partition</span></code>. Otherwise Slurm chooses its default.
+Global <code class="docutils literal notranslate"><span class="pre">sbatch_*</span></code> options (including account, reservation, QoS and constraint)
+are inherited, except GPU resources, multi-task/node allocation and flags owned
+by the helper (array, command, export and log paths). Optional helper memory and
+time limits override their global counterparts; otherwise global values apply.
+Image pulls use the normal image-pull resource configuration.</p>
+<p>The import script owns session keepalive and supplies a heartbeat callback to
+the shared <code class="docutils literal notranslate"><span class="pre">SlurmJob</span></code> monitor for shallowing and recovery.
+Callback failures propagate unchanged.
+This applies to inline and detached workflows alike.
+An existing job ID is adopted without resubmission;
+unavailable status pauses retrieval rather than triggering recovery. The helper
+task is completed only after its output report has been validated.</p>
+<p>Only <code class="docutils literal notranslate"><span class="pre">SLURM_Init_environment</span></code> acquires the shallower image. Verify setup with
+<code class="docutils literal notranslate"><span class="pre">SLURM_check_setup</span></code> before running workflows. Runtime shallowing validates the
+installed image and raises a setup error if it is missing or invalid; it never
+downloads an image or silently falls back because setup is incomplete.</p>
+<p>Shallowing and recovery have distinct submission identities. Recorded job
+IDs remain authoritative when resuming older tasks; an unresolved pre-upgrade
+recovery intent may require administrator reconciliation, rather than automatic
+resubmission.</p>
+<p>Canonical input manifests are published atomically and verified on resume,
+never overwritten. Missing manifests after submission or changed inputs stop
+retrieval. New tasks record an input fingerprint and the helper SIF path;
+existing tasks retain their recorded image and tool version for recovery and
+receipt validation even when deployment defaults change. Keep the original SIF
+available until those tasks finish. Resource settings remain configurable.</p>
+<table class="docutils align-default" id="id3">
+<caption><span class="caption-text">Result shallower configuration</span><a class="headerlink" href="#id3" title="Permalink to this table"></a></caption>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 32%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Ini option</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Environment variable</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallow_zarr</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> (shallow Zarr must be enabled separately)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cellularimagingcf/biomero-shallower:latest</span></code>; prefer an ini pin</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_IMAGE</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_version</span></code></p></td>
+<td><p>Unset; read the installed image’s OCI version label</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_VERSION</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_workers</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_WORKERS</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_partition</span></code></p></td>
+<td><p>Unset (inherit generic partition)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_PARTITION</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_mem</span></code></p></td>
+<td><p>Unset (inherit global memory)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_MEM</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_time</span></code></p></td>
+<td><p>Unset (inherit global time limit)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_TIME</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>Prefer a versioned tag or immutable digest and matching importer/schema/shallower
+versions. Importer enablement, existing shallow capability, and workflow tracking
+are required. Safe failures fall back to full transfer and local import;
+unresolved recovery preserves results and pauses retrieval. These options are
+administrator settings, not scientific workflow parameters. A compatible
+OMERO.biomero admin interface exposes them when shallow storage is enabled;
+environment overrides still take precedence over values saved to the ini file.</p>
+<p>Core falls back to our helper’s <code class="docutils literal notranslate"><span class="pre">:latest</span></code> tag. Prefer an image pin in
+<code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code>; refer to <code class="docutils literal notranslate"><span class="pre">resources/slurm-config.ini</span></code> for the maintained
+release selection. When <code class="docutils literal notranslate"><span class="pre">remote_shallower_version</span></code> is unset, core reads the
+installed SIF’s OCI version label and records it before submitting a new task.
+An explicit value overrides discovery and must match the Python package
+version written into receipts, including any normalized prerelease suffix.
+Existing tasks retain their recorded version for recovery.</p>
+<p>An explicit <code class="docutils literal notranslate"><span class="pre">:latest</span></code> image tag is accepted, as with configured converters,
+but is not a reproducible release pin. Initialization reuses an already valid
+SIF; it does not refresh that file merely because the registry tag moved.
+Keep any explicit expected tool version consistent with the installed image.
+Initialization acquires the configured or default image. Missing version
+labels require an explicit tool-version setting; receipt validation is not
+disabled. Importer trust configuration must still match the selected image and
+actual tool version.</p>
+<p>For recovery behavior and component responsibilities, see
+<a class="reference internal" href="developer/execution-and-storage.html"><span class="doc">Execution, storage and recovery</span></a>.</p>
 </section>
 </section>
 

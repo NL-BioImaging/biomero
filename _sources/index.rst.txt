@@ -19,6 +19,7 @@ For publication references and guidance on which BIOMERO paper to cite, see
    :maxdepth: 4
 
    readme_link
+   components
    citing
 
 .. Tutorials
@@ -61,6 +62,8 @@ For publication references and guidance on which BIOMERO paper to cite, see
    :maxdepth: 2
 
    developer/eventsourcing
+   developer/execution-and-storage
+   developer/metadata-views
 
 Indices and tables
 ==================

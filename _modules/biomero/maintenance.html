@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.maintenance &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.maintenance</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.maintenance</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Durable metadata-maintenance requests, separate from analysis workflows.</span>
+
+<span class="sd">Only plain request options and compact outcomes are persisted. The processor</span>
+<span class="sd">owns execution; the scripts layer owns all external annotation operations.</span>
+<span class="sd">"""</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.domain</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aggregate</span><span class="p">,</span> <span class="n">event</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_topic</span>
+
+
+<div class="viewcode-block" id="MetadataRefresh"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.MetadataRefresh">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">MetadataRefresh</span><span class="p">(</span><span class="n">Aggregate</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A resumable maintenance request in the WorkflowTracker event store."""</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">group</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">group</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">'QUEUED'</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="s1">''</span>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="s1">'Started'</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">'RUNNING'</span>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="s1">'Progress'</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">progressed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="s1">'Finished'</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">''</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="n">error</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">'FAILED'</span> <span class="k">if</span> <span class="n">error</span> <span class="ow">or</span> <span class="n">report</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'counts'</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'failed'</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'DONE'</span></div>
+
+
+<div class="viewcode-block" id="queue_metadata_refresh"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.queue_metadata_refresh">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">queue_metadata_refresh</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Persist the handoff before the requesting script closes its session."""</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">MetadataRefresh</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+    <span class="n">tracker</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="c1"># Scoped datastores delegate transaction ownership to their caller.</span>
+    <span class="n">datastore</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tracker</span><span class="o">.</span><span class="n">factory</span><span class="p">,</span> <span class="s1">'datastore'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">datastore</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="s1">'scoped_session'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">datastore</span><span class="o">.</span><span class="n">scoped_session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">id</span></div>
+
+
+<div class="viewcode-block" id="pending_metadata_refreshes"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.pending_metadata_refreshes">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">pending_metadata_refreshes</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">pending</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Catch up only maintenance notifications; recover RUNNING after restart.</span>
+
+<span class="sd">    ``start`` is a global notification cursor, not an aggregate version.</span>
+<span class="sd">    A fresh supervisor replays this small, topic-filtered stream once. Its</span>
+<span class="sd">    subsequent polls continue at the returned cursor.</span>
+<span class="sd">    """</span>
+    <span class="n">pending</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">pending</span> <span class="ow">or</span> <span class="p">())</span>
+    <span class="n">topics</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_topic</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Created</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Started</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)]</span>
+    <span class="n">limit</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">section_size</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">notifications</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">topics</span><span class="o">=</span><span class="n">topics</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="n">notifications</span><span class="p">:</span>
+            <span class="n">request_id</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span>
+            <span class="k">if</span> <span class="n">notification</span><span class="o">.</span><span class="n">topic</span> <span class="o">==</span> <span class="n">topics</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+                <span class="n">pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notifications</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">limit</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">start</span><span class="p">,</span> <span class="n">pending</span></div>
+
+
+<div class="viewcode-block" id="metadata_refresh_statuses"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.metadata_refresh_statuses">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">metadata_refresh_statuses</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">recent</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Return plain snapshots of all active and bounded recent terminal requests."""</span>
+    <span class="n">pending</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">finished</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="n">recent</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">limit</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">section_size</span><span class="p">)</span>
+    <span class="n">topics</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_topic</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Created</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Started</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)]</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">notifications</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">topics</span><span class="o">=</span><span class="n">topics</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="n">notifications</span><span class="p">:</span>
+            <span class="n">request_id</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span>
+            <span class="k">if</span> <span class="n">notification</span><span class="o">.</span><span class="n">topic</span> <span class="o">==</span> <span class="n">topics</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+                <span class="n">pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
+                <span class="n">finished</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notifications</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">limit</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="n">requests</span> <span class="o">=</span> <span class="p">[</span><span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">request_id</span> <span class="ow">in</span> <span class="n">pending</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">finished</span><span class="p">)]</span>
+    <span class="n">requests</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">request</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">modified_on</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[{</span><span class="s1">'request_id'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="s1">'status'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+             <span class="s1">'created_on'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">created_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+             <span class="s1">'modified_on'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">modified_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+             <span class="s1">'options'</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">options</span><span class="p">),</span> <span class="s1">'report'</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">report</span><span class="p">),</span>
+             <span class="s1">'error'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">error</span><span class="p">}</span> <span class="k">for</span> <span class="n">request</span> <span class="ow">in</span> <span class="n">requests</span><span class="p">]</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

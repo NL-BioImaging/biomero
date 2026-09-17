@@ -28,6 +28,26 @@ biomero.views module
    :undoc-members:
    :show-inheritance:
 
+biomero.provenance module
+-------------------------
+
+.. automodule:: biomero.provenance
+   :members:
+   :show-inheritance:
+
+biomero.maintenance module
+--------------------------
+
+.. automodule:: biomero.maintenance
+   :members:
+   :show-inheritance:
+
+biomero.remote_shallower module
+-------------------------------
+
+.. automodule:: biomero.remote_shallower
+   :members:
+
 .. Module contents
 .. ---------------
 

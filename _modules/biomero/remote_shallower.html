@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.remote_shallower &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.remote_shallower</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.remote_shallower</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Optional CPU result shallowing before result archiving.</span>
+
+<span class="sd">SlurmClient owns remote execution, image acquisition and scheduling policy;</span>
+<span class="sd">SlurmJob owns monitoring. This module coordinates the shallower's manifest,</span>
+<span class="sd">durable submission records, recovery command and receipt validation.</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">posixpath</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shlex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid4</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.slurm_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">SlurmJob</span>
+
+<span class="n">TASK_NAME</span> <span class="o">=</span> <span class="s2">"_SLURM_Remote_Shallower"</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="image_spec"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.image_spec">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">image_spec</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Describe the configured helper image for SlurmClient image acquisition."""</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span> <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_image</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">image</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Configure remote_shallower_image in [SLURM] before '</span>
+                         <span class="s1">'initializing remote shallowing'</span><span class="p">)</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="s1">'docker://'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">'@sha256:'</span> <span class="ow">in</span> <span class="n">image</span><span class="p">:</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">digest</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'@sha256:'</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="s1">'[0-9a-f]</span><span class="si">{64}</span><span class="s1">'</span><span class="p">,</span> <span class="n">digest</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Invalid image digest'</span><span class="p">)</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="s1">'sha256:'</span> <span class="o">+</span> <span class="n">digest</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">separator</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s1">':'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">separator</span> <span class="ow">or</span> <span class="s1">'/'</span> <span class="ow">in</span> <span class="n">version</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Result shallower requires an explicit image version'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">'kind'</span><span class="p">:</span> <span class="s1">'result-shallower'</span><span class="p">,</span> <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'biomero-shallower'</span><span class="p">,</span>
+        <span class="s1">'version'</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span> <span class="s1">'source_type'</span><span class="p">:</span> <span class="s1">'registry'</span><span class="p">,</span> <span class="s1">'source'</span><span class="p">:</span> <span class="n">source</span><span class="p">,</span>
+        <span class="s1">'destination'</span><span class="p">:</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">client</span><span class="o">.</span><span class="n">slurm_converters_path</span><span class="p">,</span>
+            <span class="s1">'shallower-'</span> <span class="o">+</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">24</span><span class="p">]</span>
+            <span class="o">+</span> <span class="s1">'.sif'</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="installed_tool_version"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.installed_tool_version">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">installed_tool_version</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">sif</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Read the installed helper's version without executing its payload.</span>
+
+<span class="sd">    A floating image tag is not a tool version. Persist the OCI version label</span>
+<span class="sd">    before submission so receipt validation and recovery use a concrete value.</span>
+<span class="sd">    """</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+        <span class="s1">'runtime=$(command -v apptainer || command -v singularity); '</span>
+        <span class="s1">'test -n "$runtime" &amp;&amp; "$runtime" inspect --json --labels '</span>
+        <span class="o">+</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">sif</span><span class="p">)])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot inspect installed shallower tool version'</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'attributes'</span><span class="p">][</span><span class="s1">'labels'</span><span class="p">][</span>
+            <span class="s1">'org.opencontainers.image.version'</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Empty version'</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Installed helper has no usable OCI version label; '</span>
+                         <span class="s1">'set remote_shallower_version explicitly'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+    <span class="k">return</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_job_name</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">recovery</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Keep submission reconciliation specific to one task and operation."""</span>
+    <span class="n">operation</span> <span class="o">=</span> <span class="s1">'recovery'</span> <span class="k">if</span> <span class="n">recovery</span> <span class="k">else</span> <span class="s1">'shallower'</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">'biomero-</span><span class="si">{</span><span class="n">operation</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s1">'</span>
+
+
+<div class="viewcode-block" id="build_command"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.build_command">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">build_command</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">sif</span><span class="p">,</span> <span class="n">manifest</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">recovery</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                  <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Build shallowing or recovery using the same helper resource policy.</span>
+
+<span class="sd">    Paths refer to the remote filesystem. The result directory is writable in</span>
+<span class="sd">    the container; the canonical input manifest is mounted read-only.</span>
+<span class="sd">    """</span>
+    <span class="n">quote</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span> <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_image</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_workers</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_workers</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_workers</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Result shallower worker count must be positive'</span><span class="p">)</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_shallower_job_params</span><span class="p">()</span>
+    <span class="n">runtime</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'runtime=$(command -v apptainer || command -v singularity); '</span>
+               <span class="s1">'test -n "$runtime"; exec "$runtime" exec --containall --cleanenv '</span>
+               <span class="s1">'--env SLURM_JOB_ID="$SLURM_JOB_ID" '</span>
+               <span class="sa">f</span><span class="s1">'--bind </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">output</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">":/results:rw"</span><span class="p">)</span><span class="si">}</span><span class="s1"> '</span>
+               <span class="sa">f</span><span class="s1">'--bind </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">manifest</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">":/canonical.json:ro"</span><span class="p">)</span><span class="si">}</span><span class="s1"> '</span>
+               <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">sif</span><span class="p">)</span><span class="si">}</span><span class="s1"> biomero-shallower normalize-tree '</span>
+               <span class="s1">'--returned-zarr /results --canonical-inputs /canonical.json '</span>
+               <span class="s1">'--contract-version 1 --failure-policy keep-full '</span>
+               <span class="s1">'--report /results/.biomero-shallow-batch.json '</span>
+               <span class="sa">f</span><span class="s1">'--identity-workers </span><span class="si">{</span><span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_workers</span><span class="si">}</span><span class="s1"> '</span>
+               <span class="sa">f</span><span class="s1">'--image </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s1"> '</span>
+               <span class="sa">f</span><span class="s1">'--task-id </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">recovery</span><span class="p">:</span>
+        <span class="n">runtime</span> <span class="o">+=</span> <span class="s1">' --recover-only'</span>
+    <span class="k">return</span> <span class="p">(</span><span class="s1">'sbatch --parsable --export=NONE '</span> <span class="o">+</span> <span class="s1">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span>
+            <span class="sa">f</span><span class="s1">' --job-name=</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">_job_name</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span><span class="w"> </span><span class="n">recovery</span><span class="o">=</span><span class="n">recovery</span><span class="p">))</span><span class="si">}</span><span class="s1">'</span>
+            <span class="sa">f</span><span class="s1">' --output=</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">manifest</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".%j.log"</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span> <span class="o">+</span>
+            <span class="s1">' --wrap='</span> <span class="o">+</span> <span class="n">quote</span><span class="p">(</span><span class="n">runtime</span><span class="p">))</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_batch</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">raw</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Parse a batch report and check its input, image and tool version.</span>
+
+<span class="sd">    When a task is supplied, its recorded image/version and submission own the</span>
+<span class="sd">    report; current deployment defaults must not invalidate historical results.</span>
+<span class="sd">    Import the optional schema dependency only when shallowing is used.</span>
+<span class="sd">    """</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">biomero_schema.shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">ShallowBatchReport</span>
+    <span class="n">batch</span> <span class="o">=</span> <span class="n">ShallowBatchReport</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">'image'</span><span class="p">]</span> <span class="k">if</span> <span class="n">task</span> <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_image</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">task_version</span> <span class="k">if</span> <span class="n">task</span> <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_version</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">canonical_inputs</span> <span class="o">!=</span> <span class="n">canonical</span>
+            <span class="ow">or</span> <span class="n">batch</span><span class="o">.</span><span class="n">image</span> <span class="o">!=</span> <span class="n">image</span> <span class="ow">or</span> <span class="n">batch</span><span class="o">.</span><span class="n">tool_version</span> <span class="o">!=</span> <span class="n">version</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">'Result shallower report does not match configuration/input'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">receipt</span><span class="o">.</span><span class="n">image</span> <span class="o">!=</span> <span class="n">batch</span><span class="o">.</span><span class="n">image</span>
+           <span class="ow">or</span> <span class="n">receipt</span><span class="o">.</span><span class="n">tool_version</span> <span class="o">!=</span> <span class="n">batch</span><span class="o">.</span><span class="n">tool_version</span>
+           <span class="k">for</span> <span class="n">receipt</span> <span class="ow">in</span> <span class="n">batch</span><span class="o">.</span><span class="n">receipts</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Inconsistent helper receipts'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_check_canonical</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">canonical</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">receipt</span><span class="o">.</span><span class="n">task_id</span> <span class="o">!=</span> <span class="n">task</span><span class="o">.</span><span class="n">id</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span>
+               <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">receipt</span><span class="o">.</span><span class="n">slurm_job_id</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+               <span class="k">for</span> <span class="n">receipt</span> <span class="ow">in</span> <span class="n">batch</span><span class="o">.</span><span class="n">receipts</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Report belongs to a different helper task/job'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">batch</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_canonical_digest</span><span class="p">(</span><span class="n">payload</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Fingerprint JSON content independently of key order and whitespace."""</span>
+    <span class="n">encoded</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s1">','</span><span class="p">,</span> <span class="s1">':'</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">encoded</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">'utf-8'</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_canonical</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">canonical</span><span class="p">):</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'canonical_sha256'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">expected</span> <span class="ow">and</span> <span class="n">expected</span> <span class="o">!=</span> <span class="n">_canonical_digest</span><span class="p">(</span><span class="n">canonical</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Canonical manifest differs from the recorded task'</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_prepare_manifest</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">manifest</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">submitted</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verify an existing manifest or publish a new one without overwriting.</span>
+
+<span class="sd">    A sibling temporary file is fully uploaded before an atomic hard-link</span>
+<span class="sd">    publishes it under a lock. Readers never see a partly uploaded manifest.</span>
+<span class="sd">    Existing content is verified, not replaced on resume.</span>
+<span class="sd">    """</span>
+    <span class="n">quote</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">quote</span><span class="p">(</span><span class="n">manifest</span><span class="p">)</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">canonical</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">verify</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">_canonical_digest</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw</span><span class="p">))</span> <span class="o">!=</span> <span class="n">_canonical_digest</span><span class="p">(</span><span class="n">payload</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Remote canonical manifest differs from workflow input'</span><span class="p">)</span>
+
+    <span class="n">found</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+        <span class="sa">f</span><span class="s1">'if test -f </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1"> &amp;&amp; ! test -L </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; then cat </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="sa">f</span><span class="s1">'elif test -e </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1"> || test -L </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; then exit 1; fi'</span><span class="p">],</span>
+        <span class="n">log_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot read canonical manifest; output preserved'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">found</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="n">verify</span><span class="p">(</span><span class="n">found</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="n">submitted</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Missing canonical manifest for submitted job; output preserved'</span><span class="p">)</span>
+
+    <span class="n">temporary</span> <span class="o">=</span> <span class="n">manifest</span> <span class="o">+</span> <span class="s1">'.'</span> <span class="o">+</span> <span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span> <span class="o">+</span> <span class="s1">'.tmp'</span>
+    <span class="n">state_dir</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">manifest</span><span class="p">)</span>
+    <span class="n">guards</span> <span class="o">=</span> <span class="s1">' || '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="s1">'test -e '</span> <span class="o">+</span> <span class="n">quote</span><span class="p">(</span><span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="n">operation</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">operation</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'shallow'</span><span class="p">,</span> <span class="s1">'recovery'</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'.intent'</span><span class="p">,</span> <span class="s1">'.job'</span><span class="p">))</span>
+    <span class="n">script</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s1">'set -eu; if test -L </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; then exit 1; fi; '</span>
+        <span class="sa">f</span><span class="s1">'if test -e </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; then cat </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="sa">f</span><span class="s1">'elif </span><span class="si">{</span><span class="n">guards</span><span class="si">}</span><span class="s1">; then '</span>
+        <span class="s1">'echo "Missing manifest after submission intent" &gt;&amp;2; exit 1; '</span>
+        <span class="sa">f</span><span class="s1">'else ln </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; cat </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s1">; fi'</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">)),</span> <span class="n">temporary</span><span class="p">)</span>
+        <span class="n">published</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+            <span class="sa">f</span><span class="s1">'flock -w 30 </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">manifest</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".lock"</span><span class="p">)</span><span class="si">}</span><span class="s1"> sh -c </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">script</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">],</span>
+            <span class="n">log_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">published</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot publish canonical manifest; output preserved'</span><span class="p">)</span>
+        <span class="n">verify</span><span class="p">(</span><span class="n">published</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="c1"># Only the unique staging file owned by this call is removed.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cleanup</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="s1">'rm -f -- '</span> <span class="o">+</span> <span class="n">quote</span><span class="p">(</span><span class="n">temporary</span><span class="p">)])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">cleanup</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'Could not remove manifest staging file </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span> <span class="n">temporary</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'Could not remove manifest staging file </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span>
+                           <span class="n">temporary</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="completed_receipts"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.completed_receipts">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">completed_receipts</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Read persisted helper receipts without contacting the cluster."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallow_zarr</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">client</span><span class="o">.</span><span class="n">track_workflows</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">()</span>
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)))</span>
+    <span class="n">receipts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span> <span class="o">==</span> <span class="n">TASK_NAME</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">result_message</span><span class="p">:</span>
+            <span class="n">receipts</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_batch</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">result_message</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span>
+                                   <span class="n">task</span><span class="o">=</span><span class="n">task</span><span class="p">)</span><span class="o">.</span><span class="n">receipts</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">receipts</span><span class="p">)</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_submit_once</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">job_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Submit or adopt a job under a remote filesystem lock.</span>
+
+<span class="sd">    ``state`` is the remote filename prefix for the lock, submission intent</span>
+<span class="sd">    and recorded job ID. Return the job ID, or None for a rejected submission.</span>
+<span class="sd">    ``job_name`` is the operation-specific identity used for reconciliation,</span>
+<span class="sd">    not a value inferred by parsing shell commands. Ambiguous submission state</span>
+<span class="sd">    raises instead of risking a duplicate job.</span>
+<span class="sd">    """</span>
+    <span class="c1"># An intent without a job ID is ambiguous: never blindly submit again.</span>
+    <span class="c1"># The unique job name and sacct allow an administrator to reconcile it.</span>
+    <span class="n">quote</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span>
+    <span class="n">script</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s1">'if test -s </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job"</span><span class="p">)</span><span class="si">}</span><span class="s1">; then cat </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="sa">f</span><span class="s1">'elif test -e </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">; then '</span>
+        <span class="sa">f</span><span class="s1">'jobs=$(sacct -n -X --name=</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">job_name</span><span class="p">)</span><span class="si">}</span><span class="s1"> --format=JobIDRaw '</span>
+        <span class="sa">f</span><span class="s1">'-S "$(cat </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">)" | awk </span><span class="se">\'</span><span class="s1">NF </span><span class="se">{{</span><span class="s1">print $1</span><span class="se">}}\'</span><span class="s1"> | sort -u); '</span>
+        <span class="s1">'case "$jobs" in ""|*[!0-9]*) '</span>
+        <span class="s1">'echo "Unresolved shallower submission intent" &gt;&amp;2; exit 75;; esac; '</span>
+        <span class="sa">f</span><span class="s1">'printf "%s</span><span class="se">\\</span><span class="s1">n" "$jobs" &gt; </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job"</span><span class="p">)</span><span class="si">}</span><span class="s1">; printf "%s</span><span class="se">\\</span><span class="s1">n" "$jobs"; '</span>
+        <span class="sa">f</span><span class="s1">'else date +%Y-%m-%dT%H:%M:%S &gt; </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="sa">f</span><span class="s1">'job=$(</span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s1">) || </span><span class="se">{{</span><span class="s1"> rm -f </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="s1">'printf "NOT_SUBMITTED</span><span class="se">\\</span><span class="s1">n"; exit 0; }; '</span>
+        <span class="s1">'job=${job</span><span class="si">%%</span><span class="s1">;*}; '</span>
+        <span class="sa">f</span><span class="s1">'printf "%s</span><span class="se">\\</span><span class="s1">n" "$job" &gt; </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job.tmp"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="sa">f</span><span class="s1">'mv </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job.tmp"</span><span class="p">)</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
+        <span class="s1">'printf "</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$job"; fi'</span>
+    <span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+        <span class="sa">f</span><span class="s1">'flock -w 30 </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".lock"</span><span class="p">)</span><span class="si">}</span><span class="s1"> sh -c </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">script</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s1">'NOT_SUBMITTED'</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">'Shallower submission is unresolved; preserve results and resume '</span>
+            <span class="s1">'after reconciliation'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_wait</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Monitor an adopted job without analysis-log or task-status updates.</span>
+
+<span class="sd">    The helper task is completed by ``run`` after report validation, not merely</span>
+<span class="sd">    because its Slurm process exited successfully.</span>
+<span class="sd">    """</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">SlurmJob</span><span class="o">.</span><span class="n">from_job_id</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">slurm_polling_interval</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">(</span>
+        <span class="n">client</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="n">heartbeat</span><span class="p">,</span> <span class="n">track_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">update_task</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">strict_status</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">'COMPLETED'</span> <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">completed</span><span class="p">()</span> <span class="k">else</span> <span class="n">state</span>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.run">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Run or resume shallowing and return the validated batch report.</span>
+
+<span class="sd">    Disabled/inapplicable shallowing returns None. Missing images raise an</span>
+<span class="sd">    actionable setup error; only initialization acquires container images.</span>
+<span class="sd">    A rejected shallowing submission returns an empty-receipt batch so the</span>
+<span class="sd">    caller can retain full results. Unresolved submission, recovery or report</span>
+<span class="sd">    validation raises; callers must not archive potentially incomplete output.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallow_zarr</span> <span class="ow">or</span> <span class="n">canonical</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">canonical</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">client</span><span class="o">.</span><span class="n">track_workflows</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">tracker</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">workflowTracker</span>
+    <span class="n">workflow_id</span> <span class="o">=</span> <span class="n">UUID</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">))</span>
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">]</span>
+    <span class="n">matches</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span>
+               <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span> <span class="o">==</span> <span class="n">TASK_NAME</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">input_data</span> <span class="o">==</span> <span class="n">data_path</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Ambiguous result shallower tasks'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">matches</span><span class="p">:</span>
+        <span class="n">_check_canonical</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">canonical</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">matches</span> <span class="ow">and</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">result_message</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_batch</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">result_message</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span>
+                      <span class="n">task</span><span class="o">=</span><span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">matches</span> <span class="ow">and</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">job_ids</span><span class="p">:</span>
+        <span class="n">report_path</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">data_path</span><span class="p">,</span> <span class="s1">'data/out/.biomero-shallow-batch.json'</span><span class="p">)</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+            <span class="sa">f</span><span class="s1">'if test -f </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">report_path</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
+            <span class="sa">f</span><span class="s1">'then cat </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">report_path</span><span class="p">)</span><span class="si">}</span><span class="s1">; fi'</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">found</span><span class="o">.</span><span class="n">ok</span> <span class="ow">and</span> <span class="n">found</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">batch</span> <span class="o">=</span> <span class="n">_batch</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">found</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+                <span class="k">pass</span>  <span class="c1"># Partial/stale report: poll the recorded job below.</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tracker</span><span class="o">.</span><span class="n">complete_task</span><span class="p">(</span>
+                    <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()))</span>
+                <span class="k">return</span> <span class="n">batch</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">'image'</span><span class="p">]</span> <span class="k">if</span> <span class="n">matches</span> <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_image</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">image_spec</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">matches</span><span class="p">:</span>
+        <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">]</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'sif'</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">])</span>
+    <span class="n">ready</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">_partition_existing_images</span><span class="p">([</span><span class="n">spec</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">pending</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">ready</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">'Remote shallower image missing or invalid: </span><span class="si">{</span><span class="n">spec</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">]</span><span class="si">}</span><span class="s1">. '</span>
+            <span class="s1">'Run SLURM_Init_environment and verify image setup with '</span>
+            <span class="s1">'SLURM_check_setup before retrying.'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_version</span> <span class="ow">or</span> <span class="n">installed_tool_version</span><span class="p">(</span>
+            <span class="n">client</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">])</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
+            <span class="n">workflow_id</span><span class="p">,</span> <span class="n">TASK_NAME</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span>
+            <span class="p">{</span><span class="s1">'image'</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span> <span class="s1">'contract'</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">'sif'</span><span class="p">:</span> <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">],</span>
+             <span class="s1">'canonical_sha256'</span><span class="p">:</span> <span class="n">_canonical_digest</span><span class="p">(</span><span class="n">canonical</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())})</span>
+        <span class="n">tracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">id</span>
+    <span class="n">sif</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'sif'</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">])</span>
+    <span class="n">state_dir</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_path</span><span class="p">,</span> <span class="s1">'.biomero-shallower'</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">))</span>
+    <span class="n">prepared</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="s1">'mkdir -p '</span> <span class="o">+</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">state_dir</span><span class="p">)])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">prepared</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot prepare shallower state directory'</span><span class="p">)</span>
+    <span class="n">manifest</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="s1">'canonical.json'</span><span class="p">)</span>
+    <span class="n">_prepare_manifest</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">manifest</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="n">submitted</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">))</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_path</span><span class="p">,</span> <span class="s1">'data/out'</span><span class="p">)</span>
+    <span class="n">command</span> <span class="o">=</span> <span class="n">build_command</span><span class="p">(</span>
+        <span class="n">client</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">sif</span><span class="p">,</span> <span class="n">manifest</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">),</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">job_id</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span>
+              <span class="k">else</span> <span class="n">_submit_once</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span>
+                                <span class="n">state_dir</span> <span class="o">+</span> <span class="s1">'/shallow'</span><span class="p">,</span>
+                                <span class="n">job_name</span><span class="o">=</span><span class="n">_job_name</span><span class="p">(</span><span class="n">task_id</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">biomero_schema.shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">ShallowBatchReport</span>
+        <span class="n">batch</span> <span class="o">=</span> <span class="n">ShallowBatchReport</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">canonicalInputs</span><span class="o">=</span><span class="n">canonical</span><span class="p">,</span>
+                                   <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="n">toolVersion</span><span class="o">=</span><span class="n">task</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span>
+                                   <span class="n">result</span><span class="o">=</span><span class="s1">'complete'</span><span class="p">,</span> <span class="n">receipts</span><span class="o">=</span><span class="p">())</span>
+        <span class="n">tracker</span><span class="o">.</span><span class="n">complete_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'Shallower submission rejected; retaining full results'</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">batch</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">:</span>
+        <span class="n">tracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">_wait</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">status</span> <span class="o">!=</span> <span class="s1">'COMPLETED'</span><span class="p">:</span>
+        <span class="c1"># Recover in the same configured image on CPU. Completed stores retain</span>
+        <span class="c1"># receipts; interrupted stores roll back before any archive is allowed.</span>
+        <span class="n">recovery</span> <span class="o">=</span> <span class="n">build_command</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">sif</span><span class="p">,</span> <span class="n">manifest</span><span class="p">,</span>
+                                 <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">),</span> <span class="n">recovery</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">)</span>
+        <span class="c1"># Recorded IDs remain authoritative on resume.</span>
+        <span class="n">recovery_id</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                       <span class="k">else</span> <span class="n">_submit_once</span><span class="p">(</span>
+                           <span class="n">client</span><span class="p">,</span> <span class="n">recovery</span><span class="p">,</span> <span class="n">state_dir</span> <span class="o">+</span> <span class="s1">'/recovery'</span><span class="p">,</span>
+                           <span class="n">job_name</span><span class="o">=</span><span class="n">_job_name</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">recovery</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">recovery_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s1">'Shallower recovery submission rejected; output preserved'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">recovery_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">:</span>
+            <span class="n">tracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">recovery_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_wait</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">recovery_id</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">'COMPLETED'</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s1">'Shallower recovery failed; output preserved for recovery'</span><span class="p">)</span>
+    <span class="n">report</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+        <span class="s1">'cat '</span> <span class="o">+</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">output</span> <span class="o">+</span> <span class="s1">'/.biomero-shallow-batch.json'</span><span class="p">)])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">report</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Missing shallower report; cannot archive safely'</span><span class="p">)</span>
+    <span class="n">batch</span> <span class="o">=</span> <span class="n">_batch</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">report</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="n">task</span><span class="p">)</span>
+    <span class="n">tracker</span><span class="o">.</span><span class="n">complete_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()))</span>
+    <span class="k">return</span> <span class="n">batch</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

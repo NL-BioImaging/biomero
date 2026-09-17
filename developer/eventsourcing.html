@@ -18,6 +18,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Execution, storage and recovery" href="execution-and-storage.html" />
     <link rel="prev" title="biomero package" href="../biomero.html" /> 
 </head>
 
@@ -63,6 +64,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../readme_link.html#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../components.html">BIOMERO components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../citing.html">Citing BIOMERO</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -97,9 +99,13 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#schema-changes-views-only">Schema changes (views only)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#metadata-maintenance-requests">Metadata maintenance requests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#inspecting-aggregate-history">Inspecting aggregate history</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gotchas">Gotchas</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metadata-views.html">Workflow metadata views</a></li>
 </ul>
 
         </div>
@@ -176,26 +182,20 @@
 <p>These are standard SQLAlchemy models defined in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code>. Schema changes are applied via event sourcing system rebuild.</p>
 <section id="rebuilding-views-reprojection">
 <h3>Rebuilding views (reprojection)<a class="headerlink" href="#rebuilding-views-reprojection" title="Permalink to this heading"></a></h3>
-<p>Views are derived data and can be safely rebuilt from the event log:</p>
-<ol class="arabic simple">
-<li><p>Truncate view tables (optional):
-- <code class="docutils literal notranslate"><span class="pre">biomero_job_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_job_progress_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_workflow_progress_view</span></code>, <code class="docutils literal notranslate"><span class="pre">biomero_task_execution</span></code></p></li>
-<li><p>Reprocess events from the start with a System runner:</p></li>
-</ol>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span><span class="p">,</span> <span class="n">SingleThreadedRunner</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowTracker</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobAccounting</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">,</span> <span class="n">WorkflowProgress</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span>
+<p>Views are derived data. To catch up an existing progress listener, use the
+configured client and invoke the follower, not <code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code> itself:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">SlurmClient</span><span class="p">,</span> <span class="n">WorkflowTracker</span>
 
-<span class="n">system</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">pipes</span><span class="o">=</span><span class="p">[[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">JobAccounting</span><span class="p">],</span>
-                       <span class="p">[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">],</span>
-                       <span class="p">[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">WorkflowProgress</span><span class="p">],</span>
-                       <span class="p">[</span><span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span><span class="p">]])</span>
-<span class="n">runner</span> <span class="o">=</span> <span class="n">SingleThreadedRunner</span><span class="p">(</span><span class="n">system</span><span class="p">)</span>
-<span class="n">runner</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-<span class="c1"># Optionally call: runner.get(WorkflowTracker).pull_and_process(leader_name=WorkflowTracker.__name__)</span>
-<span class="n">runner</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">SlurmClient</span><span class="o">.</span><span class="n">from_config</span><span class="p">()</span>
+<span class="n">client</span><span class="o">.</span><span class="n">wfProgress</span><span class="o">.</span><span class="n">pull_and_process</span><span class="p">(</span>
+    <span class="n">leader_name</span><span class="o">=</span><span class="n">WorkflowTracker</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>The listener’s persisted tracking position determines which notifications have
+already been processed. This is not a forced rebuild. Do not truncate view
+rows alone: retained listener positions can prevent the deleted rows from
+being reconstructed. For a full rebuild, use the reset operation below, which
+also resets listener tracking. Coordinate it with other database users.</p>
 <p>Notes:
 - View upserts use <code class="docutils literal notranslate"><span class="pre">session.merge(...)</span></code> or primary keys to stay idempotent.
 - If you change primary keys or uniqueness, do a one-off cleanup before reprojecting.</p>
@@ -217,6 +217,44 @@ The event store tables are managed by the eventsourcing library.</p>
 <p>This will drop and recreate all view tables with the new schema, then replay
 all events to repopulate them with the updated structure.</p>
 </section>
+<section id="metadata-maintenance-requests">
+<h2>Metadata maintenance requests<a class="headerlink" href="#metadata-maintenance-requests" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">biomero.maintenance.MetadataRefresh</span></code> stores administrative metadata-refresh
+requests in the same <code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code> event store, separately from
+<code class="docutils literal notranslate"><span class="pre">WorkflowRun</span></code> and <code class="docutils literal notranslate"><span class="pre">Task</span></code>. These requests do not create analysis projection
+rows. The aggregate contains plain options, requester IDs, lifecycle status,
+progress counters and a compact final outcome; annotation operations remain in
+the scripts layer. Inspect it with <code class="docutils literal notranslate"><span class="pre">tracker.repository.get(UUID(request_id))</span></code>
+and use its aggregate versions for historical replay. The processor discovers
+unfinished requests through topic-filtered notifications and retries interrupted
+idempotent sweeps. See NL-BIOMERO’s developer supervisor documentation for the
+execution and recovery policy.</p>
+</section>
+<section id="inspecting-aggregate-history">
+<h2>Inspecting aggregate history<a class="headerlink" href="#inspecting-aggregate-history" title="Permalink to this heading"></a></h2>
+<p>Notification IDs are global event-log positions. Aggregate versions belong to
+one workflow, task or maintenance request; they are not interchangeable.
+Workflow and task UUIDs identify separate aggregates.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
+
+<span class="n">tracker</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">workflowTracker</span>
+<span class="n">notifications</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">workflow</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">))</span>
+<span class="n">previous</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">),</span> <span class="n">version</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Use an existing aggregate version when inspecting a real workflow. Tracking
+must be enabled and the client must point at the intended persistent store.
+Reading an aggregate does not run or resume it. <code class="docutils literal notranslate"><span class="pre">TaskCompleted</span></code> records
+<code class="docutils literal notranslate"><span class="pre">result_message</span></code> without necessarily replacing the task’s <code class="docutils literal notranslate"><span class="pre">status</span></code> field;
+inspect lifecycle events as well as status strings.</p>
+<p>When comparing detached and inline runs, account for the additional launcher
+task. <code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code> is a coordination state and is not analysis <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>.
+Remote shallowing adds its own helper task and receipts. These records remain
+in history even when excluded from the searchable metadata view. See
+<a class="reference internal" href="execution-and-storage.html"><span class="doc">Execution, storage and recovery</span></a> and <a class="reference internal" href="metadata-views.html"><span class="doc">Workflow metadata views</span></a>.</p>
+</section>
 <section id="gotchas">
 <h2>Gotchas<a class="headerlink" href="#gotchas" title="Permalink to this heading"></a></h2>
 <ul class="simple">
@@ -232,6 +270,7 @@ all events to repopulate them with the updated structure.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="../biomero.html" class="btn btn-neutral float-left" title="biomero package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="execution-and-storage.html" class="btn btn-neutral float-right" title="Execution, storage and recovery" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

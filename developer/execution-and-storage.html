@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Execution, storage and recovery &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Workflow metadata views" href="metadata-views.html" />
+    <link rel="prev" title="Eventsourcing and Views (Developer)" href="eventsourcing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Execution, storage and recovery</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#independent-options">Independent options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#remote-result-lifecycle">Remote result lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#recovery-boundaries">Recovery boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#state-and-metadata">State and metadata</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Execution, storage and recovery</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/developer/execution-and-storage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="execution-storage-and-recovery">
+<h1>Execution, storage and recovery<a class="headerlink" href="#execution-storage-and-recovery" title="Permalink to this heading"></a></h1>
+<p>BIOMERO core provides Slurm execution and durable workflow state. Workflow
+scripts decide which pipeline stages to run; the NL-BIOMERO processor owns
+background execution; the importer owns OMERO registration and local storage
+preparation. These boundaries apply to inline and detached workflows alike.</p>
+<section id="independent-options">
+<h2>Independent options<a class="headerlink" href="#independent-options" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code> selects background execution in compatible
+scripts and workers. It is false when absent. Core centralizes the variable
+names and persists the workflow and task aggregates; constructing a
+<code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> does not start a supervisor.</p>
+<p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code> enables canonical caching and shallow result storage
+in the scripts/importer integration. It is also false when absent. Shallow
+results reference verified canonical arrays instead of storing duplicate
+pixels. New and changed image or label arrays remain in the result. Canonical
+sources must remain available for those references to resolve. Disabling new
+shallowing does not make existing shallow data independent of its sources.</p>
+<p><code class="docutils literal notranslate"><span class="pre">remote_shallow_zarr</span></code> selects where eligible results are normalized. Its
+default is true, so enabling shallow storage prefers the remote CPU helper.
+Set it to false to normalize locally in the importer. It does not itself
+enable shallow storage or detached execution. The scripts enforce importer
+and shallow-storage eligibility; core additionally requires workflow tracking
+and a nonempty canonical-input manifest before submitting the helper.</p>
+<p>The scripts/importer establish canonical identity and pixel verification;
+core transports and validates their manifest rather than reading OMERO pixels.
+Reused registered Zarr and newly exported Zarr have different verification
+paths in that integration. A core caller must provide the actual canonical
+snapshot, not infer it from current feature flags.</p>
+</section>
+<section id="remote-result-lifecycle">
+<h2>Remote result lifecycle<a class="headerlink" href="#remote-result-lifecycle" title="Permalink to this heading"></a></h2>
+<p>After analysis and before archiving, the result script calls
+<code class="docutils literal notranslate"><span class="pre">SlurmClient.shallow_results_on_slurm(data_path,</span> <span class="pre">workflow_id,</span>
+<span class="pre">canonical_inputs,</span> <span class="pre">heartbeat=...)</span></code>. Core:</p>
+<ol class="arabic simple">
+<li><p>Locates or creates the <code class="docutils literal notranslate"><span class="pre">_SLURM_Remote_Shallower</span></code> task for that result path.</p></li>
+<li><p>Checks the installed helper image and publishes the canonical manifest.</p></li>
+<li><p>Submits or adopts a CPU Slurm job and monitors it through <code class="docutils literal notranslate"><span class="pre">SlurmJob</span></code>.</p></li>
+<li><p>Validates the report against the canonical inputs, task/job identity,
+container reference and tool version before completing the helper task.</p></li>
+</ol>
+<p>The caller owns the heartbeat callback and any OMERO session it keeps alive.
+Callback exceptions propagate to the caller. Core accepts no OMERO connection.
+<code class="docutils literal notranslate"><span class="pre">get_remote_shallower_receipts()</span></code> reads completed receipts from the event
+store without contacting the cluster. The importer validates applicable
+receipts before accepting remotely normalized results.</p>
+<p>Image acquisition is an initialization operation. Workflow execution does not
+pull a missing image. See <a class="reference internal" href="../configuration-reference.html"><span class="doc">Configuration Reference</span></a> for resource
+precedence, image configuration and setup checks.</p>
+</section>
+<section id="recovery-boundaries">
+<h2>Recovery boundaries<a class="headerlink" href="#recovery-boundaries" title="Permalink to this heading"></a></h2>
+<p><strong>Worker restart.</strong> The NL-BIOMERO supervisor discovers unfinished detached
+requests and invokes the scripts’ pipeline with <code class="docutils literal notranslate"><span class="pre">resume=True</span></code>. This is a
+Python argument supplied by the supervisor, not an environment variable.
+The scripts use recorded stages and job IDs to skip completed work or adopt
+existing Slurm jobs. Core supplies the persisted state and job monitoring;
+it does not independently restart an entire pipeline. Slurm jobs may continue
+while the worker is unavailable. Recovery requires the tracking database and
+the corresponding input, output and container files to survive.</p>
+<p>Launcher <code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code> is coordination state, not an analysis phase or proof
+that a workflow is still running. Workflow completion is recorded separately.
+The supported supervisor topology is one active supervisor per tracking
+database. A local remote-helper submission lock does not make the whole
+pipeline safe for multiple supervisors.</p>
+<p><strong>Remote helper interruption.</strong> Core reuses a validated persisted report or
+adopts the recorded Slurm job. Submission intent, job ID and a remote file lock
+protect the helper submission; accounting is used to reconcile an interrupted
+submission. An ambiguous intent raises an error instead of submitting again.
+Unavailable job status also raises; it is not evidence that recovery is needed.</p>
+<p>If the helper job ends unsuccessfully, core submits or adopts a separate
+<code class="docutils literal notranslate"><span class="pre">--recover-only</span></code> job using the recorded helper image. Its transaction
+recovery must complete and the resulting report must validate before the
+caller may archive results. A rejected initial submission can retain full
+results for local import. Missing images, changed or missing submitted
+manifests, invalid reports and unresolved recovery stop retrieval. These
+errors do not guarantee automatic retry by the outer pipeline.</p>
+<p>Keep the recorded SIF and remote state directory until completion. Existing
+tasks retain their image and tool version even if deployment defaults change.
+The helper’s recovery guarantees do not imply exactly-once execution of every
+analysis, transfer or import stage in the wider workflow.</p>
+<p><strong>User-requested rerun.</strong> Reusing recorded settings or restarting from the web
+interface is an OMERO.biomero/scripts operation. It is distinct from adopting
+an interrupted job and does not follow merely from core aggregate replay.</p>
+<p>For supervisor discovery, batching and restart policy, see the
+<a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/developer/detached-workflow-supervisor.html">NL-BIOMERO developer guide</a>.
+For the canonical and receipt formats, see the
+<a class="reference external" href="https://nl-bioimaging.github.io/biomero-schema/remote-shallower-contracts/">schema contracts</a>.</p>
+</section>
+<section id="state-and-metadata">
+<h2>State and metadata<a class="headerlink" href="#state-and-metadata" title="Permalink to this heading"></a></h2>
+<p>Aggregate replay reconstructs recorded history. SQL progress/analytics tables
+and OMERO key-value annotations are separate derived views. Rebuilding SQL
+views does not update existing annotations or resume a failed workflow.
+The progress projection prevents remote-helper coordination from replacing
+the visible analysis task, while the underlying events remain available.</p>
+<p>See <a class="reference internal" href="eventsourcing.html"><span class="doc">Eventsourcing and Views (Developer)</span></a> for replay and projections, and
+<a class="reference internal" href="metadata-views.html"><span class="doc">Workflow metadata views</span></a> for the <code class="docutils literal notranslate"><span class="pre">v0</span></code> renderer, historical refresh planning and
+per-result shallow-storage provenance.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="eventsourcing.html" class="btn btn-neutral float-left" title="Eventsourcing and Views (Developer)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="metadata-views.html" class="btn btn-neutral float-right" title="Workflow metadata views" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

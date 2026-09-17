@@ -61,6 +61,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -84,6 +85,8 @@
 <p class="caption" role="heading"><span class="caption-text">Developer</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
 </ul>
 
         </div>
@@ -447,6 +450,9 @@
 
         <span class="c1"># Track task to workflow mapping</span>
         <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span> <span class="ow">and</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"_SLURM_Remote_Shallower"</span><span class="p">:</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="k">return</span>
         <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">wf_id</span>
             <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
@@ -480,6 +486,9 @@
 <span class="w">        </span><span class="sd">"""Persist the current task and its initial workflow phase."""</span>
         <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
         <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span> <span class="ow">and</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"_SLURM_Remote_Shallower"</span><span class="p">:</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="k">return</span>
         <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>
             <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_workflow</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
@@ -525,6 +534,9 @@
 
         <span class="c1"># Get the workflow ID and task name associated with this task</span>
         <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span> <span class="ow">and</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"_SLURM_Remote_Shallower"</span><span class="p">:</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="k">return</span>
         <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>
             <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
@@ -601,6 +613,9 @@
         <span class="n">progress</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">progress</span>
         
         <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task_info</span> <span class="ow">and</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"_SLURM_Remote_Shallower"</span><span class="p">:</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="k">return</span>
         <span class="k">if</span> <span class="n">task_info</span><span class="p">:</span>
             <span class="n">task_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">progress</span>
             <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>

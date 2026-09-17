@@ -18,7 +18,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Citing BIOMERO" href="citing.html" />
+    <link rel="next" title="BIOMERO components" href="components.html" />
     <link rel="prev" title="Welcome to BIOMERO’s documentation!" href="index.html" /> 
 </head>
 
@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#using-pip-cross-platform">Using pip (Cross-platform)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-remote-shallowing">Optional remote shallowing</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#slurm-requirements">Slurm Requirements</a></li>
@@ -121,6 +122,7 @@
 <li class="toctree-l1"><a class="reference internal" href="#transfering-data">Transfering data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#testing-the-python-code">Testing the Python code</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="components.html">BIOMERO components</a></li>
 <li class="toctree-l1"><a class="reference internal" href="citing.html">Citing BIOMERO</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -144,6 +146,8 @@
 <p class="caption" role="heading"><span class="caption-text">Developer</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/metadata-views.html">Workflow metadata views</a></li>
 </ul>
 
         </div>
@@ -186,6 +190,7 @@
 <li><p><strong>BIOMERO.analyzer</strong> (this Python library) - The core analysis engine</p></li>
 <li><p><strong>BIOMERO.scripts</strong> - OMERO scripts for HPC integration</p></li>
 <li><p><strong>BIOMERO.importer</strong> - Automated data import service</p></li>
+<li><p><strong><a class="reference external" href="https://github.com/NL-BioImaging/BIOMERO.shallower">BIOMERO.shallower</a></strong> - Shared local and remote shallow-Zarr result normalization</p></li>
 <li><p><strong>OMERO.biomero</strong> - Modern web interface plugin</p></li>
 </ul>
 <p>Full workflow tracking is now supported via a database and dashboard. The <a class="reference external" href="https://github.com/NL-BioImaging/OMERO.biomero">OMERO.biomero</a> plugin provides an intuitive interface in OMERO.web. Every workflow run is uniquely identifiable, and resulting assets are accessible directly in OMERO.</p>
@@ -334,6 +339,29 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">[full]</span></code></strong>: Adds BIOMERO.scripts requirements (<code class="docutils literal notranslate"><span class="pre">ezomero</span></code>, <code class="docutils literal notranslate"><span class="pre">tifffile</span></code>, <code class="docutils literal notranslate"><span class="pre">omero-metadata</span></code>, <code class="docutils literal notranslate"><span class="pre">omero-cli-zarr</span></code>) which require complex dependencies like <code class="docutils literal notranslate"><span class="pre">zeroc-ice</span></code> and <code class="docutils literal notranslate"><span class="pre">omero-py</span></code></p></li>
 </ul>
 <p><strong>Note</strong>: The <code class="docutils literal notranslate"><span class="pre">[full]</span></code> dependencies require complex packages like <code class="docutils literal notranslate"><span class="pre">zeroc-ice</span></code> and <code class="docutils literal notranslate"><span class="pre">omero-py</span></code> that need system libraries. For OMERO integration, you may need to install these separately or use conda.</p>
+</section>
+<section id="optional-remote-shallowing">
+<h3>Optional remote shallowing<a class="headerlink" href="#optional-remote-shallowing" title="Permalink to this heading"></a></h3>
+<p>Installing the Python package does not install the helper image on Slurm.
+For a deployment using shallow Zarr:</p>
+<ol class="arabic simple">
+<li><p>Enable the importer integration and <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR=true</span></code>. Remote
+shallowing is preferred when enabled; <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=false</span></code>
+selects local importer shallowing instead.</p></li>
+<li><p>Prefer a pinned <code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code> in the <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> section of
+<code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>; the fallback is <code class="docutils literal notranslate"><span class="pre">cellularimagingcf/biomero-shallower:latest</span></code>.
+Core reads the installed image’s tool version unless <code class="docutils literal notranslate"><span class="pre">remote_shallower_version</span></code>
+is explicitly set. See the <a class="reference internal" href="#resources/slurm-config.ini"><span class="xref myst">sample configuration</span></a>
+for the maintained release selection.</p></li>
+<li><p>Set the importer’s <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_IMAGE</span></code> and
+<code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_VERSION</span></code> to the same values for receipt validation.
+On the worker, these environment variables can also override the ini settings.</p></li>
+<li><p>Run <strong>Slurm Init</strong> to acquire the configured image, then <strong>Slurm Check Setup</strong>
+to verify it before submitting an analysis. Workflow execution does not
+download a missing image.</p></li>
+</ol>
+<p>The configured or default image must be acquired before use. For deployment settings and
+resource configuration, see the <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement">remote shallower installation guide</a>.</p>
 </section>
 </section>
 <section id="slurm-requirements">
@@ -1142,7 +1170,7 @@ safer and less maintenance-heavy option.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="index.html" class="btn btn-neutral float-left" title="Welcome to BIOMERO’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="citing.html" class="btn btn-neutral float-right" title="Citing BIOMERO" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="components.html" class="btn btn-neutral float-right" title="BIOMERO components" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

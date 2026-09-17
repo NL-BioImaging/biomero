@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workflow metadata views &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Execution, storage and recovery" href="execution-and-storage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Workflow metadata views</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#view-policies">View policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#result-storage-provenance">Result storage provenance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#planning-a-view-refresh">Planning a view refresh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#versioning-and-compatibility">Versioning and compatibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#detached-administrative-refresh">Detached administrative refresh</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Workflow metadata views</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/developer/metadata-views.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="workflow-metadata-views">
+<h1>Workflow metadata views<a class="headerlink" href="#workflow-metadata-views" title="Permalink to this heading"></a></h1>
+<p>OMERO MapAnnotations are a searchable view of workflow history, not the source
+used for detached recovery. The event store remains authoritative. Full CSV
+provenance is exported independently and is not reduced by these view policies.</p>
+<p>The core function <code class="docutils literal notranslate"><span class="pre">biomero.provenance.render_workflow_metadata(tracker,</span>
+<span class="pre">workflow_id)</span></code> renders namespace/value pairs without writing events or OMERO
+objects. Both result scripts use this function. Deploy matching scripts and
+core revisions together.</p>
+<section id="view-policies">
+<h2>View policies<a class="headerlink" href="#view-policies" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">v0</span></code> is the only supported view, using the legacy-compatible layout. It retains
+scientific task parameters, including false and zero values, and the existing
+task/job fields.
+It excludes detached launcher and result-shallower coordination annotations,
+duplicate <code class="docutils literal notranslate"><span class="pre">output_settings</span></code> parameters, and unselected workflow parameters
+in orchestration tasks where workflow selection is known. These records remain
+available in the event store and full CSV.</p>
+<p>Job <code class="docutils literal notranslate"><span class="pre">Command</span></code>, <code class="docutils literal notranslate"><span class="pre">Env_*</span></code> and <code class="docutils literal notranslate"><span class="pre">Result_Message</span></code> fields are retained, as are the
+<code class="docutils literal notranslate"><span class="pre">Name</span></code>, <code class="docutils literal notranslate"><span class="pre">Input_Data</span></code> and <code class="docutils literal notranslate"><span class="pre">Created_On</span></code> fields used by batching.
+Import-result tasks retain the <code class="docutils literal notranslate"><span class="pre">SLURM_Get_Results.py</span></code> namespace used for result
+discovery. Canonical and shallow-Zarr metadata use separate namespaces and are
+not changed by this policy.</p>
+<p>The view adds <code class="docutils literal notranslate"><span class="pre">Metadata_View_Version</span></code> and <code class="docutils literal notranslate"><span class="pre">Aggregate_Version</span></code>. The
+existing <code class="docutils literal notranslate"><span class="pre">Version</span></code> field still describes software, not the metadata schema.
+A workflow and its tasks have independent aggregate versions. Metadata written
+during import can therefore legitimately retain <code class="docutils literal notranslate"><span class="pre">IMPORTING</span></code> even after the
+workflow finishes. Refreshing its view does not advance that snapshot.</p>
+</section>
+<section id="result-storage-provenance">
+<h2>Result storage provenance<a class="headerlink" href="#result-storage-provenance" title="Permalink to this heading"></a></h2>
+<p>The view includes additive storage fields on the import task when the event
+store contains observed provenance for the requested <code class="docutils literal notranslate"><span class="pre">target_key</span></code> (for example
+<code class="docutils literal notranslate"><span class="pre">Plate:123</span></code>). <code class="docutils literal notranslate"><span class="pre">Storage_Format</span></code> distinguishes <code class="docutils literal notranslate"><span class="pre">shallow-zarr</span></code> from
+<code class="docutils literal notranslate"><span class="pre">full-zarr</span></code> and <code class="docutils literal notranslate"><span class="pre">Storage_Shallow</span></code> is an explicit boolean string. These are
+per-result facts, not workflow feature flags.</p>
+<p>The scripts collect importer outcome receipts and the result’s shallow manifest,
+then record a <code class="docutils literal notranslate"><span class="pre">Task.StorageProvenanceRecorded</span></code> event before rendering metadata.
+Core stores plain evidence and renders it without accessing files or connections.
+Recorded execution location, tool version, container reference, remote task/job
+IDs and report checksum are retained. Missing historical tool or
+location evidence is not inferred from current configuration.</p>
+<p>Canonical source biocodes appear inline when small. Larger collections use a
+count and reference to <code class="docutils literal notranslate"><span class="pre">Shallow_Manifest</span></code> with its SHA-256 checksum. Full
+per-target evidence also remains in CSV provenance and the event store.
+<code class="docutils literal notranslate"><span class="pre">render_workflow_metadata</span></code> and <code class="docutils literal notranslate"><span class="pre">plan_metadata_refresh</span></code> accept an optional
+<code class="docutils literal notranslate"><span class="pre">target_key</span></code>; callers must supply it to select a result’s storage facts.</p>
+<p>Existing snapshots without this event remain unchanged by a historical refresh;
+the updater does not invent missing storage history from current disk contents.</p>
+</section>
+<section id="planning-a-view-refresh">
+<h2>Planning a view refresh<a class="headerlink" href="#planning-a-view-refresh" title="Permalink to this heading"></a></h2>
+<p>Core creates data structures; the scripts layer owns connections, backups and
+annotation updates. Core does not import annotation client libraries.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">biomero.provenance</span><span class="w"> </span><span class="kn">import</span> <span class="n">MetadataAnnotation</span><span class="p">,</span> <span class="n">plan_metadata_refresh</span>
+
+<span class="n">existing</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">MetadataAnnotation</span><span class="p">(</span><span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">stored_annotations</span>
+<span class="p">]</span>
+<span class="n">changes</span> <span class="o">=</span> <span class="n">plan_metadata_refresh</span><span class="p">(</span>
+    <span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_uuid</span><span class="p">,</span> <span class="n">existing</span><span class="p">,</span> <span class="n">view_version</span><span class="o">=</span><span class="s2">"v0"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Each change contains a before and after view. An absent after view requests
+removal of the object’s link to that annotation, not deletion of the annotation.
+The caller is responsible for applying these changes safely.</p>
+<p>Legacy snapshots are resolved by an exact, unique <code class="docutils literal notranslate"><span class="pre">Modified_On</span></code> match against
+aggregate history. New annotations use their explicit aggregate version.
+Ambiguous or incomplete snapshots and conflicting identities are refused rather
+than guessed. Unknown namespaces and additional custom keys are preserved.
+Existing CSV references for oversized values are retained.</p>
+<p>The administrative refresh adapter is provided by biomero-scripts in
+<code class="docutils literal notranslate"><span class="pre">admin/SLURM_Init_environment.py</span></code> as an optional metadata refresh operation.
+Its documentation describes dry runs, backups,
+shared-annotation checks and updating existing views in place. No automatic
+migration runs during initialization. New result scripts continue to write
+<code class="docutils literal notranslate"><span class="pre">v0</span></code>.</p>
+</section>
+<section id="versioning-and-compatibility">
+<h2>Versioning and compatibility<a class="headerlink" href="#versioning-and-compatibility" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Metadata_View_Version</span></code> identifies the rendering policy; <code class="docutils literal notranslate"><span class="pre">Aggregate_Version</span></code>
+identifies the exact event-sourced snapshot. Neither changes the existing
+software <code class="docutils literal notranslate"><span class="pre">Version</span></code> field. A refresh reapplies the selected policy to the
+original snapshots, not the latest workflow state. It does not rewrite events,
+rerun analysis or upgrade the contents of existing CSV attachments.</p>
+<p><code class="docutils literal notranslate"><span class="pre">v0</span></code> restores the pre-detached task/job layout while adding revision markers
+and recorded storage provenance. It is not a byte-for-byte reproduction:
+internal launcher/helper annotations and excluded parameters are removed, and
+fields emitted by the renderer may be added to an existing annotation. Unknown
+custom fields and existing reduced CSV references are preserved. Missing
+annotations or unresolved historical snapshots cause the planner to refuse
+the update rather than synthesize a partial history.</p>
+<p>Callers should use a dry run to inspect the proposed field changes before
+applying a refresh. Core returns <code class="docutils literal notranslate"><span class="pre">MetadataChange</span></code> objects; the scripts decide
+how to display differences, persist backups and update annotation links.</p>
+</section>
+<section id="detached-administrative-refresh">
+<h2>Detached administrative refresh<a class="headerlink" href="#detached-administrative-refresh" title="Permalink to this heading"></a></h2>
+<p>When detached execution is enabled, compatible scripts can queue an apply
+request through <code class="docutils literal notranslate"><span class="pre">biomero.maintenance.queue_metadata_refresh</span></code>. The returned
+UUID identifies the maintenance request, not a workflow being refreshed. One
+request may cover many workflow/result pairs. Dry runs remain inline.</p>
+<p><code class="docutils literal notranslate"><span class="pre">MetadataRefresh</span></code> records <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code>, <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> and <code class="docutils literal notranslate"><span class="pre">DONE</span></code>/<code class="docutils literal notranslate"><span class="pre">FAILED</span></code> states
+with compact progress counters. <code class="docutils literal notranslate"><span class="pre">metadata_refresh_statuses(tracker)</span></code> returns
+active and recent terminal requests as plain data; the Check Setup script
+exposes this information to administrators. These requests do not appear as
+analysis workflows in the progress projection.</p>
+<p>After a worker interruption, the supervisor can retry an unfinished sweep.
+This relies on idempotent annotation updates in the scripts, not a core
+checkpoint for every result. Completed and failed requests are not retried
+automatically. For execution policy, see the
+<a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/developer/detached-workflow-supervisor.html#metadata-maintenance">supervisor documentation</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="execution-and-storage.html" class="btn btn-neutral float-left" title="Execution, storage and recovery" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

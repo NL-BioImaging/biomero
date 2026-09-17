@@ -91,3 +91,45 @@ Its documentation describes dry runs, backups,
 shared-annotation checks and updating existing views in place. No automatic
 migration runs during initialization. New result scripts continue to write
 ``v0``.
+
+Versioning and compatibility
+----------------------------
+
+``Metadata_View_Version`` identifies the rendering policy; ``Aggregate_Version``
+identifies the exact event-sourced snapshot. Neither changes the existing
+software ``Version`` field. A refresh reapplies the selected policy to the
+original snapshots, not the latest workflow state. It does not rewrite events,
+rerun analysis or upgrade the contents of existing CSV attachments.
+
+``v0`` restores the pre-detached task/job layout while adding revision markers
+and recorded storage provenance. It is not a byte-for-byte reproduction:
+internal launcher/helper annotations and excluded parameters are removed, and
+fields emitted by the renderer may be added to an existing annotation. Unknown
+custom fields and existing reduced CSV references are preserved. Missing
+annotations or unresolved historical snapshots cause the planner to refuse
+the update rather than synthesize a partial history.
+
+Callers should use a dry run to inspect the proposed field changes before
+applying a refresh. Core returns ``MetadataChange`` objects; the scripts decide
+how to display differences, persist backups and update annotation links.
+
+Detached administrative refresh
+-------------------------------
+
+When detached execution is enabled, compatible scripts can queue an apply
+request through ``biomero.maintenance.queue_metadata_refresh``. The returned
+UUID identifies the maintenance request, not a workflow being refreshed. One
+request may cover many workflow/result pairs. Dry runs remain inline.
+
+``MetadataRefresh`` records ``QUEUED``, ``RUNNING`` and ``DONE``/``FAILED`` states
+with compact progress counters. ``metadata_refresh_statuses(tracker)`` returns
+active and recent terminal requests as plain data; the Check Setup script
+exposes this information to administrators. These requests do not appear as
+analysis workflows in the progress projection.
+
+After a worker interruption, the supervisor can retry an unfinished sweep.
+This relies on idempotent annotation updates in the scripts, not a core
+checkpoint for every result. Completed and failed requests are not retried
+automatically. For execution policy, see the
+`supervisor documentation
+<https://nl-bioimaging.github.io/NL-BIOMERO/master/developer/detached-workflow-supervisor.html#metadata-maintenance>`_.

@@ -53,26 +53,22 @@ These are standard SQLAlchemy models defined in ``biomero.database``. Schema cha
 Rebuilding views (reprojection)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Views are derived data and can be safely rebuilt from the event log:
+Views are derived data. To catch up an existing progress listener, use the
+configured client and invoke the follower, not ``WorkflowTracker`` itself:
 
-1) Truncate view tables (optional):
-   - ``biomero_job_view``, ``biomero_job_progress_view``, ``biomero_workflow_progress_view``, ``biomero_task_execution``
-2) Reprocess events from the start with a System runner:
+.. code-block:: python
 
-::
+    from biomero import SlurmClient, WorkflowTracker
 
-    from eventsourcing.system import System, SingleThreadedRunner
-    from biomero import WorkflowTracker
-    from biomero.views import JobAccounting, JobProgress, WorkflowProgress, WorkflowAnalytics
+    client = SlurmClient.from_config()
+    client.wfProgress.pull_and_process(
+        leader_name=WorkflowTracker.__name__, start=1)
 
-    system = System(pipes=[[WorkflowTracker, JobAccounting],
-                           [WorkflowTracker, JobProgress],
-                           [WorkflowTracker, WorkflowProgress],
-                           [WorkflowTracker, WorkflowAnalytics]])
-    runner = SingleThreadedRunner(system)
-    runner.start()
-    # Optionally call: runner.get(WorkflowTracker).pull_and_process(leader_name=WorkflowTracker.__name__)
-    runner.stop()
+The listener's persisted tracking position determines which notifications have
+already been processed. This is not a forced rebuild. Do not truncate view
+rows alone: retained listener positions can prevent the deleted rows from
+being reconstructed. For a full rebuild, use the reset operation below, which
+also resets listener tracking. Coordinate it with other database users.
 
 Notes:
 - View upserts use ``session.merge(...)`` or primary keys to stay idempotent.
@@ -110,6 +106,35 @@ and use its aggregate versions for historical replay. The processor discovers
 unfinished requests through topic-filtered notifications and retries interrupted
 idempotent sweeps. See NL-BIOMERO's developer supervisor documentation for the
 execution and recovery policy.
+
+Inspecting aggregate history
+----------------------------
+
+Notification IDs are global event-log positions. Aggregate versions belong to
+one workflow, task or maintenance request; they are not interchangeable.
+Workflow and task UUIDs identify separate aggregates.
+
+.. code-block:: python
+
+   from uuid import UUID
+
+   tracker = client.workflowTracker
+   notifications = tracker.notification_log.select(start=1, limit=10)
+   workflow = tracker.repository.get(UUID(workflow_id))
+   previous = tracker.repository.get(UUID(workflow_id), version=8)
+   task = tracker.repository.get(workflow.tasks[0])
+
+Use an existing aggregate version when inspecting a real workflow. Tracking
+must be enabled and the client must point at the intended persistent store.
+Reading an aggregate does not run or resume it. ``TaskCompleted`` records
+``result_message`` without necessarily replacing the task's ``status`` field;
+inspect lifecycle events as well as status strings.
+
+When comparing detached and inline runs, account for the additional launcher
+task. ``CLAIMED`` is a coordination state and is not analysis ``RUNNING``.
+Remote shallowing adds its own helper task and receipts. These records remain
+in history even when excluded from the searchable metadata view. See
+:doc:`execution-and-storage` and :doc:`metadata-views`.
 
 Gotchas
 -------

@@ -45,3 +45,8 @@ For file formats and service boundaries, see
 For the shared implementation, command reference, and container releases, see
 the `BIOMERO.shallower documentation
 <https://nl-bioimaging.github.io/BIOMERO.shallower/>`_.
+
+For core's execution APIs and the distinction between worker restart, helper
+recovery and user-requested reruns, see
+:doc:`developer/execution-and-storage`. Searchable provenance and administrative
+refresh requests are described in :doc:`developer/metadata-views`.

@@ -500,4 +500,15 @@ Use a versioned tag or immutable digest and matching importer/schema/shallower
 versions. Importer enablement, existing shallow capability, and workflow tracking
 are required. Safe failures fall back to full transfer and local import;
 unresolved recovery preserves results and pauses retrieval. These options are
-managed through ini/environment, not the analysis parameter or web settings UI.
+administrator settings, not scientific workflow parameters. A compatible
+OMERO.biomero admin interface exposes them when shallow storage is enabled;
+environment overrides still take precedence over values saved to the ini file.
+
+The default image above targets ``0.1.0``. For the published
+``v0.1.0-beta.1`` helper, explicitly configure
+``remote_shallower_image=cellularimagingcf/biomero-shallower:0.1.0-beta.1`` and
+``remote_shallower_version=0.1.0b1``. The latter is the Python package version
+written into receipts; it must match exactly, including the prerelease suffix.
+
+For recovery behavior and component responsibilities, see
+:doc:`developer/execution-and-storage`.

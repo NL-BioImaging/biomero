@@ -42,3 +42,6 @@ the `remote shallower administration guide
 For file formats and service boundaries, see
 `remote shallower contracts
 <https://nl-bioimaging.github.io/biomero-schema/remote-shallower-contracts/>`_.
+For the shared implementation, command reference, and container releases, see
+the `BIOMERO.shallower documentation
+<https://nl-bioimaging.github.io/BIOMERO.shallower/>`_.

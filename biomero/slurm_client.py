@@ -539,8 +539,8 @@ class SlurmClient(Connection):
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
                  remote_shallow_zarr: bool = True,
-                 remote_shallower_image: str = 'cellularimagingcf/biomero-shallower:0.1.0-beta.1',
-                 remote_shallower_version: str = '0.1.0b1',
+                 remote_shallower_image: str = None,
+                 remote_shallower_version: str = None,
                  remote_shallower_workers: int = 1,
                  remote_shallower_partition: str = None,
                  slurm_conversion_partition: str = None,
@@ -666,9 +666,11 @@ class SlurmClient(Connection):
                 setting; default True when shallow Zarr is enabled. Set False
                 for local shallowing. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
             remote_shallower_image (str, optional): Administrator remote-shallower
-                setting; default 'cellularimagingcf/biomero-shallower:0.1.0-beta.1'. Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
+                image reference; default None (configure in slurm-config.ini).
+                Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
             remote_shallower_version (str, optional): Administrator remote-shallower
-                setting; default '0.1.0b1'. Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
+                expected receipt version; default None (configure with the image).
+                Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
             remote_shallower_workers (int, optional): Administrator remote-shallower
                 setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.
             remote_shallower_partition (str, optional): Administrator remote-shallower
@@ -1243,7 +1245,7 @@ class SlurmClient(Connection):
         self.setup_directories()
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
-        if self.remote_shallow_zarr:
+        if self.remote_shallow_zarr and self.remote_shallower_image:
             from .remote_shallower import image_spec
             converter_specs = [*converter_specs, image_spec(self)]
         return self.setup_container_images(extra_image_specs=converter_specs)
@@ -1701,12 +1703,12 @@ class SlurmClient(Connection):
             value_type=bool)
         remote_shallower_image = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_image",
-            default='cellularimagingcf/biomero-shallower:0.1.0-beta.1', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
-            value_type=str)
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
+            value_type=str, empty_is_none=True)
         remote_shallower_version = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_version",
-            default='0.1.0b1', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
-            value_type=str)
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
+            value_type=str, empty_is_none=True)
         remote_shallower_workers = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_workers",
             default=1, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_WORKERS],

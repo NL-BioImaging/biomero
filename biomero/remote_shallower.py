@@ -21,9 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 def image_spec(client, *, image=None):
-    """Describe the versioned helper image for SlurmClient image acquisition."""
-    image = (image if image is not None else
-             client.remote_shallower_image).removeprefix('docker://')
+    """Describe the configured helper image for SlurmClient image acquisition."""
+    image = image if image is not None else client.remote_shallower_image
+    if not image:
+        raise ValueError('Configure remote_shallower_image in [SLURM] before '
+                         'initializing remote shallowing')
+    image = image.removeprefix('docker://')
     if '@sha256:' in image:
         source, digest = image.split('@sha256:', 1)
         if not re.fullmatch('[0-9a-f]{64}', digest):
@@ -31,8 +34,7 @@ def image_spec(client, *, image=None):
         version = 'sha256:' + digest
     else:
         source, separator, version = image.rpartition(':')
-        if (not separator or '/' in version
-                or version in ('latest', 'main', 'master', '')):
+        if not separator or '/' in version or not version:
             raise ValueError('Result shallower requires an explicit image version')
     return {
         'kind': 'result-shallower', 'name': 'biomero-shallower',
@@ -289,6 +291,9 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                 tracker.complete_task(
                     matches[0].id, json.dumps(batch.to_dict()))
                 return batch
+    if not matches and not client.remote_shallower_version:
+        raise ValueError('Configure remote_shallower_version in [SLURM] to '
+                         'match the installed helper receipt version')
     image = matches[0].params['image'] if matches else client.remote_shallower_image
     spec = image_spec(client, image=image)
     if matches:

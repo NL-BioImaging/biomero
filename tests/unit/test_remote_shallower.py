@@ -32,17 +32,39 @@ def test_shallower_is_cpu_only_and_quotes_paths():
     assert 'normalize-tree' in command
 
 
-def test_unknown_image_version_rejected():
+def test_latest_image_can_be_selected_in_configuration():
     from biomero.remote_shallower import image_spec
     client = SimpleNamespace(remote_shallower_image='registry/helper:latest',
                              slurm_converters_path='/images')
-    with pytest.raises(ValueError, match='version'):
+    spec = image_spec(client)
+    assert spec['source'] == 'registry/helper'
+    assert spec['version'] == 'latest'
+
+
+def test_image_configuration_is_required_explicitly():
+    from biomero.remote_shallower import image_spec
+    client = SlurmClient(config_only=True)
+    assert client.remote_shallower_image is None
+    assert client.remote_shallower_version is None
+    with pytest.raises(ValueError, match='remote_shallower_image'):
         image_spec(client)
+
+
+def test_setup_without_helper_configuration_still_initializes_converters():
+    client = SlurmClient(config_only=True)
+    client.validate = MagicMock(return_value=True)
+    client.setup_directories = MagicMock()
+    client.setup_job_scripts = MagicMock()
+    client.prepare_converters = MagicMock(return_value=[{'kind': 'converter'}])
+    client.setup_container_images = MagicMock(return_value=42)
+    assert client.setup_slurm() == 42
+    client.setup_container_images.assert_called_once_with(
+        extra_image_specs=[{'kind': 'converter'}])
 
 
 def test_shallowing_and_recovery_have_distinct_job_names():
     from biomero.remote_shallower import build_command
-    client = SlurmClient(config_only=True)
+    client = SlurmClient(config_only=True, remote_shallower_image='helper:latest')
     task_id = str(uuid4())
     names = []
     for recovery in (False, True):

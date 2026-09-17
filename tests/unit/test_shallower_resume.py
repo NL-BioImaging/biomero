@@ -187,6 +187,15 @@ def test_missing_image_requires_initialization_without_pulling():
     client.workflowTracker.add_task_to_workflow.assert_not_called()
 
 
+def test_new_task_requires_configured_receipt_version():
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    client.workflowTracker.repository.get(workflow_id).tasks = []
+    client.remote_shallower_version = None
+    with pytest.raises(ValueError, match='remote_shallower_version'):
+        run(client, '/data', workflow_id, canonical)
+    client.workflowTracker.add_task_to_workflow.assert_not_called()
+
+
 def test_image_validation_errors_propagate_unchanged():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []

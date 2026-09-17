@@ -4258,6 +4258,20 @@ def test_remote_shallow_can_opt_out(slurm_client_from_config_factory):
         env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': 'false'}).remote_shallow_zarr is False
 
 
+def test_remote_shallower_release_is_selected_by_config(slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(config_values={
+        'remote_shallower_image': '', 'remote_shallower_version': '',
+    })
+    assert client.remote_shallower_image is None
+    assert client.remote_shallower_version is None
+    client = slurm_client_from_config_factory(config_values={
+        'remote_shallower_image': 'registry/helper:release',
+        'remote_shallower_version': '9.1.0',
+    })
+    assert client.remote_shallower_image == 'registry/helper:release'
+    assert client.remote_shallower_version == '9.1.0'
+
+
 def test_default_partition_parsed_from_config(slurm_client_from_config_factory):
     """slurm_default_partition in [SLURM] is parsed onto the client."""
     client = slurm_client_from_config_factory(

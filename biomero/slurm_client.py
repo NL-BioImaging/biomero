@@ -539,8 +539,8 @@ class SlurmClient(Connection):
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
                  remote_shallow_zarr: bool = True,
-                 remote_shallower_image: str = 'cellularimagingcf/biomero-shallower:0.1.0',
-                 remote_shallower_version: str = '0.1.0',
+                 remote_shallower_image: str = 'cellularimagingcf/biomero-shallower:0.1.0-beta.1',
+                 remote_shallower_version: str = '0.1.0b1',
                  remote_shallower_workers: int = 1,
                  remote_shallower_partition: str = None,
                  slurm_conversion_partition: str = None,
@@ -666,9 +666,9 @@ class SlurmClient(Connection):
                 setting; default True when shallow Zarr is enabled. Set False
                 for local shallowing. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
             remote_shallower_image (str, optional): Administrator remote-shallower
-                setting; default 'cellularimagingcf/biomero-shallower:0.1.0'. Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
+                setting; default 'cellularimagingcf/biomero-shallower:0.1.0-beta.1'. Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
             remote_shallower_version (str, optional): Administrator remote-shallower
-                setting; default '0.1.0'. Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
+                setting; default '0.1.0b1'. Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
             remote_shallower_workers (int, optional): Administrator remote-shallower
                 setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.
             remote_shallower_partition (str, optional): Administrator remote-shallower
@@ -1701,11 +1701,11 @@ class SlurmClient(Connection):
             value_type=bool)
         remote_shallower_image = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_image",
-            default='cellularimagingcf/biomero-shallower:0.1.0', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
+            default='cellularimagingcf/biomero-shallower:0.1.0-beta.1', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
             value_type=str)
         remote_shallower_version = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_version",
-            default='0.1.0', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
+            default='0.1.0b1', env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
             value_type=str)
         remote_shallower_workers = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_workers",

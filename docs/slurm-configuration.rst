@@ -757,10 +757,10 @@ available until those tasks finish. Resource settings remain configurable.
      - ``true`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
    * - ``remote_shallower_image``
-     - ``cellularimagingcf/biomero-shallower:0.1.0``
+     - ``cellularimagingcf/biomero-shallower:0.1.0-beta.1``
      - ``BIOMERO_REMOTE_SHALLOWER_IMAGE``
    * - ``remote_shallower_version``
-     - ``0.1.0``
+     - ``0.1.0b1``
      - ``BIOMERO_REMOTE_SHALLOWER_VERSION``
    * - ``remote_shallower_workers``
      - ``1``
@@ -783,8 +783,7 @@ administrator settings, not scientific workflow parameters. A compatible
 OMERO.biomero admin interface exposes them when shallow storage is enabled;
 environment overrides still take precedence over values saved to the ini file.
 
-The default image above targets ``0.1.0``. For the published
-``v0.1.0-beta.1`` helper, explicitly configure
+The defaults use the published ``v0.1.0-beta.1`` helper:
 ``remote_shallower_image=cellularimagingcf/biomero-shallower:0.1.0-beta.1`` and
 ``remote_shallower_version=0.1.0b1``. The latter is the Python package version
 written into receipts; it must match exactly, including the prerelease suffix.

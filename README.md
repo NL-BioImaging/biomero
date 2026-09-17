@@ -13,6 +13,7 @@ We have released an enhanced **BIOMERO** experience!
 - **BIOMERO.analyzer** (this Python library) - The core analysis engine
 - **BIOMERO.scripts** - OMERO scripts for HPC integration 
 - **BIOMERO.importer** - Automated data import service
+- **[BIOMERO.shallower](https://github.com/NL-BioImaging/BIOMERO.shallower)** - Shared local and remote shallow-Zarr result normalization
 - **OMERO.biomero** - Modern web interface plugin
 
 Full workflow tracking is now supported via a database and dashboard. The [OMERO.biomero](https://github.com/NL-BioImaging/OMERO.biomero) plugin provides an intuitive interface in OMERO.web. Every workflow run is uniquely identifiable, and resulting assets are accessible directly in OMERO.

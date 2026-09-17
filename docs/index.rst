@@ -19,6 +19,7 @@ For publication references and guidance on which BIOMERO paper to cite, see
    :maxdepth: 4
 
    readme_link
+   components
    citing
 
 .. Tutorials

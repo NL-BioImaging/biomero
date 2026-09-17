@@ -215,7 +215,8 @@ def slurm_client(_mock_run,
                  _mock_put, _mock_open,
                  _mock_session):
     logging.info("EngineManager.__dict__: %s", EngineManager.__dict__)
-    return SlurmClient("localhost", 8022, "slurm")
+    # Legacy command tests explicitly exercise the local-shallow opt-out.
+    return SlurmClient("localhost", 8022, "slurm", remote_shallow_zarr=False)
 
 
 def test_list_available_converter_versions(slurm_client):
@@ -2572,6 +2573,13 @@ def test_from_config(mock_ConfigParser,
         sqlalchemy_url="sqlite:///:memory:",
         config_only=config_only,
         slurm_data_bind_path=mv,
+        remote_shallow_zarr=True,
+        remote_shallower_image=mv,
+        remote_shallower_version=mv,
+        remote_shallower_workers=1,
+        remote_shallower_partition=mv,
+        remote_shallower_mem=mv,
+        remote_shallower_time=mv,
         slurm_conversion_partition=mv,
         slurm_default_partition=mv,
         sacct_start_time=None,
@@ -2764,6 +2772,7 @@ def test_setup_slurm(_mock_CachedSession,
                                slurm_script_path=spath,
                                slurm_converters_path=cpath,
                                slurm_script_repo=srepo,
+                               remote_shallow_zarr=False,
                                slurm_model_paths=mpaths,
                                slurm_model_images=mimages,
                                slurm_model_repos=mrepos)
@@ -3394,6 +3403,66 @@ def test_slurm_job_cleanup_passes_explicit_log_file():
         42, logfile="omero-42_*.log")
 
 
+@pytest.mark.parametrize('dedicated,default,expected', [
+    ('helper', 'default', 'helper'), (None, 'default', 'default'),
+    (None, None, 'global')])
+def test_shallower_scheduler_precedence(slurm_client, dedicated, default, expected):
+    from biomero.remote_shallower import build_command
+    slurm_client.remote_shallower_partition = dedicated
+    slurm_client.slurm_default_partition = default
+    slurm_client.slurm_global_job_params = [
+        ' --partition=global', ' --constraint=fast', ' --reservation=reserved',
+        ' --account=project', ' --qos=normal', ' --mem=4G', ' --time=01:00:00',
+        ' --gpus-per-node=1', ' --array=1-9', ' --export=ALL',
+        ' --output=wrong', ' --ntasks=8']
+    for recovery in (False, True):
+        command = build_command(slurm_client, '/out', '/helper.sif', '/manifest',
+                                str(uuid4()), recovery=recovery)
+        assert f'--partition={expected}' in command
+        assert command.count('--partition=') == 1
+        for flag in ('--constraint=fast', '--reservation=reserved',
+                     '--account=project', '--qos=normal', '--mem=4G',
+                     '--time=01:00:00'):
+            assert flag in command
+        assert '--gpus' not in command and '--array=' not in command
+        assert '--ntasks=8' not in command and '--output=wrong' not in command
+        assert '--export=ALL' not in command
+
+
+def test_shallower_resource_overrides(slurm_client):
+    from biomero.remote_shallower import build_command
+    slurm_client.remote_shallower_mem = '8G'
+    slurm_client.remote_shallower_time = '03:00:00'
+    slurm_client.slurm_global_job_params = [' --mem=4G', ' --time=01:00:00',
+                                          ' --mem-per-cpu=1G']
+    command = build_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()))
+    assert '--mem=8G' in command and '--mem=4G' not in command
+    assert '--mem-per-cpu' not in command
+    assert '--time=03:00:00' in command and '--time=01:00:00' not in command
+
+
+def test_shallower_resource_config(slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(
+        config_values={'remote_shallower_mem': '4G',
+                       'remote_shallower_time': '01:00:00'},
+        env_values={'BIOMERO_REMOTE_SHALLOWER_MEM': '8G',
+                    'BIOMERO_REMOTE_SHALLOWER_TIME': '03:00:00'})
+    assert client.remote_shallower_mem == '8G'
+    assert client.remote_shallower_time == '03:00:00'
+
+
+@pytest.mark.parametrize('memory,limit', [('', ''), ('4G', '01:00:00')])
+def test_shallower_resource_ini_and_empty_env(
+        slurm_client_from_config_factory, memory, limit):
+    client = slurm_client_from_config_factory(
+        config_values={'remote_shallower_mem': memory,
+                       'remote_shallower_time': limit},
+        env_values={'BIOMERO_REMOTE_SHALLOWER_MEM': '',
+                    'BIOMERO_REMOTE_SHALLOWER_TIME': ''})
+    assert client.remote_shallower_mem == (memory or None)
+    assert client.remote_shallower_time == (limit or None)
+
+
 def test_slurm_job_wait_for_completion_single_poll():
     """wait_for_completion() returns job_state once a terminal state is reached."""
     from biomero.slurm_client import SlurmJob
@@ -3406,13 +3475,19 @@ def test_slurm_job_wait_for_completion_single_poll():
     mock_client.get_active_job_progress.return_value = "50%"
     mock_client.workflowTracker = MagicMock()
 
-    mock_conn = MagicMock()
+    heartbeat = MagicMock()
 
     with patch('biomero.slurm_client.timesleep') as mock_sleep:
-        state = job.wait_for_completion(mock_client, mock_conn)
+        state = job.wait_for_completion(mock_client, heartbeat=heartbeat)
 
     assert state == "COMPLETED"
-    mock_sleep.sleep.assert_called_once_with(0)
+    mock_sleep.sleep.assert_not_called()
+    heartbeat.assert_called_once()
+    mock_client.get_active_job_progress.assert_called_once_with(7)
+    mock_client.workflowTracker.update_task_status.assert_called_once_with(
+        job.task_id, 'COMPLETED')
+    mock_client.workflowTracker.update_task_progress.assert_called_once_with(
+        job.task_id, '50%')
 
 
 def test_slurm_job_wait_poll_not_ok_sets_failed():
@@ -3429,10 +3504,10 @@ def test_slurm_job_wait_poll_not_ok_sets_failed():
     mock_client.check_job_status.return_value = ({7: "FAILED"}, bad_result)
     mock_client.get_active_job_progress.return_value = None
     mock_client.workflowTracker = MagicMock()
-    mock_conn = MagicMock()
+    heartbeat = MagicMock()
 
     with patch('biomero.slurm_client.timesleep'):
-        state = job.wait_for_completion(mock_client, mock_conn)
+        state = job.wait_for_completion(mock_client, heartbeat=heartbeat)
 
     assert state == "FAILED"
     assert job.error_message == "ssh error"
@@ -4168,6 +4243,33 @@ def test_default_partition_defaults_to_none(slurm_client_from_config_factory):
         config_values={"slurm_default_partition": ""}
     )
     assert client.slurm_default_partition is None
+
+
+def test_remote_shallow_defaults_to_enabled(slurm_client_from_config_factory):
+    assert SlurmClient(config_only=True).remote_shallow_zarr is True
+    assert slurm_client_from_config_factory().remote_shallow_zarr is True
+
+
+def test_remote_shallow_can_opt_out(slurm_client_from_config_factory):
+    assert slurm_client_from_config_factory(
+        config_values={'remote_shallow_zarr': 'false'}).remote_shallow_zarr is False
+    assert slurm_client_from_config_factory(
+        config_values={'remote_shallow_zarr': 'true'},
+        env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': 'false'}).remote_shallow_zarr is False
+
+
+def test_remote_shallower_release_is_selected_by_config(slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(config_values={
+        'remote_shallower_image': '', 'remote_shallower_version': '',
+    })
+    assert client.remote_shallower_image == SlurmClient._DEFAULT_REMOTE_SHALLOWER_IMAGE
+    assert client.remote_shallower_version is None
+    client = slurm_client_from_config_factory(config_values={
+        'remote_shallower_image': 'registry/helper:release',
+        'remote_shallower_version': '9.1.0',
+    })
+    assert client.remote_shallower_image == 'registry/helper:release'
+    assert client.remote_shallower_version == '9.1.0'
 
 
 def test_default_partition_parsed_from_config(slurm_client_from_config_factory):

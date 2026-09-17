@@ -13,6 +13,7 @@ We have released an enhanced **BIOMERO** experience!
 - **BIOMERO.analyzer** (this Python library) - The core analysis engine
 - **BIOMERO.scripts** - OMERO scripts for HPC integration 
 - **BIOMERO.importer** - Automated data import service
+- **[BIOMERO.shallower](https://github.com/NL-BioImaging/BIOMERO.shallower)** - Shared local and remote shallow-Zarr result normalization
 - **OMERO.biomero** - Modern web interface plugin
 
 Full workflow tracking is now supported via a database and dashboard. The [OMERO.biomero](https://github.com/NL-BioImaging/OMERO.biomero) plugin provides an intuitive interface in OMERO.web. Every workflow run is uniquely identifiable, and resulting assets are accessible directly in OMERO.
@@ -130,6 +131,29 @@ python3 -m pip install biomero[test,full]
 
 **Note**: The `[full]` dependencies require complex packages like `zeroc-ice` and `omero-py` that need system libraries. For OMERO integration, you may need to install these separately or use conda.
 
+
+### Optional remote shallowing
+
+Installing the Python package does not install the helper image on Slurm.
+For a deployment using shallow Zarr:
+
+1. Enable the importer integration and `BIOMERO_SHALLOW_ZARR=true`. Remote
+   shallowing is preferred when enabled; `BIOMERO_REMOTE_SHALLOW_ZARR=false`
+   selects local importer shallowing instead.
+2. Prefer a pinned `remote_shallower_image` in the `[SLURM]` section of
+   `slurm-config.ini`; the fallback is `cellularimagingcf/biomero-shallower:latest`.
+   Core reads the installed image's tool version unless `remote_shallower_version`
+   is explicitly set. See the [sample configuration](resources/slurm-config.ini)
+   for the maintained release selection.
+3. Set the importer's `BIOMERO_REMOTE_SHALLOWER_IMAGE` and
+   `BIOMERO_REMOTE_SHALLOWER_VERSION` to the same values for receipt validation.
+   On the worker, these environment variables can also override the ini settings.
+4. Run **Slurm Init** to acquire the configured image, then **Slurm Check Setup**
+   to verify it before submitting an analysis. Workflow execution does not
+   download a missing image.
+
+The configured or default image must be acquired before use. For deployment settings and
+resource configuration, see the [remote shallower installation guide](https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement).
 
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !

@@ -15,6 +15,26 @@ Backward compatibility is a hard requirement. Every new option must default to
 the current behavior so existing deployments are byte-for-byte unaffected unless
 they opt in.
 
+## Core / OMERO scripts boundary
+
+BIOMERO core owns event-store aggregates, historical replay, and versioned
+metadata views or update plans expressed as plain data structures. It does not
+own OMERO connections or annotation persistence.
+
+- Never accept or use an OMERO connection, gateway, session, or model wrapper in
+  core APIs. Optional imports and duck-typed connection adapters do not bypass
+  this boundary.
+- Do not introduce dependencies, imports, copied implementation code, or
+  client-library-specific references to omeropy or ezomero in core code.
+  Describe compatible data structures by their contract, not by a client library.
+- Keep OMERO reads/writes, annotation creation/update/unlinking, permissions,
+  session keepalives and persistence backups in biomero-scripts. Scripts request
+  a view from core and apply it to OMERO; they must not pass the connection back
+  into core to perform that work.
+- Test rendering and event-store view logic in core; test OMERO adapters in the
+  scripts test harness. Preserve the repositories' separate dependency and
+  licensing boundaries.
+
 ## Pull-request branch workflow
 
 On an existing non-default branch intended for a pull request, make focused,
@@ -64,6 +84,15 @@ Read only the relevant reference before acting:
 
 ## Core Rules
 
+- Keep release pins in dependency declarations and `slurm-config.ini`, including
+  workflow, converter and shallower image/tool versions. Do not hardcode those
+  releases in Python defaults or repeat them in documentation examples, tables
+  or prose. Document the setting and refer to the maintained ini for the chosen
+  release, so component releases do not require code or documentation edits.
+  This concerns software release pins, not meaningful contract/view identifiers
+  such as the metadata view `v0` or explicitly supported data-format versions.
+  A generic `latest` image fallback is allowed; recommend a deployment ini pin
+  and record the actual installed tool version for provenance and recovery.
 - New config follows the precedence pattern: code default -> `slurm-config.ini`
   -> environment variable, resolved by `_get_config_value()`. Never hand-roll
   `os.getenv` precedence in `from_config()`.

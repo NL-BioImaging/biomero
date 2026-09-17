@@ -155,7 +155,11 @@ export SINGULARITY_CACHEDIR="$task_cache"
 mkdir -p -- "$APPTAINER_TMPDIR" "$APPTAINER_CACHEDIR"
 
 if [ "$source_type" = "registry" ]; then
-    registry_ref="docker://${source}:${image_version}"
+    if [[ "$image_version" == sha256:* ]]; then
+        registry_ref="docker://${source}@${image_version}"
+    else
+        registry_ref="docker://${source}:${image_version}"
+    fi
     # Native registry resolution is the portable preflight. The runtime reads
     # the OCI manifest before downloading, extracting, and converting layers.
     run_with_retry build "$container_runtime" build --force --disable-cache \

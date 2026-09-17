@@ -2,6 +2,10 @@
 
 ## Where settings are documented
 
+Describe release-related settings without copying release numbers into the
+docs. Dependency declarations and `slurm-config.ini` own the actual pins;
+link or refer to those sources for current workflow/converter/shallower versions.
+
 Whenever you add, migrate, or change the meaning/scope of an ini setting, update
 **every** user-facing surface below in the same change so they never drift. Do
 not stop after editing the code — these are part of "done":

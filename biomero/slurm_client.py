@@ -78,7 +78,8 @@ class SlurmJob:
             logger.warning(f"Error with job: {slurmJob.get_error()}")
         else:
             try:
-                slurmJob.wait_for_completion(slurmClient, conn)
+                # heartbeat is a no-argument callback supplied by the caller.
+                slurmJob.wait_for_completion(slurmClient, heartbeat=heartbeat)
                 if not slurmJob.completed():
                     raise Exception(f"Job is not completed: {slurmJob}")
                 else:
@@ -126,44 +127,82 @@ class SlurmJob:
         self.error_message = self.submit_result.stderr if hasattr(
             self.submit_result, 'stderr') else ''
 
-    def wait_for_completion(self, slurmClient, omeroConn) -> str:
+    @classmethod
+    def from_job_id(cls, job_id, wf_id=None, task_id=None, **kwargs):
+        """Monitor an already submitted job without submitting it again.
+
+        The successful synthetic Result denotes adoption, not job completion.
+        Submission reconciliation remains the caller's responsibility.
+        """
+        return cls(Result(connection=None, exited=0), int(job_id),
+                   wf_id, task_id, **kwargs)
+
+    @staticmethod
+    def is_terminal(state):
+        """Accept sacct suffixes and cancellation details as well as states."""
+        parts = (state or '').split()
+        name = parts[0].rstrip('+') if parts else ''
+        return name in {
+            'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
+            'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED',
+        }
+
+    def wait_for_completion(self, slurmClient, *, heartbeat=None,
+                            track_progress=True, update_task=True,
+                            strict_status=False) -> str:
         """
         Wait for the Slurm job to reach completion, cancellation, failure, or timeout.
 
         Args:
             slurmClient: The Slurm client.
-            omeroConn: The OMERO connection.
+            heartbeat: Optional no-argument callback, invoked before each poll.
+                Return values are ignored; raise to abort monitoring. Exceptions
+                propagate unchanged without marking the Slurm job failed.
+            track_progress: Read analysis progress from job logs (default True).
+            update_task: Publish task status/progress (default True). Helpers
+                whose success also requires report validation can disable this.
+            strict_status: Raise on unavailable status instead of recording a
+                failure. This lets resumable callers preserve an existing job.
 
         Returns:
             str: The final state of the Slurm job.
         """
-        while self.job_state not in ("FAILED",
-                                     "COMPLETED",
-                                     "CANCELLED",
-                                     "TIMEOUT",
-                                     "FAILED+",
-                                     "COMPLETED+",
-                                     "CANCELLED+",
-                                     "TIMEOUT+"):
+        if heartbeat is not None and not callable(heartbeat):
+            raise TypeError('heartbeat must be callable')
+        while not self.is_terminal(self.job_state):
+            if heartbeat is not None:
+                heartbeat()
             job_status_dict, poll_result = slurmClient.check_job_status(
                 [self.job_id])
-            self.progress = slurmClient.get_active_job_progress(self.job_id)
-            if not poll_result.ok:
-                logger.warning(
-                    f"Error checking job status:{poll_result.stderr}")
+            state = job_status_dict.get(self.job_id, 'UNKNOWN')
+            if strict_status and (
+                    poll_result is None or not poll_result.ok
+                    or state == 'UNKNOWN'):
+                raise RuntimeError(
+                    f'Slurm job {self.job_id} state unavailable; '
+                    'retry monitoring to adopt the existing job')
+            if poll_result is None or not poll_result.ok:
                 self.job_state = "FAILED"
-                self.error_message = poll_result.stderr
-            self.job_state = job_status_dict[self.job_id]
-            # wait for 10 seconds before checking again
-            omeroConn.keepAlive()  # keep the OMERO connection alive
-            slurmClient.workflowTracker.update_task_status(self.task_id,
-                                                           self.job_state)
-            slurmClient.workflowTracker.update_task_progress(
-                self.task_id, self.progress)
-            timesleep.sleep(self.slurm_polling_interval)
+                self.error_message = getattr(poll_result, 'stderr', '')
+                logger.warning('Error checking job status: %s', self.error_message)
+            else:
+                self.job_state = state
+            if track_progress:
+                self.progress = slurmClient.get_active_job_progress(self.job_id)
+            if update_task:
+                slurmClient.workflowTracker.update_task_status(
+                    self.task_id, self.job_state)
+                if track_progress:
+                    slurmClient.workflowTracker.update_task_progress(
+                        self.task_id, self.progress)
+            if not self.is_terminal(self.job_state):
+                timesleep.sleep(self.slurm_polling_interval)
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
-        logger.info(
-            f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
+        if self.log_file:
+            logger.info('Slurm output: %s', self.log_file)
+        elif track_progress:
+            logger.info(
+                f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
         return self.job_state
 
     def cleanup(self, slurmClient) -> Result:
@@ -278,6 +317,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_DATA_PATH = "my-scratch/data"
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
+    _DEFAULT_REMOTE_SHALLOWER_IMAGE = "cellularimagingcf/biomero-shallower:latest"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
@@ -499,6 +539,11 @@ class SlurmClient(Connection):
                  sqlalchemy_url: str = None,
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
+                 remote_shallow_zarr: bool = True,
+                 remote_shallower_image: str = _DEFAULT_REMOTE_SHALLOWER_IMAGE,
+                 remote_shallower_version: str = None,
+                 remote_shallower_workers: int = 1,
+                 remote_shallower_partition: str = None,
                  slurm_conversion_partition: str = None,
                  slurm_default_partition: str = None,
                  sacct_start_time: str = None,
@@ -519,7 +564,9 @@ class SlurmClient(Connection):
                  apptainer_cachedir: str = None,
                  slurm_zip_cmd: str = None,
                  analytics_rebuild_start_time: str = None,
-                 analytics_rebuild_days_ago: int = None):
+                 analytics_rebuild_days_ago: int = None,
+                 remote_shallower_mem: str = None,
+                 remote_shallower_time: str = None):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -616,6 +663,27 @@ class SlurmClient(Connection):
                 to the container. If your HPC administrator tells you to set 
                 APPTAINER_BINDPATH, configure this parameter. 
                 Defaults to None (no explicit binding).
+            remote_shallow_zarr (bool, optional): Administrator remote-shallower
+                setting; default True when shallow Zarr is enabled. Set False
+                for local shallowing. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
+            remote_shallower_image (str, optional): Administrator remote-shallower
+                image reference; defaults to our helper's latest tag. Pin a
+                release in slurm-config.ini for reproducible deployment.
+                Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
+            remote_shallower_version (str, optional): Administrator remote-shallower
+                expected receipt version; default None (read the installed
+                image's OCI version label before recording a new task).
+                Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
+            remote_shallower_workers (int, optional): Administrator remote-shallower
+                setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.
+            remote_shallower_partition (str, optional): Administrator remote-shallower
+                partition; otherwise slurm_default_partition, then global
+                sbatch_partition, then scheduler default.
+                Environment: BIOMERO_REMOTE_SHALLOWER_PARTITION.
+            remote_shallower_mem (str, optional): Memory override; default None
+                inherits global sbatch memory. Environment: BIOMERO_REMOTE_SHALLOWER_MEM.
+            remote_shallower_time (str, optional): Time limit override; default
+                None inherits global sbatch_time. Environment: BIOMERO_REMOTE_SHALLOWER_TIME.
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
@@ -731,6 +799,13 @@ class SlurmClient(Connection):
         self.slurm_model_jobs_params = slurm_model_jobs_params
         self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
+        self.remote_shallow_zarr = remote_shallow_zarr
+        self.remote_shallower_image = remote_shallower_image
+        self.remote_shallower_version = remote_shallower_version
+        self.remote_shallower_workers = remote_shallower_workers
+        self.remote_shallower_partition = remote_shallower_partition
+        self.remote_shallower_mem = remote_shallower_mem
+        self.remote_shallower_time = remote_shallower_time
         self.slurm_conversion_partition = slurm_conversion_partition
         self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
@@ -795,6 +870,45 @@ class SlurmClient(Connection):
         if not env_parts:
             return ""
         return " ".join(env_parts) + " "
+
+    def get_job_params(self, overrides=None, *, excluded=()):
+        """Merge job-specific resources, default partition and global sbatch flags.
+
+        Explicit nonempty overrides win. Callers reserve flags owned by their
+        command through ``excluded``. Values retain the existing administrator
+        supplied shell syntax used by workflow/conversion submissions.
+        """
+        overrides = dict(overrides or {})
+        if not overrides.get('partition'):
+            overrides['partition'] = self.slurm_default_partition
+        params = [f'--{flag}={value}' for flag, value in overrides.items()
+                  if value is not None and value != '']
+        present = {p.split('=', 1)[0] for p in params}
+        for raw in self.slurm_global_job_params:
+            param = raw.strip()
+            flag = param.split('=', 1)[0]
+            if flag not in present and flag.removeprefix('--') not in excluded:
+                params.append(param)
+                present.add(flag)
+        return params
+
+    def get_shallower_job_params(self):
+        """Single-process CPU helper resources, also used for recovery jobs."""
+        excluded = {'array', 'output', 'error', 'job-name', 'export', 'wrap',
+                    'parsable', 'wait', 'quiet', 'ntasks', 'nodes', 'overcommit',
+                    'gres', 'gres-flags', 'cpus-per-gpu', 'mem-per-gpu'}
+        for raw in self.slurm_global_job_params:
+            flag = raw.strip().split('=', 1)[0].removeprefix('--')
+            if flag.startswith(('gpus', 'gpu-', 'ntasks-')):
+                excluded.add(flag)
+        if self.remote_shallower_mem:
+            excluded.add('mem-per-cpu')
+        return self.get_job_params({
+            'cpus-per-task': self.remote_shallower_workers,
+            'partition': self.remote_shallower_partition,
+            'mem': self.remote_shallower_mem,
+            'time': self.remote_shallower_time,
+        }, excluded=excluded)
 
     def _build_image_pull_sbatch_command(
             self,
@@ -1134,6 +1248,9 @@ class SlurmClient(Connection):
         self.setup_directories()
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
+        if self.remote_shallow_zarr and self.remote_shallower_image:
+            from .remote_shallower import image_spec
+            converter_specs = [*converter_specs, image_spec(self)]
         return self.setup_container_images(extra_image_specs=converter_specs)
 
     @staticmethod
@@ -1352,6 +1469,23 @@ class SlurmClient(Connection):
                     result_dict[key] = [version]
         return result_dict
 
+    def shallow_results_on_slurm(self, data_path, workflow_id, canonical_inputs,
+                                   *, heartbeat=None):
+        """Run/adopt optional CPU shallowing before result archiving.
+
+        ``heartbeat`` is a caller-owned no-argument callback invoked during
+        job waits.
+        """
+        from .remote_shallower import run
+        if heartbeat is not None and not callable(heartbeat):
+            raise TypeError('heartbeat must be callable')
+        return run(self, data_path, workflow_id, canonical_inputs, heartbeat)
+
+    def get_remote_shallower_receipts(self, workflow_id, canonical_inputs):
+        """Read trusted completed receipts from event-sourced helper tasks."""
+        from .remote_shallower import completed_receipts
+        return completed_receipts(self, workflow_id, canonical_inputs)
+
     def prepare_converters(self) -> List[Dict[str, str]]:
         """Stage converter runtime files and return their image specifications."""
         convert_cmds = []
@@ -1566,6 +1700,35 @@ class SlurmClient(Connection):
             default=None,
             empty_is_none=True,
         )
+        remote_shallow_zarr = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallow_zarr",
+            default=True, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOW_ZARR],
+            value_type=bool)
+        remote_shallower_image = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_image",
+            default=cls._DEFAULT_REMOTE_SHALLOWER_IMAGE,
+            env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE], value_type=str,
+            empty_is_none=True)
+        remote_shallower_version = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_version",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
+            value_type=str, empty_is_none=True)
+        remote_shallower_workers = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_workers",
+            default=1, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_WORKERS],
+            value_type=int)
+        remote_shallower_partition = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_partition",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_PARTITION],
+            value_type=str)
+        remote_shallower_mem = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_mem",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_MEM],
+            value_type=str, empty_is_none=True)
+        remote_shallower_time = cls._get_config_value(
+            configs, section="SLURM", option="remote_shallower_time",
+            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_TIME],
+            value_type=str, empty_is_none=True)
         slurm_conversion_partition = cls._get_config_value(
             configs,
             section="SLURM",
@@ -1876,6 +2039,13 @@ class SlurmClient(Connection):
                    sqlalchemy_url=sqlalchemy_url,
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
+                   remote_shallow_zarr=remote_shallow_zarr,
+                   remote_shallower_image=remote_shallower_image,
+                   remote_shallower_version=remote_shallower_version,
+                   remote_shallower_workers=remote_shallower_workers,
+                   remote_shallower_partition=remote_shallower_partition,
+                   remote_shallower_mem=remote_shallower_mem,
+                   remote_shallower_time=remote_shallower_time,
                    slurm_conversion_partition=slurm_conversion_partition,
                    slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,
@@ -3439,16 +3609,9 @@ class SlurmClient(Connection):
         # slurm_default_partition fallback) and any global sbatch params
         # (e.g. --reservation). The conversion-specific partition wins over the
         # generic default, and an explicit partition flag wins over a global one.
-        conversion_params = []
-        partition = (
-            self.slurm_conversion_partition or self.slurm_default_partition)
-        if partition:
-            conversion_params.append(f" --partition={partition}")
-        for global_param in self.slurm_global_job_params:
-            flag_prefix = global_param.split("=")[0] + "="
-            if not any(p.startswith(flag_prefix) for p in conversion_params):
-                conversion_params.append(global_param)
-        conversion_param = "".join(conversion_params)
+        conversion_params = self.get_job_params({
+            'partition': self.slurm_conversion_partition})
+        conversion_param = ''.join(' ' + param for param in conversion_params)
         conversion_cmd = (
             f"sbatch{conversion_param} --job-name=conversion "
             "--output=omero-%A_%a.log "
@@ -3599,14 +3762,16 @@ class SlurmClient(Connection):
             str: The command to create the zip file.
         """
         if self._uses_infozip():
+            exclusions = " -x '*.biomero-lock'" if self.remote_shallow_zarr else ""
             return (
                 f"cd \"{data_location}/data/out\" && "
                 f"{self.slurm_zip_cmd} -r "
-                f"\"{data_location}/{filename}.zip\" ."
+                f"\"{data_location}/{filename}.zip\" .{exclusions}"
             )
+        exclusions = " '-xr!*.biomero-lock'" if self.remote_shallow_zarr else ""
         return (
             f"cd \"{data_location}/data/out\" && "
-            f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip ."
+            f"{self.slurm_zip_cmd} a -y \"{data_location}/{filename}.zip\" -tzip .{exclusions}"
         )
 
     def _uses_infozip(self) -> bool:

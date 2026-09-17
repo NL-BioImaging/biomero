@@ -701,3 +701,104 @@ Further Reading
 * `SLURM Documentation <https://slurm.schedmd.com/documentation.html>`_
 * `Apptainer Documentation <https://apptainer.org/docs/>`_
 * `Singularity User Guide <https://docs.sylabs.io/guides/latest/user-guide/>`_
+
+
+Optional result shallower
+--------------------------
+
+The administrator-only CPU helper runs before result ZIP creation. All options
+are in ``[SLURM]``; environment values override ini values. Shallow Zarr remains
+opt-in; when enabled, remote shallowing is the default. Set
+``remote_shallow_zarr=false`` or ``BIOMERO_REMOTE_SHALLOW_ZARR=false`` to use
+local importer shallowing instead, for example to avoid extra Slurm costs.
+The helper requests no GPU; workers
+set CPUs per task. Shallowing and recovery share conversion's resource
+merging: the helper partition overrides ``slurm_default_partition``, which
+overrides global ``sbatch_partition``. Otherwise Slurm chooses its default.
+Global ``sbatch_*`` options (including account, reservation, QoS and constraint)
+are inherited, except GPU resources, multi-task/node allocation and flags owned
+by the helper (array, command, export and log paths). Optional helper memory and
+time limits override their global counterparts; otherwise global values apply.
+Image pulls use the normal image-pull resource configuration.
+
+The import script owns session keepalive and supplies a heartbeat callback to
+the shared ``SlurmJob`` monitor for shallowing and recovery.
+Callback failures propagate unchanged.
+This applies to inline and detached workflows alike.
+An existing job ID is adopted without resubmission;
+unavailable status pauses retrieval rather than triggering recovery. The helper
+task is completed only after its output report has been validated.
+
+Only ``SLURM_Init_environment`` acquires the shallower image. Verify setup with
+``SLURM_check_setup`` before running workflows. Runtime shallowing validates the
+installed image and raises a setup error if it is missing or invalid; it never
+downloads an image or silently falls back because setup is incomplete.
+
+Shallowing and recovery have distinct submission identities. Recorded job
+IDs remain authoritative when resuming older tasks; an unresolved pre-upgrade
+recovery intent may require administrator reconciliation, rather than automatic
+resubmission.
+
+Canonical input manifests are published atomically and verified on resume,
+never overwritten. Missing manifests after submission or changed inputs stop
+retrieval. New tasks record an input fingerprint and the helper SIF path;
+existing tasks retain their recorded image and tool version for recovery and
+receipt validation even when deployment defaults change. Keep the original SIF
+available until those tasks finish. Resource settings remain configurable.
+
+.. list-table:: Result shallower configuration
+   :header-rows: 1
+   :widths: 28 32 40
+
+   * - Ini option
+     - Default
+     - Environment variable
+   * - ``remote_shallow_zarr``
+     - ``true`` (shallow Zarr must be enabled separately)
+     - ``BIOMERO_REMOTE_SHALLOW_ZARR``
+   * - ``remote_shallower_image``
+     - ``cellularimagingcf/biomero-shallower:latest``; prefer an ini pin
+     - ``BIOMERO_REMOTE_SHALLOWER_IMAGE``
+   * - ``remote_shallower_version``
+     - Unset; read the installed image's OCI version label
+     - ``BIOMERO_REMOTE_SHALLOWER_VERSION``
+   * - ``remote_shallower_workers``
+     - ``1``
+     - ``BIOMERO_REMOTE_SHALLOWER_WORKERS``
+   * - ``remote_shallower_partition``
+     - Unset (inherit generic partition)
+     - ``BIOMERO_REMOTE_SHALLOWER_PARTITION``
+   * - ``remote_shallower_mem``
+     - Unset (inherit global memory)
+     - ``BIOMERO_REMOTE_SHALLOWER_MEM``
+   * - ``remote_shallower_time``
+     - Unset (inherit global time limit)
+     - ``BIOMERO_REMOTE_SHALLOWER_TIME``
+
+Prefer a versioned tag or immutable digest and matching importer/schema/shallower
+versions. Importer enablement, existing shallow capability, and workflow tracking
+are required. Safe failures fall back to full transfer and local import;
+unresolved recovery preserves results and pauses retrieval. These options are
+administrator settings, not scientific workflow parameters. A compatible
+OMERO.biomero admin interface exposes them when shallow storage is enabled;
+environment overrides still take precedence over values saved to the ini file.
+
+Core falls back to our helper's ``:latest`` tag. Prefer an image pin in
+``[SLURM]``; refer to ``resources/slurm-config.ini`` for the maintained
+release selection. When ``remote_shallower_version`` is unset, core reads the
+installed SIF's OCI version label and records it before submitting a new task.
+An explicit value overrides discovery and must match the Python package
+version written into receipts, including any normalized prerelease suffix.
+Existing tasks retain their recorded version for recovery.
+
+An explicit ``:latest`` image tag is accepted, as with configured converters,
+but is not a reproducible release pin. Initialization reuses an already valid
+SIF; it does not refresh that file merely because the registry tag moved.
+Keep any explicit expected tool version consistent with the installed image.
+Initialization acquires the configured or default image. Missing version
+labels require an explicit tool-version setting; receipt validation is not
+disabled. Importer trust configuration must still match the selected image and
+actual tool version.
+
+For recovery behavior and component responsibilities, see
+:doc:`developer/execution-and-storage`.

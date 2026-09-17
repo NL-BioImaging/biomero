@@ -284,6 +284,12 @@ class Task(Aggregate):
         """
         pass
 
+    @event('StorageProvenanceRecorded')
+    def record_storage_provenance(self, target_key: str, evidence: dict):
+        # Old aggregate snapshots need no migration until this event is applied.
+        self.storage_provenance = dict(getattr(self, 'storage_provenance', {}))
+        self.storage_provenance[target_key] = deepcopy(evidence)
+
     @event(TaskStarted)
     def start_task(self):
         # logger.debug(f"Starting task: id={self.id}")
@@ -599,6 +605,16 @@ class WorkflowTracker(Application):
 
         task: Task = self.repository.get(task_id)
         task.add_job_id(slurm_job_id)
+        self.save(task)
+        EngineManager.safe_commit()
+
+    @retry_on_database_conflict(max_retries=3)
+    def record_storage_provenance(self, task_id, target_key, evidence):
+        """Persist observed storage provenance for an opaque result target."""
+        task = self.repository.get(task_id)
+        if getattr(task, 'storage_provenance', {}).get(target_key) == evidence:
+            return
+        task.record_storage_provenance(str(target_key), deepcopy(evidence))
         self.save(task)
         EngineManager.safe_commit()
 

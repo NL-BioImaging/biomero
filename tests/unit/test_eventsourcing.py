@@ -25,6 +25,35 @@ from eventsourcing.system import System, SingleThreadedRunner
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
+
+def test_metadata_maintenance_does_not_create_analysis_projection(workflow_tracker_and_workflow_progress):
+    from biomero.maintenance import queue_metadata_refresh, pending_metadata_refreshes
+    tracker, progress = workflow_tracker_and_workflow_progress
+    request_id = queue_metadata_refresh(tracker, 1, 1, {'workers': 4})
+    request = tracker.repository.get(request_id)
+    request.started()
+    request.progressed({'processed': 25, 'counts': {'updated': 25}})
+    request.finished({'counts': {'failed': 0}})
+    tracker.save(request)
+    assert pending_metadata_refreshes(tracker)[1] == set()
+    with EngineManager.get_session() as session:
+        assert session.query(WorkflowProgressView).count() == 0
+
+
+def test_storage_provenance_records_replayable_target_snapshot(workflow_tracker):
+    tracker = workflow_tracker
+    wid = tracker.initiate_workflow('run', 'test', 1, 1)
+    tid = tracker.add_task_to_workflow(wid, 'SLURM_Import_Results.py', '1', {}, {})
+    before = tracker.repository.get(tid).version
+    evidence = {'storage': 'shallow-zarr', 'location': 'importer'}
+    tracker.record_storage_provenance(tid, 'Plate:10', evidence)
+    evidence['storage'] = 'full-zarr'
+    task = tracker.repository.get(tid)
+    assert task.storage_provenance['Plate:10']['storage'] == 'shallow-zarr'
+    assert not getattr(tracker.repository.get(tid, version=before), 'storage_provenance', {})
+    tracker.record_storage_provenance(tid, 'Plate:10', task.storage_provenance['Plate:10'])
+    assert tracker.repository.get(tid).version == task.version
+
 # Fixture for setting up the environment variables and session
 
 
@@ -1029,6 +1058,21 @@ def test_workflow_progress_reconstructs_main_task_after_restart(
             workflow_id=workflow_id).one()
         assert workflow_view.main_task_name == "simple-zarr-plate-processor"
 
+def test_remote_shallower_does_not_change_analysis_progress(
+        workflow_tracker_and_workflow_progress):
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow('analysis', '', user=1, group=2)
+    main = tracker.add_task_to_workflow(workflow_id, 'analysis', 'v1', {}, {})
+    tracker.start_task(main)
+    tracker.update_task_progress(main, '70%')
+    before = dict(progress.workflows[workflow_id])
+    helper = tracker.add_task_to_workflow(
+        workflow_id, '_SLURM_Remote_Shallower', '0.1.0', {}, {})
+    tracker.start_task(helper)
+    tracker.update_task_status(helper, 'RUNNING')
+    tracker.update_task_progress(helper, '5%')
+    tracker.complete_task(helper, '{}')
+    assert progress.workflows[workflow_id] == before
 
 def test_workflow_progress_task_status_updated(workflow_tracker_and_workflow_progress):
     # GIVEN a WorkflowTracker event system and workflow progress listener

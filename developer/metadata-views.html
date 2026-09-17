@@ -74,6 +74,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../scripts.html">OMERO workflow scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
 <ul>
@@ -93,6 +94,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#result-storage-provenance">Result storage provenance</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#planning-a-view-refresh">Planning a view refresh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#versioning-and-compatibility">Versioning and compatibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scripts-persistence-adapter">Scripts persistence adapter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#detached-administrative-refresh">Detached administrative refresh</a></li>
 </ul>
 </li>
@@ -196,8 +198,9 @@ than guessed. Unknown namespaces and additional custom keys are preserved.
 Existing CSV references for oversized values are retained.</p>
 <p>The administrative refresh adapter is provided by biomero-scripts in
 <code class="docutils literal notranslate"><span class="pre">admin/SLURM_Init_environment.py</span></code> as an optional metadata refresh operation.
-Its documentation describes dry runs, backups,
-shared-annotation checks and updating existing views in place. No automatic
+The <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/metadata-refresh.html">administrator guide</a>
+describes dry runs, backups, shared-annotation checks and updating existing views
+in place. No automatic
 migration runs during initialization. New result scripts continue to write
 <code class="docutils literal notranslate"><span class="pre">v0</span></code>.</p>
 </section>
@@ -218,6 +221,47 @@ the update rather than synthesize a partial history.</p>
 <p>Callers should use a dry run to inspect the proposed field changes before
 applying a refresh. Core returns <code class="docutils literal notranslate"><span class="pre">MetadataChange</span></code> objects; the scripts decide
 how to display differences, persist backups and update annotation links.</p>
+</section>
+<section id="scripts-persistence-adapter">
+<h2>Scripts persistence adapter<a class="headerlink" href="#scripts-persistence-adapter" title="Permalink to this heading"></a></h2>
+<p>This API belongs to the separate <code class="docutils literal notranslate"><span class="pre">biomero-scripts</span></code> repository, not core.
+Run it in the OMERO script runtime with the scripts’ <code class="docutils literal notranslate"><span class="pre">admin</span></code> directory on
+the Python import path:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">SLURM_Init_environment</span><span class="w"> </span><span class="kn">import</span> <span class="n">refresh_workflow_metadata</span>
+
+<span class="c1"># conn is the script's administrator gateway; tracker is WorkflowTracker.</span>
+<span class="n">plan</span> <span class="o">=</span> <span class="n">refresh_workflow_metadata</span><span class="p">(</span>
+    <span class="n">conn</span><span class="p">,</span> <span class="n">tracker</span><span class="p">,</span> <span class="s2">"Plate"</span><span class="p">,</span> <span class="n">plate_id</span><span class="p">,</span> <span class="n">workflow_uuid</span><span class="p">,</span> <span class="n">view_version</span><span class="o">=</span><span class="s2">"v0"</span><span class="p">)</span>
+<span class="c1"># Inspect the plan before applying it.</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">refresh_workflow_metadata</span><span class="p">(</span>
+    <span class="n">conn</span><span class="p">,</span> <span class="n">tracker</span><span class="p">,</span> <span class="s2">"Plate"</span><span class="p">,</span> <span class="n">plate_id</span><span class="p">,</span> <span class="n">workflow_uuid</span><span class="p">,</span>
+    <span class="n">view_version</span><span class="o">=</span><span class="s2">"v0"</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">backup_path</span><span class="o">=</span><span class="s2">"/data/biomero-metadata-backups/plate-before-refresh.json"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The adapter reads existing annotations and asks core to plan plain-data changes.
+OMERO connections never enter the core API. The adapter checks administrative
+access, preflights the target against intervening changes, and applies the plan.
+Retained annotations keep their IDs, namespaces and creation events. Obsolete
+internal-task annotations are unlinked from the selected object, not deleted.
+Unknown namespaces and custom keys, repeated legacy <code class="docutils literal notranslate"><span class="pre">Input_Data</span></code> pairs and
+existing CSV references are preserved. Reapplying a view is idempotent.</p>
+<p>Bulk execution groups each object’s workflow views into the same worker lane.
+Each lane owns its gateway and event-store reader, joins the administrative
+execution session with keepalive, and detaches without terminating the parent
+session. Its database sessions and connections are released when the lane ends.
+Missing history and refused plans are reported as skips. Write failures are
+reported separately and may leave partial updates because multiple OMERO writes
+do not form one transaction.</p>
+<p>Optional backup snapshots contain original annotation IDs, values and links.
+There is no automated restore API. Manual recovery can restore retained values
+and relink original annotations after checking current state and permissions.
+Result import scripts only write new result metadata; existing annotations are
+maintained through the administrative adapter.</p>
+<p>Keep the activity <code class="docutils literal notranslate"><span class="pre">Message</span></code> concise. Detailed field diffs for small dry runs
+belong in normal logger output, captured by the standard activity log. Bulk
+sweeps log progress and outcomes rather than complete metadata maps. Detached
+requests use the worker log and maintenance status for progress after handoff.</p>
 </section>
 <section id="detached-administrative-refresh">
 <h2>Detached administrative refresh<a class="headerlink" href="#detached-administrative-refresh" title="Permalink to this heading"></a></h2>

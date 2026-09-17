@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OMERO workflow scripts &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="SLURM Configuration Guide" href="slurm-configuration.html" />
+    <link rel="prev" title="Cellprofiler tutorial" href="tutorial_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">OMERO workflow scripts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installation-and-upgrades">Installation and upgrades</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#script-reference">Script reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#main-workflow-scripts-workflows">Main Workflow Scripts (<code class="docutils literal notranslate"><span class="pre">__workflows/</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-management-scripts-data">Data Management Scripts (<code class="docutils literal notranslate"><span class="pre">_data/</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#administrative-scripts-admin">Administrative Scripts (<code class="docutils literal notranslate"><span class="pre">admin/</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#workflow-process">Workflow Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-detached-execution">Optional detached execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dynamic-import-script-selection">Dynamic Import Script Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#inputs-and-results">Inputs and results</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#shared-group-folder-mappings">Shared group folder mappings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-shallow-zarr-storage">Optional shallow Zarr storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-remote-zarr-shallower">Optional remote Zarr shallower</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#workflow-metadata">Workflow metadata</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#workflow-provenance-files-and-searchable-metadata">Workflow provenance files and searchable metadata</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-roi-postprocessing">Optional ROI postprocessing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-and-monitoring">Logging and monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-a-workflow">Running a workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">OMERO workflow scripts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/scripts.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="omero-workflow-scripts">
+<h1>OMERO workflow scripts<a class="headerlink" href="#omero-workflow-scripts" title="Permalink to this heading"></a></h1>
+<p>BIOMERO.scripts integrates BIOMERO with OMERO. Use the scripts directly from
+OMERO or through <a class="reference external" href="https://github.com/NL-BioImaging/OMERO.biomero">OMERO.biomero</a>.
+The source is maintained in the separate
+<a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts">biomero-scripts repository</a>.</p>
+<section id="installation-and-upgrades">
+<h2>Installation and upgrades<a class="headerlink" href="#installation-and-upgrades" title="Permalink to this heading"></a></h2>
+<p>The <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/">NL-BIOMERO deployment guide</a>
+provides containers with compatible scripts, core and importer dependencies.
+For custom deployments:</p>
+<ol class="arabic simple">
+<li><p>Install the corresponding <code class="docutils literal notranslate"><span class="pre">biomero[full]</span></code> release in the processor’s Python
+environment, together with OMERO’s supported script runtime and the external
+export/conversion tools required by your workflows.</p></li>
+<li><p>Clone a released scripts tag into the server’s <code class="docutils literal notranslate"><span class="pre">lib/scripts/biomero</span></code> directory.
+Select the tag from the coordinated deployment’s component references.</p></li>
+<li><p>Install the same scripts revision on the detached worker, whose supervisor
+loads the workflow pipeline from disk.</p></li>
+<li><p>Confirm registration with <code class="docutils literal notranslate"><span class="pre">omero</span> <span class="pre">script</span> <span class="pre">list</span></code>.</p></li>
+<li><p>Run <strong>Slurm Init</strong>, then <strong>Slurm Check Setup</strong>, to initialize cluster
+directories, scripts and images. Wait for the required images to be ready.</p></li>
+</ol>
+<p>Upgrade the installed core, scripts and worker together. The scripts require
+core’s <code class="docutils literal notranslate"><span class="pre">biomero.provenance</span></code> and <code class="docutils literal notranslate"><span class="pre">biomero.maintenance</span></code> APIs even when shallow
+storage or detached execution is disabled. The displayed script <code class="docutils literal notranslate"><span class="pre">VERSION</span></code>
+identifies the release series; compare package versions and scripts tags when
+checking prereleases. The deployment configuration and package dependency
+declarations specify the maintained component versions.</p>
+</section>
+<section id="script-reference">
+<h2>Script reference<a class="headerlink" href="#script-reference" title="Permalink to this heading"></a></h2>
+<section id="main-workflow-scripts-workflows">
+<h3>Main Workflow Scripts (<code class="docutils literal notranslate"><span class="pre">__workflows/</span></code>)<a class="headerlink" href="#main-workflow-scripts-workflows" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Run_Workflow.py</span></code></strong>: Primary workflow orchestrator with ZARR support</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Run_Workflow_Batched.py</span></code></strong>: Batch processing variant for multiple datasets</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_CellPose_Segmentation.py</span></code></strong>: ⚠️ <strong>EXAMPLE ONLY</strong> - Manual single-workflow script for CellPose. Not installed by default in NL-BIOMERO. Use <code class="docutils literal notranslate"><span class="pre">SLURM_Run_Workflow.py</span></code> instead.</p></li>
+</ul>
+</section>
+<section id="data-management-scripts-data">
+<h3>Data Management Scripts (<code class="docutils literal notranslate"><span class="pre">_data/</span></code>)<a class="headerlink" href="#data-management-scripts-data" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">_SLURM_Image_Transfer.py</span></code></strong>: Export data from OMERO to SLURM (with cleanup)</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">_SLURM_File_Transfer.py</span></code></strong>: Transfer a single OMERO FileAnnotation to a SLURM job’s input directory (e.g. model weights, CSV config). Returns the resolved SLURM path for injection as a workflow CLI argument.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Remote_Conversion.py</span></code></strong>: Intelligent format conversion on SLURM</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Get_Results.py</span></code></strong>: Upload workflow results back to OMERO (standard mode)</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Import_Results.py</span></code></strong>: Import workflow results with full <a class="reference external" href="https://github.com/NL-BioImaging/BIOMERO.importer">BIOMERO.importer</a> integration — selected automatically when <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=true</span></code></p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Get_Update.py</span></code></strong>: Monitor and update workflow status</p></li>
+</ul>
+</section>
+<section id="administrative-scripts-admin">
+<h3>Administrative Scripts (<code class="docutils literal notranslate"><span class="pre">admin/</span></code>)<a class="headerlink" href="#administrative-scripts-admin" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Init_environment.py</span></code></strong>: Initialize SLURM environment</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_check_setup.py</span></code></strong>: Validate BIOMERO configuration</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">SLURM_Cownary.py</span></code></strong>: Run a fixed, admin-only lolcow cownary to verify SSH, Slurm scheduling, configured shared storage, and Singularity execution end to end. It accepts no command or path input and inherits BIOMERO’s default partition, global <code class="docutils literal notranslate"><span class="pre">sbatch_*</span></code> settings, and configured Apptainer cache, temporary, and bind paths without allowing them to override the fixed cownary job scope.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Tail_logs.py</span></code></strong>: View recent BIOMERO log entries (admin only)</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Example_Minimal_Slurm_Script.py</span></code></strong>: Administrator-only example for ad-hoc SSH diagnostics on the Slurm cluster. NL-BIOMERO does not install it by default.</p></li>
+</ul>
+</section>
+<section id="workflow-process">
+<h3>Workflow Process<a class="headerlink" href="#workflow-process" title="Permalink to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Export</strong>: Selected data transferred from OMERO to SLURM cluster</p></li>
+<li><p><strong>Convert</strong>: Smart format conversion (with ZARR no-op optimization)</p></li>
+<li><p><strong>Process</strong>: Computational workflows executed on SLURM</p></li>
+<li><p><strong>Monitor</strong>: Job progress tracking and status updates (with real-time polling when SlurmClient is available)</p></li>
+<li><p><strong>Import</strong>: Results imported back to OMERO — via <code class="docutils literal notranslate"><span class="pre">SLURM_Import_Results.py</span></code> (importer-enabled) or <code class="docutils literal notranslate"><span class="pre">SLURM_Get_Results.py</span></code> (standard), selected automatically based on <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED</span></code></p></li>
+<li><p><strong>Cleanup</strong>: Temporary artifacts automatically removed (non-critical cleanup errors are logged but do not fail the workflow)</p></li>
+</ol>
+</section>
+<section id="optional-detached-execution">
+<h3>Optional detached execution<a class="headerlink" href="#optional-detached-execution" title="Permalink to this heading"></a></h3>
+<blockquote>
+<div><p><strong>New in BIOMERO.scripts 2.9:</strong> <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code> is an opt-in
+feature flag. Installing the updated scripts does not change existing
+workflow behavior while
+<code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code> is absent or false. Existing and custom
+deployments remain inline until an administrator enables the feature and
+provides the required background worker supervisor.</p>
+</div></blockquote>
+<p>Set <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS=true</span></code> only when the deployment also provides a
+compatible detached workflow supervisor, such as the <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> in
+NL-BIOMERO. <code class="docutils literal notranslate"><span class="pre">SLURM_Run_Workflow.py</span></code> and its batched variant then validate and
+queue the request before returning. The supervisor performs transfer,
+conversion, Slurm monitoring, and result import in the background.</p>
+<p>Once the script reports that the workflow is queued in the background, the run
+no longer depends on the browser tab or the OMERO session that submitted it.
+Administrators do not need seven-day or infinite OMERO sessions, an unusually
+large OMERO.web cookie age, or an open browser merely to cover the total Slurm
+runtime. Ordinary timeouts must still cover the initial queue hand-off and each
+OMERO-side transfer or import subprocess. If detached mode is absent, disabled,
+or unsupported by the installed BIOMERO library, the scripts retain their
+established inline behavior and the session must remain active.</p>
+<p>See the <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/detached-workflows.html">NL-BIOMERO detached-workflow administrator guide</a>
+for deployment, recovery, and verification details.</p>
+</section>
+<section id="dynamic-import-script-selection">
+<h3>Dynamic Import Script Selection<a class="headerlink" href="#dynamic-import-script-selection" title="Permalink to this heading"></a></h3>
+<p>The import step automatically selects the right script based on your environment:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED</span></code></p></th>
+<th class="head"><p>Script used</p></th>
+<th class="head"><p>Dataset import method</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">false</span></code> (default)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SLURM_Get_Results.py</span></code></p></td>
+<td><p>Upload via OMERO API</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SLURM_Import_Results.py</span></code></p></td>
+<td><p>In-place import from remote storage via BIOMERO.importer</p></td>
+</tr>
+</tbody>
+</table>
+<p>Set <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=true</span></code> in your environment (e.g. docker-compose <code class="docutils literal notranslate"><span class="pre">.env</span></code>) to enable in-place imports via BIOMERO.importer. The script will raise an error at startup if <code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=true</span></code> but the <code class="docutils literal notranslate"><span class="pre">BIOMERO.importer</span></code> module is not installed.</p>
+</section>
+</section>
+<section id="inputs-and-results">
+<h2>Inputs and results<a class="headerlink" href="#inputs-and-results" title="Permalink to this heading"></a></h2>
+<section id="shared-group-folder-mappings">
+<h3>Shared group folder mappings<a class="headerlink" href="#shared-group-folder-mappings" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">SLURM_Import_Results.py</span></code> supports both the legacy
+<code class="docutils literal notranslate"><span class="pre">/opt/omero/server/biomero-config.json[&quot;group_mappings&quot;]</span></code> configuration and an
+optional dedicated <code class="docutils literal notranslate"><span class="pre">/opt/omero/server/group-mappings.json</span></code> file. Mappings are
+merged by group key. Entries found only in either source are retained, and the
+dedicated file wins when the same group is present in both.</p>
+<p>Override the default paths with <code class="docutils literal notranslate"><span class="pre">OMERO_BIOMERO_CONFIG_FILE</span></code> and
+<code class="docutils literal notranslate"><span class="pre">OMERO_BIOMERO_GROUP_MAPPINGS_FILE</span></code>. Deployments that do not mount the dedicated
+file continue using the legacy configuration unchanged.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR=true</span></code>, Image Transfer also derives each group’s
+managed storage root at runtime as <code class="docutils literal notranslate"><span class="pre">IMPORT_MOUNT_PATH</span> <span class="pre">/</span> <span class="pre">mapping.folder</span></code> for
+canonical Zarr promotion and reuse. There is no separate <code class="docutils literal notranslate"><span class="pre">storage_roots</span></code>
+configuration. The processor worker must receive the same read-only mapping
+files that OMERO.biomero edits and the same shared-storage mount; mappings are
+read for each script execution, so runtime changes do not require an image
+rebuild.</p>
+</section>
+<section id="optional-shallow-zarr-storage">
+<h3>Optional shallow Zarr storage<a class="headerlink" href="#optional-shallow-zarr-storage" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code>. It is effective only together with
+<code class="docutils literal notranslate"><span class="pre">IMPORTER_ENABLED=true</span></code>:</p>
+<ul class="simple">
+<li><p>false: Image Transfer exports normally and Import Results imports normally;</p></li>
+<li><p>true: Image Transfer may promote/reuse a verified canonical Zarr, and Import
+Results submits a typed <code class="docutils literal notranslate"><span class="pre">biomero.shallow-zarr</span></code> operation with the exact
+workflow input snapshot. By default, eligible results are normalized on
+Slurm before transfer. BIOMERO.importer validates the remote receipt and
+registers the results. When remote shallowing is disabled or safely falls
+back, the importer performs identity comparison and normalization locally.</p></li>
+</ul>
+<p>Run Workflow distinguishes complete Zarr inputs from temporary conversion
+material. A workflow that consumes Zarr receives a reconstructed shallow input
+containing the canonical original pixels and every managed label. When the
+selected workflow consumes TIFF, a shallow-backed OMERO Image instead follows
+the established OMERO CLI Zarr export path: the Image’s registered PixelBuffer
+is exported as a standalone temporary Zarr and then converted to TIFF. This
+preserves a selected mask Image as mask pixels, avoids transferring unrelated
+original pixels and labels, and deliberately excludes the temporary export
+from canonical promotion and returned-Zarr matching. Plates always use the
+complete Zarr path.</p>
+<p>The OMERO script delegates returned-Zarr hashing and normalization to the remote
+helper or importer. If the deployed
+importer does not advertise the lifecycle operation, or no canonical workflow
+snapshot is available, it uses the established full-import path. Existing
+legacy label-result controls remain unchanged in that fallback. Identity
+worker concurrency for local normalization is configured on BIOMERO.importer;
+remote concurrency uses <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_WORKERS</span></code>. Once the importer
+accepts an order, its processing is independent of the submitting script.</p>
+<p>Canonical Plate identities are indexed in OMERO as one compact Plate record
+plus bounded image- and label-node records. This keeps large Plate metadata
+below OMERO/PostgreSQL MapAnnotation value limits; existing monolithic records
+remain readable.</p>
+<p>When Image Transfer reuses an existing managed backing Zarr (including imported
+<code class="docutils literal notranslate"><span class="pre">.processed</span></code> stores), its pixels are authoritative for both Images and Plates.
+The canonical record therefore has <code class="docutils literal notranslate"><span class="pre">canonicalPixelVerified=true</span></code> without an
+additional pixel read through OMERO. Pixel identities are still calculated for
+matching workflow results. Previously unverified records are upgraded on reuse
+when the recorded import path identifies that same backing store; this creates
+a new metadata generation without copying or rehashing its pixels.</p>
+<p>Freshly exported canonical Zarrs follow a different path: their pixel identities
+must match the source OMERO Images before promotion. Plate exports are checked
+field-by-field using the exporter’s well/field mapping, with connection keepalive
+throughout verification. A mismatch prevents canonical promotion. Merely placing
+an unrelated Zarr under a managed storage root does not make it authoritative.</p>
+<p>Eligible Image results expose their labels as ordinary OMERO Image projections
+until label-aware viewers are generally available. Eligible HCS results remain
+one derived OMERO Plate: its WellSample pixels are served from the canonical
+source Plate while the in-place shallow collection retains the image-level
+labels. This avoids flattening a large Plate into thousands of loose mask
+Images.</p>
+<p><strong>Import Plate label preview</strong> is an optional result setting, disabled by
+default. It creates one additional Plate whose WellSample pixels point directly
+at one common image-level label. Supply <strong>Plate label preview name</strong>, or leave it
+empty only when exactly one label name occurs on every Plate image. The preview
+creates OMERO objects and PixelBuffer links but does not copy label arrays.</p>
+<p>Importer-disabled deployments continue to use <code class="docutils literal notranslate"><span class="pre">SLURM_Get_Results.py</span></code> and do not
+load BIOMERO.importer Zarr helpers. The worker processor must forward this
+environment variable to downloaded scripts; current NL-BIOMERO deployments do
+that dynamically through <code class="docutils literal notranslate"><span class="pre">biomero.constants.slurm_env</span></code>.</p>
+</section>
+<section id="optional-remote-zarr-shallower">
+<h3>Optional remote Zarr shallower<a class="headerlink" href="#optional-remote-zarr-shallower" title="Permalink to this heading"></a></h3>
+<p>Remote shallowing uses BIOMERO’s shared Slurm job monitor with a script-owned
+heartbeat callback that keeps the OMERO connection alive during shallowing
+and recovery. Conversion uses the same callback interface.
+Connection failures stop monitoring.
+This applies to inline and detached workflows. Helper resources
+inherit generic Slurm settings, with optional partition, memory and time
+overrides in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> (<code class="docutils literal notranslate"><span class="pre">remote_shallower_partition</span></code>,
+<code class="docutils literal notranslate"><span class="pre">remote_shallower_mem</span></code>, <code class="docutils literal notranslate"><span class="pre">remote_shallower_time</span></code>). GPU and job-array settings
+are not inherited. Use matching BIOMERO core and scripts versions.</p>
+<p>With administrator <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=true</span></code>, importer enablement and
+the existing shallow capability, <code class="docutils literal notranslate"><span class="pre">SLURM_Import_Results.py</span></code> runs the configured
+CPU remote shallower before ZIP creation. It uses the canonical input manifest
+already persisted by image transfer. Detached retries adopt the helper job or
+completed receipt. Successful receipts come from workflow tracking and travel
+in the ordinary lifecycle import order; the importer validates them without
+repeating pixel hashing. Unsupported results and safe failures retain the local
+importer path. Remote shallowing defaults to true within opt-in shallow Zarr
+mode and is not an OMERO script parameter. Run <code class="docutils literal notranslate"><span class="pre">SLURM_Init_environment</span></code> to
+install the image and verify it with <code class="docutils literal notranslate"><span class="pre">SLURM_check_setup</span></code> before running workflows.
+Runtime never pulls images; a missing or invalid image raises a setup error.
+Unresolved submissions, incomplete recovery or invalid receipts stop retrieval
+and preserve remote output for inspection instead of archiving uncertain data.
+Set <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=false</span></code> to retain importer-side normalization.
+Shallow storage itself remains opt-in: an absent or false <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code>
+leaves ordinary result imports unchanged.</p>
+<p>See the <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html">NL-BIOMERO remote-shallower administrator guide</a>
+for deployment settings, helper image initialization and recovery.</p>
+</section>
+<section id="workflow-metadata">
+<h3>Workflow metadata<a class="headerlink" href="#workflow-metadata" title="Permalink to this heading"></a></h3>
+<p>New result annotations use the legacy-compatible <code class="docutils literal notranslate"><span class="pre">v0</span></code> view. Scientific task
+parameters and job fields are retained; internal detached coordination tasks and
+unused workflow parameters are excluded. Recorded shallow/full storage facts,
+container identity and canonical biocodes are included when available.
+Full CSV provenance and event history are preserved.</p>
+<p>For existing results, administrators can preview or apply a refresh through
+Slurm Init. See the
+<a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/metadata-refresh.html">metadata administration guide</a>.
+Rendering policies and adapter APIs are documented in
+<a class="reference internal" href="developer/metadata-views.html"><span class="std std-doc">Workflow metadata views</span></a>.</p>
+</section>
+<section id="workflow-provenance-files-and-searchable-metadata">
+<h3>Workflow provenance files and searchable metadata<a class="headerlink" href="#workflow-provenance-files-and-searchable-metadata" title="Permalink to this heading"></a></h3>
+<p>Both result scripts always attach <code class="docutils literal notranslate"><span class="pre">metadata_&lt;workflow</span> <span class="pre">UUID&gt;.csv</span></code> (or the job
+ID when no workflow UUID is available), independently of ZIP and individual
+file-output options. Importer results attach it to the discovered result Plates
+or destination Dataset; classic pixel uploads attach it to the result Dataset.
+For attachment-only workflows, the existing result/log targets are used.
+Explicitly selected legacy attachment targets continue to receive the CSV.</p>
+<p>The importer route uses the existing in-place upload helper when enabled and
+available, with regular upload otherwise. The classic route uploads the file
+before cleaning temporary storage. The full <code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> beside importer
+results remains unchanged for re-importing an analyzed directory, including its
+existing <code class="docutils literal notranslate"><span class="pre">csv_</span></code> key prefix in importer annotations. This change does not alter
+the importer’s independent metadata reader or its error handling.</p>
+<p>MapAnnotations remain a searchable view of the full CSV and workflow history.
+The scripts first try all existing fields and values. Only after an index-size
+rejection do they retry with large fields represented by the CSV filename,
+UTF-8 value size and SHA-256 checksum. Smaller fields remain searchable;
+accepted large values are unchanged. One rejected annotation does not prevent
+later task/job annotations. Reports distinguish complete, reduced and incomplete
+views, and CSV link failures are counted per target. No database changes or
+feature flag are required. Files are snapshots of the workflow state available
+at export time, rather than the eventual final lifecycle state.</p>
+</section>
+<section id="optional-roi-postprocessing">
+<h3>Optional ROI postprocessing<a class="headerlink" href="#optional-roi-postprocessing" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">SLURM_Run_Workflow.py</span></code> can optionally turn imported grayscale label images
+into ROIs on their exact source images. Enable <strong>Create ROIs from label
+images</strong>, import the image results into a Dataset or Screen, and choose Polygon
+or Mask output. BIOMERO records each imported label-image ID together with the
+source-image ID it matched and passes those explicit pairs to the OMERO
+<code class="docutils literal notranslate"><span class="pre">Labels2Rois</span></code> utility script after import.</p>
+<p>Created ROI names use <code class="docutils literal notranslate"><span class="pre">workflow_name__workflow_uuid__label_value</span></code>, making them
+filterable by algorithm or by an exact workflow run. By default, the workflow
+UUID also selects a deterministic color from a curated palette, so separate
+ROI runs are visually distinct. An optional <code class="docutils literal notranslate"><span class="pre">#RRGGBB</span></code> override can be supplied
+by clients such as OMERO.biomero. Labels2Rois applies that color as a
+translucent Mask fill or as a Polygon fill and outline. The optional <strong>Clear
+existing ROIs on original images</strong> setting forwards the native clear behavior;
+its case-sensitive name filter limits deletion, while an empty filter clears
+all existing ROIs on each original image. Clearing is disabled by default.</p>
+<p>Imported label images are retained in OMERO by default. The optional <strong>Delete
+from OMERO after ROI creation</strong> setting forwards the native <code class="docutils literal notranslate"><span class="pre">Labels2Rois</span></code>
+cleanup flag, which deletes each imported label image only after its ROI
+conversion succeeds. This removes only the OMERO image; workflow result files
+in remote storage (including importer <code class="docutils literal notranslate"><span class="pre">.analyzed</span></code> storage) are preserved.</p>
+<p>If every image output in the selected workflow descriptor has subtype <code class="docutils literal notranslate"><span class="pre">label</span></code>,
+all imported images are selected automatically. For mixed or descriptor-less
+workflows, BIOMERO groups imported results by their matched source image. A sole
+result is selected directly; with multiple results, label-like names such as
+<code class="docutils literal notranslate"><span class="pre">mask</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, or <code class="docutils literal notranslate"><span class="pre">segment</span></code> are selected. Ambiguous groups are skipped without
+failing import. The lower-level result scripts retain an optional glob such as
+<code class="docutils literal notranslate"><span class="pre">*_cp_masks.tif</span></code> as an advanced override, matched before result-image renaming.
+A missing <code class="docutils literal notranslate"><span class="pre">Labels2Rois</span></code> script disables this optional step with a warning.
+Import and workflow completion remain successful, and result images are
+retained, if selection is ambiguous, the utility is missing, or postprocessing
+fails.</p>
+</section>
+</section>
+<section id="logging-and-monitoring">
+<h2>Logging and monitoring<a class="headerlink" href="#logging-and-monitoring" title="Permalink to this heading"></a></h2>
+<p>The script’s <code class="docutils literal notranslate"><span class="pre">Message</span></code> output is the concise summary shown in OMERO Activities.
+Detailed INFO-level execution logs are available behind the activity’s info
+button. DEBUG logs are written to the worker’s
+<code class="docutils literal notranslate"><span class="pre">/opt/omero/server/OMERO.server/var/log/biomero.log</span></code>, with rotation at
+500 MB and nine backups. Detached maintenance continues logging in the worker;
+its request ID connects the initial activity to subsequent progress.</p>
+<p>Use <strong>Slurm Check Setup</strong> for configuration, image acquisition and metadata
+maintenance status. <strong>Slurm Get Update</strong> monitors analysis jobs and retrieves
+<code class="docutils literal notranslate"><span class="pre">omero-&lt;job-id&gt;.log</span></code>. Image acquisition has separate per-task logs under
+<code class="docutils literal notranslate"><span class="pre">&lt;slurm_script_path&gt;/image-pulls</span></code>.</p>
+</section>
+<section id="running-a-workflow">
+<h2>Running a workflow<a class="headerlink" href="#running-a-workflow" title="Permalink to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Select the input Images, Dataset or Plate in OMERO.</p></li>
+<li><p>Run <strong>Slurm Run Workflow</strong> and select the configured workflow and version.</p></li>
+<li><p>Set workflow parameters and choose the required result destination and options.</p></li>
+<li><p>Enable <strong>Use ZARR Format</strong> for a workflow configured to consume Zarr directly.</p></li>
+<li><p>Submit the run and follow its status. In detached mode, the browser can be
+closed after the script confirms the background handoff.</p></li>
+</ol>
+<p>For manual operation, Image Transfer exports inputs, Remote Conversion changes
+formats when required, and the appropriate result script retrieves outputs.
+<code class="docutils literal notranslate"><span class="pre">SLURM_CellPose_Segmentation.py</span></code> is a manual example, not the general runner.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tutorial_link.html" class="btn btn-neutral float-left" title="Cellprofiler tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="slurm-configuration.html" class="btn btn-neutral float-right" title="SLURM Configuration Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

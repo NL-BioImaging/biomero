@@ -31,6 +31,7 @@ For publication references and guidance on which BIOMERO paper to cite, see
    :maxdepth: 2
 
    tutorial_link
+   scripts
 
 .. Configuration
 

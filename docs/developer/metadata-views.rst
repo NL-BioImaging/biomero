@@ -87,8 +87,10 @@ Existing CSV references for oversized values are retained.
 
 The administrative refresh adapter is provided by biomero-scripts in
 ``admin/SLURM_Init_environment.py`` as an optional metadata refresh operation.
-Its documentation describes dry runs, backups,
-shared-annotation checks and updating existing views in place. No automatic
+The `administrator guide
+<https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/metadata-refresh.html>`_
+describes dry runs, backups, shared-annotation checks and updating existing views
+in place. No automatic
 migration runs during initialization. New result scripts continue to write
 ``v0``.
 
@@ -112,6 +114,53 @@ the update rather than synthesize a partial history.
 Callers should use a dry run to inspect the proposed field changes before
 applying a refresh. Core returns ``MetadataChange`` objects; the scripts decide
 how to display differences, persist backups and update annotation links.
+
+Scripts persistence adapter
+---------------------------
+
+This API belongs to the separate ``biomero-scripts`` repository, not core.
+Run it in the OMERO script runtime with the scripts' ``admin`` directory on
+the Python import path:
+
+.. code-block:: python
+
+   from SLURM_Init_environment import refresh_workflow_metadata
+
+   # conn is the script's administrator gateway; tracker is WorkflowTracker.
+   plan = refresh_workflow_metadata(
+       conn, tracker, "Plate", plate_id, workflow_uuid, view_version="v0")
+   # Inspect the plan before applying it.
+   result = refresh_workflow_metadata(
+       conn, tracker, "Plate", plate_id, workflow_uuid,
+       view_version="v0", dry_run=False,
+       backup_path="/data/biomero-metadata-backups/plate-before-refresh.json")
+
+The adapter reads existing annotations and asks core to plan plain-data changes.
+OMERO connections never enter the core API. The adapter checks administrative
+access, preflights the target against intervening changes, and applies the plan.
+Retained annotations keep their IDs, namespaces and creation events. Obsolete
+internal-task annotations are unlinked from the selected object, not deleted.
+Unknown namespaces and custom keys, repeated legacy ``Input_Data`` pairs and
+existing CSV references are preserved. Reapplying a view is idempotent.
+
+Bulk execution groups each object's workflow views into the same worker lane.
+Each lane owns its gateway and event-store reader, joins the administrative
+execution session with keepalive, and detaches without terminating the parent
+session. Its database sessions and connections are released when the lane ends.
+Missing history and refused plans are reported as skips. Write failures are
+reported separately and may leave partial updates because multiple OMERO writes
+do not form one transaction.
+
+Optional backup snapshots contain original annotation IDs, values and links.
+There is no automated restore API. Manual recovery can restore retained values
+and relink original annotations after checking current state and permissions.
+Result import scripts only write new result metadata; existing annotations are
+maintained through the administrative adapter.
+
+Keep the activity ``Message`` concise. Detailed field diffs for small dry runs
+belong in normal logger output, captured by the standard activity log. Bulk
+sweeps log progress and outcomes rather than complete metadata maps. Detached
+requests use the worker log and maintenance status for progress after handoff.
 
 Detached administrative refresh
 -------------------------------

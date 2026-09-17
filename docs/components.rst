@@ -9,6 +9,7 @@ deployment instructions, start with the
   event-sourced tracking, and analysis views.
 * `BIOMERO.scripts <https://github.com/NL-BioImaging/biomero-scripts>`_ integrates
   workflow execution, result retrieval, and metadata persistence with OMERO.
+  See :doc:`scripts` for installation and the script reference.
 * `BIOMERO.importer <https://github.com/NL-BioImaging/BIOMERO.importer>`_ prepares
   and registers imported data with OMERO.
 * `OMERO.biomero <https://github.com/NL-BioImaging/OMERO.biomero>`_ provides the

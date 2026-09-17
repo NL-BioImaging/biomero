@@ -187,11 +187,24 @@ def test_missing_image_requires_initialization_without_pulling():
     client.workflowTracker.add_task_to_workflow.assert_not_called()
 
 
-def test_new_task_requires_configured_receipt_version():
+def test_new_task_records_discovered_receipt_version_before_submission():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []
     client.remote_shallower_version = None
-    with pytest.raises(ValueError, match='remote_shallower_version'):
+    with patch('biomero.remote_shallower.installed_tool_version', return_value='9.2.1'), \
+         patch('biomero.remote_shallower._prepare_manifest'), \
+         patch('biomero.remote_shallower._submit_once', side_effect=RuntimeError('stop before submit')):
+        with pytest.raises(RuntimeError, match='stop before submit'):
+            run(client, '/data', workflow_id, canonical)
+    assert client.workflowTracker.add_task_to_workflow.call_args.args[2] == '9.2.1'
+
+
+def test_missing_discovered_version_does_not_create_task():
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    client.workflowTracker.repository.get(workflow_id).tasks = []
+    client.remote_shallower_version = None
+    with patch('biomero.remote_shallower.installed_tool_version', side_effect=ValueError('missing version')), \
+         pytest.raises(ValueError, match='missing version'):
         run(client, '/data', workflow_id, canonical)
     client.workflowTracker.add_task_to_workflow.assert_not_called()
 

@@ -317,6 +317,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_DATA_PATH = "my-scratch/data"
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
+    _DEFAULT_REMOTE_SHALLOWER_IMAGE = "cellularimagingcf/biomero-shallower:latest"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
@@ -539,7 +540,7 @@ class SlurmClient(Connection):
                  config_only: bool = False,
                  slurm_data_bind_path: str = None,
                  remote_shallow_zarr: bool = True,
-                 remote_shallower_image: str = None,
+                 remote_shallower_image: str = _DEFAULT_REMOTE_SHALLOWER_IMAGE,
                  remote_shallower_version: str = None,
                  remote_shallower_workers: int = 1,
                  remote_shallower_partition: str = None,
@@ -666,10 +667,12 @@ class SlurmClient(Connection):
                 setting; default True when shallow Zarr is enabled. Set False
                 for local shallowing. Environment: BIOMERO_REMOTE_SHALLOW_ZARR.
             remote_shallower_image (str, optional): Administrator remote-shallower
-                image reference; default None (configure in slurm-config.ini).
+                image reference; defaults to our helper's latest tag. Pin a
+                release in slurm-config.ini for reproducible deployment.
                 Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
             remote_shallower_version (str, optional): Administrator remote-shallower
-                expected receipt version; default None (configure with the image).
+                expected receipt version; default None (read the installed
+                image's OCI version label before recording a new task).
                 Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
             remote_shallower_workers (int, optional): Administrator remote-shallower
                 setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.
@@ -1703,8 +1706,9 @@ class SlurmClient(Connection):
             value_type=bool)
         remote_shallower_image = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_image",
-            default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
-            value_type=str, empty_is_none=True)
+            default=cls._DEFAULT_REMOTE_SHALLOWER_IMAGE,
+            env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE], value_type=str,
+            empty_is_none=True)
         remote_shallower_version = cls._get_config_value(
             configs, section="SLURM", option="remote_shallower_version",
             default=None, env_vars=[slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],

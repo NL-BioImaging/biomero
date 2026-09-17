@@ -41,16 +41,16 @@ def test_latest_image_can_be_selected_in_configuration():
     assert spec['version'] == 'latest'
 
 
-def test_image_configuration_is_required_explicitly():
+def test_default_helper_image_is_latest():
     from biomero.remote_shallower import image_spec
     client = SlurmClient(config_only=True)
-    assert client.remote_shallower_image is None
+    assert client.remote_shallower_image == 'cellularimagingcf/biomero-shallower:latest'
     assert client.remote_shallower_version is None
-    with pytest.raises(ValueError, match='remote_shallower_image'):
-        image_spec(client)
+    assert image_spec(client)['version'] == 'latest'
 
 
-def test_setup_without_helper_configuration_still_initializes_converters():
+def test_setup_without_helper_configuration_acquires_default_helper():
+    from biomero.remote_shallower import image_spec
     client = SlurmClient(config_only=True)
     client.validate = MagicMock(return_value=True)
     client.setup_directories = MagicMock()
@@ -59,7 +59,28 @@ def test_setup_without_helper_configuration_still_initializes_converters():
     client.setup_container_images = MagicMock(return_value=42)
     assert client.setup_slurm() == 42
     client.setup_container_images.assert_called_once_with(
-        extra_image_specs=[{'kind': 'converter'}])
+        extra_image_specs=[{'kind': 'converter'}, image_spec(client)])
+
+
+def test_tool_version_is_read_from_installed_image_labels():
+    import json
+    from biomero.remote_shallower import installed_tool_version
+    client = SimpleNamespace(run_commands=MagicMock(return_value=SimpleNamespace(
+        ok=True, stdout=json.dumps({'data': {'attributes': {'labels': {
+            'org.opencontainers.image.version': '9.2.1b3'}}}}))))
+    assert installed_tool_version(client, '/images/helper image.sif') == '9.2.1b3'
+    command = client.run_commands.call_args.args[0][0]
+    assert 'inspect --json --labels' in command
+    assert "'/images/helper image.sif'" in command
+
+
+@pytest.mark.parametrize('output', ['{}', 'not json'])
+def test_missing_tool_version_requires_explicit_configuration(output):
+    from biomero.remote_shallower import installed_tool_version
+    client = SimpleNamespace(run_commands=MagicMock(return_value=SimpleNamespace(
+        ok=True, stdout=output)))
+    with pytest.raises(ValueError, match='remote_shallower_version'):
+        installed_tool_version(client, '/images/helper.sif')
 
 
 def test_shallowing_and_recovery_have_distinct_job_names():

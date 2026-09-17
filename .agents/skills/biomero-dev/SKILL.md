@@ -91,6 +91,8 @@ Read only the relevant reference before acting:
   release, so component releases do not require code or documentation edits.
   This concerns software release pins, not meaningful contract/view identifiers
   such as the metadata view `v0` or explicitly supported data-format versions.
+  A generic `latest` image fallback is allowed; recommend a deployment ini pin
+  and record the actual installed tool version for provenance and recovery.
 - New config follows the precedence pattern: code default -> `slurm-config.ini`
   -> environment variable, resolved by `_get_config_value()`. Never hand-roll
   `os.getenv` precedence in `from_config()`.

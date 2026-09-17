@@ -757,10 +757,10 @@ available until those tasks finish. Resource settings remain configurable.
      - ``true`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
    * - ``remote_shallower_image``
-     - Unset; configure the helper image in the ini
+     - ``cellularimagingcf/biomero-shallower:latest``; prefer an ini pin
      - ``BIOMERO_REMOTE_SHALLOWER_IMAGE``
    * - ``remote_shallower_version``
-     - Unset; configure the expected receipt/tool version
+     - Unset; read the installed image's OCI version label
      - ``BIOMERO_REMOTE_SHALLOWER_VERSION``
    * - ``remote_shallower_workers``
      - ``1``
@@ -783,18 +783,22 @@ administrator settings, not scientific workflow parameters. A compatible
 OMERO.biomero admin interface exposes them when shallow storage is enabled;
 environment overrides still take precedence over values saved to the ini file.
 
-Core does not pin a helper release. Set both values in ``[SLURM]``; refer to
-``resources/slurm-config.ini`` for the maintained release selection.
-``remote_shallower_version`` is the Python package version written into
-receipts; it must match exactly, including any normalized prerelease suffix.
+Core falls back to our helper's ``:latest`` tag. Prefer an image pin in
+``[SLURM]``; refer to ``resources/slurm-config.ini`` for the maintained
+release selection. When ``remote_shallower_version`` is unset, core reads the
+installed SIF's OCI version label and records it before submitting a new task.
+An explicit value overrides discovery and must match the Python package
+version written into receipts, including any normalized prerelease suffix.
+Existing tasks retain their recorded version for recovery.
 
 An explicit ``:latest`` image tag is accepted, as with configured converters,
 but is not a reproducible release pin. Initialization reuses an already valid
 SIF; it does not refresh that file merely because the registry tag moved.
-Keep the configured expected tool version consistent with the installed image.
-Unconfigured deployments skip helper acquisition during initialization.
-Requesting remote shallowing without the image and tool-version settings
-raises a configuration error before submitting new helper work.
+Keep any explicit expected tool version consistent with the installed image.
+Initialization acquires the configured or default image. Missing version
+labels require an explicit tool-version setting; receipt validation is not
+disabled. Importer trust configuration must still match the selected image and
+actual tool version.
 
 For recovery behavior and component responsibilities, see
 :doc:`developer/execution-and-storage`.

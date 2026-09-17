@@ -46,6 +46,29 @@ def image_spec(client, *, image=None):
     }
 
 
+def installed_tool_version(client, sif):
+    """Read the installed helper's version without executing its payload.
+
+    A floating image tag is not a tool version. Persist the OCI version label
+    before submission so receipt validation and recovery use a concrete value.
+    """
+    result = client.run_commands([
+        'runtime=$(command -v apptainer || command -v singularity); '
+        'test -n "$runtime" && "$runtime" inspect --json --labels '
+        + shlex.quote(sif)])
+    if not result.ok:
+        raise RuntimeError('Cannot inspect installed shallower tool version')
+    try:
+        version = json.loads(result.stdout)['data']['attributes']['labels'][
+            'org.opencontainers.image.version']
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError('Empty version')
+    except (ValueError, KeyError, TypeError) as error:
+        raise ValueError('Installed helper has no usable OCI version label; '
+                         'set remote_shallower_version explicitly') from error
+    return version.strip()
+
+
 def _job_name(task_id, *, recovery=False):
     """Keep submission reconciliation specific to one task and operation."""
     operation = 'recovery' if recovery else 'shallower'
@@ -291,9 +314,6 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                 tracker.complete_task(
                     matches[0].id, json.dumps(batch.to_dict()))
                 return batch
-    if not matches and not client.remote_shallower_version:
-        raise ValueError('Configure remote_shallower_version in [SLURM] to '
-                         'match the installed helper receipt version')
     image = matches[0].params['image'] if matches else client.remote_shallower_image
     spec = image_spec(client, image=image)
     if matches:
@@ -305,8 +325,10 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
             'Run SLURM_Init_environment and verify image setup with '
             'SLURM_check_setup before retrying.')
     if not matches:
+        version = client.remote_shallower_version or installed_tool_version(
+            client, spec['destination'])
         task_id = tracker.add_task_to_workflow(
-            workflow_id, TASK_NAME, client.remote_shallower_version, data_path,
+            workflow_id, TASK_NAME, version, data_path,
             {'image': image, 'contract': 1, 'sif': spec['destination'],
              'canonical_sha256': _canonical_digest(canonical.to_dict())})
         tracker.start_task(task_id)

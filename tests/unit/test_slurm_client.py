@@ -4262,7 +4262,7 @@ def test_remote_shallower_release_is_selected_by_config(slurm_client_from_config
     client = slurm_client_from_config_factory(config_values={
         'remote_shallower_image': '', 'remote_shallower_version': '',
     })
-    assert client.remote_shallower_image is None
+    assert client.remote_shallower_image == SlurmClient._DEFAULT_REMOTE_SHALLOWER_IMAGE
     assert client.remote_shallower_version is None
     client = slurm_client_from_config_factory(config_values={
         'remote_shallower_image': 'registry/helper:release',

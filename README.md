@@ -132,6 +132,27 @@ python3 -m pip install biomero[test,full]
 **Note**: The `[full]` dependencies require complex packages like `zeroc-ice` and `omero-py` that need system libraries. For OMERO integration, you may need to install these separately or use conda.
 
 
+### Optional remote shallowing
+
+Installing the Python package does not install the helper image on Slurm.
+For a deployment using shallow Zarr:
+
+1. Enable the importer integration and `BIOMERO_SHALLOW_ZARR=true`. Remote
+   shallowing is preferred when enabled; `BIOMERO_REMOTE_SHALLOW_ZARR=false`
+   selects local importer shallowing instead.
+2. Set `remote_shallower_image` and `remote_shallower_version` in the `[SLURM]`
+   section of `slurm-config.ini`. See the [sample configuration](resources/slurm-config.ini)
+   for the maintained release selection. Core has no built-in image or tool-version pin.
+3. Set the importer's `BIOMERO_REMOTE_SHALLOWER_IMAGE` and
+   `BIOMERO_REMOTE_SHALLOWER_VERSION` to the same values for receipt validation.
+   On the worker, these environment variables can also override the ini settings.
+4. Run **Slurm Init** to acquire the configured image, then **Slurm Check Setup**
+   to verify it before submitting an analysis. Workflow execution does not
+   download a missing image.
+
+Enabling the flag alone is therefore insufficient. For deployment settings and
+resource configuration, see the [remote shallower installation guide](https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement).
+
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !
 

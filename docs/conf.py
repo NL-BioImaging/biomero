@@ -56,6 +56,12 @@ intersphinx_mapping = {
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
+# Repository metadata used by the theme's breadcrumb override.
+html_context = {
+    'repository_url': 'https://github.com/NL-BioImaging/biomero',
+    'repository_name': 'NL-BioImaging/biomero',
+}
+
 # Search configuration - ensure search index is built
 html_search_language = 'en'
 

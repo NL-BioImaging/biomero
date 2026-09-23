@@ -56,13 +56,10 @@ intersphinx_mapping = {
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
-# Native sphinx-rtd-theme "Edit on GitHub" link.
+# Repository metadata used by the theme's breadcrumb override.
 html_context = {
-    'display_github': True,
-    'github_user': 'NL-BioImaging',
-    'github_repo': 'biomero',
-    'github_version': 'main',
-    'conf_py_path': '/docs/',
+    'repository_url': 'https://github.com/NL-BioImaging/biomero',
+    'repository_name': 'NL-BioImaging/biomero',
 }
 
 # Search configuration - ensure search index is built

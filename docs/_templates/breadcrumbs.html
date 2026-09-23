@@ -1,0 +1,9 @@
+{% extends "!breadcrumbs.html" %}
+
+{% block breadcrumbs_aside %}
+  <li class="wy-breadcrumbs-aside">
+    <a href="{{ repository_url }}" class="fa fa-github" title="Open the repository on GitHub">
+      {{ repository_name }}
+    </a>
+  </li>
+{% endblock %}

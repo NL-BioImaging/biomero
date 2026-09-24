@@ -14,9 +14,20 @@ import re
 import shlex
 from uuid import UUID, uuid4
 
+from packaging.version import InvalidVersion, Version
+
 from .slurm_client import SlurmJob
 
 TASK_NAME = "_SLURM_Remote_Shallower"
+CAPABILITY_SCHEMA = 1
+REQUIRED_RUNTIME_CONTRACT = 1
+REQUIRED_MANIFEST_SCHEMA = 2
+CAPABILITY_LABELS = {
+    "schema": "org.biomeroproject.shallower.capability-schema",
+    "contracts": "org.biomeroproject.shallower.runtime-contracts",
+    "manifest_schemas": "org.biomeroproject.shallower.manifest-schemas",
+    "migrations": "org.biomeroproject.shallower.migrations",
+}
 logger = logging.getLogger(__name__)
 
 
@@ -46,27 +57,103 @@ def image_spec(client, *, image=None):
     }
 
 
+def _installed_labels(client, sif):
+    """Read OCI labels without executing the helper payload."""
+    result = client.run_commands([
+        'runtime=$(command -v apptainer || command -v singularity); '
+        'test -n "$runtime" && "$runtime" inspect --json --labels '
+        + shlex.quote(sif)])
+    if not result.ok:
+        raise RuntimeError('Cannot inspect installed shallower metadata')
+    try:
+        labels = json.loads(result.stdout)['data']['attributes']['labels']
+    except (ValueError, KeyError, TypeError) as error:
+        raise ValueError(
+            'Installed shallower has no usable OCI labels'
+        ) from error
+    if not isinstance(labels, dict):
+        raise ValueError('Installed shallower has no usable OCI labels')
+    return labels
+
+
+def _version_from_labels(labels):
+    try:
+        version = labels['org.opencontainers.image.version']
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError('Empty version')
+        Version(version.strip())
+    except (InvalidVersion, KeyError, TypeError, ValueError) as error:
+        raise ValueError('Installed helper has no usable OCI version label; '
+                         'set remote_shallower_version explicitly') from error
+    return version.strip()
+
+
 def installed_tool_version(client, sif):
     """Read the installed helper's version without executing its payload.
 
     A floating image tag is not a tool version. Persist the OCI version label
     before submission so receipt validation and recovery use a concrete value.
     """
-    result = client.run_commands([
-        'runtime=$(command -v apptainer || command -v singularity); '
-        'test -n "$runtime" && "$runtime" inspect --json --labels '
-        + shlex.quote(sif)])
-    if not result.ok:
-        raise RuntimeError('Cannot inspect installed shallower tool version')
+    return _version_from_labels(_installed_labels(client, sif))
+
+
+def _csv_capability(labels, name, *, integers=False):
+    label = CAPABILITY_LABELS[name]
+    value = labels.get(label)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            f'Installed shallower does not declare {label}; install a '
+            'compatible helper and run SLURM Init again')
+    entries = tuple(part.strip() for part in value.split(',') if part.strip())
+    if not entries:
+        raise ValueError(f'Installed shallower declares an empty {label}')
+    if not integers:
+        return entries
     try:
-        version = json.loads(result.stdout)['data']['attributes']['labels'][
-            'org.opencontainers.image.version']
-        if not isinstance(version, str) or not version.strip():
-            raise ValueError('Empty version')
-    except (ValueError, KeyError, TypeError) as error:
-        raise ValueError('Installed helper has no usable OCI version label; '
-                         'set remote_shallower_version explicitly') from error
-    return version.strip()
+        return tuple(int(part) for part in entries)
+    except ValueError as error:
+        raise ValueError(f'Installed shallower has invalid {label}') from error
+
+
+def validate_installed_tool(client, sif, *, expected_version=None):
+    """Fail closed unless the installed SIF satisfies this runtime contract."""
+    labels = _installed_labels(client, sif)
+    actual_version = _version_from_labels(labels)
+    configured_version = (
+        expected_version
+        if expected_version is not None
+        else client.remote_shallower_version
+    )
+    if configured_version:
+        try:
+            matches = Version(actual_version) == Version(configured_version)
+        except InvalidVersion as error:
+            raise ValueError(
+                f'Invalid configured remote_shallower_version: '
+                f'{configured_version}'
+            ) from error
+        if not matches:
+            raise RuntimeError(
+                f'Installed remote Shallower {actual_version} does not match '
+                f'configured version {configured_version}; run SLURM Init '
+                'and verify the selected helper image')
+    if labels.get(CAPABILITY_LABELS['schema']) != str(CAPABILITY_SCHEMA):
+        raise RuntimeError(
+            'Installed remote Shallower has missing or unsupported capability '
+            'metadata; update the helper image and run SLURM Init')
+    contracts = _csv_capability(labels, 'contracts', integers=True)
+    manifest_schemas = _csv_capability(
+        labels, 'manifest_schemas', integers=True
+    )
+    if REQUIRED_RUNTIME_CONTRACT not in contracts:
+        raise RuntimeError(
+            f'Installed remote Shallower {actual_version} does not support '
+            f'runtime contract {REQUIRED_RUNTIME_CONTRACT}')
+    if REQUIRED_MANIFEST_SCHEMA not in manifest_schemas:
+        raise RuntimeError(
+            f'Installed remote Shallower {actual_version} does not emit '
+            f'shallow manifest schema {REQUIRED_MANIFEST_SCHEMA}')
+    return actual_version
 
 
 def _job_name(task_id, *, recovery=False):
@@ -324,9 +411,16 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
             f'Remote shallower image missing or invalid: {spec["destination"]}. '
             'Run SLURM_Init_environment and verify image setup with '
             'SLURM_check_setup before retrying.')
+    expected_version = (
+        matches[0].task_version if matches else client.remote_shallower_version
+    )
+    installed_version = validate_installed_tool(
+        client,
+        spec['destination'],
+        expected_version=expected_version,
+    )
     if not matches:
-        version = client.remote_shallower_version or installed_tool_version(
-            client, spec['destination'])
+        version = installed_version
         task_id = tracker.add_task_to_workflow(
             workflow_id, TASK_NAME, version, data_path,
             {'image': image, 'contract': 1, 'sif': spec['destination'],

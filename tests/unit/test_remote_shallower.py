@@ -74,12 +74,94 @@ def test_tool_version_is_read_from_installed_image_labels():
     assert "'/images/helper image.sif'" in command
 
 
+def test_runtime_capabilities_and_configured_version_are_enforced():
+    import json
+    from biomero.remote_shallower import validate_installed_tool
+    labels = {
+        'org.opencontainers.image.version': '0.1.0b4',
+        'org.biomeroproject.shallower.capability-schema': '1',
+        'org.biomeroproject.shallower.runtime-contracts': '1',
+        'org.biomeroproject.shallower.manifest-schemas': '2',
+        'org.biomeroproject.shallower.migrations': (
+            'schema-1-to-2,schema-1-path-only-labels'),
+    }
+    client = SimpleNamespace(
+        remote_shallower_version='0.1.0-beta.4',
+        run_commands=MagicMock(return_value=SimpleNamespace(
+            ok=True,
+            stdout=json.dumps({'data': {'attributes': {'labels': labels}}}),
+        )),
+    )
+
+    assert validate_installed_tool(client, '/images/helper.sif') == '0.1.0b4'
+
+
+@pytest.mark.parametrize(
+    'removed,changed,error',
+    [
+        ('org.biomeroproject.shallower.capability-schema', None,
+         'capability metadata'),
+        ('org.biomeroproject.shallower.runtime-contracts', None,
+         'does not declare'),
+        (None, ('org.biomeroproject.shallower.runtime-contracts', '2'),
+         'runtime contract 1'),
+        (None, ('org.biomeroproject.shallower.manifest-schemas', '1'),
+         'manifest schema 2'),
+    ],
+)
+def test_runtime_capabilities_fail_closed(removed, changed, error):
+    import json
+    from biomero.remote_shallower import validate_installed_tool
+    labels = {
+        'org.opencontainers.image.version': '0.1.0b4',
+        'org.biomeroproject.shallower.capability-schema': '1',
+        'org.biomeroproject.shallower.runtime-contracts': '1',
+        'org.biomeroproject.shallower.manifest-schemas': '2',
+        'org.biomeroproject.shallower.migrations': 'schema-1-to-2',
+    }
+    if removed:
+        labels.pop(removed)
+    if changed:
+        labels[changed[0]] = changed[1]
+    client = SimpleNamespace(
+        remote_shallower_version=None,
+        run_commands=MagicMock(return_value=SimpleNamespace(
+            ok=True,
+            stdout=json.dumps({'data': {'attributes': {'labels': labels}}}),
+        )),
+    )
+
+    with pytest.raises((ValueError, RuntimeError), match=error):
+        validate_installed_tool(client, '/images/helper.sif')
+
+
+def test_runtime_rejects_installed_version_mismatch():
+    import json
+    from biomero.remote_shallower import validate_installed_tool
+    labels = {
+        'org.opencontainers.image.version': '0.1.0b3',
+        'org.biomeroproject.shallower.capability-schema': '1',
+        'org.biomeroproject.shallower.runtime-contracts': '1',
+        'org.biomeroproject.shallower.manifest-schemas': '2',
+    }
+    client = SimpleNamespace(
+        remote_shallower_version='0.1.0b4',
+        run_commands=MagicMock(return_value=SimpleNamespace(
+            ok=True,
+            stdout=json.dumps({'data': {'attributes': {'labels': labels}}}),
+        )),
+    )
+
+    with pytest.raises(RuntimeError, match='does not match configured'):
+        validate_installed_tool(client, '/images/helper.sif')
+
+
 @pytest.mark.parametrize('output', ['{}', 'not json'])
 def test_missing_tool_version_requires_explicit_configuration(output):
     from biomero.remote_shallower import installed_tool_version
     client = SimpleNamespace(run_commands=MagicMock(return_value=SimpleNamespace(
         ok=True, stdout=output)))
-    with pytest.raises(ValueError, match='remote_shallower_version'):
+    with pytest.raises(ValueError, match='OCI labels'):
         installed_tool_version(client, '/images/helper.sif')
 
 

@@ -23,6 +23,12 @@ def client_fixture(*, jobs=(123,), terminal=False):
     tracker.repository.get.side_effect = lambda key: workflow if key == workflow_id else task
     tracker.add_task_to_workflow.return_value = task_id
     tracker.add_job_id.side_effect = lambda _task_id, job_id: task.job_ids.append(job_id)
+    installed_labels = json.dumps({'data': {'attributes': {'labels': {
+        'org.opencontainers.image.version': task.task_version,
+        'org.biomeroproject.shallower.capability-schema': '1',
+        'org.biomeroproject.shallower.runtime-contracts': '1',
+        'org.biomeroproject.shallower.manifest-schemas': '2',
+    }}}})
     client = SimpleNamespace(remote_shallow_zarr=True, track_workflows=True,
                              workflowTracker=tracker, remote_shallower_image='helper:0.1.0',
                              remote_shallower_version='0.1.0', remote_shallower_workers=1,
@@ -34,6 +40,8 @@ def client_fixture(*, jobs=(123,), terminal=False):
                                  SimpleNamespace(ok=True, stdout=(
                                      json.dumps(canonical.to_dict())
                                      if 'canonical.json' in commands[0] else
+                                     installed_labels
+                                     if 'inspect --json --labels' in commands[0] else
                                      '' if commands[0].startswith('if test') else '{}'))))
     return client, workflow_id, canonical, batch
 
@@ -53,8 +61,12 @@ def test_resume_verifies_manifest_without_uploading_again():
 
 def test_resume_rejects_changed_manifest_before_polling():
     client, workflow_id, canonical, _ = client_fixture()
-    client.run_commands.side_effect = lambda commands, **kwargs: SimpleNamespace(
-        ok=True, stdout='{"inputs": [2]}' if 'canonical.json' in commands[0] else '')
+    original_run = client.run_commands.side_effect
+    client.run_commands.side_effect = lambda commands, **kwargs: (
+        SimpleNamespace(ok=True, stdout='{"inputs": [2]}')
+        if 'canonical.json' in commands[0]
+        else original_run(commands)
+    )
     with patch('biomero.remote_shallower._wait') as wait:
         with pytest.raises(ValueError, match='manifest'):
             run(client, '/data', workflow_id, canonical)
@@ -191,7 +203,7 @@ def test_new_task_records_discovered_receipt_version_before_submission():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []
     client.remote_shallower_version = None
-    with patch('biomero.remote_shallower.installed_tool_version', return_value='9.2.1'), \
+    with patch('biomero.remote_shallower.validate_installed_tool', return_value='9.2.1'), \
          patch('biomero.remote_shallower._prepare_manifest'), \
          patch('biomero.remote_shallower._submit_once', side_effect=RuntimeError('stop before submit')):
         with pytest.raises(RuntimeError, match='stop before submit'):
@@ -203,7 +215,7 @@ def test_missing_discovered_version_does_not_create_task():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []
     client.remote_shallower_version = None
-    with patch('biomero.remote_shallower.installed_tool_version', side_effect=ValueError('missing version')), \
+    with patch('biomero.remote_shallower.validate_installed_tool', side_effect=ValueError('missing version')), \
          pytest.raises(ValueError, match='missing version'):
         run(client, '/data', workflow_id, canonical)
     client.workflowTracker.add_task_to_workflow.assert_not_called()

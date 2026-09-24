@@ -135,9 +135,20 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">shlex</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid4</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">packaging.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidVersion</span><span class="p">,</span> <span class="n">Version</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">.slurm_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">SlurmJob</span>
 
 <span class="n">TASK_NAME</span> <span class="o">=</span> <span class="s2">"_SLURM_Remote_Shallower"</span>
+<span class="n">CAPABILITY_SCHEMA</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">REQUIRED_RUNTIME_CONTRACT</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">REQUIRED_MANIFEST_SCHEMA</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">CAPABILITY_LABELS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"schema"</span><span class="p">:</span> <span class="s2">"org.biomeroproject.shallower.capability-schema"</span><span class="p">,</span>
+    <span class="s2">"contracts"</span><span class="p">:</span> <span class="s2">"org.biomeroproject.shallower.runtime-contracts"</span><span class="p">,</span>
+    <span class="s2">"manifest_schemas"</span><span class="p">:</span> <span class="s2">"org.biomeroproject.shallower.manifest-schemas"</span><span class="p">,</span>
+    <span class="s2">"migrations"</span><span class="p">:</span> <span class="s2">"org.biomeroproject.shallower.migrations"</span><span class="p">,</span>
+<span class="p">}</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
@@ -167,27 +178,103 @@
     <span class="p">}</span></div>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_installed_labels</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">sif</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Read OCI labels without executing the helper payload."""</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
+        <span class="s1">'runtime=$(command -v apptainer || command -v singularity); '</span>
+        <span class="s1">'test -n "$runtime" &amp;&amp; "$runtime" inspect --json --labels '</span>
+        <span class="o">+</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">sif</span><span class="p">)])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot inspect installed shallower metadata'</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'attributes'</span><span class="p">][</span><span class="s1">'labels'</span><span class="p">]</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">'Installed shallower has no usable OCI labels'</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Installed shallower has no usable OCI labels'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">labels</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_version_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="s1">'org.opencontainers.image.version'</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Empty version'</span><span class="p">)</span>
+        <span class="n">Version</span><span class="p">(</span><span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">InvalidVersion</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Installed helper has no usable OCI version label; '</span>
+                         <span class="s1">'set remote_shallower_version explicitly'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+    <span class="k">return</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+
 <div class="viewcode-block" id="installed_tool_version"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.installed_tool_version">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">installed_tool_version</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">sif</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Read the installed helper's version without executing its payload.</span>
 
 <span class="sd">    A floating image tag is not a tool version. Persist the OCI version label</span>
 <span class="sd">    before submission so receipt validation and recovery use a concrete value.</span>
 <span class="sd">    """</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
-        <span class="s1">'runtime=$(command -v apptainer || command -v singularity); '</span>
-        <span class="s1">'test -n "$runtime" &amp;&amp; "$runtime" inspect --json --labels '</span>
-        <span class="o">+</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">sif</span><span class="p">)])</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot inspect installed shallower tool version'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_version_from_labels</span><span class="p">(</span><span class="n">_installed_labels</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">sif</span><span class="p">))</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_csv_capability</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">integers</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">CAPABILITY_LABELS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">'Installed shallower does not declare </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">; install a '</span>
+            <span class="s1">'compatible helper and run SLURM Init again'</span><span class="p">)</span>
+    <span class="n">entries</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)</span> <span class="k">if</span> <span class="n">part</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">entries</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Installed shallower declares an empty </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">integers</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">entries</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">version</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'attributes'</span><span class="p">][</span><span class="s1">'labels'</span><span class="p">][</span>
-            <span class="s1">'org.opencontainers.image.version'</span><span class="p">]</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Empty version'</span><span class="p">)</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Installed helper has no usable OCI version label; '</span>
-                         <span class="s1">'set remote_shallower_version explicitly'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
-    <span class="k">return</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span></div>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Installed shallower has invalid </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+
+<div class="viewcode-block" id="validate_installed_tool"><a class="viewcode-back" href="../../biomero.html#biomero.remote_shallower.validate_installed_tool">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">validate_installed_tool</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">sif</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected_version</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Fail closed unless the installed SIF satisfies this runtime contract."""</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">_installed_labels</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">sif</span><span class="p">)</span>
+    <span class="n">actual_version</span> <span class="o">=</span> <span class="n">_version_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">configured_version</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">expected_version</span>
+        <span class="k">if</span> <span class="n">expected_version</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_version</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">configured_version</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">actual_version</span><span class="p">)</span> <span class="o">==</span> <span class="n">Version</span><span class="p">(</span><span class="n">configured_version</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">InvalidVersion</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">'Invalid configured remote_shallower_version: '</span>
+                <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">configured_version</span><span class="si">}</span><span class="s1">'</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">'Installed remote Shallower </span><span class="si">{</span><span class="n">actual_version</span><span class="si">}</span><span class="s1"> does not match '</span>
+                <span class="sa">f</span><span class="s1">'configured version </span><span class="si">{</span><span class="n">configured_version</span><span class="si">}</span><span class="s1">; run SLURM Init '</span>
+                <span class="s1">'and verify the selected helper image'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">labels</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">CAPABILITY_LABELS</span><span class="p">[</span><span class="s1">'schema'</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">str</span><span class="p">(</span><span class="n">CAPABILITY_SCHEMA</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">'Installed remote Shallower has missing or unsupported capability '</span>
+            <span class="s1">'metadata; update the helper image and run SLURM Init'</span><span class="p">)</span>
+    <span class="n">contracts</span> <span class="o">=</span> <span class="n">_csv_capability</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="s1">'contracts'</span><span class="p">,</span> <span class="n">integers</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">manifest_schemas</span> <span class="o">=</span> <span class="n">_csv_capability</span><span class="p">(</span>
+        <span class="n">labels</span><span class="p">,</span> <span class="s1">'manifest_schemas'</span><span class="p">,</span> <span class="n">integers</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">REQUIRED_RUNTIME_CONTRACT</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">contracts</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">'Installed remote Shallower </span><span class="si">{</span><span class="n">actual_version</span><span class="si">}</span><span class="s1"> does not support '</span>
+            <span class="sa">f</span><span class="s1">'runtime contract </span><span class="si">{</span><span class="n">REQUIRED_RUNTIME_CONTRACT</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">REQUIRED_MANIFEST_SCHEMA</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">manifest_schemas</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">'Installed remote Shallower </span><span class="si">{</span><span class="n">actual_version</span><span class="si">}</span><span class="s1"> does not emit '</span>
+            <span class="sa">f</span><span class="s1">'shallow manifest schema </span><span class="si">{</span><span class="n">REQUIRED_MANIFEST_SCHEMA</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">actual_version</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_job_name</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">recovery</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -445,9 +532,16 @@
             <span class="sa">f</span><span class="s1">'Remote shallower image missing or invalid: </span><span class="si">{</span><span class="n">spec</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">]</span><span class="si">}</span><span class="s1">. '</span>
             <span class="s1">'Run SLURM_Init_environment and verify image setup with '</span>
             <span class="s1">'SLURM_check_setup before retrying.'</span><span class="p">)</span>
+    <span class="n">expected_version</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">task_version</span> <span class="k">if</span> <span class="n">matches</span> <span class="k">else</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_version</span>
+    <span class="p">)</span>
+    <span class="n">installed_version</span> <span class="o">=</span> <span class="n">validate_installed_tool</span><span class="p">(</span>
+        <span class="n">client</span><span class="p">,</span>
+        <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">],</span>
+        <span class="n">expected_version</span><span class="o">=</span><span class="n">expected_version</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
-        <span class="n">version</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">remote_shallower_version</span> <span class="ow">or</span> <span class="n">installed_tool_version</span><span class="p">(</span>
-            <span class="n">client</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">])</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">installed_version</span>
         <span class="n">task_id</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
             <span class="n">workflow_id</span><span class="p">,</span> <span class="n">TASK_NAME</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span>
             <span class="p">{</span><span class="s1">'image'</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span> <span class="s1">'contract'</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">'sif'</span><span class="p">:</span> <span class="n">spec</span><span class="p">[</span><span class="s1">'destination'</span><span class="p">],</span>

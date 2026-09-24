@@ -129,6 +129,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.image_spec"><code class="docutils literal notranslate"><span class="pre">image_spec()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.installed_tool_version"><code class="docutils literal notranslate"><span class="pre">installed_tool_version()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.run"><code class="docutils literal notranslate"><span class="pre">run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.validate_installed_tool"><code class="docutils literal notranslate"><span class="pre">validate_installed_tool()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -3022,6 +3023,12 @@ actionable setup error; only initialization acquires container images.
 A rejected shallowing submission returns an empty-receipt batch so the
 caller can retain full results. Unresolved submission, recovery or report
 validation raises; callers must not archive potentially incomplete output.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.validate_installed_tool">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">validate_installed_tool</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expected_version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#validate_installed_tool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.validate_installed_tool" title="Permalink to this definition"></a></dt>
+<dd><p>Fail closed unless the installed SIF satisfies this runtime contract.</p>
 </dd></dl>
 
 </section>

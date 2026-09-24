@@ -199,6 +199,29 @@ def test_missing_image_requires_initialization_without_pulling():
     client.workflowTracker.add_task_to_workflow.assert_not_called()
 
 
+def test_incompatible_installed_tool_stops_before_task_or_submission():
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    client.workflowTracker.repository.get(workflow_id).tasks = []
+    incompatible_labels = {
+        'org.opencontainers.image.version': '0.1.0b3',
+        'org.biomeroproject.shallower.capability-schema': '1',
+        'org.biomeroproject.shallower.runtime-contracts': '1',
+        'org.biomeroproject.shallower.manifest-schemas': '2',
+    }
+
+    with patch(
+        'biomero.remote_shallower._installed_labels',
+        return_value=incompatible_labels,
+    ), patch('biomero.remote_shallower._submit_once') as submit:
+        with pytest.raises(RuntimeError, match='does not match configured'):
+            run(client, '/data', workflow_id, canonical)
+
+    submit.assert_not_called()
+    client.workflowTracker.add_task_to_workflow.assert_not_called()
+    client.workflowTracker.start_task.assert_not_called()
+    client.put.assert_not_called()
+
+
 def test_new_task_records_discovered_receipt_version_before_submission():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []

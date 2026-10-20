@@ -59,7 +59,7 @@ Existing snapshots without this event remain unchanged by a historical refresh;
 the updater does not invent missing storage history from current disk contents.
 
 Repairing missing storage evidence
----------------------------------
+----------------------------------
 
 The scripts layer can validate the existing result's managed manifest and
 outcome receipt, then append missing storage evidence to the import task.

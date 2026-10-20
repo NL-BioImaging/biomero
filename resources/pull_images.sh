@@ -124,6 +124,12 @@ run_with_retry() {
     return 1
 }
 
+build_from_definition() (
+    # Only the runtime changes cwd; retry state and publication stay in the caller.
+    cd -- "$(dirname -- "$source")" || exit 66
+    "$@"
+)
+
 write_status RUNNING "" "array ${array_job_id}_${task_id} running"
 
 if command -v apptainer >/dev/null 2>&1; then
@@ -143,6 +149,8 @@ if [ -s "$destination" ] && \
 fi
 
 mkdir -p -- "$work_parent"
+work_parent=$(cd -- "$work_parent" && pwd -P) || \
+    fail_task 73 "unable to resolve node-local temporary directory"
 work_dir=$(mktemp -d "${work_parent%/}/biomero-pull-${array_job_id}_${task_id}.XXXXXX") || \
     fail_task 73 "unable to create node-local temporary directory"
 local_sif="$work_dir/image.sif"
@@ -150,9 +158,12 @@ export APPTAINER_TMPDIR="$work_dir/tmp"
 export SINGULARITY_TMPDIR="$work_dir/tmp"
 cache_parent=${SLURM_TMPDIR:-${configured_cachedir:-$work_dir}}
 task_cache="${cache_parent%/}/biomero-cache-${array_job_id}_${task_id}"
+mkdir -p -- "$APPTAINER_TMPDIR" "$task_cache" || \
+    fail_task 73 "unable to create temporary or cache directory"
+task_cache=$(cd -- "$task_cache" && pwd -P) || \
+    fail_task 73 "unable to resolve cache directory"
 export APPTAINER_CACHEDIR="$task_cache"
 export SINGULARITY_CACHEDIR="$task_cache"
-mkdir -p -- "$APPTAINER_TMPDIR" "$APPTAINER_CACHEDIR"
 
 if [ "$source_type" = "registry" ]; then
     if [[ "$image_version" == sha256:* ]]; then
@@ -168,7 +179,8 @@ if [ "$source_type" = "registry" ]; then
     rc=$?
 else
     [ -r "$source" ] || fail_task 66 "converter definition is missing or unreadable"
-    run_with_retry build "$container_runtime" build --force --disable-cache \
+    source=$(readlink -f -- "$source") || fail_task 66 "unable to resolve converter definition"
+    run_with_retry build build_from_definition "$container_runtime" build --force --disable-cache \
         --mksquashfs-args "-processors ${SLURM_CPUS_PER_TASK:-${BIOMERO_PULL_CPUS:-1}}" \
         "$local_sif" "$source"
     rc=$?

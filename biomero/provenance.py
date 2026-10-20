@@ -184,14 +184,39 @@ class MetadataChange:
 
 
 def plan_metadata_refresh(tracker, workflow_id, annotations, *, view_version='v0',
-                          target_key=None):
+                          target_key=None, refresh_storage=False):
     """Plan a snapshot-preserving update. None means unlink, not global delete.
 
     Unknown namespaces and extra keys are preserved. Missing task snapshots,
     duplicate identities and changed namespaces fail closed. Large fields that
     were already replaced by CSV references remain reduced.
+
+    Explicit storage repair may advance the import-task snapshot to a version
+    carrying newly recorded evidence for target_key. Other snapshots stay
+    pinned. Existing, different storage evidence is never silently replaced.
     """
     versions = resolve_metadata_versions(tracker, workflow_id, annotations)
+    if refresh_storage:
+        if not target_key:
+            raise ValueError('Storage repair requires a target_key')
+        candidates = []
+        for ident, version in versions.items():
+            latest = tracker.repository.get(UUID(ident))
+            if getattr(latest, 'task_name', None) not in (
+                    'SLURM_Import_Results.py', 'SLURM_Get_Results.py'):
+                continue
+            evidence = getattr(latest, 'storage_provenance', {}).get(target_key)
+            if evidence and storage_metadata_view(evidence, target_key):
+                candidates.append((ident, version, latest, evidence))
+        if len(candidates) != 1:
+            raise ValueError('Cannot identify unique import-task storage evidence for target')
+        ident, version, latest, evidence = candidates[0]
+        snapshot = tracker.repository.get(UUID(ident), version=version)
+        previous = getattr(snapshot, 'storage_provenance', {}).get(target_key)
+        if previous and previous != evidence:
+            raise ValueError('Import snapshot already contains different storage evidence')
+        if not previous:
+            versions[ident] = latest.version
     rendered = render_workflow_metadata(
         tracker, workflow_id, view_version=view_version,
         aggregate_versions=versions, target_key=target_key)

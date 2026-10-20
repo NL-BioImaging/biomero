@@ -95,6 +95,90 @@ def test_refresh_replays_storage_for_target(source):
     assert changes[3].after.values['Storage_Format'] == 'shallow-zarr'
 
 
+@pytest.fixture
+def backfilled_source(source):
+    tracker, wf, tasks = source
+    tasks[2].job_ids = [15]
+    rows = render_workflow_metadata(tracker, wf._id, target_key='Plate:10')
+    historical = {item._id: deepcopy(item) for item in [wf, *tasks]}
+    latest = deepcopy(historical)
+    for item in latest.values():
+        item.version += 1
+        item._modified_on = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        item.status = 'DONE'
+    latest[tasks[2]._id].storage_provenance = {
+        'Plate:10': {'storage': 'shallow-zarr', 'location': 'remote',
+                     'source_biocodes': ['ISCC:FIELD1', 'ISCC:FIELD0']}}
+
+    def get(ident, version=None):
+        if version is None or version == latest[ident].version:
+            return latest[ident]
+        if version == historical[ident].version:
+            return historical[ident]
+        raise ValueError(f'Unknown version: {ident}@{version}')
+
+    tracker.repository.get = get
+    return tracker, wf, tasks, rows, historical, latest
+
+
+def test_default_refresh_does_not_pick_up_later_storage_evidence(backfilled_source):
+    tracker, wf, _, rows, _, _ = backfilled_source
+    changes = plan_metadata_refresh(tracker, wf._id, rows, target_key='Plate:10')
+    assert all(change.before == change.after for change in changes)
+    assert 'Storage_Format' not in changes[3].after.values
+
+
+def test_explicit_storage_repair_advances_only_import_snapshot(backfilled_source):
+    tracker, wf, tasks, rows, historical, latest = backfilled_source
+    rows[3].values['User_Note'] = 'keep'
+    changes = plan_metadata_refresh(
+        tracker, wf._id, rows, target_key='Plate:10', refresh_storage=True)
+    for change in changes[:3]:
+        assert change.after == change.before  # Workflow and analysis retain their snapshots.
+    values = changes[3].after.values
+    assert values['Aggregate_Version'] == str(latest[tasks[2]._id].version)
+    assert values['Modified_On'] == latest[tasks[2]._id]._modified_on.isoformat()
+    assert values['Storage_Format'] == 'shallow-zarr'
+    assert values['Canonical_Biocodes'] == 'ISCC:FIELD0, ISCC:FIELD1'
+    assert values['Status'] == 'DONE'
+    assert values['User_Note'] == 'keep'
+    assert changes[4].after.values['Aggregate_Version'] == values['Aggregate_Version']
+    assert rows[3].values['Status'] == 'IMPORTING'  # Caller and history remain untouched.
+    assert not hasattr(historical[tasks[2]._id], 'storage_provenance')
+    updated = [change.after for change in changes]
+    again = plan_metadata_refresh(
+        tracker, wf._id, updated, target_key='Plate:10', refresh_storage=True)
+    assert all(change.before == change.after for change in again)
+
+
+@pytest.mark.parametrize('target_key', [None, 'Plate:11'])
+def test_explicit_storage_repair_requires_target_evidence(backfilled_source, target_key):
+    tracker, wf, _, rows, _, _ = backfilled_source
+    with pytest.raises(ValueError, match='storage|target'):
+        plan_metadata_refresh(
+            tracker, wf._id, rows, target_key=target_key, refresh_storage=True)
+
+
+def test_storage_repair_refuses_to_replace_different_historical_evidence(backfilled_source):
+    tracker, wf, tasks, rows, historical, _ = backfilled_source
+    historical[tasks[2]._id].storage_provenance = {'Plate:10': {'storage': 'full-zarr'}}
+    with pytest.raises(ValueError, match='different storage evidence'):
+        plan_metadata_refresh(
+            tracker, wf._id, rows, target_key='Plate:10', refresh_storage=True)
+
+
+def test_storage_repair_does_not_advance_a_snapshot_that_already_has_the_evidence(backfilled_source):
+    tracker, wf, tasks, rows, historical, latest = backfilled_source
+    historical[tasks[2]._id].storage_provenance = deepcopy(
+        latest[tasks[2]._id].storage_provenance)
+    rows = render_workflow_metadata(
+        tracker, wf._id, target_key='Plate:10',
+        aggregate_versions={str(key): item.version for key, item in historical.items()})
+    changes = plan_metadata_refresh(
+        tracker, wf._id, rows, target_key='Plate:10', refresh_storage=True)
+    assert all(change.before == change.after for change in changes)
+
+
 @pytest.mark.parametrize('view', ['v1', 'latest'])
 def test_unsupported_view_is_rejected_by_renderer_and_refresh(source, view):
     tracker, wf, _ = source

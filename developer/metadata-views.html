@@ -92,6 +92,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Workflow metadata views</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#view-policies">View policies</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#result-storage-provenance">Result storage provenance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#repairing-missing-storage-evidence">Repairing missing storage evidence</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#planning-a-view-refresh">Planning a view refresh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#versioning-and-compatibility">Versioning and compatibility</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#scripts-persistence-adapter">Scripts persistence adapter</a></li>
@@ -176,6 +177,32 @@ per-target evidence also remains in CSV provenance and the event store.
 <code class="docutils literal notranslate"><span class="pre">target_key</span></code>; callers must supply it to select a result’s storage facts.</p>
 <p>Existing snapshots without this event remain unchanged by a historical refresh;
 the updater does not invent missing storage history from current disk contents.</p>
+</section>
+<section id="repairing-missing-storage-evidence">
+<h2>Repairing missing storage evidence<a class="headerlink" href="#repairing-missing-storage-evidence" title="Permalink to this heading"></a></h2>
+<p>The scripts layer can validate the existing result’s managed manifest and
+outcome receipt, then append missing storage evidence to the import task.
+An ordinary historical refresh still replays the old snapshot, before that
+new event.</p>
+<p>After recording the evidence, explicitly request
+<code class="docutils literal notranslate"><span class="pre">plan_metadata_refresh(...,</span> <span class="pre">target_key=&quot;Plate:123&quot;,</span> <span class="pre">refresh_storage=True)</span></code>.
+The planner advances only the import-task snapshot that lacks the newly
+recorded evidence; its paired job maps follow that same revision. Workflow
+and other task snapshots remain pinned. The refreshed import map records
+its new <code class="docutils literal notranslate"><span class="pre">Aggregate_Version</span></code> and <code class="docutils literal notranslate"><span class="pre">Modified_On</span></code>, making the repair visible.
+Events and source pixels remain unchanged.</p>
+<p>This option requires one import task with recorded storage evidence for the
+specified target. It refuses conflicting evidence already present in the old
+snapshot. If the old snapshot already contains identical evidence, its
+revision is retained, so repeated repair does not advance it for unrelated
+later task changes. Core only plans plain-data changes; it never reads the
+result store or writes annotations.</p>
+<p>The scripts adapter exposes the same explicit <code class="docutils literal notranslate"><span class="pre">refresh_storage=True</span></code> keyword
+on <code class="docutils literal notranslate"><span class="pre">refresh_workflow_metadata</span></code>. Use its normal dry run, backups and
+shared-annotation checks when applying the repair. Normal and bulk UI refreshes
+leave this option disabled. See the
+<a class="reference external" href="https://github.com/NL-BioImaging/biomero-scripts#storage-provenance-and-repair">scripts repair procedure</a>
+for recording the missing evidence and updating the existing maps.</p>
 </section>
 <section id="planning-a-view-refresh">
 <h2>Planning a view refresh<a class="headerlink" href="#planning-a-view-refresh" title="Permalink to this heading"></a></h2>

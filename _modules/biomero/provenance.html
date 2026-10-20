@@ -305,14 +305,39 @@
 
 
 <div class="viewcode-block" id="plan_metadata_refresh"><a class="viewcode-back" href="../../biomero.html#biomero.provenance.plan_metadata_refresh">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">plan_metadata_refresh</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">view_version</span><span class="o">=</span><span class="s1">'v0'</span><span class="p">,</span>
-                          <span class="n">target_key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                          <span class="n">target_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">refresh_storage</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Plan a snapshot-preserving update. None means unlink, not global delete.</span>
 
 <span class="sd">    Unknown namespaces and extra keys are preserved. Missing task snapshots,</span>
 <span class="sd">    duplicate identities and changed namespaces fail closed. Large fields that</span>
 <span class="sd">    were already replaced by CSV references remain reduced.</span>
+
+<span class="sd">    Explicit storage repair may advance the import-task snapshot to a version</span>
+<span class="sd">    carrying newly recorded evidence for target_key. Other snapshots stay</span>
+<span class="sd">    pinned. Existing, different storage evidence is never silently replaced.</span>
 <span class="sd">    """</span>
     <span class="n">versions</span> <span class="o">=</span> <span class="n">resolve_metadata_versions</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">annotations</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">refresh_storage</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">target_key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Storage repair requires a target_key'</span><span class="p">)</span>
+        <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ident</span><span class="p">,</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">versions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">latest</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">ident</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">latest</span><span class="p">,</span> <span class="s1">'task_name'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="s1">'SLURM_Import_Results.py'</span><span class="p">,</span> <span class="s1">'SLURM_Get_Results.py'</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">evidence</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">latest</span><span class="p">,</span> <span class="s1">'storage_provenance'</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">evidence</span> <span class="ow">and</span> <span class="n">storage_metadata_view</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">target_key</span><span class="p">):</span>
+                <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">ident</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">latest</span><span class="p">,</span> <span class="n">evidence</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Cannot identify unique import-task storage evidence for target'</span><span class="p">)</span>
+        <span class="n">ident</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">latest</span><span class="p">,</span> <span class="n">evidence</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">ident</span><span class="p">),</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">)</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="s1">'storage_provenance'</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">previous</span> <span class="ow">and</span> <span class="n">previous</span> <span class="o">!=</span> <span class="n">evidence</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Import snapshot already contains different storage evidence'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">previous</span><span class="p">:</span>
+            <span class="n">versions</span><span class="p">[</span><span class="n">ident</span><span class="p">]</span> <span class="o">=</span> <span class="n">latest</span><span class="o">.</span><span class="n">version</span>
     <span class="n">rendered</span> <span class="o">=</span> <span class="n">render_workflow_metadata</span><span class="p">(</span>
         <span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">view_version</span><span class="o">=</span><span class="n">view_version</span><span class="p">,</span>
         <span class="n">aggregate_versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="n">target_key</span><span class="o">=</span><span class="n">target_key</span><span class="p">)</span>

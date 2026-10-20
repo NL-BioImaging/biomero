@@ -58,6 +58,37 @@ per-target evidence also remains in CSV provenance and the event store.
 Existing snapshots without this event remain unchanged by a historical refresh;
 the updater does not invent missing storage history from current disk contents.
 
+Repairing missing storage evidence
+---------------------------------
+
+The scripts layer can validate the existing result's managed manifest and
+outcome receipt, then append missing storage evidence to the import task.
+An ordinary historical refresh still replays the old snapshot, before that
+new event.
+
+After recording the evidence, explicitly request
+``plan_metadata_refresh(..., target_key="Plate:123", refresh_storage=True)``.
+The planner advances only the import-task snapshot that lacks the newly
+recorded evidence; its paired job maps follow that same revision. Workflow
+and other task snapshots remain pinned. The refreshed import map records
+its new ``Aggregate_Version`` and ``Modified_On``, making the repair visible.
+Events and source pixels remain unchanged.
+
+This option requires one import task with recorded storage evidence for the
+specified target. It refuses conflicting evidence already present in the old
+snapshot. If the old snapshot already contains identical evidence, its
+revision is retained, so repeated repair does not advance it for unrelated
+later task changes. Core only plans plain-data changes; it never reads the
+result store or writes annotations.
+
+The scripts adapter exposes the same explicit ``refresh_storage=True`` keyword
+on ``refresh_workflow_metadata``. Use its normal dry run, backups and
+shared-annotation checks when applying the repair. Normal and bulk UI refreshes
+leave this option disabled. See the
+`scripts repair procedure
+<https://github.com/NL-BioImaging/biomero-scripts#storage-provenance-and-repair>`_
+for recording the missing evidence and updating the existing maps.
+
 Planning a view refresh
 -----------------------
 

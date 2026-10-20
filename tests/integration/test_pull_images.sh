@@ -25,6 +25,18 @@ case $1 in
         count=$((count + 1))
         printf '%s\n' "$count" > "$count_file"
         printf '%s\n' "$*" > "${FAKE_RUNTIME_ARGS:?}"
+        source=${@: -1}
+        if [[ "$source" != docker://* ]]; then
+            # Like Apptainer, resolve %files host paths from the build's cwd,
+            # not from the definition's location.
+            host_source=$(awk '/^%files/ { getline; print $1; exit }' "$source")
+            if ! cp -- "$host_source" "${FAKE_COPIED_SOURCE:?}"; then
+                echo "FATAL: cannot copy %files source: $host_source" >&2
+                exit 255
+            fi
+            pwd -P > "${FAKE_BUILD_CWD:?}"
+            [ -d "$APPTAINER_TMPDIR" ] && [ -d "$APPTAINER_CACHEDIR" ] || exit 73
+        fi
         case ${FAKE_RUNTIME_MODE:-success} in
             permanent)
                 echo 'FATAL: manifest unknown' >&2
@@ -35,6 +47,10 @@ case $1 in
                     echo 'registry request timed out' >&2
                     exit 28
                 fi
+                ;;
+            transient-exhausted)
+                echo 'registry request timed out' >&2
+                exit 28
                 ;;
         esac
         destination=${@: -2:1}
@@ -213,5 +229,117 @@ touch "$continue_marker"
 wait "$runner_pid"
 grep -q $'workflow\timagej\tv1\tREADY\t0\tbuilt and validated' \
     "$stream_dir/status/status-0.status"
+
+# The bundled converter's %files entry is relative to its definition.
+# Run from an unrelated cwd, with spaces in paths and relative worker paths,
+# so changing the build cwd cannot redirect logs, cache, or SIF publication.
+run_definition_task() (
+    case_dir=$1
+    mode=$2
+    source_mode=${3:-absolute}
+    runtime=${4:-apptainer}
+    mkdir -p "$case_dir/converter sources" "$case_dir/bin"
+    cp "$repo_root/resources/convert_zarr_to_tiff.def" \
+        "$case_dir/converter sources/converter.def"
+    cp "$repo_root/resources/convert_zarr_to_tiff.py" \
+        "$case_dir/converter sources/convert_zarr_to_tiff.py"
+    cp "$fake_bin/apptainer" "$case_dir/bin/$runtime"
+    definition_source="$case_dir/converter sources/converter.def"
+    case "$source_mode" in
+        relative) definition_source="converter sources/converter.def" ;;
+        symlink)
+            ln -s "converter sources/converter.def" "$case_dir/linked.def"
+            definition_source=linked.def
+            ;;
+    esac
+    if [ "$mode" = missing-source ]; then
+        rm "$case_dir/converter sources/convert_zarr_to_tiff.py"
+    elif [ "$mode" = missing-definition ]; then
+        rm "$case_dir/converter sources/converter.def"
+    fi
+    printf 'kind\tname\tversion\tsource_type\tsource\tdestination\n' \
+        > "$case_dir/manifest.tsv"
+    printf 'converter\tzarr_to_tiff\tlatest\tdefinition\t%s\tshared/converter.sif\n' \
+        "$definition_source" >> "$case_dir/manifest.tsv"
+    cd "$case_dir"
+    PATH="$case_dir/bin:$PATH" \
+    FAKE_RUNTIME_MODE="$mode" \
+    FAKE_BUILD_COUNT="$case_dir/build-count" \
+    FAKE_RUNTIME_ARGS="$case_dir/runtime-args" \
+    FAKE_RUNTIME_NAME="$case_dir/runtime-name" \
+    FAKE_COPIED_SOURCE="$case_dir/copied-source.py" \
+    FAKE_BUILD_CWD="$case_dir/build-cwd" \
+    BIOMERO_PULL_ATTEMPTS=3 \
+    SLURM_ARRAY_JOB_ID=105 \
+    SLURM_ARRAY_TASK_ID=0 \
+    SLURM_TMPDIR="" \
+        bash "$runner" manifest.tsv status "local tmp" "local cache"
+)
+
+assert_definition_ready() {
+    case_dir=$1
+    test -s "$case_dir/shared/converter.sif"
+    cmp "$repo_root/resources/convert_zarr_to_tiff.py" "$case_dir/copied-source.py"
+    test "$(cat "$case_dir/build-cwd")" = \
+        "$(cd "$case_dir/converter sources" && pwd -P)"
+    grep -q $'converter\tzarr_to_tiff\tlatest\tREADY\t0\tbuilt and validated' \
+        "$case_dir/status/status-0.status"
+    test -z "$(find "$case_dir/local tmp" "$case_dir/local cache" -mindepth 1 -print -quit)"
+    test -z "$(find "$case_dir/shared" -name '*.partial.*' -print -quit)"
+}
+
+definition_dir="$test_root/definition absolute"
+run_definition_task "$definition_dir" success
+assert_definition_ready "$definition_dir"
+test "$(cat "$definition_dir/build-count")" = 1
+test "$(cat "$definition_dir/runtime-name")" = apptainer
+
+relative_dir="$test_root/definition relative"
+run_definition_task "$relative_dir" success relative
+assert_definition_ready "$relative_dir"
+
+symlink_dir="$test_root/definition symlink"
+run_definition_task "$symlink_dir" success symlink
+assert_definition_ready "$symlink_dir"
+
+singularity_dir="$test_root/definition singularity"
+run_definition_task "$singularity_dir" success relative singularity
+assert_definition_ready "$singularity_dir"
+test "$(cat "$singularity_dir/runtime-name")" = singularity
+
+definition_retry_dir="$test_root/definition retry"
+run_definition_task "$definition_retry_dir" transient
+assert_definition_ready "$definition_retry_dir"
+test "$(cat "$definition_retry_dir/build-count")" = 3
+
+definition_fail_dir="$test_root/definition exhausted"
+if run_definition_task "$definition_fail_dir" transient-exhausted; then
+    echo 'failed definition build unexpectedly succeeded' >&2
+    exit 1
+fi
+test "$(cat "$definition_fail_dir/build-count")" = 3
+grep -q $'converter\tzarr_to_tiff\tlatest\tFAILED\t28\tregistry/network timeout' \
+    "$definition_fail_dir/status/status-0.status"
+test ! -e "$definition_fail_dir/shared/converter.sif"
+test -z "$(find "$definition_fail_dir/local tmp" "$definition_fail_dir/local cache" -mindepth 1 -print -quit)"
+
+missing_source_dir="$test_root/definition missing source"
+if run_definition_task "$missing_source_dir" missing-source; then
+    echo 'missing %files source unexpectedly succeeded' >&2
+    exit 1
+fi
+test "$(cat "$missing_source_dir/build-count")" = 1
+grep -q $'FAILED\t255\tFATAL: cannot copy %files source: convert_zarr_to_tiff.py' \
+    "$missing_source_dir/status/status-0.status"
+test ! -e "$missing_source_dir/shared/converter.sif"
+
+missing_definition_dir="$test_root/definition missing"
+if run_definition_task "$missing_definition_dir" missing-definition; then
+    echo 'missing definition unexpectedly succeeded' >&2
+    exit 1
+fi
+test ! -e "$missing_definition_dir/build-count"
+grep -q $'FAILED\t66\tconverter definition is missing or unreadable' \
+    "$missing_definition_dir/status/status-0.status"
 
 echo 'pull_images integration checks passed'

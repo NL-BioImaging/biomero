@@ -152,7 +152,8 @@ on Slurm before result archiving and transfer.</p></li>
 canonical-input snapshot. Verified duplicate arrays are replaced by canonical
 references, while new or changed data is retained. It does not connect to
 OMERO or require OMERO credentials, and it does not suppress result
-registration. Its initial adapter supports NGFF 0.4 / Zarr v2 Images and Plates.</p>
+registration. Its adapters support NGFF 0.4 / Zarr v2 and NGFF 0.5 / Zarr v3
+Images and Plates, preserving each store’s existing format.</p>
 <p>Shallow storage is optional. When it is enabled, remote normalization is the
 preferred path; administrators can choose local normalization instead. Trusted
 receipts allow the importer to validate completed remote normalization without

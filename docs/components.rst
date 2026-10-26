@@ -29,7 +29,8 @@ The helper compares returned image and label identities with the exact
 canonical-input snapshot. Verified duplicate arrays are replaced by canonical
 references, while new or changed data is retained. It does not connect to
 OMERO or require OMERO credentials, and it does not suppress result
-registration. Its initial adapter supports NGFF 0.4 / Zarr v2 Images and Plates.
+registration. Its adapters support NGFF 0.4 / Zarr v2 and NGFF 0.5 / Zarr v3
+Images and Plates, preserving each store's existing format.
 
 Shallow storage is optional. When it is enabled, remote normalization is the
 preferred path; administrators can choose local normalization instead. Trusted

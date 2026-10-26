@@ -34,7 +34,7 @@ dependencies = [
     "eventsourcing_sqlalchemy==1.0.1",
     "packaging>=24,<27",
     "pyyaml==6.0.3",
-    "biomero-schema>=0.3.0b1,<0.4"
+    "biomero-schema>=0.3.0b2,<0.4"
 ]
 
 [tool.setuptools.packages]
@@ -55,8 +55,8 @@ test = [
     "psycopg2-binary>=2.9.12"
 ]
 full = [
-    "biomero-importer[identity]>=1.5.0b8,<2",
-    "biomero-shallower[identity]>=0.1.0b5,<0.2",
+    "biomero-importer[identity]>=1.5.0b9,<2",
+    "biomero-shallower[identity]>=0.1.0b6,<0.2",
     "ezomero==3.2.3",
     "tifffile==2026.3.3",
     "scikit-image==0.25.2",

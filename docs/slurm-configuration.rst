@@ -730,7 +730,9 @@ unavailable status pauses retrieval rather than triggering recovery. The helper
 task is completed only after its output report has been validated.
 
 Only ``SLURM_Init_environment`` acquires the shallower image. Verify setup with
-``SLURM_check_setup`` before running workflows. Runtime shallowing validates the
+``SLURM_check_setup`` before running workflows. In that script integration,
+acquisition requires ``IMPORTER_ENABLED=true``, ``BIOMERO_SHALLOW_ZARR=true`` and
+the remote preference enabled. Runtime shallowing validates the
 installed image and raises a setup error if it is missing or invalid; it never
 downloads an image or silently falls back because setup is incomplete.
 

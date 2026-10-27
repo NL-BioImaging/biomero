@@ -20,6 +20,10 @@ results reference verified canonical arrays instead of storing duplicate
 pixels. New and changed image or label arrays remain in the result. Canonical
 sources must remain available for those references to resolve. Disabling new
 shallowing does not make existing shallow data independent of its sources.
+The integration also requires ``IMPORTER_ENABLED=true``. Without it, scripts
+select the classic result-upload path. Reconstruction of existing shallow
+inputs remains available when new shallowing is disabled; retain their sources
+and reconstruction dependencies.
 
 ``remote_shallow_zarr`` selects where eligible results are normalized. Its
 default is true, so enabling shallow storage prefers the remote CPU helper.
@@ -27,6 +31,10 @@ Set it to false to normalize locally in the importer. It does not itself
 enable shallow storage or detached execution. The scripts enforce importer
 and shallow-storage eligibility; core additionally requires workflow tracking
 and a nonempty canonical-input manifest before submitting the helper.
+
+The scripts apply the importer and shallow-storage gates during Slurm Init as
+well: only an enabled remote path adds the helper image to image acquisition.
+The core API's remote preference alone is not a deployment feature switch.
 
 The scripts/importer establish canonical identity and pixel verification;
 core transports and validates their manifest rather than reading OMERO pixels.
@@ -93,6 +101,22 @@ Keep the recorded SIF and remote state directory until completion. Existing
 tasks retain their image and tool version even if deployment defaults change.
 The helper's recovery guarantees do not imply exactly-once execution of every
 analysis, transfer or import stage in the wider workflow.
+
+**Local result-import interruption.** Compatible scripts automatically protect
+new importer-enabled result orders with a filesystem lock and durable recovery
+record. This includes full Zarr and TIFF results and works with inline or
+detached execution. It introduces no feature flag and does not enable shallowing,
+detached execution or the viewer. Existing imported objects are not migrated.
+
+Explicitly unsupported locking or durable writes on a fresh attempt select the
+legacy import path before queueing orders. Busy locks, permission errors,
+storage failures and unfinished recovery require resolution; they do not allow
+that fallback. Separately, the importer recovers shallow transactions only
+inside an explicitly requested shallow lifecycle operation, after checking
+``BIOMERO_SHALLOW_ZARR``. Ordinary orders do not enter shallow preparation.
+See the `NL-BIOMERO recovery guide
+<https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#failure-and-observability>`_
+for deployment requirements and retry limits.
 
 **User-requested rerun.** Reusing recorded settings or restarting from the web
 interface is an OMERO.biomero/scripts operation. It is distinct from adopting

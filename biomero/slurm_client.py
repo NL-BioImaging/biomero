@@ -2470,8 +2470,29 @@ class SlurmClient(Connection):
             Result: The result of the command.
         """
         cmd = self.get_unzip_command(zipfile)
+        # Archive tools can return success even when their filters matched no
+        # files. Do not report a successful transfer or launch an empty job.
+        cmd = f"({cmd}) && ({self.get_input_validation_command(zipfile)})"
         logger.info(f"Unpacking {zipfile} on Slurm")
         return self.run_commands([cmd], env=env)
+
+    def get_input_validation_command(self, folder: str) -> str:
+        """Reject missing/empty image inputs after extraction on Slurm."""
+        input_path = shlex.quote(
+            posixpath.join(self.slurm_data_path, folder, "data", "in"))
+        return (
+            f"input_dir={input_path}; "
+            'for image in "$input_dir"/*.zarr; do '
+            'if [ -d "$image" ] && '
+            '{ [ -s "$image/zarr.json" ] || '
+            '{ [ -s "$image/.zgroup" ] && [ -s "$image/.zattrs" ]; }; }; '
+            'then exit 0; fi; done; '
+            'for image in "$input_dir"/*.tif "$input_dir"/*.tiff; do '
+            'if [ -f "$image" ] && [ -s "$image" ]; then exit 0; fi; done; '
+            'printf "%s\\n" "ERROR: No usable image inputs after extraction '
+            'in $input_dir (expected OME-Zarr metadata or nonempty TIFF)." >&2; '
+            'exit 1'
+        )
 
     def generate_slurm_job_for_workflow(self,
                                         workflow: str,
@@ -3937,7 +3958,8 @@ class SlurmClient(Connection):
             f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
             f" {self.slurm_zip_cmd} x -y"
             f" -o\"{self.slurm_data_path}/{zipfile}/data/in\""
-            f" \"{self.slurm_data_path}/{zipfile}.zip\" {filter_filetypes}"
+            f" \"{self.slurm_data_path}/{zipfile}.zip\""
+            f"{self._get_infozip_filter_args(filter_filetypes)}"
         )
 
         return unzip_cmd

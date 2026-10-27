@@ -334,7 +334,8 @@ def test_get_unzip_command(slurm_client):
         f' "{slurm_data_path}/{zipfile}/data/gt";'
         f' {auto} x -y'
         f' -o"{slurm_data_path}/{zipfile}/data/in"'
-        f' "{slurm_data_path}/{zipfile}.zip" {filter_filetypes}'
+        f' "{slurm_data_path}/{zipfile}.zip"'
+        " '*.zarr/*' '*.tiff' '*.tif'"
     )
 
     # WHEN
@@ -3689,8 +3690,52 @@ def test_unpack_data_calls_run_commands(slurm_client):
     """unpack_data builds the unzip command and runs it."""
     slurm_client.run_commands = MagicMock(return_value=MagicMock(ok=True))
     slurm_client.get_unzip_command = MagicMock(return_value="unzip file.zip")
+    slurm_client.get_input_validation_command = MagicMock(
+        return_value="validate-inputs")
     slurm_client.unpack_data("file.zip")
-    slurm_client.run_commands.assert_called_once_with(["unzip file.zip"], env=None)
+    slurm_client.run_commands.assert_called_once_with(
+        ["(unzip file.zip) && (validate-inputs)"], env=None)
+
+
+@pytest.mark.parametrize("kind,success", [
+    ("empty", False), ("unrelated", False), ("empty-zarr", False),
+    ("zero-tiff", False), ("zarr-v2", True), ("zarr-v3", True),
+    ("tiff", True),
+])
+def test_input_validation_executes_on_real_directories(
+        slurm_client, tmp_path, kind, success):
+    """Exercise the shell guard, including paths containing spaces and quotes."""
+    import subprocess
+    slurm_client.slurm_data_path = str(tmp_path / "data with 'quotes'")
+    inputs = tmp_path / "data with 'quotes'" / "batch" / "data" / "in"
+    inputs.mkdir(parents=True)
+    if kind in ("empty-zarr", "zarr-v2", "zarr-v3"):
+        image = inputs / "plate.ome.zarr"
+        image.mkdir()
+        if kind == "zarr-v2":
+            (image / ".zgroup").write_text('{"zarr_format":2}')
+            (image / ".zattrs").write_text('{"multiscales":[]}')
+        if kind == "zarr-v3":
+            (image / "zarr.json").write_text('{"zarr_format":3}')
+    elif kind == "unrelated":
+        (inputs / "report.txt").write_text("No images")
+    elif kind in ("tiff", "zero-tiff"):
+        (inputs / "image.tiff").write_bytes(
+            b"II*\x00" if kind == "tiff" else b"")
+    result = subprocess.run(
+        ["sh", "-c", slurm_client.get_input_validation_command("batch")],
+        capture_output=True, text=True)
+    assert (result.returncode == 0) == success
+    if not success:
+        assert "No usable image inputs" in result.stderr
+
+
+def test_7zip_filters_are_recursive_and_shell_quoted(slurm_client):
+    slurm_client.slurm_zip_cmd = "7z"
+    command = slurm_client.get_unzip_command("batch")
+    assert shlex.split(command)[-3:] == ["*.zarr/*", "*.tiff", "*.tif"]
+    assert "'*.zarr/*'" in command
+    assert "None" not in slurm_client.get_unzip_command("batch", None)
 
 
 # ---------------------------------------------------------------------------

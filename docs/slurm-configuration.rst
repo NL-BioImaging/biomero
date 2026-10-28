@@ -41,23 +41,6 @@ BIOMERO uses these sections in ``slurm-config.ini``:
 * ``[CONVERTERS]`` for external converter container images
 * ``[WORKFLOWS]`` (or ``[MODELS]`` for legacy configs) for workflow repositories, job scripts, and per-workflow sbatch overrides
 
-The ``[UI] zarr_v3_workflows`` setting is a JSON list, defaulting to ``[]``.
-Add only workflow names whose selected versions support OME-Zarr 0.5 / Zarr v3.
-All other workflows receive OME-Zarr 0.4 / Zarr v2. The legacy TIFF conversion
-route always uses v2. Native Zarr workflows can opt in regardless of descriptor
-style, including BIAFLOWS. OMERO.biomero exposes this as **Zarr v3 input
-(OME-Zarr 0.5)** below **Zarr Format Required** on each workflow's admin card.
-Saving v3 without Zarr or plate input is rejected. Saving changes applies to new
-runs without Slurm Init or a container restart; there is no environment override.
-
-The matching scripts enforce this policy for fresh exports and reused stores.
-Matching formats reuse the backing store directly. A mismatch creates temporary
-workflow input, preserving pixels, labels and calibration; canonical stores keep
-their original format. A returned result with a different canonical format stays
-full. No second canonical copy is created for compatibility. Detached resume uses
-the format recorded at launch. Workflows with different input requirements must
-be submitted separately because a shared transfer has one format.
-
 The ``[ANALYTICS]`` section enables BIOMERO 2.x provenance and workflow tracking.
 See the `Analytics and Provenance Settings`_ section below for details.
 

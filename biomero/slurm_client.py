@@ -427,13 +427,12 @@ class SlurmClient(Connection):
         """Resolve the administrator's per-workflow input format policy.
 
         ``[UI] zarr_v3_workflows`` is a JSON list, empty by default. Only listed
-        workflows use OME-Zarr 0.5/v3. TIFF conversion and BIAFLOWS always use
-        0.4/v2. Callers with a loaded descriptor must supply it; web submission
-        may defer descriptor enforcement to the worker without a network fetch.
+        workflows use OME-Zarr 0.5/v3 when native Zarr input is enabled.
+        TIFF conversion always uses 0.4/v2. Descriptor style does not constrain
+        a workflow's format; ``descriptor`` remains accepted for callers.
         This runtime setting has no environment override.
         """
-        if not use_zarr or (descriptor is not None and not str(
-                descriptor.get('schema-version', '')).startswith('bilayers')):
+        if not use_zarr:
             return transfer.OME_ZARR_VERSION_0_4
         if configs is None:
             configs = cls.load_config()

@@ -23,19 +23,21 @@ def test_v3_is_per_workflow_opt_in():
     assert SlurmClient.resolve_workflow_zarr_version("other", configs=settings) == "0.4"
 
 
-@pytest.mark.parametrize("descriptor, expected", [
-    ({"schema-version": "bilayers:0.1.0"}, "0.5"),
-    ({"schema-version": "0.5"}, "0.4"),
-    ({}, "0.4"),
+@pytest.mark.parametrize("descriptor", [
+    {"schema-version": "bilayers:0.1.0"},
+    {"schema-version": "boutiques-0.5"},
+    {},
 ])
-def test_worker_descriptor_enforces_bilayers_only(descriptor, expected):
+def test_native_zarr_opt_in_is_independent_of_descriptor_style(descriptor):
     assert SlurmClient.resolve_workflow_zarr_version(
-        "seg", configs=config('["seg"]'), descriptor=descriptor) == expected
+        "seg", configs=config('["seg"]'), descriptor=descriptor, use_zarr=True) == "0.5"
 
 
-def test_tiff_conversion_always_uses_v2():
+@pytest.mark.parametrize("descriptor", [None, {"schema-version": "boutiques-0.5"},
+                                        {"schema-version": "bilayers:0.1.0"}])
+def test_tiff_conversion_always_uses_v2(descriptor):
     assert SlurmClient.resolve_workflow_zarr_version(
-        "seg", configs=config('["seg"]'), use_zarr=False) == "0.4"
+        "seg", configs=config('["seg"]'), descriptor=descriptor, use_zarr=False) == "0.4"
 
 
 def test_policy_reads_the_authoritative_config(monkeypatch):

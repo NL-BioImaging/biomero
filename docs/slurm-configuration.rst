@@ -43,9 +43,11 @@ BIOMERO uses these sections in ``slurm-config.ini``:
 
 The ``[UI] zarr_v3_workflows`` setting is a JSON list, defaulting to ``[]``.
 Add only workflow names whose selected versions support OME-Zarr 0.5 / Zarr v3.
-All other workflows receive OME-Zarr 0.4 / Zarr v2. BIAFLOWS and the legacy TIFF
-conversion route always use v2. OMERO.biomero exposes this as **Zarr v3 input
-(OME-Zarr 0.5)** on each workflow's admin card. Saving changes applies to new
+All other workflows receive OME-Zarr 0.4 / Zarr v2. The legacy TIFF conversion
+route always uses v2. Native Zarr workflows can opt in regardless of descriptor
+style, including BIAFLOWS. OMERO.biomero exposes this as **Zarr v3 input
+(OME-Zarr 0.5)** below **Zarr Format Required** on each workflow's admin card.
+Saving v3 without Zarr or plate input is rejected. Saving changes applies to new
 runs without Slurm Init or a container restart; there is no environment override.
 
 The matching scripts enforce this policy for fresh exports and reused stores.

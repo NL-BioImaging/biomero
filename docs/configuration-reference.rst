@@ -30,7 +30,8 @@ Workflow Input Format
 
 ``[UI] zarr_v3_workflows`` is a JSON list of workflow names that accept
 OME-Zarr 0.5 / Zarr v3. Its default is ``[]``: workflows receive 0.4/v2 unless
-explicitly enabled. BIAFLOWS workflows and TIFF conversion always use v2.
+explicitly enabled with native Zarr input. This applies to both Bilayers and
+BIAFLOWS descriptors. TIFF conversion always uses v2.
 This runtime admin setting has no environment override. It controls temporary
 workflow inputs; it does not migrate canonical backing stores. See
 :doc:`slurm-configuration` for transfer and shallow-storage consequences.

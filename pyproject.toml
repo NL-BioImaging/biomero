@@ -52,6 +52,7 @@ test = [
     "pytest-cov",
     "mock",
     "flake8",
+    "zarr==3.1.5",
     "psycopg2-binary>=2.9.12"
 ]
 full = [

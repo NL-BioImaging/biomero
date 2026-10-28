@@ -19,6 +19,7 @@ from fabric.transfer import Result as TransferResult
 from invoke.exceptions import UnexpectedExit
 from paramiko import SSHException
 import configparser
+import json
 import re
 import requests_cache
 from requests.adapters import HTTPAdapter
@@ -33,7 +34,7 @@ import os
 import posixpath
 import yaml
 import shlex
-from biomero.constants import slurm_env
+from biomero.constants import slurm_env, transfer
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
@@ -419,6 +420,35 @@ class SlurmClient(Connection):
         configs = configparser.ConfigParser(allow_no_value=True)
         configs.read(cls.get_config_paths(configfile))
         return configs
+
+    @classmethod
+    def resolve_workflow_zarr_version(cls, workflow_name, *, configs=None,
+                                      descriptor=None, use_zarr=True):
+        """Resolve the administrator's per-workflow input format policy.
+
+        ``[UI] zarr_v3_workflows`` is a JSON list, empty by default. Only listed
+        workflows use OME-Zarr 0.5/v3. TIFF conversion and BIAFLOWS always use
+        0.4/v2. Callers with a loaded descriptor must supply it; web submission
+        may defer descriptor enforcement to the worker without a network fetch.
+        This runtime setting has no environment override.
+        """
+        if not use_zarr or (descriptor is not None and not str(
+                descriptor.get('schema-version', '')).startswith('bilayers')):
+            return transfer.OME_ZARR_VERSION_0_4
+        if configs is None:
+            configs = cls.load_config()
+        raw = cls._get_config_value(
+            configs, 'UI', 'zarr_v3_workflows', default='[]')
+        try:
+            workflows = json.loads(raw or '[]')
+        except (ValueError, TypeError):
+            workflows = None
+        if not isinstance(workflows, list) or any(
+                not isinstance(name, str) for name in workflows):
+            logger.warning('Invalid [UI] zarr_v3_workflows; using OME-Zarr 0.4/v2')
+            return transfer.OME_ZARR_VERSION_0_4
+        return (transfer.OME_ZARR_VERSION_0_5 if workflow_name in workflows
+                else transfer.OME_ZARR_VERSION_0_4)
 
     @staticmethod
     def _get_config_value(configs,

@@ -39,6 +39,10 @@ Environment Variable Lookup Table
      - —
      - filesystem path
      - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+   * - ``BIOMERO_SSH_RECOVERY_TIMEOUT``
+     - ``[SLURM] ssh_recovery_timeout``
+     - nonnegative integer seconds
+     - Recovery window for replay-safe SSH operations; default ``0`` preserves legacy behavior. ``900`` allows 15 minutes. Runtime; no Slurm Init required. Submission/archive recovery requires flock and durable writable HPC storage.
    * - ``BIOMERO_DETACHED_WORKFLOWS``
      - not applicable
      - boolean
@@ -523,3 +527,12 @@ actual tool version.
 
 For recovery behavior and component responsibilities, see
 :doc:`developer/execution-and-storage`.
+
+
+SSH Recovery
+------------
+
+``[SLURM] ssh_recovery_timeout`` (environment
+``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds. Default:
+``0``. For enablement, dependencies, submission reconciliation and limits, see
+:ref:`the SSH recovery section <ssh-recovery>` in :doc:`slurm-configuration`.

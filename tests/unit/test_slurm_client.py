@@ -2551,6 +2551,7 @@ def test_from_config(mock_ConfigParser,
     ])
     mock_SlurmClient.assert_called_with(
         host=mv,  # expected host value,
+        ssh_recovery_timeout=0,
         inline_ssh_env=True,  # expected inline_ssh_env value,
         slurm_data_path=mv,  # expected slurm_data_path value,
         slurm_images_path=mv,  # expected slurm_images_path value,

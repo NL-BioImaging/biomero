@@ -804,3 +804,47 @@ actual tool version.
 
 For recovery behavior and component responsibilities, see
 :doc:`developer/execution-and-storage`.
+
+
+.. _ssh-recovery:
+
+Recovering Interrupted SSH Operations
+-------------------------------------
+
+Set ``ssh_recovery_timeout`` in ``[SLURM]`` to a nonnegative recovery window
+in seconds. The default ``0`` preserves single-attempt transport behavior.
+For example, ``ssh_recovery_timeout = 900`` tolerates a connection outage of
+approximately ten minutes with time left to reconnect. The environment override
+is ``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
+Slurm Init is not needed just to change the window.
+
+With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
+read-only operations with exponential backoff, capped at 30 seconds. The activity
+log reports **Waiting for SSH connection** while the last known Slurm job state
+is retained. Authentication, host-key, permission, configuration and remote-command
+failures are not treated as transient transport loss. Cancellation and deadline
+expiry stop recovery with an explicit connection diagnostic, leaving remote jobs
+and recovery records intact.
+
+Workflow and conversion submissions use the tracked task identity, a remote
+``.biomero-recovery`` record and the Slurm job name. After a lost response,
+BIOMERO adopts the recorded job or reconciles its exact identity through squeue
+and sacct. Unresolved submission intent never authorizes a second sbatch.
+Tracking must remain enabled for resumable submission; arbitrary ``run`` and
+``run_commands`` calls are deliberately not retried. Existing untracked callers
+retain one-attempt submission behavior.
+
+Result archive creation is serialized and published through a temporary path.
+Completed archives are reused on retry. Downloads and input archives are copied
+to partial paths, checked for completeness and published atomically. A retry
+restarts an interrupted copy from the beginning, rather than requiring rsync or
+SSHFS. Existing local final files remain available until replacement succeeds.
+Normal ZIP extraction still validates member CRCs before import.
+
+This opt-in requires ``flock`` and writable shared HPC storage for submission and
+archive records, Slurm accounting/job-name lookup, and atomic SFTP rename support
+for input publication. Keep these records and result files while recovery is
+pending. Do not delete an unresolved intent to force a retry; reconcile the job
+first. A processor restart can reuse the recorded task and job identity, but
+recovery does not make arbitrary remote commands or OMERO postprocessing
+exactly-once. Use matching core and scripts for the complete pipeline.

@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 from packaging.version import InvalidVersion, Version
 
 from .slurm_client import SlurmJob
+from . import ssh_recovery
 
 TASK_NAME = "_SLURM_Remote_Shallower"
 CAPABILITY_SCHEMA = 1
@@ -337,7 +338,11 @@ def _submit_once(client, command, state, *, job_name):
         'printf "%s\\n" "$job"; fi'
     )
     result = client.run_commands([
-        f'flock -w 30 {quote(state + ".lock")} sh -c {quote(script)}'])
+        f'flock -w 30 {quote(state + ".lock")} sh -c {quote(script)}'],
+        **({'warn': True} if ssh_recovery.enabled(client) else {}))
+    if ssh_recovery.enabled(client) and result.exited == 75:
+        raise ssh_recovery.RecoveryPending(
+            'Waiting for the existing shallower submission')
     if result.ok and result.stdout.strip() == 'NOT_SUBMITTED':
         return None
     if not result.ok or not result.stdout.strip().isdigit():

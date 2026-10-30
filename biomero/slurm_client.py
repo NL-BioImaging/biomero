@@ -33,7 +33,9 @@ import os
 import posixpath
 import yaml
 import shlex
+import socket
 from biomero.constants import slurm_env
+from biomero import ssh_recovery
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
@@ -566,7 +568,8 @@ class SlurmClient(Connection):
                  analytics_rebuild_start_time: str = None,
                  analytics_rebuild_days_ago: int = None,
                  remote_shallower_mem: str = None,
-                 remote_shallower_time: str = None):
+                 remote_shallower_time: str = None,
+                 ssh_recovery_timeout: int = 0):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -574,6 +577,13 @@ class SlurmClient(Connection):
         parameters from a configuration file.
 
         Args:
+            ssh_recovery_timeout (int, optional): Maximum seconds to retry an
+                interrupted replay-safe SSH operation. Default 0 preserves the
+                legacy single-attempt transport behavior. Configure 900 for a
+                15-minute recovery window, or override with
+                BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires
+                tracking, flock and durable writable HPC storage; it reserves
+                the Slurm job comment for task identity.
             host (str, optional): The hostname or IP address of the remote 
                 server. Defaults to `_DEFAULT_HOST`.
             user (str, optional): The username to use when connecting to 
@@ -786,6 +796,14 @@ class SlurmClient(Connection):
                                           connect_timeout,
                                           connect_kwargs,
                                           inline_ssh_env)
+        if ssh_recovery_timeout < 0:
+            raise ValueError("ssh_recovery_timeout must be nonnegative")
+        self.ssh_recovery_timeout = ssh_recovery_timeout
+        self.ssh_recovery_cancel = None
+        if ssh_recovery_timeout:
+            self.connect_timeout = self.connect_timeout or 10
+            self.connect_kwargs.setdefault("banner_timeout", 30)
+            self.connect_kwargs.setdefault("auth_timeout", 30)
         self.slurm_data_path = slurm_data_path
         self.slurm_images_path = slurm_images_path
         self.slurm_converters_path = slurm_converters_path
@@ -1479,7 +1497,10 @@ class SlurmClient(Connection):
         from .remote_shallower import run
         if heartbeat is not None and not callable(heartbeat):
             raise TypeError('heartbeat must be callable')
-        return run(self, data_path, workflow_id, canonical_inputs, heartbeat)
+        return ssh_recovery.retry(
+            self, lambda: run(self, data_path, workflow_id, canonical_inputs,
+                              heartbeat), "remote shallowing",
+            heartbeat=heartbeat)
 
     def get_remote_shallower_receipts(self, workflow_id, canonical_inputs):
         """Read trusted completed receipts from event-sourced helper tasks."""
@@ -1667,6 +1688,10 @@ class SlurmClient(Connection):
             section="SSH",
             option="host",
             default=cls._DEFAULT_HOST,
+        )
+        ssh_recovery_timeout = cls._get_config_value(
+            configs, section="SLURM", option="ssh_recovery_timeout", default=0,
+            env_vars=[slurm_env.BIOMERO_SSH_RECOVERY_TIMEOUT], value_type=int,
         )
         inline_ssh_env = cls._get_config_value(
             configs,
@@ -2017,6 +2042,7 @@ class SlurmClient(Connection):
         # Create the SlurmClient object with the parameters read from
         # the config file
         return cls(host=host,
+                   ssh_recovery_timeout=ssh_recovery_timeout,
                    inline_ssh_env=inline_ssh_env,
                    slurm_data_path=slurm_data_path,
                    slurm_images_path=slurm_images_path,
@@ -2153,7 +2179,7 @@ class SlurmClient(Connection):
                 True if the validation is successful,
                 False otherwise.
         """
-        connected = self.run('echo " "').ok
+        connected = self.run_read_only('echo " "').ok
         if connected and validate_slurm_setup:
             try:
                 self.setup_slurm()
@@ -2202,7 +2228,7 @@ class SlurmClient(Connection):
         if env is None:
             env = {}
         try:
-            result = self.run_commands(cmdlist, env=env)
+            result = self.run_commands_read_only(cmdlist, env=env)
         except Exception as e:
             logger.error(f"Issue with run command: {e}")
         # Match the specified pattern in the result's stdout
@@ -2214,6 +2240,37 @@ class SlurmClient(Connection):
             logger.warning(f"Issue with extracting progress: {e}")
 
         return latest_progress
+
+    def open(self):
+        """Keep a quiet SSH link detectable without limiting long commands."""
+        result = super().open()
+        if ssh_recovery.enabled(self) and self.transport is not None:
+            self.transport.set_keepalive(15)
+            sock = self.transport.sock
+            if isinstance(sock, socket.socket):
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                for name, value in (("TCP_KEEPIDLE", 30),
+                                    ("TCP_KEEPINTVL", 10), ("TCP_KEEPCNT", 3),
+                                    ("TCP_USER_TIMEOUT", 30000)):
+                    option = getattr(socket, name, None)
+                    if option is not None:
+                        try:
+                            sock.setsockopt(socket.IPPROTO_TCP, option, value)
+                        except OSError:
+                            logger.debug('TCP keepalive option unavailable: %s',
+                                         name)
+        return result
+
+    def run_read_only(self, command, **kwargs):
+        """Reconnect and repeat a caller-declared read-only command."""
+        return ssh_recovery.retry(
+            self, lambda: self.run(command, **kwargs), "read remote state")
+
+    def run_commands_read_only(self, commands, env=None, **kwargs):
+        """Read remote state while preserving the last known job status."""
+        return ssh_recovery.retry(
+            self, lambda: self.run_commands(commands, env=env, **kwargs),
+            "read remote state")
 
     def run_commands(self, cmdlist: List[str],
                      env: Optional[Dict[str, str]] = None,
@@ -2453,6 +2510,8 @@ class SlurmClient(Connection):
         """
         logger.info(
             f"Transfering file {local_path} to {self.slurm_data_path}")
+        if ssh_recovery.enabled(self):
+            return ssh_recovery.upload(self, local_path, self.slurm_data_path)
         return self.put(local=local_path, remote=self.slurm_data_path)
 
     def unpack_data(self, zipfile: str,
@@ -2471,6 +2530,8 @@ class SlurmClient(Connection):
         """
         cmd = self.get_unzip_command(zipfile)
         logger.info(f"Unpacking {zipfile} on Slurm")
+        if ssh_recovery.enabled(self):
+            return ssh_recovery.unpack(self, zipfile, env)
         return self.run_commands([cmd], env=env)
 
     def generate_slurm_job_for_workflow(self,
@@ -2727,6 +2788,33 @@ class SlurmClient(Connection):
             result = self.run_commands([cmd], env=env)
         return result
 
+    def _submission_task(self, wf_id, name, version, input_data, params):
+        """Recover task identity before attempting any new Slurm submission."""
+        tracker = self.workflowTracker
+        if ssh_recovery.enabled(self) and not isinstance(
+                tracker, NoOpWorkflowTracker):
+            workflow = tracker.repository.get(wf_id)
+            matches = []
+            for task_id in workflow.tasks:
+                task = tracker.repository.get(task_id)
+                if task.task_name == name and task.input_data == input_data:
+                    matches.append(task)
+            if len(matches) > 1:
+                raise RuntimeError('Ambiguous submission tasks; reconcile first')
+            if matches:
+                task = matches[0]
+                if task.task_version != version or task.params != params:
+                    raise RuntimeError('Submission parameters changed on resume')
+                return task.id
+        return tracker.add_task_to_workflow(
+            wf_id, name, version, input_data, params)
+
+    def _submit_tracked(self, command, env, task_id):
+        if ssh_recovery.enabled(self) and task_id:
+            return ssh_recovery.submit(self, command, env, task_id)
+        # No durable task identity: do not replay a potentially accepted sbatch.
+        return self.run_commands([command], env)
+
     def run_workflow(self,
                      workflow_name: str,
                      workflow_version: str,
@@ -2778,7 +2866,7 @@ class SlurmClient(Connection):
         if output_settings:
             recorded_params["output_settings"] = output_settings
 
-        task_id = self.workflowTracker.add_task_to_workflow(
+        task_id = self._submission_task(
             wf_id,
             workflow_name,
             workflow_version,
@@ -2787,17 +2875,22 @@ class SlurmClient(Connection):
         logger.debug(f"Added new task {task_id} to workflow {wf_id}")
 
         sbatch_cmd, sbatch_env = self.get_workflow_command(
-            workflow_name, workflow_version, input_data, email, time, **kwargs)
+            workflow_name, workflow_version, input_data, email, time,
+            **({'_submission_token': 'biomero-' + str(task_id)}
+               if ssh_recovery.enabled(self) and task_id else {}), **kwargs)
         print(f"Running {workflow_name} job on {input_data} on Slurm:\
             {sbatch_cmd} w/ {sbatch_env}")
         logger.info(f"Running {workflow_name} job on {input_data} on Slurm")
-        res = self.run_commands([sbatch_cmd], sbatch_env)
+        res = self._submit_tracked(sbatch_cmd, sbatch_env, task_id)
         slurm_job_id = self.extract_job_id(res)
 
         if task_id:
-            self.workflowTracker.start_task(task_id)
-            self.workflowTracker.add_job_id(task_id, slurm_job_id)
-            self.workflowTracker.add_result(task_id, res)
+            recorded = (self.workflowTracker.repository.get(task_id).job_ids
+                        if ssh_recovery.enabled(self) else [])
+            if slurm_job_id not in recorded:
+                self.workflowTracker.start_task(task_id)
+                self.workflowTracker.add_job_id(task_id, slurm_job_id)
+                self.workflowTracker.add_result(task_id, res)
 
         return res, slurm_job_id, wf_id, task_id
 
@@ -2894,13 +2987,19 @@ class SlurmClient(Connection):
                 -1
             )
         logger.debug(f"wf_id: {wf_id}")
-        task_id = self.workflowTracker.add_task_to_workflow(
+        task_id = self._submission_task(
             wf_id,
             f"convert_{source_format}_to_{target_format}".upper(),
             version,
             data_path,
             sbatch_env
         )
+
+        if ssh_recovery.enabled(self) and task_id:
+            conversion_cmd, sbatch_env, _, _ = self.get_conversion_command(
+                data_path, config_file, source_format, target_format,
+                submission_token='biomero-' + str(task_id))
+            commands[-1] = conversion_cmd
 
         # Run all commands consecutively.
         # The final command is the sbatch submission. If sbatch rejects the
@@ -2914,7 +3013,9 @@ class SlurmClient(Connection):
         # (job_id=-1) instead of a raw traceback. The caller can then surface
         # the reason via slurmJob.get_error().
         try:
-            res = self.run_commands(commands, sbatch_env)
+            res = (self._submit_tracked(" && ".join(commands), sbatch_env, task_id)
+                   if ssh_recovery.enabled(self) and task_id
+                   else self.run_commands(commands, sbatch_env))
         except UnexpectedExit as e:
             res = e.result
             logger.error(
@@ -2938,9 +3039,12 @@ class SlurmClient(Connection):
                 task_id)
 
         if task_id:
-            self.workflowTracker.start_task(task_id)
-            self.workflowTracker.add_job_id(task_id, slurm_job_id)
-            self.workflowTracker.add_result(task_id, res)
+            recorded = (self.workflowTracker.repository.get(task_id).job_ids
+                        if ssh_recovery.enabled(self) else [])
+            if slurm_job_id not in recorded:
+                self.workflowTracker.start_task(task_id)
+                self.workflowTracker.add_job_id(task_id, slurm_job_id)
+                self.workflowTracker.add_result(task_id, res)
 
         # The conversion is submitted with --output=omero-%A_%a.log, so its
         # log(s) live next to the workflow logs as omero-<jobid>_*.log. Track
@@ -3029,7 +3133,9 @@ class SlurmClient(Connection):
         retry_status = 0
         last_result = None
         while retry_status < 3:
-            result = self.run_commands([cmd], env=env)
+            result = ssh_recovery.retry(
+                self, lambda: self.run_commands([cmd], env=env),
+                "monitor Slurm jobs")
             last_result = result
             logger.info(result)
             if result.ok:
@@ -3117,7 +3223,8 @@ class SlurmClient(Connection):
             logfile = self._LOGFILE
             logfile = logfile.format(slurm_job_id=slurm_job_id)
         cmd = self._LOGFILE_DATA_CMD.format(log_file=logfile)
-        result = self.run_commands([cmd])
+        result = ssh_recovery.retry(
+            self, lambda: self.run_commands([cmd]), "read result location")
         if result.ok:
             return result.stdout
         else:
@@ -3412,7 +3519,7 @@ class SlurmClient(Connection):
                              input_data: str,
                              email: Optional[str] = None,
                              time: Optional[str] = None,
-                             **kwargs) -> Tuple[str, Dict]:
+                             _submission_token=None, **kwargs) -> Tuple[str, Dict]:
         """
         Generate the Slurm workflow command and environment variables.
 
@@ -3519,6 +3626,8 @@ class SlurmClient(Connection):
         time_param = "" if time is None else f" --time={time}"
         job_params.append(time_param)
         job_params.append(email_param)
+        if _submission_token:
+            job_params.append(" --comment=" + shlex.quote(_submission_token))
         job_param = "".join(job_params)
 
         if self.env_file_submission:
@@ -3549,7 +3658,8 @@ class SlurmClient(Connection):
     def get_conversion_command(self, data_path: str,
                                config_file: str,
                                source_format: str = 'zarr',
-                               target_format: str = 'tiff') -> Tuple[str, Dict, str, str]:
+                               target_format: str = 'tiff',
+                               submission_token=None) -> Tuple[str, Dict, str, str]:
         """
         Generate Slurm conversion command and environment variables for data conversion.
 
@@ -3612,6 +3722,8 @@ class SlurmClient(Connection):
         conversion_params = self.get_job_params({
             'partition': self.slurm_conversion_partition})
         conversion_param = ''.join(' ' + param for param in conversion_params)
+        if submission_token:
+            conversion_param += " --comment=" + shlex.quote(submission_token)
         conversion_cmd = (
             f"sbatch{conversion_param} --job-name=conversion "
             "--output=omero-%A_%a.log "
@@ -3725,6 +3837,9 @@ class SlurmClient(Connection):
         """
         logger.info(f"Copying zip {filename} from\
             Slurm to {local_tmp_storage}")
+        if ssh_recovery.enabled(self):
+            return ssh_recovery.download(
+                self, f"{filename}.zip", local_tmp_storage)
         return self.get(
             remote=f"{filename}.zip",
             local=local_tmp_storage)
@@ -3747,6 +3862,8 @@ class SlurmClient(Connection):
         # zip
         zip_cmd = self.get_zip_command(data_location, filename)
         logger.info(f"Zipping {data_location} as {filename} on Slurm")
+        if ssh_recovery.enabled(self):
+            return ssh_recovery.archive(self, data_location, filename, env)
         return self.run_commands([zip_cmd], env=env)
 
     def get_zip_command(self, data_location: str, filename: str) -> str:

@@ -583,7 +583,7 @@ class SlurmClient(Connection):
                 15-minute recovery window, or override with
                 BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires
                 tracking, flock and durable writable HPC storage; it reserves
-                the Slurm job comment for task identity.
+                the Slurm job name for task identity.
             host (str, optional): The hostname or IP address of the remote 
                 server. Defaults to `_DEFAULT_HOST`.
             user (str, optional): The username to use when connecting to 
@@ -3627,7 +3627,7 @@ class SlurmClient(Connection):
         job_params.append(time_param)
         job_params.append(email_param)
         if _submission_token:
-            job_params.append(" --comment=" + shlex.quote(_submission_token))
+            job_params.append(" --job-name=" + shlex.quote(_submission_token))
         job_param = "".join(job_params)
 
         if self.env_file_submission:
@@ -3722,10 +3722,9 @@ class SlurmClient(Connection):
         conversion_params = self.get_job_params({
             'partition': self.slurm_conversion_partition})
         conversion_param = ''.join(' ' + param for param in conversion_params)
-        if submission_token:
-            conversion_param += " --comment=" + shlex.quote(submission_token)
+        job_name = shlex.quote(submission_token) if submission_token else 'conversion'
         conversion_cmd = (
-            f"sbatch{conversion_param} --job-name=conversion "
+            f"sbatch{conversion_param} --job-name={job_name} "
             "--output=omero-%A_%a.log "
             f"--export=ALL,CONFIG_PATH={config_path} "
             f"--array=1-$N {conversion_script}"

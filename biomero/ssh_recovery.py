@@ -244,9 +244,9 @@ def submit(client, command, env, task_id):
     # squeue covers live jobs before sacct catches up; arrays reconcile to their
     # parent allocation. More than one match is ambiguous and never adopted.
     find_job = (
-        'live=$(squeue -h -u "$(id -un)" -o "%A|%k") || exit 1; '
+        'live=$(squeue -h -u "$(id -un)" -o "%A|%j") || exit 1; '
         f'recorded=$(sacct -n -X -u "$(id -un)" -S "$(cat {p(".intent")})" '
-        '--format=JobID,Comment%100 -P) || exit 1; '
+        '--format=JobID,JobName%100 -P) || exit 1; '
         'printf "%s\\n%s\\n" "$live" "$recorded" | '
         f'awk -F\'|\' -v token={quote(token)} '
         "'$2 == token {split($1, a, \"_\"); "

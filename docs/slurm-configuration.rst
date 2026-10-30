@@ -827,7 +827,7 @@ expiry stop recovery with an explicit connection diagnostic, leaving remote jobs
 and recovery records intact.
 
 Workflow and conversion submissions use the tracked task identity, a remote
-``.biomero-recovery`` record and the Slurm job comment. After a lost response,
+``.biomero-recovery`` record and the Slurm job name. After a lost response,
 BIOMERO adopts the recorded job or reconciles its exact identity through squeue
 and sacct. Unresolved submission intent never authorizes a second sbatch.
 Tracking must remain enabled for resumable submission; arbitrary ``run`` and
@@ -842,7 +842,7 @@ SSHFS. Existing local final files remain available until replacement succeeds.
 Normal ZIP extraction still validates member CRCs before import.
 
 This opt-in requires ``flock`` and writable shared HPC storage for submission and
-archive records, Slurm accounting/comment lookup, and atomic SFTP rename support
+archive records, Slurm accounting/job-name lookup, and atomic SFTP rename support
 for input publication. Keep these records and result files while recovery is
 pending. Do not delete an unresolved intent to force a retry; reconcile the job
 first. A processor restart can reuse the recorded task and job identity, but

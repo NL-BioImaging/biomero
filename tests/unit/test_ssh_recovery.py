@@ -202,8 +202,8 @@ def shell_client(tmp_path):
     (binary / 'sbatch').write_text(
         '#!/bin/sh\n'
         f'echo submitted >> {shlex.quote(str(counter))}\n'
-        'for arg in "$@"; do case "$arg" in --comment=*) '
-        'token=${arg#--comment=};; esac; done\n'
+        'for arg in "$@"; do case "$arg" in --job-name=*) '
+        'token=${arg#--job-name=};; esac; done\n'
         f'printf "42|%s\\n" "$token" >> {shlex.quote(str(jobs))}\n'
         'echo "Submitted batch job 42"\n')
     for name in ('squeue', 'sacct'):
@@ -230,7 +230,7 @@ def shell_client(tmp_path):
 def test_lost_submission_acknowledgement_never_submits_twice(
         shell_client, recovery_clock, lose_receipt):
     task_id = uuid4()
-    command = 'sbatch --comment=biomero-' + str(task_id) + ' job.sh'
+    command = 'sbatch --job-name=biomero-' + str(task_id) + ' job.sh'
     original = shell_client.run_commands
     calls = []
 
@@ -265,7 +265,7 @@ def test_unknown_submission_waits_without_resubmission(
 
 def test_submission_receipt_survives_a_new_client(shell_client, recovery_clock):
     task_id = uuid4()
-    command = 'sbatch --comment=biomero-' + str(task_id) + ' job.sh'
+    command = 'sbatch --job-name=biomero-' + str(task_id) + ' job.sh'
     ssh_recovery.submit(shell_client, command, {}, task_id)
     replacement = SimpleNamespace(**shell_client.__dict__)
     ssh_recovery.submit(replacement, command, {}, task_id)
@@ -353,3 +353,23 @@ def test_changed_resume_parameters_do_not_submit(slurm_client):
         slurm_client._submission_task(
             wf_id, 'segment', 'v1', 'inputs', {'x': 2})
     tracker.add_task_to_workflow.assert_not_called()
+
+
+def test_conversion_uses_reconcilable_job_name(slurm_client):
+    token = 'biomero-' + str(uuid4())
+    command, _, _, _ = slurm_client.get_conversion_command(
+        '/data/inputs', 'config.txt', submission_token=token)
+    assert '--job-name=' + token in command
+    assert '--job-name=conversion' not in command
+
+
+def test_workflow_token_is_not_a_workflow_parameter(slurm_client):
+    token = 'biomero-' + str(uuid4())
+    slurm_client.slurm_model_paths = {'wf': 'workflow'}
+    slurm_client.slurm_model_jobs = {'wf': 'wf.sh'}
+    slurm_client.slurm_model_jobs_params = {'wf': []}
+    slurm_client.slurm_model_images = {'wf': 'registry/image'}
+    command, environment = slurm_client.get_workflow_command(
+        'wf', '1.0', 'input', _submission_token=token)
+    assert '--job-name=' + token in command
+    assert not any('SUBMISSION_TOKEN' in key for key in environment)

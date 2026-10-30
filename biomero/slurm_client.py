@@ -2811,6 +2811,16 @@ class SlurmClient(Connection):
 
     def _submit_tracked(self, command, env, task_id):
         if ssh_recovery.enabled(self) and task_id:
+            known = self.workflowTracker.repository.get(task_id).job_ids
+            if known:
+                job_ids = {int(job_id) for job_id in known}
+                if len(job_ids) != 1 or min(job_ids) <= 0:
+                    raise RuntimeError(
+                        'Recorded submission is ambiguous or failed; reconcile first')
+                job_id = job_ids.pop()
+                logger.info('Adopting recorded Slurm job %s', job_id)
+                return Result(connection=self, exited=0,
+                              stdout=f'Submitted batch job {job_id}\n')
             return ssh_recovery.submit(self, command, env, task_id)
         # No durable task identity: do not replay a potentially accepted sbatch.
         return self.run_commands([command], env)

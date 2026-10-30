@@ -373,3 +373,17 @@ def test_workflow_token_is_not_a_workflow_parameter(slurm_client):
         'wf', '1.0', 'input', _submission_token=token)
     assert '--job-name=' + token in command
     assert not any('SUBMISSION_TOKEN' in key for key in environment)
+
+
+def test_recorded_job_is_authoritative_even_if_remote_receipt_is_missing(
+        slurm_client, monkeypatch):
+    task_id = uuid4()
+    slurm_client.ssh_recovery_timeout = 900
+    slurm_client.workflowTracker = Mock()
+    slurm_client.workflowTracker.repository.get.return_value = (
+        SimpleNamespace(job_ids=[42]))
+    submit = Mock(side_effect=AssertionError('Must not submit a known job'))
+    monkeypatch.setattr(ssh_recovery, 'submit', submit)
+    result = slurm_client._submit_tracked('sbatch job.sh', {}, task_id)
+    assert slurm_client.extract_job_id(result) == 42
+    submit.assert_not_called()

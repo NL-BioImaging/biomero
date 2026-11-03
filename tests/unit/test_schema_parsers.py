@@ -448,8 +448,11 @@ class TestClassInstantiation:
     
     def test_create_class_instance_handles_missing_omero(self):
         """Test that missing OMERO modules are handled gracefully."""
-        # This should return None when OMERO is not available
-        result = create_class_instance('omero.scripts', 'Int', 'test_int')
+        # Exercise absence explicitly, including in workers with OMERO installed.
+        with patch('importlib.import_module', side_effect=ModuleNotFoundError(
+                "No module named 'omero'")) as import_module:
+            result = create_class_instance('omero.scripts', 'Int', 'test_int')
+        import_module.assert_called_once_with('omero.scripts')
         assert result is None
     
     def test_create_class_instance_invalid_module(self):

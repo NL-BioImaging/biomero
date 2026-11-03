@@ -154,7 +154,9 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">posixpath</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shlex</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">slurm_env</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">ssh_recovery</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">NoOpWorkflowTracker</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.schema_parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DescriptorParserFactory</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobAccounting</span><span class="p">,</span> <span class="n">JobProgress</span><span class="p">,</span> <span class="n">WorkflowAnalytics</span><span class="p">,</span> <span class="n">WorkflowProgress</span>
@@ -290,34 +292,37 @@
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">heartbeat</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">'heartbeat must be callable'</span><span class="p">)</span>
-        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">heartbeat</span><span class="p">()</span>
-            <span class="n">job_status_dict</span><span class="p">,</span> <span class="n">poll_result</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">check_job_status</span><span class="p">(</span>
-                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">])</span>
-            <span class="n">state</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">'UNKNOWN'</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">strict_status</span> <span class="ow">and</span> <span class="p">(</span>
-                    <span class="n">poll_result</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">poll_result</span><span class="o">.</span><span class="n">ok</span>
-                    <span class="ow">or</span> <span class="n">state</span> <span class="o">==</span> <span class="s1">'UNKNOWN'</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">'Slurm job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s1"> state unavailable; '</span>
-                    <span class="s1">'retry monitoring to adopt the existing job'</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">poll_result</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">poll_result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="s2">"FAILED"</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">poll_result</span><span class="p">,</span> <span class="s1">'stderr'</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'Error checking job status: </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="n">state</span>
-            <span class="k">if</span> <span class="n">track_progress</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">progress</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">get_active_job_progress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">update_task</span><span class="p">:</span>
-                <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_status</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">scope</span><span class="p">(</span><span class="n">slurmClient</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">)</span> <span class="k">as</span> <span class="n">recovery</span><span class="p">:</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">recovery</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">recovery</span><span class="o">.</span><span class="n">pulse</span><span class="p">()</span>
+                <span class="k">elif</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">heartbeat</span><span class="p">()</span>
+                <span class="n">job_status_dict</span><span class="p">,</span> <span class="n">poll_result</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">check_job_status</span><span class="p">(</span>
+                    <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">])</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="n">job_status_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">'UNKNOWN'</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">strict_status</span> <span class="ow">and</span> <span class="p">(</span>
+                        <span class="n">poll_result</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">poll_result</span><span class="o">.</span><span class="n">ok</span>
+                        <span class="ow">or</span> <span class="n">state</span> <span class="o">==</span> <span class="s1">'UNKNOWN'</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">'Slurm job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s1"> state unavailable; '</span>
+                        <span class="s1">'retry monitoring to adopt the existing job'</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">poll_result</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">poll_result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="s2">"FAILED"</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">poll_result</span><span class="p">,</span> <span class="s1">'stderr'</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'Error checking job status: </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="n">state</span>
                 <span class="k">if</span> <span class="n">track_progress</span><span class="p">:</span>
-                    <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">):</span>
-                <span class="n">timesleep</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_polling_interval</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">progress</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">get_active_job_progress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">update_task</span><span class="p">:</span>
+                    <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_status</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">track_progress</span><span class="p">:</span>
+                        <span class="n">slurmClient</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_terminal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="p">):</span>
+                    <span class="n">timesleep</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_polling_interval</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> finished: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_state</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_file</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Slurm output: </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_file</span><span class="p">)</span>
@@ -687,7 +692,9 @@
                  <span class="n">analytics_rebuild_start_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">analytics_rebuild_days_ago</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">remote_shallower_mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">remote_shallower_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                 <span class="n">remote_shallower_time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">ssh_recovery_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span>
+                 <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">DEFAULT_SSH_RECOVERY_TIMEOUT</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Initializes a new instance of the SlurmClient class.</span>
 
@@ -695,6 +702,13 @@
 <span class="sd">        parameters from a configuration file.</span>
 
 <span class="sd">        Args:</span>
+<span class="sd">            ssh_recovery_timeout (int, optional): Maximum seconds to retry an</span>
+<span class="sd">                interrupted replay-safe SSH operation. Defaults to 900 seconds</span>
+<span class="sd">                (15 minutes), including when the setting is omitted. Set 0</span>
+<span class="sd">                to disable recovery explicitly, or override with</span>
+<span class="sd">                BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires</span>
+<span class="sd">                tracking, flock and durable writable HPC storage; it reserves</span>
+<span class="sd">                the Slurm job name for task identity.</span>
 <span class="sd">            host (str, optional): The hostname or IP address of the remote </span>
 <span class="sd">                server. Defaults to `_DEFAULT_HOST`.</span>
 <span class="sd">            user (str, optional): The username to use when connecting to </span>
@@ -907,6 +921,14 @@
                                           <span class="n">connect_timeout</span><span class="p">,</span>
                                           <span class="n">connect_kwargs</span><span class="p">,</span>
                                           <span class="n">inline_ssh_env</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ssh_recovery_timeout</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"ssh_recovery_timeout must be nonnegative"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ssh_recovery_timeout</span> <span class="o">=</span> <span class="n">ssh_recovery_timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ssh_recovery_cancel</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">ssh_recovery_timeout</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span> <span class="ow">or</span> <span class="mi">10</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connect_kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"banner_timeout"</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connect_kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"auth_timeout"</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span> <span class="o">=</span> <span class="n">slurm_data_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_images_path</span> <span class="o">=</span> <span class="n">slurm_images_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_converters_path</span> <span class="o">=</span> <span class="n">slurm_converters_path</span>
@@ -1600,7 +1622,10 @@
         <span class="kn">from</span><span class="w"> </span><span class="nn">.remote_shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">run</span>
         <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">heartbeat</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">'heartbeat must be callable'</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span>
+                              <span class="n">heartbeat</span><span class="p">),</span> <span class="s2">"remote shallowing"</span><span class="p">,</span>
+            <span class="n">heartbeat</span><span class="o">=</span><span class="n">heartbeat</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_remote_shallower_receipts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_remote_shallower_receipts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_remote_shallower_receipts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Read trusted completed receipts from event-sourced helper tasks."""</span>
@@ -1788,6 +1813,11 @@
             <span class="n">section</span><span class="o">=</span><span class="s2">"SSH"</span><span class="p">,</span>
             <span class="n">option</span><span class="o">=</span><span class="s2">"host"</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_HOST</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ssh_recovery_timeout</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
+            <span class="n">configs</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="n">option</span><span class="o">=</span><span class="s2">"ssh_recovery_timeout"</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">ssh_recovery</span><span class="o">.</span><span class="n">DEFAULT_SSH_RECOVERY_TIMEOUT</span><span class="p">,</span>
+            <span class="n">env_vars</span><span class="o">=</span><span class="p">[</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SSH_RECOVERY_TIMEOUT</span><span class="p">],</span> <span class="n">value_type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">inline_ssh_env</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
             <span class="n">configs</span><span class="p">,</span>
@@ -2138,6 +2168,7 @@
         <span class="c1"># Create the SlurmClient object with the parameters read from</span>
         <span class="c1"># the config file</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+                   <span class="n">ssh_recovery_timeout</span><span class="o">=</span><span class="n">ssh_recovery_timeout</span><span class="p">,</span>
                    <span class="n">inline_ssh_env</span><span class="o">=</span><span class="n">inline_ssh_env</span><span class="p">,</span>
                    <span class="n">slurm_data_path</span><span class="o">=</span><span class="n">slurm_data_path</span><span class="p">,</span>
                    <span class="n">slurm_images_path</span><span class="o">=</span><span class="n">slurm_images_path</span><span class="p">,</span>
@@ -2274,7 +2305,7 @@
 <span class="sd">                True if the validation is successful,</span>
 <span class="sd">                False otherwise.</span>
 <span class="sd">        """</span>
-        <span class="n">connected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s1">'echo " "'</span><span class="p">)</span><span class="o">.</span><span class="n">ok</span>
+        <span class="n">connected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_read_only</span><span class="p">(</span><span class="s1">'echo " "'</span><span class="p">)</span><span class="o">.</span><span class="n">ok</span>
         <span class="k">if</span> <span class="n">connected</span> <span class="ow">and</span> <span class="n">validate_slurm_setup</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">setup_slurm</span><span class="p">()</span>
@@ -2323,7 +2354,11 @@
         <span class="k">if</span> <span class="n">env</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">env</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">cmdlist</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands_read_only</span><span class="p">(</span><span class="n">cmdlist</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ssh_recovery</span><span class="o">.</span><span class="n">SSHRecoveryTimeout</span><span class="p">,</span>
+                <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">SSHRecoveryCancelled</span><span class="p">):</span>
+            <span class="c1"># Optional progress must not suppress the recovery stop policy.</span>
+            <span class="k">raise</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Issue with run command: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="c1"># Match the specified pattern in the result's stdout</span>
@@ -2335,6 +2370,37 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Issue with extracting progress: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">latest_progress</span></div>
+
+<div class="viewcode-block" id="SlurmClient.open"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.open">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Keep a quiet SSH link detectable without limiting long commands."""</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">open</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">set_keepalive</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+            <span class="n">sock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">sock</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sock</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">):</span>
+                <span class="n">sock</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SO_KEEPALIVE</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"TCP_KEEPIDLE"</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
+                                    <span class="p">(</span><span class="s2">"TCP_KEEPINTVL"</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="p">(</span><span class="s2">"TCP_KEEPCNT"</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                                    <span class="p">(</span><span class="s2">"TCP_USER_TIMEOUT"</span><span class="p">,</span> <span class="mi">30000</span><span class="p">)):</span>
+                    <span class="n">option</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">option</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">sock</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">IPPROTO_TCP</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">'TCP keepalive option unavailable: </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span>
+                                         <span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="SlurmClient.run_read_only"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_read_only">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_read_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Reconnect and repeat a caller-declared read-only command."""</span>
+        <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="s2">"read remote state"</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlurmClient.run_commands_read_only"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_commands_read_only">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_commands_read_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commands</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Read remote state while preserving the last known job status."""</span>
+        <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">commands</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+            <span class="s2">"read remote state"</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.run_commands"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_commands">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_commands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmdlist</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
                      <span class="n">env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2574,6 +2640,8 @@
 <span class="sd">        """</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"Transfering file </span><span class="si">{</span><span class="n">local_path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">local_path</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.unpack_data"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.unpack_data">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">unpack_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -2592,6 +2660,8 @@
 <span class="sd">        """</span>
         <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_unzip_command</span><span class="p">(</span><span class="n">zipfile</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unpacking </span><span class="si">{</span><span class="n">zipfile</span><span class="si">}</span><span class="s2"> on Slurm"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipfile</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.generate_slurm_job_for_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.generate_slurm_job_for_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">generate_slurm_job_for_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
@@ -2838,15 +2908,66 @@
                 <span class="c1"># ensure all dirs exist remotely</span>
                 <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="o">+</span><span class="s2">"/"</span><span class="o">+</span><span class="n">job_path</span>
                 <span class="n">job_dir</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="se">\"</span><span class="si">{</span><span class="n">job_dir</span><span class="si">}</span><span class="se">\"</span><span class="s2">"</span><span class="p">)</span>
-                <span class="c1"># copy to remote file</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span>
-                                  <span class="n">remote</span><span class="o">=</span><span class="n">full_path</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="se">\"</span><span class="si">{</span><span class="n">job_dir</span><span class="si">}</span><span class="se">\"</span><span class="s2">"</span><span class="p">),</span>
+                        <span class="s1">'prepare job script directory'</span><span class="p">)</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">publish_script</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="p">,</span> <span class="n">job_script</span><span class="p">,</span> <span class="n">full_path</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="se">\"</span><span class="si">{</span><span class="n">job_dir</span><span class="si">}</span><span class="se">\"</span><span class="s2">"</span><span class="p">)</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span>
+                                      <span class="n">remote</span><span class="o">=</span><span class="n">full_path</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_update_slurm_scripts_command</span><span class="p">()</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Updating Slurm job scripts on Slurm"</span><span class="p">)</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="c1"># An interrupted git process may still own its repository.</span>
+                <span class="c1"># Serialize retries instead of racing its surviving work.</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">run_durable</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="p">,</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">locked_command</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span> <span class="o">+</span> <span class="s1">'.biomero-update.lock'</span><span class="p">,</span> <span class="n">cmd</span><span class="p">),</span>
+                    <span class="n">env</span><span class="p">,</span> <span class="s1">'update job script repository'</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_submission_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Recover task identity before attempting any new Slurm submission."""</span>
+        <span class="n">tracker</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">tracker</span><span class="p">,</span> <span class="n">NoOpWorkflowTracker</span><span class="p">):</span>
+            <span class="n">workflow</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span> <span class="o">==</span> <span class="n">name</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">input_data</span> <span class="o">==</span> <span class="n">input_data</span><span class="p">:</span>
+                    <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Ambiguous submission tasks; reconcile first'</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">matches</span><span class="p">:</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_version</span> <span class="o">!=</span> <span class="n">version</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">params</span> <span class="o">!=</span> <span class="n">params</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Submission parameters changed on resume'</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">id</span>
+        <span class="k">return</span> <span class="n">tracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
+            <span class="n">wf_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_submit_tracked</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">and</span> <span class="n">task_id</span><span class="p">:</span>
+            <span class="n">known</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span><span class="o">.</span><span class="n">job_ids</span>
+            <span class="k">if</span> <span class="n">known</span><span class="p">:</span>
+                <span class="n">job_ids</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">known</span><span class="p">}</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">job_ids</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">min</span><span class="p">(</span><span class="n">job_ids</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="s1">'Recorded submission is ambiguous or failed; reconcile first'</span><span class="p">)</span>
+                <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_ids</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Adopting recorded Slurm job </span><span class="si">%s</span><span class="s1">'</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">Result</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">exited</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                              <span class="n">stdout</span><span class="o">=</span><span class="sa">f</span><span class="s1">'Submitted batch job </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span>
+        <span class="c1"># No durable task identity: do not replay a potentially accepted sbatch.</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">command</span><span class="p">],</span> <span class="n">env</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SlurmClient.run_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.run_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                      <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -2899,7 +3020,7 @@
         <span class="k">if</span> <span class="n">output_settings</span><span class="p">:</span>
             <span class="n">recorded_params</span><span class="p">[</span><span class="s2">"output_settings"</span><span class="p">]</span> <span class="o">=</span> <span class="n">output_settings</span>
 
-        <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submission_task</span><span class="p">(</span>
             <span class="n">wf_id</span><span class="p">,</span>
             <span class="n">workflow_name</span><span class="p">,</span>
             <span class="n">workflow_version</span><span class="p">,</span>
@@ -2908,17 +3029,22 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Added new task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> to workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_workflow_command</span><span class="p">(</span>
-            <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">workflow_name</span><span class="p">,</span> <span class="n">workflow_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span>
+            <span class="o">**</span><span class="p">({</span><span class="s1">'_submission_token'</span><span class="p">:</span> <span class="s1">'biomero-'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">)}</span>
+               <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">and</span> <span class="n">task_id</span> <span class="k">else</span> <span class="p">{}),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Running </span><span class="si">{</span><span class="n">workflow_name</span><span class="si">}</span><span class="s2"> job on </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2"> on Slurm:</span><span class="se">\</span>
 <span class="s2">            </span><span class="si">{</span><span class="n">sbatch_cmd</span><span class="si">}</span><span class="s2"> w/ </span><span class="si">{</span><span class="n">sbatch_env</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Running </span><span class="si">{</span><span class="n">workflow_name</span><span class="si">}</span><span class="s2"> job on </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2"> on Slurm"</span><span class="p">)</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">sbatch_cmd</span><span class="p">],</span> <span class="n">sbatch_env</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_tracked</span><span class="p">(</span><span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span>
         <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">task_id</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
+            <span class="n">recorded</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span><span class="o">.</span><span class="n">job_ids</span>
+                        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="k">else</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="n">slurm_job_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">recorded</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">res</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">,</span> <span class="n">task_id</span></div>
 
@@ -3015,13 +3141,19 @@
                 <span class="o">-</span><span class="mi">1</span>
             <span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"wf_id: </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-        <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submission_task</span><span class="p">(</span>
             <span class="n">wf_id</span><span class="p">,</span>
             <span class="sa">f</span><span class="s2">"convert_</span><span class="si">{</span><span class="n">source_format</span><span class="si">}</span><span class="s2">_to_</span><span class="si">{</span><span class="n">target_format</span><span class="si">}</span><span class="s2">"</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
             <span class="n">version</span><span class="p">,</span>
             <span class="n">data_path</span><span class="p">,</span>
             <span class="n">sbatch_env</span>
         <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">and</span> <span class="n">task_id</span><span class="p">:</span>
+            <span class="n">conversion_cmd</span><span class="p">,</span> <span class="n">sbatch_env</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_conversion_command</span><span class="p">(</span>
+                <span class="n">data_path</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">source_format</span><span class="p">,</span> <span class="n">target_format</span><span class="p">,</span>
+                <span class="n">submission_token</span><span class="o">=</span><span class="s1">'biomero-'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">))</span>
+            <span class="n">commands</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">conversion_cmd</span>
 
         <span class="c1"># Run all commands consecutively.</span>
         <span class="c1"># The final command is the sbatch submission. If sbatch rejects the</span>
@@ -3035,7 +3167,9 @@
         <span class="c1"># (job_id=-1) instead of a raw traceback. The caller can then surface</span>
         <span class="c1"># the reason via slurmJob.get_error().</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">commands</span><span class="p">,</span> <span class="n">sbatch_env</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_submit_tracked</span><span class="p">(</span><span class="s2">" &amp;&amp; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">commands</span><span class="p">),</span> <span class="n">sbatch_env</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span>
+                   <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">and</span> <span class="n">task_id</span>
+                   <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">(</span><span class="n">commands</span><span class="p">,</span> <span class="n">sbatch_env</span><span class="p">))</span>
         <span class="k">except</span> <span class="n">UnexpectedExit</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">res</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">result</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
@@ -3059,9 +3193,12 @@
                 <span class="n">task_id</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">task_id</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
+            <span class="n">recorded</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span><span class="o">.</span><span class="n">job_ids</span>
+                        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="k">else</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="n">slurm_job_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">recorded</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">start_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_job_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">workflowTracker</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
 
         <span class="c1"># The conversion is submitted with --output=omero-%A_%a.log, so its</span>
         <span class="c1"># log(s) live next to the workflow logs as omero-&lt;jobid&gt;_*.log. Track</span>
@@ -3150,7 +3287,9 @@
         <span class="n">retry_status</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">last_result</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">while</span> <span class="n">retry_status</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">),</span>
+                <span class="s2">"monitor Slurm jobs"</span><span class="p">)</span>
             <span class="n">last_result</span> <span class="o">=</span> <span class="n">result</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
@@ -3238,7 +3377,8 @@
             <span class="n">logfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOGFILE</span>
             <span class="n">logfile</span> <span class="o">=</span> <span class="n">logfile</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
         <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LOGFILE_DATA_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">log_file</span><span class="o">=</span><span class="n">logfile</span><span class="p">)</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">])</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cmd</span><span class="p">]),</span> <span class="s2">"read result location"</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span>
         <span class="k">else</span><span class="p">:</span>
@@ -3533,7 +3673,7 @@
                              <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">email</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                              <span class="n">time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
+                             <span class="n">_submission_token</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Generate the Slurm workflow command and environment variables.</span>
 
@@ -3640,6 +3780,8 @@
         <span class="n">time_param</span> <span class="o">=</span> <span class="s2">""</span> <span class="k">if</span> <span class="n">time</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">" --time=</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s2">"</span>
         <span class="n">job_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">time_param</span><span class="p">)</span>
         <span class="n">job_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">email_param</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_submission_token</span><span class="p">:</span>
+            <span class="n">job_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">" --job-name="</span> <span class="o">+</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">_submission_token</span><span class="p">))</span>
         <span class="n">job_param</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_params</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">env_file_submission</span><span class="p">:</span>
@@ -3670,7 +3812,8 @@
 <div class="viewcode-block" id="SlurmClient.get_conversion_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_conversion_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_conversion_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                <span class="n">config_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                                <span class="n">source_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'zarr'</span><span class="p">,</span>
-                               <span class="n">target_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'tiff'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+                               <span class="n">target_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'tiff'</span><span class="p">,</span>
+                               <span class="n">submission_token</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Generate Slurm conversion command and environment variables for data conversion.</span>
 
@@ -3733,8 +3876,9 @@
         <span class="n">conversion_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_params</span><span class="p">({</span>
             <span class="s1">'partition'</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_conversion_partition</span><span class="p">})</span>
         <span class="n">conversion_param</span> <span class="o">=</span> <span class="s1">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">' '</span> <span class="o">+</span> <span class="n">param</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">conversion_params</span><span class="p">)</span>
+        <span class="n">job_name</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">submission_token</span><span class="p">)</span> <span class="k">if</span> <span class="n">submission_token</span> <span class="k">else</span> <span class="s1">'conversion'</span>
         <span class="n">conversion_cmd</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"sbatch</span><span class="si">{</span><span class="n">conversion_param</span><span class="si">}</span><span class="s2"> --job-name=conversion "</span>
+            <span class="sa">f</span><span class="s2">"sbatch</span><span class="si">{</span><span class="n">conversion_param</span><span class="si">}</span><span class="s2"> --job-name=</span><span class="si">{</span><span class="n">job_name</span><span class="si">}</span><span class="s2"> "</span>
             <span class="s2">"--output=omero-%A_</span><span class="si">%a</span><span class="s2">.log "</span>
             <span class="sa">f</span><span class="s2">"--export=ALL,CONFIG_PATH=</span><span class="si">{</span><span class="n">config_path</span><span class="si">}</span><span class="s2"> "</span>
             <span class="sa">f</span><span class="s2">"--array=1-$N </span><span class="si">{</span><span class="n">conversion_script</span><span class="si">}</span><span class="s2">"</span>
@@ -3846,6 +3990,9 @@
 <span class="sd">        """</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Copying zip </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> from</span><span class="se">\</span>
 <span class="s2">            Slurm to </span><span class="si">{</span><span class="n">local_tmp_storage</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">download</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">.zip"</span><span class="p">,</span> <span class="n">local_tmp_storage</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="n">remote</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">.zip"</span><span class="p">,</span>
             <span class="n">local</span><span class="o">=</span><span class="n">local_tmp_storage</span><span class="p">)</span></div>
@@ -3868,6 +4015,8 @@
         <span class="c1"># zip</span>
         <span class="n">zip_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_zip_command</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Zipping </span><span class="si">{</span><span class="n">data_location</span><span class="si">}</span><span class="s2"> as </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> on Slurm"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">archive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">zip_cmd</span><span class="p">],</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_zip_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_zip_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_zip_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_location</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>

@@ -121,6 +121,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#faq">FAQ</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#further-reading">Further Reading</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#optional-result-shallower">Optional result shallower</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#recovering-interrupted-ssh-operations">Recovering Interrupted SSH Operations</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="configuration-reference.html">Configuration Reference</a></li>
@@ -907,6 +908,57 @@ disabled. Importer trust configuration must still match the selected image and
 actual tool version.</p>
 <p>For recovery behavior and component responsibilities, see
 <a class="reference internal" href="developer/execution-and-storage.html"><span class="doc">Execution, storage and recovery</span></a>.</p>
+</section>
+<section id="recovering-interrupted-ssh-operations">
+<span id="ssh-recovery"></span><h2>Recovering Interrupted SSH Operations<a class="headerlink" href="#recovering-interrupted-ssh-operations" title="Permalink to this heading"></a></h2>
+<p>Set <code class="docutils literal notranslate"><span class="pre">ssh_recovery_timeout</span></code> in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> to a nonnegative recovery window
+in seconds. The default is <code class="docutils literal notranslate"><span class="pre">900</span></code> (15 minutes), including when the setting is
+absent or empty. Recovery applies to inline and detached workflows. Explicit
+<code class="docutils literal notranslate"><span class="pre">0</span></code> disables recovery. The environment override is
+<code class="docutils literal notranslate"><span class="pre">BIOMERO_SSH_RECOVERY_TIMEOUT</span></code>. This runtime setting applies to new clients;
+Slurm Init is not needed just to change the window.</p>
+<p>The window starts at the first failed attempt in each interruption. Healthy
+queueing, computation and helper runtime do not consume it. Nested
+operations share the active interruption’s deadline instead of multiplying
+retry budgets. Caller-supplied heartbeat callbacks remain active during nested
+recovery and backoff, including shallower polling.</p>
+<p>With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
+read-only operations with exponential backoff, capped at 30 seconds. The activity
+log reports <strong>Waiting for SSH connection</strong> while the last known Slurm job state
+is retained. Authentication, host-key, permission, configuration and remote-command
+failures are not treated as transient transport loss. Cancellation and deadline
+expiry stop recovery with an explicit connection diagnostic, leaving remote jobs
+and recovery records intact. Exhaustion remains terminal Failed in both inline
+and detached execution; retaining records does not queue automatic recovery later.</p>
+<p>A channel that closes without an exit status (Fabric exit code <code class="docutils literal notranslate"><span class="pre">-1</span></code>) is a
+transport failure, including when Fabric is configured with <code class="docutils literal notranslate"><span class="pre">warn=True</span></code>.
+Real remote nonzero exit codes retain their usual failure behavior. Temporary
+lock contention waits for the existing durable operation; it does not authorize
+another submission or classify a rejected Slurm job as a connection problem.</p>
+<p>Workflow and conversion submissions use the tracked task identity, a remote
+<code class="docutils literal notranslate"><span class="pre">.biomero-recovery</span></code> record and the Slurm job name. After a lost response,
+BIOMERO adopts the recorded job or reconciles its exact identity through squeue
+and sacct. Unresolved submission intent never authorizes a second sbatch.
+Tracking must remain enabled for resumable submission; arbitrary <code class="docutils literal notranslate"><span class="pre">run</span></code> and
+<code class="docutils literal notranslate"><span class="pre">run_commands</span></code> calls are deliberately not retried. Untracked submissions are
+attempted once because they lack a durable task identity.</p>
+<p>Result archive creation is serialized and published through a temporary path.
+Completed archives are reused on retry. Downloads and input archives are copied
+to partial paths, checked for completeness and published atomically. A retry
+restarts an interrupted copy from the beginning, rather than requiring rsync or
+SSHFS. Existing local final files remain available until replacement succeeds.
+Normal ZIP extraction still validates member CRCs before import.
+The first healthy copy does not consume a recovery window. Once interrupted,
+whole-file retries share the window until the complete copy succeeds; repeated
+interruptions during lengthy retries can exhaust it. There is no ranged or
+progress-aware transfer resume.</p>
+<p>Default recovery requires <code class="docutils literal notranslate"><span class="pre">flock</span></code> and writable shared HPC storage for submission
+and archive records, Slurm accounting/job-name lookup, and atomic SFTP rename
+support for input and generated-script publication. Keep these records and result
+files while recovery is pending. Do not delete an unresolved intent to force a retry; reconcile the job
+first. A processor restart can reuse the recorded task and job identity, but
+recovery does not make arbitrary remote commands or OMERO postprocessing
+exactly-once. Use matching core and scripts for the complete pipeline.</p>
 </section>
 </section>
 

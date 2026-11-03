@@ -105,3 +105,58 @@ def test_lost_rename_ack_recovers_complete_script_and_mode(recovery_clock):
     assert sftp.posix_rename.call_count == 2
     assert sftp.chmod.call_count == 2
     assert all(call.args[1] == 0o750 for call in sftp.chmod.call_args_list)
+
+
+@pytest.mark.parametrize('window', [0, 900])
+def test_closed_sftp_after_upload_preserves_script_and_recovers(
+        recovery_clock, window):
+    files = {'/jobs/work.sh': b'previous'}
+    attempts = []
+    connected = True
+    sftp = Mock()
+
+    def check_stat(path):
+        if not connected:
+            # Paramiko Channel._send raises socket.error without an errno.
+            raise OSError('Socket is closed')
+        return SimpleNamespace(st_size=len(files[path]), st_mode=0o100750)
+
+    def reconnect():
+        nonlocal connected
+        connected = True
+        return sftp
+
+    def put(*, local, remote):
+        nonlocal connected
+        assert files['/jobs/work.sh'] == b'previous'
+        files[remote] = local.read()
+        attempts.append(remote)
+        if len(attempts) == 1:
+            connected = False
+        return SimpleNamespace(remote=remote)
+
+    def remove(path):
+        if not connected:
+            raise OSError('Socket is closed')
+        files.pop(path, None)
+
+    sftp.stat.side_effect = check_stat
+    sftp.remove.side_effect = remove
+    sftp.posix_rename.side_effect = lambda src, dst: files.update(
+        {dst: files.pop(src)})
+    client = SimpleNamespace(ssh_recovery_timeout=window, close=Mock(),
+                             sftp=reconnect, put=put)
+    if not window:
+        with pytest.raises(OSError, match='Socket is closed'):
+            ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+        assert files['/jobs/work.sh'] == b'previous'
+        assert len(attempts) == 1
+        client.close.assert_not_called()
+        return
+    result = ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+    assert result.remote == '/jobs/work.sh'
+    assert files['/jobs/work.sh'] == b'echo complete\n'
+    assert len(set(attempts)) == 2
+    assert files[attempts[0]] == b'echo complete\n'
+    client.close.assert_called_once()
+    sftp.chmod.assert_called_once_with(attempts[-1], 0o750)

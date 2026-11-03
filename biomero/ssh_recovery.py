@@ -7,14 +7,17 @@ import errno
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 import hashlib
+import io
 import json
 import logging
 import os
 import posixpath
 import shlex
 import socket
+import stat
 import tempfile
 import time
+from uuid import uuid4
 
 from invoke.exceptions import UnexpectedExit
 from invoke.runners import Result
@@ -229,6 +232,40 @@ def download(client, remote, directory):
                 os.unlink(partial)
 
     return retry(client, attempt, 'download ' + remote.rsplit('/', 1)[-1])
+
+
+def publish_script(client, content, remote):
+    """Publish generated job scripts completely, including after channel loss."""
+    payload = content.encode('utf-8')
+
+    def attempt():
+        sftp = client.sftp()
+        sftp.get_channel().settimeout(30)
+        partial = remote + '.biomero-partial-' + uuid4().hex
+        try:
+            mode = stat.S_IMODE(sftp.stat(remote).st_mode)
+        except FileNotFoundError:
+            mode = None
+        try:
+            result = client.put(local=io.BytesIO(payload), remote=partial)
+            if sftp.stat(partial).st_size != len(payload):
+                raise RuntimeError('Incomplete generated script upload')
+            if mode is not None:
+                sftp.chmod(partial, mode)
+            sftp.posix_rename(partial, remote)
+            result.remote = remote
+            return result
+        finally:
+            try:
+                sftp.remove(partial)
+            except FileNotFoundError:
+                # Successful rename removes the temporary name. On transport
+                # loss a private partial may remain; it is never executable.
+                pass
+            except Exception:
+                logger.debug('Could not remove partial script', exc_info=True)
+
+    return retry(client, attempt, 'publish generated job script')
 
 
 def upload(client, local, directory):

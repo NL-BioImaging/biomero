@@ -2781,14 +2781,28 @@ class SlurmClient(Connection):
                 # ensure all dirs exist remotely
                 full_path = self.slurm_script_path+"/"+job_path
                 job_dir, _ = os.path.split(full_path)
-                self.run(f"mkdir -p \"{job_dir}\"")
-                # copy to remote file
-                result = self.put(local=io.StringIO(job_script),
-                                  remote=full_path)
+                if ssh_recovery.enabled(self):
+                    ssh_recovery.retry(
+                        self, lambda: self.run(f"mkdir -p \"{job_dir}\""),
+                        'prepare job script directory')
+                    result = ssh_recovery.publish_script(
+                        self, job_script, full_path)
+                else:
+                    self.run(f"mkdir -p \"{job_dir}\"")
+                    result = self.put(local=io.StringIO(job_script),
+                                      remote=full_path)
         else:
             cmd = self.get_update_slurm_scripts_command()
             logger.info("Updating Slurm job scripts on Slurm")
-            result = self.run_commands([cmd], env=env)
+            if ssh_recovery.enabled(self):
+                # An interrupted git process may still own its repository.
+                # Serialize retries instead of racing its surviving work.
+                result = ssh_recovery.run_durable(
+                    self, ssh_recovery.locked_command(
+                        self.slurm_script_path + '.biomero-update.lock', cmd),
+                    env, 'update job script repository')
+            else:
+                result = self.run_commands([cmd], env=env)
         return result
 
     def _submission_task(self, wf_id, name, version, input_data, params):

@@ -42,7 +42,7 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SSH_RECOVERY_TIMEOUT``
      - ``[SLURM] ssh_recovery_timeout``
      - nonnegative integer seconds
-     - Recovery window for replay-safe SSH operations; default ``0`` preserves legacy behavior. ``900`` allows 15 minutes. Runtime; no Slurm Init required. Submission/archive recovery requires flock and durable writable HPC storage.
+     - Recovery window for replay-safe SSH operations; default ``900`` allows 15 minutes, including absent/empty configuration. Explicit ``0`` disables recovery. Runtime; no Slurm Init required. Submission/archive recovery requires flock and durable writable HPC storage.
    * - ``BIOMERO_DETACHED_WORKFLOWS``
      - not applicable
      - boolean
@@ -535,5 +535,7 @@ SSH Recovery
 ``[SLURM] ssh_recovery_timeout`` (environment
 ``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds per
 interruption, starting at the first failure rather than operation start. Default:
-``0``. For enablement, dependencies, submission reconciliation and limits, see
+``900`` (15 minutes), also for absent or empty configuration. Explicit ``0``
+disables recovery. This applies to inline and detached workflows; expiry remains
+a terminal failure. For dependencies, submission reconciliation and limits, see
 :ref:`the SSH recovery section <ssh-recovery>` in :doc:`slurm-configuration`.

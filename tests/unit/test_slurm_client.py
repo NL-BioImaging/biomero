@@ -215,8 +215,10 @@ def slurm_client(_mock_run,
                  _mock_put, _mock_open,
                  _mock_session):
     logging.info("EngineManager.__dict__: %s", EngineManager.__dict__)
-    # Legacy command tests explicitly exercise the local-shallow opt-out.
-    return SlurmClient("localhost", 8022, "slurm", remote_shallow_zarr=False)
+    # Legacy command-shape tests exercise explicit transport/shallow opt-outs.
+    # Default-on recovery has separate constructor/config and transport tests.
+    return SlurmClient("localhost", 8022, "slurm", remote_shallow_zarr=False,
+                       ssh_recovery_timeout=0)
 
 
 def test_list_available_converter_versions(slurm_client):
@@ -1516,7 +1518,7 @@ def test_update_slurm_scripts(mock_generic_descriptor, mock_is_bilayers,
     slurm_client = SlurmClient(
         "localhost", 8022, "slurm", slurm_script_repo="gitrepo",
         slurm_script_path="scriptpath",
-        slurm_model_jobs={'workflow_name': 'job_path'})
+        slurm_model_jobs={'workflow_name': 'job_path'}, ssh_recovery_timeout=0)
     mock_get_workflow_params.return_value = {
         'param1': {'cmd_flag': '--param1', 'name': 'param1_name'}}
     mock_workflow_params_to_subs.return_value = {
@@ -1793,7 +1795,7 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
     slurm_client = SlurmClient(
         "localhost", 8022, "slurm", slurm_script_repo="gitrepo",
         slurm_script_path="scriptpath",
-        slurm_model_jobs={'cellpose': 'jobs/cellpose.sh'})
+        slurm_model_jobs={'cellpose': 'jobs/cellpose.sh'}, ssh_recovery_timeout=0)
 
     # WHEN — _is_bilayers_workflow, workflow_bilayers_folder_params_to_subs,
     # workflow_params_to_subs, get_workflow_parameters, and
@@ -1848,7 +1850,7 @@ def test_update_slurm_scripts_bilayers_with_env_file(mock_generic_descriptor,
         "localhost", 8022, "slurm", slurm_script_repo="gitrepo",
         slurm_script_path="scriptpath",
         slurm_model_jobs={'cellpose': 'jobs/cellpose.sh'},
-        env_file_submission=True)
+        env_file_submission=True, ssh_recovery_timeout=0)
 
     slurm_client.update_slurm_scripts(generate_jobs=True)
 
@@ -2551,6 +2553,7 @@ def test_from_config(mock_ConfigParser,
     ])
     mock_SlurmClient.assert_called_with(
         host=mv,  # expected host value,
+        ssh_recovery_timeout=900,
         inline_ssh_env=True,  # expected inline_ssh_env value,
         slurm_data_path=mv,  # expected slurm_data_path value,
         slurm_images_path=mv,  # expected slurm_images_path value,
@@ -3866,7 +3869,8 @@ def test_generate_slurm_job_gpu_flag(
     mock_run.return_value = SerializableMagicMock(ok=True)
 
     client = slurm_client_from_config_factory(
-        config_values={"inject_gpu_flag": inject_gpu_flag}
+        config_values={"inject_gpu_flag": inject_gpu_flag,
+                       "ssh_recovery_timeout": 0}
     )
 
     client.update_slurm_scripts(generate_jobs=True)
@@ -3912,7 +3916,8 @@ def test_generate_slurm_job_env_file_template(
     mock_run.return_value = SerializableMagicMock(ok=True)
 
     client = slurm_client_from_config_factory(
-        config_values={"env_file_submission": env_file_submission}
+        config_values={"env_file_submission": env_file_submission,
+                       "ssh_recovery_timeout": 0}
     )
 
     client.update_slurm_scripts(generate_jobs=True)

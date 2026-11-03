@@ -32,8 +32,8 @@ examples. A new `[SLURM]` option requires edits in these places, in order:
 
 1. `biomero/constants.py` — add the env var name to `class slurm_env`.
 2. `biomero/slurm_client.py` `SlurmClient.__init__`:
-   - add the keyword parameter (with a backward-compatible default, usually
-     `None` or `False`);
+   - add the keyword parameter with an appropriate default; defect corrections
+     should take effect by default when safe rather than preserve the bug;
    - add a docstring entry in the Args block describing default + the env var
      override;
    - store it: `self.<name> = <name>`.

@@ -72,7 +72,9 @@ assertion (usually `<param>=mv`), or the test fails with
 
 For a setting like `slurm_default_partition`, add tests for:
 
-- default behavior (unset) produces the current output byte-for-byte;
+- an unset option produces its documented default behavior; bug-fix controls
+  must verify the corrected behavior without requiring opt-in, while optional
+  capabilities preserve their intended defaults;
 - the option takes effect when set;
 - precedence: a more specific/explicit value wins (per-workflow param or GPU
   partition over a generic fallback);

@@ -1,6 +1,6 @@
 ---
 name: biomero-dev
-description: BIOMERO core library (pylib) development runbook for the surf branch. Use when changing biomero/slurm_client.py or related modules, debugging event-sourced workflow state and projections, adding or migrating a config option, writing or running pytest tests, following TDD, or building the Sphinx docs. Covers event and aggregate inspection, config precedence, the existing pytest fixture style, the venvTest test runner, and the docs build.
+description: BIOMERO core library (pylib) development runbook for the surf branch. Use when changing biomero/slurm_client.py or related modules, debugging event-sourced workflow state and projections, adding or migrating a config option, writing or running pytest tests, following TDD, or building the Sphinx docs. Covers event and aggregate inspection, config precedence, the existing pytest fixture style, the venvTest test runner, and the docs build. Also use when drafting component release notes.
 ---
 
 # BIOMERO Core Development
@@ -122,3 +122,9 @@ Read only the relevant reference before acting:
   OMERO.biomero admin UI (`SettingsForm.js`) when the setting is editable there.
   See [references/docs.md](references/docs.md) for the full cross-surface
   checklist.
+
+## Release notes
+
+Before drafting a stable or beta release body, read the current
+[shared component release-note guide](https://github.com/NL-BioImaging/NL-BIOMERO/blob/master/.agents/skills/omero-biomero-expert/references/component-release-notes.md).
+Keep the format in that single source; do not copy it into this repository.

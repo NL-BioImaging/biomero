@@ -56,6 +56,12 @@ def is_transient(error):
     if isinstance(error, socket.gaierror):
         return error.errno == socket.EAI_AGAIN
     if isinstance(error, OSError):
+        # Paramiko Channel._send reports a closed SFTP channel as socket.error
+        # (OSError) without errno. Do not broaden this to filesystem errors or
+        # messages which merely contain the same words.
+        if (type(error) is OSError and error.errno is None and
+                str(error) == 'Socket is closed'):
+            return True
         return error.errno in {
             errno.ECONNRESET, errno.ECONNREFUSED, errno.ECONNABORTED,
             errno.EPIPE, errno.ETIMEDOUT, errno.ENETUNREACH,

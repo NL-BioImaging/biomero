@@ -4,6 +4,8 @@ An arbitrary command, especially sbatch, must never be retried on the strength
 of an SSH exception alone. Callers own replay safety and durable job identity.
 """
 import errno
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 import hashlib
 import json
 import logging
@@ -14,6 +16,8 @@ import socket
 import tempfile
 import time
 
+from invoke.exceptions import UnexpectedExit
+from invoke.runners import Result
 from paramiko import AuthenticationException, BadHostKeyException, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
 
@@ -33,20 +37,24 @@ class RecoveryPending(ConnectionError):
 
 
 def is_transient(error):
-    """Recognize transport loss, excluding credentials and remote exit codes."""
+    """Recognize transport loss, excluding credentials and remote failures."""
     if isinstance(error, (AuthenticationException, BadHostKeyException)):
         return False
+    if isinstance(error, UnexpectedExit):
+        return _missing_exit_status(error.result)
     if isinstance(error, NoValidConnectionsError):
         return bool(error.errors) and all(
             is_transient(e) for e in error.errors.values())
     if isinstance(error, (EOFError, ConnectionError, TimeoutError)):
-        return not isinstance(error, (SSHRecoveryTimeout, SSHRecoveryCancelled))
+        return not isinstance(
+            error, (SSHRecoveryTimeout, SSHRecoveryCancelled))
     if isinstance(error, socket.gaierror):
         return error.errno == socket.EAI_AGAIN
     if isinstance(error, OSError):
         return error.errno in {
             errno.ECONNRESET, errno.ECONNREFUSED, errno.ECONNABORTED,
-            errno.EPIPE, errno.ETIMEDOUT, errno.ENETUNREACH, errno.EHOSTUNREACH,
+            errno.EPIPE, errno.ETIMEDOUT, errno.ENETUNREACH,
+            errno.EHOSTUNREACH,
             errno.ENETDOWN, 10050, 10051, 10053, 10054, 10060, 10061, 10065,
         }
     if isinstance(error, SSHException):
@@ -67,62 +75,134 @@ def enabled(client):
     return isinstance(value, (int, float)) and value > 0
 
 
-def retry(client, operation, description, *, heartbeat=None):
-    """Retry an explicitly safe operation; nested calls share one deadline."""
+def _missing_exit_status(result):
+    # Fabric uses -1 when the SSH channel closes without a remote exit status.
+    # This is interpreted only inside an explicitly replay-safe boundary.
+    return isinstance(result, Result) and result.exited == -1
+
+
+@dataclass
+class _RecoveryState:
+    timeout: float
+    deadline: float | None = None
+    heartbeats: dict = field(default_factory=dict)
+    heartbeat_error: Exception | None = None
+
+    def pulse(self):
+        seen = set()
+        for callback in tuple(self.heartbeats.values()):
+            if id(callback) in seen:
+                continue
+            seen.add(id(callback))
+            try:
+                callback()
+            except Exception as error:
+                # A caller-owned liveness failure must not become an SSH retry
+                # simply because it happens to be an EOFError/ConnectionError.
+                self.heartbeat_error = error
+                raise
+
+    def wait(self, seconds, cancel, description):
+        remaining = seconds
+        while remaining > 0:
+            self.check_cancelled(cancel, description)
+            interval = min(remaining, 10) if self.heartbeats else remaining
+            if cancel is None:
+                time.sleep(interval)
+            else:
+                cancel.wait(interval)
+            remaining -= interval
+            self.check_cancelled(cancel, description)
+            self.pulse()
+
+    @staticmethod
+    def check_cancelled(cancel, description):
+        if cancel is not None and cancel.is_set():
+            raise SSHRecoveryCancelled(
+                f'Cancelled while waiting for SSH: {description}')
+
+
+@contextmanager
+def scope(client, heartbeat=None):
+    """Share an outage budget and caller callbacks with nested retries."""
     if not enabled(client):
-        return operation()
-    previous = client.__dict__.get('_ssh_recovery_deadline')
-    deadline = previous if previous is not None else (
-        time.monotonic() + client.ssh_recovery_timeout)
-    client._ssh_recovery_deadline = deadline
-    cancel = client.__dict__.get('ssh_recovery_cancel')
-    delay, failures = 1, 0
+        yield None
+        return
+    if heartbeat is not None and not callable(heartbeat):
+        raise TypeError('heartbeat must be callable')
+    state = client.__dict__.get('_ssh_recovery_state')
+    owner = state is None
+    if owner:
+        state = _RecoveryState(client.ssh_recovery_timeout)
+        # Fabric redirects attribute assignment into its configuration proxy.
+        # Recovery state belongs to this client instance, never its config.
+        client.__dict__['_ssh_recovery_state'] = state
+    marker = object()
+    if heartbeat is not None:
+        state.heartbeats[marker] = heartbeat
     try:
+        yield state
+    finally:
+        state.heartbeats.pop(marker, None)
+        if owner:
+            client.__dict__.pop('_ssh_recovery_state', None)
+
+
+def retry(client, operation, description, *, heartbeat=None):
+    """Recover an explicitly safe operation within each contiguous outage."""
+    with scope(client, heartbeat) as state:
+        if state is None:
+            return operation()
+        cancel = getattr(client, 'ssh_recovery_cancel', None)
+        delay, failures = 1, 0
         while True:
-            if cancel is not None and cancel.is_set():
-                raise SSHRecoveryCancelled(
-                    f'Cancelled while waiting for SSH: {description}')
-            if heartbeat is not None:
-                heartbeat()
+            state.check_cancelled(cancel, description)
+            state.pulse()
             try:
                 result = operation()
+                if _missing_exit_status(result):
+                    raise UnexpectedExit(result)
             except Exception as error:
-                if not is_transient(error):
+                if (error is state.heartbeat_error or
+                        not is_transient(error)):
                     raise
-                remaining = deadline - time.monotonic()
+                now = time.monotonic()
+                if state.deadline is None:
+                    state.deadline = now + state.timeout
+                    delay = 1
+                remaining = state.deadline - now
                 if remaining <= 0:
                     raise SSHRecoveryTimeout(
-                        f'SSH recovery deadline exceeded during {description}; '
-                        'existing jobs and recovery data are retained') from error
+                        'SSH recovery deadline exceeded during '
+                        f'{description}; existing jobs and recovery data '
+                        'are retained') from error
                 failures += 1
-                try:
-                    client.close()
-                except Exception:
-                    logger.debug('Could not close stale SSH transport',
-                                 exc_info=True)
+                if not isinstance(error, RecoveryPending):
+                    try:
+                        client.close()
+                    except Exception:
+                        logger.debug('Could not close stale SSH transport',
+                                     exc_info=True)
                 wait = min(delay, remaining)
                 logger.warning(
-                    'Waiting for SSH connection during %s (%s); retry in %.1fs, '
+                    'Waiting for %s during %s (%s); retry in %.1fs, '
                     '%.1fs remaining. Existing job state is unchanged.',
-                    description, type(error).__name__, wait, remaining)
-                if cancel is None:
-                    time.sleep(wait)
-                else:
-                    cancel.wait(wait)
+                    'remote operation' if isinstance(error, RecoveryPending)
+                    else 'SSH connection', description, type(error).__name__,
+                    wait, remaining)
+                state.wait(wait, cancel, description)
                 delay = min(delay * 2, 30)
                 continue
+            # A successful operation ends this interruption. Subsequent healthy
+            # queue/runtime must not consume the next outage's recovery window.
+            state.deadline = None
             if failures:
                 logger.info('SSH operation resumed: %s', description)
             return result
-    finally:
-        if previous is None:
-            client.__dict__.pop('_ssh_recovery_deadline', None)
-        else:
-            client._ssh_recovery_deadline = previous
 
 
 def download(client, remote, directory):
-    """Publish a complete regular-file download without exposing partial data."""
+    """Publish a complete download without exposing partial data."""
     destination = os.path.join(directory, remote.rsplit('/', 1)[-1])
 
     def attempt():
@@ -139,7 +219,8 @@ def download(client, remote, directory):
             if ((before.st_size, before.st_mtime) !=
                     (after.st_size, after.st_mtime) or
                     os.path.getsize(partial) != after.st_size):
-                raise RuntimeError('Remote file changed or download is incomplete')
+                raise RuntimeError(
+                    'Remote file changed or download is incomplete')
             os.replace(partial, destination)
             result.local = destination
             return result
@@ -169,9 +250,7 @@ def upload(client, local, directory):
 
 
 def run_durable(client, command, env, description):
-    """Only replay commands protected by a remote lock and completion record."""
-    from invoke.exceptions import UnexpectedExit
-
+    """Replay commands protected by a remote lock and completion record."""
     def attempt():
         result = client.run_commands([command], env=env, warn=True)
         if result.exited == 200:
@@ -183,10 +262,36 @@ def run_durable(client, command, env, description):
     return retry(client, attempt, description)
 
 
-def locked_command(lock, body):
+def locked_command(lock, body, *, wait=5):
     """Reserve exit 200 for lock contention or an unresolved submission."""
-    return (f'flock -w 5 -E 200 {shlex.quote(lock)} '
+    return (f'flock -w {wait} -E 200 {shlex.quote(lock)} '
             f'sh -c {shlex.quote(body)}')
+
+
+def reconcile_submission(state, job_name):
+    """Find exactly one allocation for an operation-specific intent."""
+    quote = shlex.quote
+    return (
+        'live=$(squeue -h -u "$(id -un)" -o "%A|%j") || exit 1; '
+        f'recorded=$(sacct -n -X -u "$(id -un)" --name={quote(job_name)} '
+        f'-S "$(cat {quote(state + ".intent")})" '
+        '--format=JobID,JobName%100 -P) || exit 1; '
+        'printf "%s\\n%s\\n" "$live" "$recorded" | '
+        f'awk -F\'|\' -v token={quote(job_name)} '
+        "'$2 == token {split($1, a, \"_\"); "
+        "if (a[1] ~ /^[0-9]+$/) print a[1]}' | sort -u")
+
+
+def publish_job_id(state):
+    """Validate and publish an allocation before acknowledging it."""
+    quote = shlex.quote
+    return (
+        'case "$job" in ""|*[!0-9]*) '
+        'echo "Waiting for Slurm submission reconciliation" >&2; '
+        'exit 200;; esac; '
+        f'printf "%s\\n" "$job" > {quote(state + ".job.tmp")} && '
+        f'mv -f {quote(state + ".job.tmp")} {quote(state + ".job")} '
+        '|| exit 1; ')
 
 
 def archive(client, data_location, filename, env):
@@ -213,7 +318,8 @@ def archive(client, data_location, filename, env):
 def unpack(client, filename, env):
     """Do not race a still-running extraction after losing its SSH response."""
     quote = shlex.quote
-    state = posixpath.join(client.slurm_data_path, filename + '.biomero-unpacked')
+    state = posixpath.join(
+        client.slurm_data_path, filename + '.biomero-unpacked')
     body = (f'if test -f {quote(state)}; then echo "Input already extracted"; '
             f'else ({client.get_unzip_command(filename)}) || exit 1; '
             f'printf "complete\\n" > {quote(state + ".tmp")} && '
@@ -226,7 +332,7 @@ def submit(client, command, env, task_id):
     """Reconcile lost sbatch responses by task identity, never resubmit intent.
 
     A remote receipt bridges a process restart and the gap between Slurm's
-    acceptance and recording the job in the local event store. Unresolved intent
+    acceptance and recording the job locally. Unresolved intent
     waits for accounting visibility; an absent match never authorizes a second
     submission. Failed submissions retain their original diagnostics.
     """
@@ -241,29 +347,19 @@ def submit(client, command, env, task_id):
     def p(suffix):
         return quote(state + suffix)
 
-    # squeue covers live jobs before sacct catches up; arrays reconcile to their
-    # parent allocation. More than one match is ambiguous and never adopted.
-    find_job = (
-        'live=$(squeue -h -u "$(id -un)" -o "%A|%j") || exit 1; '
-        f'recorded=$(sacct -n -X -u "$(id -un)" -S "$(cat {p(".intent")})" '
-        '--format=JobID,JobName%100 -P) || exit 1; '
-        'printf "%s\\n%s\\n" "$live" "$recorded" | '
-        f'awk -F\'|\' -v token={quote(token)} '
-        "'$2 == token {split($1, a, \"_\"); "
-        "if (a[1] ~ /^[0-9]+$/) print a[1]}' | sort -u")
+    find_job = reconcile_submission(state, token)
+    publish = publish_job_id(state)
     body = (
         f'if test -e {p(".digest")} && '
         f'test "$(cat {p(".digest")})" != {quote(digest)}; then '
-        'echo "Submission settings changed; manual reconciliation required" >&2; '
+        'echo "Submission settings changed; manual reconciliation required" '
+        '>&2; '
         'exit 1; fi; '
         f'if test -f {p(".failed")}; then cat {p(".stdout")}; '
         f'cat {p(".stderr")} >&2; exit 1; fi; '
         f'if test -s {p(".job")}; then job=$(cat {p(".job")}); '
         f'elif test -e {p(".intent")}; then job=$({find_job}) || exit 1; '
-        'case "$job" in ""|*[!0-9]*) '
-        'echo "Waiting for Slurm submission reconciliation" >&2; exit 200;; esac; '
-        f'printf "%s\\n" "$job" > {p(".job.tmp")} && '
-        f'mv -f {p(".job.tmp")} {p(".job")} || exit 1; '
+        f'{publish}'
         f'else printf "%s\\n" {quote(digest)} > {p(".digest")} && '
         f'date +%Y-%m-%dT%H:%M:%S > {p(".intent")} || exit 1; '
         f'({command}) > {p(".stdout")} 2> {p(".stderr")}; rc=$?; '
@@ -271,9 +367,7 @@ def submit(client, command, env, task_id):
         f'cat {p(".stdout")}; cat {p(".stderr")} >&2; exit 1; fi; '
         f'job=$(sed -n "s/^Submitted batch job \\([0-9][0-9]*\\)$/\\1/p" '
         f'{p(".stdout")} | tail -1); '
-        'case "$job" in ""|*[!0-9]*) exit 200;; esac; '
-        f'printf "%s\\n" "$job" > {p(".job.tmp")} && '
-        f'mv -f {p(".job.tmp")} {p(".job")} || exit 1; fi; '
+        f'{publish}fi; '
         'case "$job" in ""|*[!0-9]*) exit 1;; esac; '
         'printf "Submitted batch job %s\\n" "$job"')
     wrapped = (f'mkdir -p {quote(directory)} && ' +

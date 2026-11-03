@@ -533,6 +533,7 @@ SSH Recovery
 ------------
 
 ``[SLURM] ssh_recovery_timeout`` (environment
-``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds. Default:
+``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds per
+interruption, starting at the first failure rather than operation start. Default:
 ``0``. For enablement, dependencies, submission reconciliation and limits, see
 :ref:`the SSH recovery section <ssh-recovery>` in :doc:`slurm-configuration`.

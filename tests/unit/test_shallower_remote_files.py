@@ -110,9 +110,12 @@ def test_recovery_reconciliation_uses_only_its_own_name(tmp_path):
     fake_bin.mkdir()
     sacct = fake_bin / 'sacct'
     sacct.write_text('#!/bin/sh\ncase "$*" in\n'
-                     '*--name=biomero-recovery-task*) echo 124;;\n'
-                     '*) echo 123;;\nesac\n')
+                     '*--name=biomero-recovery-task*) echo "124|biomero-recovery-task";;\n'
+                     '*) echo "123|analysis-task";;\nesac\n')
     sacct.chmod(0o755)
+    squeue = fake_bin / 'squeue'
+    squeue.write_text('#!/bin/sh\necho "123|analysis-task"\n')
+    squeue.chmod(0o755)
     state = str(tmp_path / 'recovery')
     Path(state + '.intent').write_text('2026-01-01T00:00:00')
     client = LocalRemoteClient({'PATH': str(fake_bin) + ':' + os.environ['PATH']})
@@ -127,6 +130,9 @@ def test_old_unresolved_recovery_intent_is_not_resubmitted(tmp_path):
     sacct = fake_bin / 'sacct'
     sacct.write_text('#!/bin/sh\nexit 0\n')
     sacct.chmod(0o755)
+    squeue = fake_bin / 'squeue'
+    squeue.write_text('#!/bin/sh\nexit 0\n')
+    squeue.chmod(0o755)
     state = str(tmp_path / 'recovery')
     Path(state + '.intent').write_text('2026-01-01T00:00:00')
     client = LocalRemoteClient({'PATH': str(fake_bin) + ':' + os.environ['PATH']})

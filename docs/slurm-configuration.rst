@@ -818,6 +818,12 @@ approximately ten minutes with time left to reconnect. The environment override
 is ``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
 Slurm Init is not needed just to change the window.
 
+The window starts at the first failed attempt in each interruption. Healthy
+queueing, computation, transfer and helper runtime do not consume it. Nested
+operations share the active interruption's deadline instead of multiplying
+retry budgets. Caller-supplied heartbeat callbacks remain active during nested
+recovery and backoff, including shallower polling.
+
 With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity
 log reports **Waiting for SSH connection** while the last known Slurm job state
@@ -825,6 +831,12 @@ is retained. Authentication, host-key, permission, configuration and remote-comm
 failures are not treated as transient transport loss. Cancellation and deadline
 expiry stop recovery with an explicit connection diagnostic, leaving remote jobs
 and recovery records intact.
+
+A channel that closes without an exit status (Fabric exit code ``-1``) is a
+transport failure, including when Fabric is configured with ``warn=True``.
+Real remote nonzero exit codes retain their usual failure behavior. Temporary
+lock contention waits for the existing durable operation; it does not authorize
+another submission or classify a rejected Slurm job as a connection problem.
 
 Workflow and conversion submissions use the tracked task identity, a remote
 ``.biomero-recovery`` record and the Slurm job name. After a lost response,

@@ -14,6 +14,7 @@ import re
 import shlex
 from uuid import UUID, uuid4
 
+from invoke.exceptions import UnexpectedExit
 from packaging.version import InvalidVersion, Version
 
 from .slurm_client import SlurmJob
@@ -318,29 +319,30 @@ def _submit_once(client, command, state, *, job_name):
     not a value inferred by parsing shell commands. Ambiguous submission state
     raises instead of risking a duplicate job.
     """
-    # An intent without a job ID is ambiguous: never blindly submit again.
-    # The unique job name and sacct allow an administrator to reconcile it.
+    # Reuse the same reconciliation and receipt publication as analysis jobs.
+    # Keep the helper's existing rejected-submission fallback to full results.
     quote = shlex.quote
+    recovering = ssh_recovery.enabled(client)
+    find_job = ssh_recovery.reconcile_submission(state, job_name)
+    publish = ssh_recovery.publish_job_id(state)
     script = (
         f'if test -s {quote(state + ".job")}; then cat {quote(state + ".job")}; '
         f'elif test -e {quote(state + ".intent")}; then '
-        f'jobs=$(sacct -n -X --name={quote(job_name)} --format=JobIDRaw '
-        f'-S "$(cat {quote(state + ".intent")})" | awk \'NF {{print $1}}\' | sort -u); '
-        'case "$jobs" in ""|*[!0-9]*) '
-        'echo "Unresolved shallower submission intent" >&2; exit 75;; esac; '
-        f'printf "%s\\n" "$jobs" > {quote(state + ".job")}; printf "%s\\n" "$jobs"; '
+        f'job=$({find_job}) || exit 1; {publish}printf "%s\\n" "$job"; '
         f'else date +%Y-%m-%dT%H:%M:%S > {quote(state + ".intent")}; '
         f'job=$({command}) || {{ rm -f {quote(state + ".intent")}; '
         'printf "NOT_SUBMITTED\\n"; exit 0; }; '
         'job=${job%%;*}; '
-        f'printf "%s\\n" "$job" > {quote(state + ".job.tmp")}; '
-        f'mv {quote(state + ".job.tmp")} {quote(state + ".job")}; '
+        f'{publish}'
         'printf "%s\\n" "$job"; fi'
     )
     result = client.run_commands([
-        f'flock -w 30 {quote(state + ".lock")} sh -c {quote(script)}'],
-        **({'warn': True} if ssh_recovery.enabled(client) else {}))
-    if ssh_recovery.enabled(client) and result.exited == 75:
+        ssh_recovery.locked_command(
+            state + '.lock', script, wait=5 if recovering else 30)],
+        **({'warn': True} if recovering else {}))
+    if recovering and result.exited in (-1, 200):
+        if result.exited == -1:
+            raise UnexpectedExit(result)
         raise ssh_recovery.RecoveryPending(
             'Waiting for the existing shallower submission')
     if result.ok and result.stdout.strip() == 'NOT_SUBMITTED':

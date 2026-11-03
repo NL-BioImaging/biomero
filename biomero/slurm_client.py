@@ -171,34 +171,37 @@ class SlurmJob:
         """
         if heartbeat is not None and not callable(heartbeat):
             raise TypeError('heartbeat must be callable')
-        while not self.is_terminal(self.job_state):
-            if heartbeat is not None:
-                heartbeat()
-            job_status_dict, poll_result = slurmClient.check_job_status(
-                [self.job_id])
-            state = job_status_dict.get(self.job_id, 'UNKNOWN')
-            if strict_status and (
-                    poll_result is None or not poll_result.ok
-                    or state == 'UNKNOWN'):
-                raise RuntimeError(
-                    f'Slurm job {self.job_id} state unavailable; '
-                    'retry monitoring to adopt the existing job')
-            if poll_result is None or not poll_result.ok:
-                self.job_state = "FAILED"
-                self.error_message = getattr(poll_result, 'stderr', '')
-                logger.warning('Error checking job status: %s', self.error_message)
-            else:
-                self.job_state = state
-            if track_progress:
-                self.progress = slurmClient.get_active_job_progress(self.job_id)
-            if update_task:
-                slurmClient.workflowTracker.update_task_status(
-                    self.task_id, self.job_state)
+        with ssh_recovery.scope(slurmClient, heartbeat) as recovery:
+            while not self.is_terminal(self.job_state):
+                if recovery is not None:
+                    recovery.pulse()
+                elif heartbeat is not None:
+                    heartbeat()
+                job_status_dict, poll_result = slurmClient.check_job_status(
+                    [self.job_id])
+                state = job_status_dict.get(self.job_id, 'UNKNOWN')
+                if strict_status and (
+                        poll_result is None or not poll_result.ok
+                        or state == 'UNKNOWN'):
+                    raise RuntimeError(
+                        f'Slurm job {self.job_id} state unavailable; '
+                        'retry monitoring to adopt the existing job')
+                if poll_result is None or not poll_result.ok:
+                    self.job_state = "FAILED"
+                    self.error_message = getattr(poll_result, 'stderr', '')
+                    logger.warning('Error checking job status: %s', self.error_message)
+                else:
+                    self.job_state = state
                 if track_progress:
-                    slurmClient.workflowTracker.update_task_progress(
-                        self.task_id, self.progress)
-            if not self.is_terminal(self.job_state):
-                timesleep.sleep(self.slurm_polling_interval)
+                    self.progress = slurmClient.get_active_job_progress(self.job_id)
+                if update_task:
+                    slurmClient.workflowTracker.update_task_status(
+                        self.task_id, self.job_state)
+                    if track_progress:
+                        slurmClient.workflowTracker.update_task_progress(
+                            self.task_id, self.progress)
+                if not self.is_terminal(self.job_state):
+                    timesleep.sleep(self.slurm_polling_interval)
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
         if self.log_file:
             logger.info('Slurm output: %s', self.log_file)

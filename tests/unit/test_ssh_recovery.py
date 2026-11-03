@@ -128,6 +128,17 @@ def test_cancelled_recovery_does_not_restart_operation(recovery_clock):
     operation.assert_not_called()
 
 
+def test_fabric_client_cancellation_is_honoured(slurm_client, recovery_clock):
+    slurm_client.ssh_recovery_timeout = 900
+    cancelled = Event()
+    cancelled.set()
+    slurm_client.ssh_recovery_cancel = cancelled
+    operation = Mock()
+    with pytest.raises(ssh_recovery.SSHRecoveryCancelled):
+        ssh_recovery.retry(slurm_client, operation, 'read')
+    operation.assert_not_called()
+
+
 def test_status_recovers_without_publishing_failed(slurm_client, recovery_clock):
     slurm_client.ssh_recovery_timeout = 900
     slurm_client.close = Mock()
@@ -205,7 +216,8 @@ def shell_client(tmp_path):
         'for arg in "$@"; do case "$arg" in --job-name=*) '
         'token=${arg#--job-name=};; esac; done\n'
         f'printf "42|%s\\n" "$token" >> {shlex.quote(str(jobs))}\n'
-        'echo "Submitted batch job 42"\n')
+        'case " $* " in *" --parsable "*) echo 42;; '
+        '*) echo "Submitted batch job 42";; esac\n')
     for name in ('squeue', 'sacct'):
         (binary / name).write_text(
             f'#!/bin/sh\ncat {shlex.quote(str(jobs))} 2>/dev/null || true\n')
@@ -260,6 +272,45 @@ def test_unknown_submission_waits_without_resubmission(
     (state / (str(task_id) + '.intent')).write_text('2026-10-30T00:00:00')
     with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
         ssh_recovery.submit(shell_client, 'sbatch job.sh', {}, task_id)
+    assert not shell_client.counter.exists()
+
+
+@pytest.mark.parametrize('lose_receipt', [False, True])
+def test_shallower_lost_acknowledgement_adopts_one_job(
+        shell_client, recovery_clock, lose_receipt):
+    from biomero.remote_shallower import _submit_once
+    state = str(Path(shell_client.slurm_data_path) / 'shallow')
+    original = shell_client.run_commands
+    calls = []
+
+    def lose_response(*args, **kwargs):
+        result = original(*args, **kwargs)
+        calls.append(result)
+        if len(calls) == 1:
+            assert result.ok, result.stderr
+            if lose_receipt:
+                Path(state + '.job').unlink()
+            # The actual Fabric result after a lost channel, not a synthetic
+            # EOFError after a successful acknowledgement.
+            return Result(connection=None, exited=-1)
+        return result
+
+    shell_client.run_commands = lose_response
+    assert ssh_recovery.retry(shell_client, lambda: _submit_once(
+        shell_client, 'sbatch --parsable --job-name=helper job.sh', state,
+        job_name='helper'), 'helper submission') == 42
+    assert shell_client.counter.read_text().splitlines() == ['submitted']
+
+
+def test_shallower_ambiguous_intent_never_resubmits(shell_client, recovery_clock):
+    from biomero.remote_shallower import _submit_once
+    state = str(Path(shell_client.slurm_data_path) / 'shallow')
+    Path(state + '.intent').write_text('2026-11-03T00:00:00')
+    shell_client.jobs.write_text('41|helper\n42|helper\n99|other\n')
+    with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
+        ssh_recovery.retry(shell_client, lambda: _submit_once(
+            shell_client, 'sbatch --parsable job.sh', state, job_name='helper'),
+            'helper submission')
     assert not shell_client.counter.exists()
 
 
@@ -387,3 +438,125 @@ def test_recorded_job_is_authoritative_even_if_remote_receipt_is_missing(
     result = slurm_client._submit_tracked('sbatch job.sh', {}, task_id)
     assert slurm_client.extract_job_id(result) == 42
     submit.assert_not_called()
+
+
+@pytest.mark.parametrize('warn', [False, True])
+def test_read_recovers_missing_exit_status(slurm_client, recovery_clock, warn):
+    slurm_client.ssh_recovery_timeout = 20
+    slurm_client.close = Mock()
+    lost = Result(connection=None, exited=-1, stdout='partial')
+    complete = Result(connection=None, exited=0, stdout='complete')
+    slurm_client.run = Mock(side_effect=[
+        lost if warn else UnexpectedExit(lost), complete])
+    assert slurm_client.run_read_only('read', warn=warn) is complete
+    assert slurm_client.run.call_count == 2
+
+
+def test_durable_command_recovers_missing_exit_status(
+        slurm_client, recovery_clock):
+    slurm_client.ssh_recovery_timeout = 20
+    slurm_client.close = Mock()
+    complete = Result(connection=None, exited=0, stdout='complete')
+    slurm_client.run_commands = Mock(side_effect=[
+        Result(connection=None, exited=-1), complete])
+    assert ssh_recovery.run_durable(slurm_client, 'locked command', {},
+                                    'durable operation') is complete
+
+
+def test_long_healthy_attempt_does_not_consume_recovery_window(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock())
+    attempts = []
+
+    def operation():
+        attempts.append(True)
+        if len(attempts) == 1:
+            recovery_clock.now += 901
+            raise EOFError()
+        return 'recovered'
+
+    assert ssh_recovery.retry(client, operation, 'long archive') == 'recovered'
+    assert recovery_clock.now == 902
+
+
+def test_new_outage_gets_full_budget_after_healthy_work(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=10, close=Mock())
+
+    def operation():
+        first = Mock(side_effect=[EOFError(), 'first'])
+        assert ssh_recovery.retry(client, first, 'first outage') == 'first'
+        recovery_clock.now += 100
+        second = Mock(side_effect=[EOFError(), 'second'])
+        return ssh_recovery.retry(client, second, 'second outage')
+
+    assert ssh_recovery.retry(client, operation, 'helper lifecycle') == 'second'
+    assert recovery_clock.now == 102
+
+
+@pytest.mark.parametrize('outer_retry', [False, True])
+def test_job_wait_keeps_heartbeat_during_nested_poll_recovery(
+        slurm_client, recovery_clock, outer_retry):
+    from biomero.slurm_client import SlurmJob
+    slurm_client.ssh_recovery_timeout = 900
+    slurm_client.close = Mock()
+    heartbeat_times = []
+
+    def poll(*args, **kwargs):
+        if recovery_clock.now < 600:
+            raise EOFError()
+        return Result(connection=None, exited=0, stdout='42 COMPLETED\n')
+
+    slurm_client.run_commands = poll
+    job = SlurmJob.from_job_id(42)
+    heartbeat = lambda: heartbeat_times.append(recovery_clock.now)
+
+    def wait():
+        return job.wait_for_completion(
+            slurm_client, heartbeat=heartbeat, track_progress=False,
+            update_task=False, strict_status=True)
+
+    assert (ssh_recovery.retry(slurm_client, wait, 'helper', heartbeat=heartbeat)
+            if outer_retry else wait()) == 'COMPLETED'
+    assert max(b - a for a, b in zip(
+        heartbeat_times, heartbeat_times[1:])) <= 10
+    assert job.job_state == 'COMPLETED'
+
+
+def test_nested_heartbeat_transport_shaped_error_is_not_retried(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=20, close=Mock())
+    failure = EOFError('caller-owned heartbeat failed')
+    heartbeat = Mock(side_effect=failure)
+    with pytest.raises(EOFError) as caught:
+        ssh_recovery.retry(client, lambda: ssh_recovery.retry(
+            client, Mock(), 'nested', heartbeat=heartbeat), 'outer')
+    assert caught.value is failure
+    heartbeat.assert_called_once()
+    assert not recovery_clock.waits
+
+
+def test_shallower_contention_recovers_after_lock_release(
+        shell_client, recovery_clock):
+    import fcntl
+    from threading import Timer
+    from biomero.remote_shallower import _submit_once
+    state = str(Path(shell_client.slurm_data_path) / 'shallow')
+    lock = open(state + '.lock', 'w')
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    original = shell_client.run_commands
+
+    def short_lock_wait(commands, **kwargs):
+        commands = [c.replace('flock -w 30 ', 'flock -w 0.05 ').replace(
+            'flock -w 5 ', 'flock -w 0.05 ') for c in commands]
+        return original(commands, **kwargs)
+
+    shell_client.run_commands = short_lock_wait
+    shell_client.ssh_recovery_timeout = 900
+    release = Timer(0.25, lambda: fcntl.flock(lock, fcntl.LOCK_UN))
+    release.start()
+    try:
+        assert ssh_recovery.retry(shell_client, lambda: _submit_once(
+            shell_client, 'sbatch --parsable --job-name=helper job.sh', state,
+            job_name='helper'), 'helper submission') == 42
+    finally:
+        release.join()
+        lock.close()
+    assert shell_client.counter.read_text().splitlines() == ['submitted']

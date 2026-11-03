@@ -1413,7 +1413,8 @@ class SlurmClient(Connection):
                     f"{shlex.quote(self.apptainer_tmpdir or '')} "
                     f"{shlex.quote(self.apptainer_cachedir or '')} "
                     f"> {shlex.quote(logfile)} 2>&1 </dev/null &")
-            result = self.run_commands(commands, sep=" ; ")
+            # Each command already ends with '&'; '& ;' is invalid Bash.
+            result = self.run_commands(commands, sep="\n")
             if not result.ok:
                 raise SSHException(result)
 

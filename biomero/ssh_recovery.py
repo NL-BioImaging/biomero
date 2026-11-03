@@ -26,6 +26,8 @@ from paramiko.ssh_exception import NoValidConnectionsError
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SSH_RECOVERY_TIMEOUT = 900
+
 
 class SSHRecoveryTimeout(ConnectionError):
     """Connectivity did not recover within the configured time window."""
@@ -260,7 +262,8 @@ def publish_script(client, content, remote):
                 sftp.remove(partial)
             except FileNotFoundError:
                 # Successful rename removes the temporary name. On transport
-                # loss a private partial may remain; it is never executable.
+                # loss a private partial may remain; it is not published as
+                # the job script.
                 pass
             except Exception:
                 logger.debug('Could not remove partial script', exc_info=True)

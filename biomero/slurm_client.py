@@ -572,7 +572,8 @@ class SlurmClient(Connection):
                  analytics_rebuild_days_ago: int = None,
                  remote_shallower_mem: str = None,
                  remote_shallower_time: str = None,
-                 ssh_recovery_timeout: int = 0):
+                 ssh_recovery_timeout: int =
+                 ssh_recovery.DEFAULT_SSH_RECOVERY_TIMEOUT):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -581,9 +582,9 @@ class SlurmClient(Connection):
 
         Args:
             ssh_recovery_timeout (int, optional): Maximum seconds to retry an
-                interrupted replay-safe SSH operation. Default 0 preserves the
-                legacy single-attempt transport behavior. Configure 900 for a
-                15-minute recovery window, or override with
+                interrupted replay-safe SSH operation. Defaults to 900 seconds
+                (15 minutes), including when the setting is omitted. Set 0
+                to disable recovery explicitly, or override with
                 BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires
                 tracking, flock and durable writable HPC storage; it reserves
                 the Slurm job name for task identity.
@@ -1693,7 +1694,8 @@ class SlurmClient(Connection):
             default=cls._DEFAULT_HOST,
         )
         ssh_recovery_timeout = cls._get_config_value(
-            configs, section="SLURM", option="ssh_recovery_timeout", default=0,
+            configs, section="SLURM", option="ssh_recovery_timeout",
+            default=ssh_recovery.DEFAULT_SSH_RECOVERY_TIMEOUT,
             env_vars=[slurm_env.BIOMERO_SSH_RECOVERY_TIMEOUT], value_type=int,
         )
         inline_ssh_env = cls._get_config_value(
@@ -2232,6 +2234,10 @@ class SlurmClient(Connection):
             env = {}
         try:
             result = self.run_commands_read_only(cmdlist, env=env)
+        except (ssh_recovery.SSHRecoveryTimeout,
+                ssh_recovery.SSHRecoveryCancelled):
+            # Optional progress must not suppress the recovery stop policy.
+            raise
         except Exception as e:
             logger.error(f"Issue with run command: {e}")
         # Match the specified pattern in the result's stdout

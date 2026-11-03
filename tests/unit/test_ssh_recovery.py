@@ -97,7 +97,13 @@ def test_nested_retries_share_the_original_deadline(recovery_clock):
 
 
 @pytest.mark.parametrize('ini,environment,expected', [
-    ({}, {}, 0),
+    ({}, {}, 900),
+    ({}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': ''}, 900),
+    ({'ssh_recovery_timeout': ''}, {}, 900),
+    ({'ssh_recovery_timeout': ''}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': ''}, 900),
+    ({'ssh_recovery_timeout': '0'}, {}, 0),
+    ({'ssh_recovery_timeout': '0'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': ''}, 0),
+    ({'ssh_recovery_timeout': '900'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': '0'}, 0),
     ({'ssh_recovery_timeout': '900'}, {}, 900),
     ({'ssh_recovery_timeout': '900'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': '1200'}, 1200),
     ({'ssh_recovery_timeout': '900'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': ''}, 900),
@@ -106,6 +112,43 @@ def test_config_precedence(slurm_client_from_config_factory, ini,
                            environment, expected):
     client = slurm_client_from_config_factory(ini, environment)
     assert client.ssh_recovery_timeout == expected
+
+
+def test_constructor_recovers_without_new_configuration(recovery_clock):
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True)
+    assert client.ssh_recovery_timeout == 900
+    client.close = Mock()
+    client.run = Mock(side_effect=[
+        EOFError('HPC connection dropped'),
+        Result(connection=None, exited=0, stdout='existing job')])
+    assert client.run_read_only('squeue -h').stdout == 'existing job'
+    assert client.run.call_count == 2
+    assert recovery_clock.now == 1
+
+
+def test_older_client_without_recovery_capability_remains_compatible():
+    assert not ssh_recovery.enabled(SimpleNamespace())
+
+
+@pytest.mark.parametrize('error', [
+    ssh_recovery.SSHRecoveryTimeout('progress outage exhausted'),
+    ssh_recovery.SSHRecoveryCancelled('progress wait cancelled'),
+])
+def test_progress_propagates_recovery_stopping_conditions(error):
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True)
+    client.run_commands_read_only = Mock(side_effect=error)
+    with pytest.raises(type(error)) as caught:
+        client.get_active_job_progress(42)
+    assert caught.value is error
+
+
+def test_progress_retains_best_effort_for_ordinary_log_errors():
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True)
+    client.run_commands_read_only = Mock(side_effect=FileNotFoundError('no log'))
+    assert client.get_active_job_progress(42) is None
 
 
 def test_authentication_is_not_retried(recovery_clock):

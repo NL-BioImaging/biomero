@@ -812,14 +812,14 @@ Recovering Interrupted SSH Operations
 -------------------------------------
 
 Set ``ssh_recovery_timeout`` in ``[SLURM]`` to a nonnegative recovery window
-in seconds. The default ``0`` preserves single-attempt transport behavior.
-For example, ``ssh_recovery_timeout = 900`` tolerates a connection outage of
-approximately ten minutes with time left to reconnect. The environment override
-is ``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
+in seconds. The default is ``900`` (15 minutes), including when the setting is
+absent or empty. Recovery applies to inline and detached workflows. Explicit
+``0`` disables recovery. The environment override is
+``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
 Slurm Init is not needed just to change the window.
 
 The window starts at the first failed attempt in each interruption. Healthy
-queueing, computation, transfer and helper runtime do not consume it. Nested
+queueing, computation and helper runtime do not consume it. Nested
 operations share the active interruption's deadline instead of multiplying
 retry budgets. Caller-supplied heartbeat callbacks remain active during nested
 recovery and backoff, including shallower polling.
@@ -830,7 +830,8 @@ log reports **Waiting for SSH connection** while the last known Slurm job state
 is retained. Authentication, host-key, permission, configuration and remote-command
 failures are not treated as transient transport loss. Cancellation and deadline
 expiry stop recovery with an explicit connection diagnostic, leaving remote jobs
-and recovery records intact.
+and recovery records intact. Exhaustion remains terminal Failed in both inline
+and detached execution; retaining records does not queue automatic recovery later.
 
 A channel that closes without an exit status (Fabric exit code ``-1``) is a
 transport failure, including when Fabric is configured with ``warn=True``.
@@ -843,8 +844,8 @@ Workflow and conversion submissions use the tracked task identity, a remote
 BIOMERO adopts the recorded job or reconciles its exact identity through squeue
 and sacct. Unresolved submission intent never authorizes a second sbatch.
 Tracking must remain enabled for resumable submission; arbitrary ``run`` and
-``run_commands`` calls are deliberately not retried. Existing untracked callers
-retain one-attempt submission behavior.
+``run_commands`` calls are deliberately not retried. Untracked submissions are
+attempted once because they lack a durable task identity.
 
 Result archive creation is serialized and published through a temporary path.
 Completed archives are reused on retry. Downloads and input archives are copied
@@ -852,11 +853,15 @@ to partial paths, checked for completeness and published atomically. A retry
 restarts an interrupted copy from the beginning, rather than requiring rsync or
 SSHFS. Existing local final files remain available until replacement succeeds.
 Normal ZIP extraction still validates member CRCs before import.
+The first healthy copy does not consume a recovery window. Once interrupted,
+whole-file retries share the window until the complete copy succeeds; repeated
+interruptions during lengthy retries can exhaust it. There is no ranged or
+progress-aware transfer resume.
 
-This opt-in requires ``flock`` and writable shared HPC storage for submission and
-archive records, Slurm accounting/job-name lookup, and atomic SFTP rename support
-for input publication. Keep these records and result files while recovery is
-pending. Do not delete an unresolved intent to force a retry; reconcile the job
+Default recovery requires ``flock`` and writable shared HPC storage for submission
+and archive records, Slurm accounting/job-name lookup, and atomic SFTP rename
+support for input and generated-script publication. Keep these records and result
+files while recovery is pending. Do not delete an unresolved intent to force a retry; reconcile the job
 first. A processor restart can reuse the recorded task and job identity, but
 recovery does not make arbitrary remote commands or OMERO postprocessing
 exactly-once. Use matching core and scripts for the complete pipeline.

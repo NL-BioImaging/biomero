@@ -11,9 +11,16 @@ conventions over inventing new ones: read the surrounding code, mirror the
 nearest existing example, then make the smallest change that is correct and
 backward compatible.
 
-Backward compatibility is a hard requirement. Every new option must default to
-the current behavior so existing deployments are byte-for-byte unaffected unless
-they opt in.
+Preserve supported deployment modes, configuration contracts and safe APIs.
+Compatibility does not require preserving a bug: apply defect corrections by
+default when safe, and do not add an opt-in gate merely to retain faulty behavior.
+Distinguish bug fixes from optional new capabilities; retain justified explicit
+opt-outs and older-client compatibility paths.
+
+General documentation describes normal behavior and configuration. Put deployment
+transitions and upgrade steps in dedicated upgrade guides or release notes, not
+in ordinary feature/API explanations. Keep development history and the narrative
+of how a bug was fixed in PRs or developer records.
 
 ## Core / OMERO scripts boundary
 

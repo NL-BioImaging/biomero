@@ -6,6 +6,7 @@ of an SSH exception alone. Callers own replay safety and durable job identity.
 import errno
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from functools import wraps
 import hashlib
 import io
 import json
@@ -165,28 +166,30 @@ def limit_channel_open(client):
         transport.channel_timeout = io_timeout(client, transport.channel_timeout)
 
 
-def read(client, operation, description, **kwargs):
-    """Bound and retry a caller-declared short read, never an arbitrary run."""
-    def attempt():
-        options = dict(kwargs)
-        if enabled(client):
-            requested = options.get('timeout')
-            seconds = (requested if isinstance(requested, (int, float))
-                       and requested > 0 else io_timeout(client))
-            state = client.__dict__.get('_ssh_recovery_state')
-            if state is not None and state.deadline is not None:
-                seconds = min(seconds, max(.001, state.deadline - time.monotonic()))
-            options['timeout'] = seconds
-        try:
-            return operation(**options)
-        except CommandTimedOut as error:
-            if not enabled(client):
-                raise
-            # A monitoring timeout means observation is unavailable, not that
-            # the Slurm allocation failed. Other command timeouts keep their
-            # original meaning and are deliberately not classified globally.
-            raise TimeoutError('Read-only SSH command timed out') from error
-    return retry(client, attempt, description)
+def read_only(function):
+    """Declare a short remote read safe to repeat, preserving its public API."""
+    @wraps(function)
+    def wrapped(client, *args, **kwargs):
+        def attempt():
+            options = dict(kwargs)
+            if enabled(client):
+                requested = options.get('timeout')
+                seconds = (requested if isinstance(requested, (int, float))
+                           and requested > 0 else io_timeout(client))
+                state = client.__dict__.get('_ssh_recovery_state')
+                if state is not None and state.deadline is not None:
+                    seconds = min(seconds, max(.001, state.deadline - time.monotonic()))
+                options['timeout'] = seconds
+            try:
+                return function(client, *args, **options)
+            except CommandTimedOut as error:
+                if not enabled(client):
+                    raise
+                # Observation is unavailable; the Slurm job has not failed.
+                # Do not classify arbitrary command timeouts globally.
+                raise TimeoutError('Read-only SSH command timed out') from error
+        return retry(client, attempt, function.__name__)
+    return wrapped
 
 
 @contextmanager

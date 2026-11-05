@@ -2272,17 +2272,15 @@ class SlurmClient(Connection):
                                          name)
         return result
 
+    @ssh_recovery.read_only
     def run_read_only(self, command, **kwargs):
         """Bound, reconnect and repeat a caller-declared short read."""
-        return ssh_recovery.read(
-            self, lambda **options: self.run(command, **options),
-            "read remote state", **kwargs)
+        return self.run(command, **kwargs)
 
+    @ssh_recovery.read_only
     def run_commands_read_only(self, commands, env=None, **kwargs):
         """Read remote state while preserving the last known job status."""
-        return ssh_recovery.read(
-            self, lambda **options: self.run_commands(commands, env=env, **options),
-            "read remote state", **kwargs)
+        return self.run_commands(commands, env=env, **kwargs)
 
     def run_commands(self, cmdlist: List[str],
                      env: Optional[Dict[str, str]] = None,
@@ -3169,9 +3167,7 @@ class SlurmClient(Connection):
         retry_status = 0
         last_result = None
         while retry_status < 3:
-            result = ssh_recovery.read(
-                self, lambda **options: self.run_commands([cmd], env=env, **options),
-                "monitor Slurm jobs")
+            result = self.run_commands_read_only([cmd], env=env)
             last_result = result
             logger.info(result)
             if result.ok:
@@ -3259,9 +3255,7 @@ class SlurmClient(Connection):
             logfile = self._LOGFILE
             logfile = logfile.format(slurm_job_id=slurm_job_id)
         cmd = self._LOGFILE_DATA_CMD.format(log_file=logfile)
-        result = ssh_recovery.read(
-            self, lambda **options: self.run_commands([cmd], **options),
-            "read result location")
+        result = self.run_commands_read_only([cmd])
         if result.ok:
             return result.stdout
         else:

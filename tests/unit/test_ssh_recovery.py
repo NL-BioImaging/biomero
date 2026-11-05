@@ -98,7 +98,10 @@ def test_command_timeout_is_recoverable_only_through_safe_read(recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=20, close=Mock())
     assert not ssh_recovery.is_transient(error)
     operation = Mock(side_effect=[error, 'same job observed'])
-    assert ssh_recovery.read(client, operation, 'short safe read') == 'same job observed'
+    @ssh_recovery.read_only
+    def read(client, **kwargs):
+        return operation(**kwargs)
+    assert read(client) == 'same job observed'
     operation = Mock(side_effect=error)
     with pytest.raises(CommandTimedOut):
         ssh_recovery.retry(client, operation, 'protected long work')
@@ -108,13 +111,26 @@ def test_command_timeout_is_recoverable_only_through_safe_read(recovery_clock):
 def test_explicit_longer_read_timeout_is_preserved_until_outage(recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock())
     operation = Mock(side_effect=[EOFError(), 'observed'])
-    assert ssh_recovery.read(client, operation, 'read', timeout=120) == 'observed'
+    @ssh_recovery.read_only
+    def read(client, **kwargs):
+        return operation(**kwargs)
+    assert read(client, timeout=120) == 'observed'
     assert [call.kwargs['timeout'] for call in operation.call_args_list] == [120, 120]
     operation = Mock(return_value='observed')
     with ssh_recovery.scope(client) as state:
         state.deadline = recovery_clock.now + 2
-        assert ssh_recovery.read(client, operation, 'read', timeout=120) == 'observed'
+        assert read(client, timeout=120) == 'observed'
     assert operation.call_args.kwargs['timeout'] == 2
+
+
+def test_read_decorator_preserves_metadata_and_calling_contract():
+    import inspect
+    from biomero.slurm_client import SlurmClient
+    for name in ('run_read_only', 'run_commands_read_only'):
+        method = getattr(SlurmClient, name)
+        assert method.__name__ == name
+        assert method.__doc__ == method.__wrapped__.__doc__
+        assert inspect.signature(method) == inspect.signature(method.__wrapped__)
 
 
 def test_nested_native_bounds_use_remaining_outage_budget(recovery_clock):

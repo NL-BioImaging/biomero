@@ -9,6 +9,30 @@ on:
     branches: [ "main" ]
 
 jobs:
+  postgres-durability:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BIOMERO_TEST_POSTGRES_URL: postgresql+psycopg2://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --editable .[test]
+      - run: python -m pytest tests/unit/test_projection_event_durability.py -q
+
   build:
 
     runs-on: ${{ matrix.os }}

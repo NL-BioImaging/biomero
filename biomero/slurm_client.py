@@ -1215,7 +1215,9 @@ class SlurmClient(Connection):
             try:
                 # Begin a transaction
                 listener.pull_and_process(
-                    leader_name=WorkflowTracker.__name__, start=start)
+                    # Our start ID is inclusive; the follower's cursor is not.
+                    leader_name=WorkflowTracker.__name__,
+                    start=max(0, start - 1))
                 session.commit()
             except (IntegrityError, ESIntegrityError) as e:
                 session.rollback()

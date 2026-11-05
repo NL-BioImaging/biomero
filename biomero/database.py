@@ -388,6 +388,11 @@ class EngineManager:
         """
         Retrieves the current scoped session, setting one up when needed.
 
+        This is a borrowed, thread-scoped session, not a new owned session.
+        Listener reads must not use it as a context manager: Session.__exit__
+        closes it and rolls back any pending producer event transaction.
+        SlurmClient's outer context releases the session when work finishes.
+
         Returns:
             Session: The SQLAlchemy session for interacting with the database.
         """

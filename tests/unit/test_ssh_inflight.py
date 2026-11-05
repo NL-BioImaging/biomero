@@ -376,6 +376,24 @@ def test_existing_sftp_stall_is_bounded_and_timeout_restored(private_ssh):
     assert channel.gettimeout() == .2
 
 
+def test_final_native_timeout_closes_transport_at_existing_deadline(private_ssh):
+    client, relay = private_ssh.client, private_ssh.relay
+    relay.paused.set()
+
+    def operation():
+        with ssh_recovery.scope(client) as state:
+            state.deadline = time.monotonic() + .2
+            return client.check_job_status([42])
+
+    worker, outcome = observe(operation)
+    worker.join(1)
+    was_connected = client.is_connected
+    relay.paused.clear()
+    worker.join(2)
+    assert isinstance(outcome['error'], ssh_recovery.SSHRecoveryTimeout)
+    assert not was_connected
+
+
 def test_healthy_long_download_uses_read_timeout_not_total_cap(private_ssh, tmp_path):
     client = private_ssh.client
     client.ssh_recovery_timeout = .25

@@ -302,19 +302,19 @@ def retry(client, operation, description, *, heartbeat=None):
                 if state.deadline is None:
                     state.deadline = now + state.timeout
                     delay = 1
-                remaining = state.deadline - now
-                if remaining <= 0:
-                    raise SSHRecoveryTimeout(
-                        'SSH recovery deadline exceeded during '
-                        f'{description}; existing jobs and recovery data '
-                        'are retained') from error
-                failures += 1
                 if not isinstance(error, RecoveryPending):
                     try:
                         client.close()
                     except Exception:
                         logger.debug('Could not close stale SSH transport',
                                      exc_info=True)
+                remaining = state.deadline - time.monotonic()
+                if remaining <= 0:
+                    raise SSHRecoveryTimeout(
+                        'SSH recovery deadline exceeded during '
+                        f'{description}; existing jobs and recovery data '
+                        'are retained') from error
+                failures += 1
                 wait = min(delay, remaining)
                 logger.warning(
                     'Waiting for %s during %s (%s); retry in %.1fs, '

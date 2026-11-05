@@ -1336,7 +1336,9 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="c1"># Begin a transaction</span>
                 <span class="n">listener</span><span class="o">.</span><span class="n">pull_and_process</span><span class="p">(</span>
-                    <span class="n">leader_name</span><span class="o">=</span><span class="n">WorkflowTracker</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">)</span>
+                    <span class="c1"># Our start ID is inclusive; the follower's cursor is not.</span>
+                    <span class="n">leader_name</span><span class="o">=</span><span class="n">WorkflowTracker</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                    <span class="n">start</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">start</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
             <span class="k">except</span> <span class="p">(</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">ESIntegrityError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>

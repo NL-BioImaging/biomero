@@ -24,6 +24,14 @@ of how a bug was fixed in PRs or developer records.
 
 ## Design: reuse and responsibility
 
+Prefer the simplest design that meets today's requirements. Judge complexity by
+the responsibilities, interactions and lifecycle state a maintainer must
+understand, not just line or class count; an abstraction should reduce that
+burden for an actual need. This draws on Robert C. Martin's
+[separation of policy and mechanisms](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+and Martin Fowler's [YAGNI](https://martinfowler.com/bliki/Yagni.html), without
+requiring a new architectural framework or speculative flexibility.
+
 BIOMERO provides bioimage/HPC workflow functionality and durable workflow state.
 Reuse existing component functions and supported dependency APIs (DRY), keeping
 generic execution mechanisms with the libraries that own them. For example,
@@ -32,7 +40,8 @@ Slurm job; Fabric/Paramiko own SSH execution and protocol mechanics.
 
 Before adding an infrastructure wrapper, inspect the installed and supported
 upstream APIs and the existing owner elsewhere in the stack. Isolate a missing
-dependency behavior with a minimal reproduction. Prefer native configuration or
+dependency behavior with a minimal reproduction and check existing open/closed
+upstream issues before proposing a new report. Prefer native configuration or
 a narrow supported extension; assess an upstream fix or small maintained patch
 when the gap belongs there. Neither upgrading nor forking is an automatic fix.
 Explain the remaining gap and maintenance cost before expanding our own layer.
@@ -64,10 +73,12 @@ retrieval and finalization without duplicate jobs or imports.
 
 Keep retries at explicitly safe domain-operation boundaries; an arbitrary
 `run()` is not automatically replayable. Reuse the existing recovery budget,
-submission reconciliation and transfer-publication safeguards. Bound a stalled
-dependency call sufficiently to return control to that recovery path; do not
-turn this requirement into a general SSH execution framework. Distinguish
-detection time, the outage budget and legitimate healthy command duration.
+submission reconciliation and transfer-publication safeguards. A wait alone is
+not a workflow failure: retrying during the same outage may offer no benefit.
+Where a stalled call prevents required recovery, heartbeat or cancellation,
+prefer native bounds that return control; do not build a general SSH execution
+framework to cover hypothetical stalls. Distinguish detection time, the outage
+budget and legitimate healthy command duration.
 
 Preserve intentional cancellation and the agreed terminal-attempt behavior when
 the recovery window expires, retaining job IDs and recovery evidence. A restart

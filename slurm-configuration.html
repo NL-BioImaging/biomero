@@ -922,6 +922,28 @@ queueing, computation and helper runtime do not consume it. Nested
 operations share the active interruption’s deadline instead of multiplying
 retry budgets. Caller-supplied heartbeat callbacks remain active during nested
 recovery and backoff, including shallower polling.</p>
+<p>Detection precedes that window. Within a recovery operation, native connection
+stages and channel opening use at most 30 seconds, or the configured recovery
+window when smaller; stricter caller settings remain effective. Short read-only
+commands (status queries, progress and result-location reads) use the same
+default detection limit. The 30-second limit follows the existing banner,
+authentication and SFTP-read bounds, rather than Paramiko’s hour-long channel
+default. A positive explicit <code class="docutils literal notranslate"><span class="pre">timeout</span></code> on <code class="docutils literal notranslate"><span class="pre">run_read_only</span></code> or
+<code class="docutils literal notranslate"><span class="pre">run_commands_read_only</span></code> permits a longer legitimate read. Once an outage is
+active, native timeouts and read timeouts are capped by its remaining budget;
+an expired budget never starts another attempt. Temporary native settings are
+restored afterward, including on a reconnected transport.</p>
+<p>Heartbeat and cancellation callbacks run on the caller thread before attempts
+and during backoff, and regain control when a bounded call returns. They do not
+run concurrently inside a blocking dependency call. Detection can therefore add
+time before recovery starts, and callbacks can wait for the current native
+timeout. Native bounds apply per connection stage, not to DNS or the whole call.
+Paramiko’s exec/subsystem acknowledgement waits are not covered by these native
+settings. They require a lower-layer fix; this is not a universal SSH deadline.
+Healthy long durable commands and complete transfers have no new runtime cap;
+SFTP bounds individual reads instead. Arbitrary commands retain their original
+timeout and single-attempt behavior. Explicit <code class="docutils literal notranslate"><span class="pre">0</span></code> disables these recovery
+changes as well as retries.</p>
 <p>With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity
 log reports <strong>Waiting for SSH connection</strong> while the last known Slurm job state

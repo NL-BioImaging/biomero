@@ -587,7 +587,8 @@ class SlurmClient(Connection):
                 to disable recovery explicitly, or override with
                 BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires
                 tracking, flock and durable writable HPC storage; it reserves
-                the Slurm job name for task identity.
+                the Slurm job name for task identity. Includes silent channel
+                and safe-read stalls; transport cleanup can add up to 11 seconds.
             host (str, optional): The hostname or IP address of the remote 
                 server. Defaults to `_DEFAULT_HOST`.
             user (str, optional): The username to use when connecting to 
@@ -2270,6 +2271,41 @@ class SlurmClient(Connection):
                             logger.debug('TCP keepalive option unavailable: %s',
                                          name)
         return result
+
+    def run(self, command, **kwargs):
+        from ._ssh_inflight import call
+        return call(self, lambda: super(SlurmClient, self).run(command, **kwargs))
+
+    def get(self, *args, **kwargs):
+        from ._ssh_inflight import call
+        return call(self, lambda: super(SlurmClient, self).get(*args, **kwargs),
+                    transfer=True)
+
+    def put(self, *args, **kwargs):
+        from ._ssh_inflight import call
+        return call(self, lambda: super(SlurmClient, self).put(*args, **kwargs),
+                    transfer=True)
+
+    def sftp(self):
+        from ._ssh_inflight import call, SFTP, sftp_ready
+        result = call(self, lambda: super(SlurmClient, self).sftp())
+        sftp_ready(self, result)
+        if self.__dict__.get('_ssh_recovery_state') is not None:
+            return SFTP(self, result)
+        return result
+
+    def _remote_runner(self):
+        runner = super()._remote_runner()
+        if self.__dict__.get('_ssh_inflight_owner') is not None:
+            from ._ssh_inflight import runner_started
+            start = runner.start
+
+            def guarded_start(*args, **kwargs):
+                start(*args, **kwargs)
+                runner_started(self)
+
+            runner.start = guarded_start
+        return runner
 
     def run_read_only(self, command, **kwargs):
         """Reconnect and repeat a caller-declared read-only command."""

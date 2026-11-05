@@ -69,6 +69,8 @@ def is_transient(error):
             errno.ENETDOWN, 10050, 10051, 10053, 10054, 10060, 10061, 10065,
         }
     if isinstance(error, SSHException):
+        if type(error) is SSHException and str(error) == 'Timeout opening channel.':
+            return True
         message = str(error).lower()
         return any(text in message for text in (
             'ssh session not active', 'no existing session',
@@ -98,6 +100,7 @@ class _RecoveryState:
     deadline: float | None = None
     heartbeats: dict = field(default_factory=dict)
     heartbeat_error: Exception | None = None
+    allow_quiet: bool = False
 
     def pulse(self):
         seen = set()
@@ -134,7 +137,7 @@ class _RecoveryState:
 
 
 @contextmanager
-def scope(client, heartbeat=None):
+def scope(client, heartbeat=None, *, allow_quiet=None):
     """Share an outage budget and caller callbacks with nested retries."""
     if not enabled(client):
         yield None
@@ -149,19 +152,23 @@ def scope(client, heartbeat=None):
         # Recovery state belongs to this client instance, never its config.
         client.__dict__['_ssh_recovery_state'] = state
     marker = object()
+    previous_quiet = state.allow_quiet
+    if allow_quiet is not None:
+        state.allow_quiet = allow_quiet
     if heartbeat is not None:
         state.heartbeats[marker] = heartbeat
     try:
         yield state
     finally:
+        state.allow_quiet = previous_quiet
         state.heartbeats.pop(marker, None)
         if owner:
             client.__dict__.pop('_ssh_recovery_state', None)
 
 
-def retry(client, operation, description, *, heartbeat=None):
+def retry(client, operation, description, *, heartbeat=None, allow_quiet=False):
     """Recover an explicitly safe operation within each contiguous outage."""
-    with scope(client, heartbeat) as state:
+    with scope(client, heartbeat, allow_quiet=allow_quiet) as state:
         if state is None:
             return operation()
         cancel = getattr(client, 'ssh_recovery_cancel', None)
@@ -175,6 +182,7 @@ def retry(client, operation, description, *, heartbeat=None):
                     raise UnexpectedExit(result)
             except Exception as error:
                 if (error is state.heartbeat_error or
+                        client.__dict__.get('_ssh_cleanup_failed') or
                         not is_transient(error)):
                     raise
                 now = time.monotonic()
@@ -305,7 +313,7 @@ def run_durable(client, command, env, description):
             raise UnexpectedExit(result)
         return result
 
-    return retry(client, attempt, description)
+    return retry(client, attempt, description, allow_quiet=True)
 
 
 def locked_command(lock, body, *, wait=5):

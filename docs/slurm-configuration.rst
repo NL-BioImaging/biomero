@@ -818,11 +818,28 @@ absent or empty. Recovery applies to inline and detached workflows. Explicit
 ``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
 Slurm Init is not needed just to change the window.
 
-The window starts at the first failed attempt in each interruption. Healthy
-queueing, computation and helper runtime do not consume it. Nested
-operations share the active interruption's deadline instead of multiplying
-retry budgets. Caller-supplied heartbeat callbacks remain active during nested
-recovery and backoff, including shallower polling.
+The window covers an unresponsive SSH request as well as an exception from a
+failed attempt. Channel establishment, command startup and short safe reads
+are bounded even when no transport exception arrives. Healthy queueing,
+computation and helper runtime do not consume the window. Nested operations
+share the active interruption's deadline instead of multiplying retry budgets.
+Caller-supplied heartbeat callbacks remain on the caller's thread during
+network waits and backoff, including shallower polling.
+
+Long durable commands can remain quiet while the SSH server answers independent
+channel probes (at most once every 10 seconds for the default window). Streaming
+transfers use byte progress and bounded SFTP reads instead of a total copy-time
+limit. Heartbeats and cancellation are checked at least once per second while
+supervising SSH I/O; a smaller recovery window shortens that interval.
+
+On expiry or cancellation, BIOMERO closes its transport and waits for its owned
+network calls to stop before retrying or returning. Cleanup has a separate
+11-second ceiling, so reported elapsed time can include this cleanup in addition
+to the recovery window. Platform DNS resolution and blocked local file/callback
+code cannot be forcibly interrupted by Python. If cleanup cannot finish, the
+failure is reported, that client is prohibited from further I/O and no retry is
+attempted. Such a result is not a clean cancellation; investigate the retained
+local operation and create a new client after resolving it.
 
 With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity

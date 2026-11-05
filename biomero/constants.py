@@ -169,6 +169,7 @@ class workflow:
     ROI_COLOR = "6g) ROI color override"
     NO = "--NO THANK YOU--"
     USE_ZARR_FORMAT = "Use_ZARR_Format"
+    SKIP_ORIGINAL_PIXEL_COMPARISON = "Skip_Original_Pixel_Comparison"
 
 
 class results:

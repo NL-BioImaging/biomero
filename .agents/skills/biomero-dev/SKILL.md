@@ -107,6 +107,18 @@ for workflow-continuity acceptance.
   scripts' workflow pipeline. It is an alternative to executing that pipeline
   inline, not another core library or a replacement for all scripts.
 
+OMERO.biomero owns `[UI]` settings and workflow launch defaults, including Zarr
+version, GPU preferences and optional comparison shortcuts. Resolve those biases
+in its launch adapter and pass normal typed OMERO script parameters, with shared
+keys in `biomero.constants`. Scripts and core must not read `[UI]` settings.
+Scripts preserve parameter values through inline, detached and batched execution;
+define missing-value defaults in the script contract rather than inferring UI state.
+
+Keep component READMEs consistent with their existing level of detail. Link to
+the canonical administrator guide for UI configuration instead of duplicating it
+in core or scripts documentation. Document script parameters with their existing
+parameter descriptions; put implementation rationale in the PR.
+
 Process supervision and per-operation recovery solve different failures. Reuse
 core recovery within the pipeline; do not stack an independent retry budget,
 submission policy or result-finalization implementation in the processor.

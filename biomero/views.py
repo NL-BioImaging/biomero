@@ -232,18 +232,20 @@ class WorkflowProgress(ProcessApplication):
     def resolve_workflow(self, wf_id):
         if wf_id not in self.workflows:
             try:
-                with EngineManager.get_session() as session:
-                    row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
-                    if row:
-                        self.workflows[wf_id] = {
-                            "status": row.status,
-                            "progress": row.progress,
-                            "user": row.user,
-                            "group": row.group,
-                            "name": row.name,
-                            "task": row.task,
-                            "start_time": row.start_time
-                        }
+                # Borrow the producer's scoped session. Closing it here would
+                # roll back the event currently notifying this cold listener.
+                session = EngineManager.get_session()
+                row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
+                if row:
+                    self.workflows[wf_id] = {
+                        "status": row.status,
+                        "progress": row.progress,
+                        "user": row.user,
+                        "group": row.group,
+                        "name": row.name,
+                        "task": row.task,
+                        "start_time": row.start_time
+                    }
             except Exception as e:
                 logger.warning(f"Could not resolve workflow {wf_id} in WorkflowProgress: {e}")
         return self.workflows.get(wf_id)
@@ -687,10 +689,11 @@ class WorkflowAnalytics(ProcessApplication):
     def resolve_workflow(self, wf_id):
         if wf_id not in self.workflows:
             try:
-                with EngineManager.get_session() as session:
-                    row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
-                    if row:
-                        self.workflows[wf_id] = {"user": row.user, "group": row.group}
+                # The notifying producer owns this shared session's lifetime.
+                session = EngineManager.get_session()
+                row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
+                if row:
+                    self.workflows[wf_id] = {"user": row.user, "group": row.group}
             except Exception as e:
                 logger.warning(f"Could not resolve workflow {wf_id} in WorkflowAnalytics: {e}")
         return self.workflows.get(wf_id)
@@ -701,17 +704,21 @@ class WorkflowAnalytics(ProcessApplication):
             try:
                 task_agg = tracker_repository().get(task_id)
                 start_time = None
-                with EngineManager.get_session() as session:
-                    row = session.query(TaskExecution).filter_by(
-                        task_id=task_id).first()
-                    if row:
-                        start_time = row.start_time
+                # Do not close or roll back the producer's event transaction.
+                session = EngineManager.get_session()
+                row = session.query(TaskExecution).filter_by(
+                    task_id=task_id).first()
+                if row:
+                    start_time = row.start_time
                 self.tasks[task_id] = {
                     "wf_id": task_agg.workflow_id,
                     "task_name": task_agg.task_name,
                     "task_version": task_agg.task_version,
                     "start_time": start_time or task_agg.created_on,
-                    "status": task_agg.status
+                    # Starting/completing a task does not set aggregate status.
+                    # Preserve the projection's valid creation/previous state.
+                    "status": task_agg.status or (
+                        row.status if row else "CREATED")
                 }
                 if task_agg.workflow_id:
                     self.resolve_workflow(task_agg.workflow_id)

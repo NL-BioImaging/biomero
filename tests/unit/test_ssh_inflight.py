@@ -413,3 +413,17 @@ def test_healthy_slow_authentication_is_not_cut_off_at_one_second(private_ssh):
     began = time.monotonic()
     assert client.check_job_status([42])[0] == {42: 'COMPLETED'}
     assert 1.2 <= time.monotonic() - began < 3
+
+
+def test_native_timeout_closes_transport_even_when_io_already_stopped(private_ssh):
+    from biomero import _ssh_inflight
+    client = private_ssh.client
+
+    def timeout():
+        raise paramiko.SSHException('Timeout opening channel.')
+
+    with ssh_recovery.scope(client):
+        with pytest.raises(paramiko.SSHException):
+            _ssh_inflight.call(client, timeout)
+    assert not client.is_connected
+    assert not any(t.name.startswith('biomero-ssh-') for t in threading.enumerate())

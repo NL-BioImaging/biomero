@@ -186,7 +186,10 @@ def call(client, operation, *, transfer=False):
         # reply a brief chance before closing a reusable SFTP/SSH transport.
         if worker is not None and worker.done.is_set() and probe is not None:
             probe.done.wait(.1)
-        if any(not item.done.is_set() for item in calls):
+        interrupted = original_error is not None and (
+            worker is None or original_error is not worker.error or
+            ssh_recovery.is_transient(original_error))
+        if interrupted or any(not item.done.is_set() for item in calls):
             _disconnect(client)
         cleanup_deadline = time.monotonic() + CLEANUP_SECONDS
         for item in calls:

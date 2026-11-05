@@ -1312,7 +1312,7 @@ def test_extract_data_location_from_log_exc(mock_run_commands,
 
     # THEN
     mock_run_commands.assert_called_with(
-        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
+        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"], env=None)
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -1331,7 +1331,7 @@ def test_extract_data_location_from_log_2(mock_run_commands,
     # THEN
     assert data_location == expected_data_location
     mock_run_commands.assert_called_with(
-        [f"cat \"omero-{slurm_job_id}.log\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
+        [f"cat \"omero-{slurm_job_id}.log\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"], env=None)
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -1351,7 +1351,7 @@ def test_extract_data_location_from_log(mock_run_commands,
     # THEN
     assert data_location == expected_data_location
     mock_run_commands.assert_called_with(
-        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"])
+        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"], env=None)
 
 
 def test_get_job_status_command(slurm_client):

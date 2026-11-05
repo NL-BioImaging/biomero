@@ -45,6 +45,15 @@ New abstractions are allowed; demonstrate why they fit our responsibilities and
 why existing libraries/components cannot supply the behavior. Passing tests
 alone do not establish that the architecture is appropriate.
 
+Prefer a small decorator for reusable function-level checks or retry behavior
+when it keeps the operation readable and its policy visible at the definition.
+Follow existing patterns such as `database.retry_on_database_conflict`; use
+`functools.wraps` and preserve the calling contract. Decorate an explicitly safe
+operation, not arbitrary `run()` calls or an entire side-effecting workflow.
+Use a context manager for a bounded resource/configuration scope. These are
+defaults, not a requirement to refactor unrelated code or hide a new execution
+framework behind `@` syntax.
+
 ## Recovery means workflow continuity
 
 The goal is to let users continue work after a transient failure without

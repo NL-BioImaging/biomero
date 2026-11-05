@@ -19,7 +19,7 @@ import tempfile
 import time
 from uuid import uuid4
 
-from invoke.exceptions import UnexpectedExit
+from invoke.exceptions import CommandTimedOut, UnexpectedExit
 from invoke.runners import Result
 from paramiko import AuthenticationException, BadHostKeyException, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
@@ -94,13 +94,120 @@ def _missing_exit_status(result):
     return isinstance(result, Result) and result.exited == -1
 
 
+def io_timeout(client, configured=None):
+    """Native detection limit; an existing outage gets only its remaining time.
+
+    This is not a timeout for healthy long commands. It is used for connection
+    stages, SFTP reads and explicitly declared short read-only commands.
+    """
+    seconds = min(30., client.ssh_recovery_timeout)
+    state = client.__dict__.get('_ssh_recovery_state')
+    if state is not None and state.deadline is not None:
+        seconds = min(seconds, max(.001, state.deadline - time.monotonic()))
+    if isinstance(configured, (int, float)) and configured > 0:
+        seconds = min(seconds, configured)
+    return seconds
+
+
+@contextmanager
+def native_timeouts(client):
+    """Temporarily configure supported Fabric/Paramiko timeout settings.
+
+    No execution threads or replay policy live here. Paramiko acknowledgement
+    waits and OS name resolution are not bounded by these settings.
+    """
+    kwargs = getattr(client, 'connect_kwargs', None)
+    if kwargs is None:
+        yield
+        return
+    missing = object()
+    keys = ('banner_timeout', 'auth_timeout')
+    saved = {key: kwargs.get(key, missing) for key in keys}
+    connect_timeout = client.connect_timeout
+    saved_timeout = kwargs.get('timeout', missing)
+    previous = client.__dict__.get('_ssh_native_channels')
+    channels = []
+    client.__dict__['_ssh_native_channels'] = channels
+    try:
+        for key in keys:
+            kwargs[key] = io_timeout(client, saved[key])
+        if saved_timeout is not missing:
+            kwargs['timeout'] = io_timeout(client, saved_timeout)
+            client.connect_timeout = None
+        else:
+            client.connect_timeout = io_timeout(client, connect_timeout)
+        limit_channel_open(client)
+        yield
+    finally:
+        client.connect_timeout = connect_timeout
+        for key, value in saved.items():
+            if value is missing:
+                kwargs.pop(key, None)
+            else:
+                kwargs[key] = value
+        if saved_timeout is not missing:
+            kwargs['timeout'] = saved_timeout
+        for transport, timeout in channels:
+            transport.channel_timeout = timeout
+        if previous is None:
+            client.__dict__.pop('_ssh_native_channels', None)
+        else:
+            client.__dict__['_ssh_native_channels'] = previous
+
+
+def limit_channel_open(client):
+    """Capture each actual transport's setting before temporarily limiting it."""
+    channels = client.__dict__.get('_ssh_native_channels')
+    transport = client.transport
+    if channels is not None and transport is not None:
+        if not any(item is transport for item, _ in channels):
+            channels.append((transport, transport.channel_timeout))
+        transport.channel_timeout = io_timeout(client, transport.channel_timeout)
+
+
+def read(client, operation, description, **kwargs):
+    """Bound and retry a caller-declared short read, never an arbitrary run."""
+    def attempt():
+        options = dict(kwargs)
+        if enabled(client):
+            requested = options.get('timeout')
+            seconds = (requested if isinstance(requested, (int, float))
+                       and requested > 0 else io_timeout(client))
+            state = client.__dict__.get('_ssh_recovery_state')
+            if state is not None and state.deadline is not None:
+                seconds = min(seconds, max(.001, state.deadline - time.monotonic()))
+            options['timeout'] = seconds
+        try:
+            return operation(**options)
+        except CommandTimedOut as error:
+            if not enabled(client):
+                raise
+            # A monitoring timeout means observation is unavailable, not that
+            # the Slurm allocation failed. Other command timeouts keep their
+            # original meaning and are deliberately not classified globally.
+            raise TimeoutError('Read-only SSH command timed out') from error
+    return retry(client, attempt, description)
+
+
+@contextmanager
+def sftp_timeout(client):
+    """Bound individual transfer reads without timing the complete transfer."""
+    sftp = client.sftp()
+    channel = sftp.get_channel()
+    previous = channel.gettimeout()
+    channel.settimeout(io_timeout(client, previous))
+    try:
+        yield sftp
+    finally:
+        channel.settimeout(previous)
+
+
 @dataclass
 class _RecoveryState:
     timeout: float
     deadline: float | None = None
     heartbeats: dict = field(default_factory=dict)
     heartbeat_error: Exception | None = None
-    allow_quiet: bool = False
 
     def pulse(self):
         seen = set()
@@ -137,7 +244,7 @@ class _RecoveryState:
 
 
 @contextmanager
-def scope(client, heartbeat=None, *, allow_quiet=None):
+def scope(client, heartbeat=None):
     """Share an outage budget and caller callbacks with nested retries."""
     if not enabled(client):
         yield None
@@ -152,39 +259,42 @@ def scope(client, heartbeat=None, *, allow_quiet=None):
         # Recovery state belongs to this client instance, never its config.
         client.__dict__['_ssh_recovery_state'] = state
     marker = object()
-    previous_quiet = state.allow_quiet
-    if allow_quiet is not None:
-        state.allow_quiet = allow_quiet
     if heartbeat is not None:
         state.heartbeats[marker] = heartbeat
     try:
         yield state
     finally:
-        state.allow_quiet = previous_quiet
         state.heartbeats.pop(marker, None)
         if owner:
             client.__dict__.pop('_ssh_recovery_state', None)
 
 
-def retry(client, operation, description, *, heartbeat=None, allow_quiet=False):
+def retry(client, operation, description, *, heartbeat=None):
     """Recover an explicitly safe operation within each contiguous outage."""
-    with scope(client, heartbeat, allow_quiet=allow_quiet) as state:
+    with scope(client, heartbeat) as state:
         if state is None:
             return operation()
         cancel = getattr(client, 'ssh_recovery_cancel', None)
         delay, failures = 1, 0
+        last_error = None
         while True:
             state.check_cancelled(cancel, description)
             state.pulse()
+            if state.deadline is not None and time.monotonic() >= state.deadline:
+                raise SSHRecoveryTimeout(
+                    'SSH recovery deadline exceeded during '
+                    f'{description}; existing jobs and recovery data '
+                    'are retained') from last_error
             try:
-                result = operation()
+                with native_timeouts(client):
+                    result = operation()
                 if _missing_exit_status(result):
                     raise UnexpectedExit(result)
             except Exception as error:
                 if (error is state.heartbeat_error or
-                        client.__dict__.get('_ssh_cleanup_failed') or
                         not is_transient(error)):
                     raise
+                last_error = error
                 now = time.monotonic()
                 if state.deadline is None:
                     state.deadline = now + state.timeout
@@ -225,27 +335,26 @@ def download(client, remote, directory):
     destination = os.path.join(directory, remote.rsplit('/', 1)[-1])
 
     def attempt():
-        sftp = client.sftp()
-        sftp.get_channel().settimeout(30)
-        before = sftp.stat(remote)
-        fd, partial = tempfile.mkstemp(
-            prefix='.' + os.path.basename(destination) + '.', suffix='.part',
-            dir=directory)
-        os.close(fd)
-        try:
-            result = client.get(remote=remote, local=partial)
-            after = sftp.stat(remote)
-            if ((before.st_size, before.st_mtime) !=
-                    (after.st_size, after.st_mtime) or
-                    os.path.getsize(partial) != after.st_size):
-                raise RuntimeError(
-                    'Remote file changed or download is incomplete')
-            os.replace(partial, destination)
-            result.local = destination
-            return result
-        finally:
-            if os.path.exists(partial):
-                os.unlink(partial)
+        with sftp_timeout(client) as sftp:
+            before = sftp.stat(remote)
+            fd, partial = tempfile.mkstemp(
+                prefix='.' + os.path.basename(destination) + '.', suffix='.part',
+                dir=directory)
+            os.close(fd)
+            try:
+                result = client.get(remote=remote, local=partial)
+                after = sftp.stat(remote)
+                if ((before.st_size, before.st_mtime) !=
+                        (after.st_size, after.st_mtime) or
+                        os.path.getsize(partial) != after.st_size):
+                    raise RuntimeError(
+                        'Remote file changed or download is incomplete')
+                os.replace(partial, destination)
+                result.local = destination
+                return result
+            finally:
+                if os.path.exists(partial):
+                    os.unlink(partial)
 
     return retry(client, attempt, 'download ' + remote.rsplit('/', 1)[-1])
 
@@ -255,32 +364,31 @@ def publish_script(client, content, remote):
     payload = content.encode('utf-8')
 
     def attempt():
-        sftp = client.sftp()
-        sftp.get_channel().settimeout(30)
-        partial = remote + '.biomero-partial-' + uuid4().hex
-        try:
-            mode = stat.S_IMODE(sftp.stat(remote).st_mode)
-        except FileNotFoundError:
-            mode = None
-        try:
-            result = client.put(local=io.BytesIO(payload), remote=partial)
-            if sftp.stat(partial).st_size != len(payload):
-                raise RuntimeError('Incomplete generated script upload')
-            if mode is not None:
-                sftp.chmod(partial, mode)
-            sftp.posix_rename(partial, remote)
-            result.remote = remote
-            return result
-        finally:
+        with sftp_timeout(client) as sftp:
+            partial = remote + '.biomero-partial-' + uuid4().hex
             try:
-                sftp.remove(partial)
+                mode = stat.S_IMODE(sftp.stat(remote).st_mode)
             except FileNotFoundError:
-                # Successful rename removes the temporary name. On transport
-                # loss a private partial may remain; it is not published as
-                # the job script.
-                pass
-            except Exception:
-                logger.debug('Could not remove partial script', exc_info=True)
+                mode = None
+            try:
+                result = client.put(local=io.BytesIO(payload), remote=partial)
+                if sftp.stat(partial).st_size != len(payload):
+                    raise RuntimeError('Incomplete generated script upload')
+                if mode is not None:
+                    sftp.chmod(partial, mode)
+                sftp.posix_rename(partial, remote)
+                result.remote = remote
+                return result
+            finally:
+                try:
+                    sftp.remove(partial)
+                except FileNotFoundError:
+                    # Successful rename removes the temporary name. On transport
+                    # loss a private partial may remain; it is not published as
+                    # the job script.
+                    pass
+                except Exception:
+                    logger.debug('Could not remove partial script', exc_info=True)
 
     return retry(client, attempt, 'publish generated job script')
 
@@ -291,14 +399,13 @@ def upload(client, local, directory):
     partial = remote + '.biomero-partial'
 
     def attempt():
-        sftp = client.sftp()
-        sftp.get_channel().settimeout(30)
-        result = client.put(local=local, remote=partial)
-        if sftp.stat(partial).st_size != os.path.getsize(local):
-            raise RuntimeError('Incomplete input archive upload')
-        sftp.posix_rename(partial, remote)
-        result.remote = remote
-        return result
+        with sftp_timeout(client) as sftp:
+            result = client.put(local=local, remote=partial)
+            if sftp.stat(partial).st_size != os.path.getsize(local):
+                raise RuntimeError('Incomplete input archive upload')
+            sftp.posix_rename(partial, remote)
+            result.remote = remote
+            return result
 
     return retry(client, attempt, 'upload input archive')
 
@@ -313,7 +420,7 @@ def run_durable(client, command, env, description):
             raise UnexpectedExit(result)
         return result
 
-    return retry(client, attempt, description, allow_quiet=True)
+    return retry(client, attempt, description)
 
 
 def locked_command(lock, body, *, wait=5):

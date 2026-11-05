@@ -82,6 +82,55 @@ def test_deadline_bounds_retries_and_retains_cause(recovery_clock):
     assert 'retrieve results' in str(exc.value)
 
 
+def test_expired_budget_never_starts_a_successful_late_attempt(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=1, close=Mock())
+    error = EOFError('connection lost')
+    operation = Mock(side_effect=[error, 'must not resurrect expired attempt'])
+    with pytest.raises(ssh_recovery.SSHRecoveryTimeout) as caught:
+        ssh_recovery.retry(client, operation, 'monitor original job')
+    assert caught.value.__cause__ is error
+    assert operation.call_count == 1
+
+
+def test_command_timeout_is_recoverable_only_through_safe_read(recovery_clock):
+    from invoke.exceptions import CommandTimedOut
+    error = CommandTimedOut(Result(connection=None), timeout=1)
+    client = SimpleNamespace(ssh_recovery_timeout=20, close=Mock())
+    assert not ssh_recovery.is_transient(error)
+    operation = Mock(side_effect=[error, 'same job observed'])
+    assert ssh_recovery.read(client, operation, 'short safe read') == 'same job observed'
+    operation = Mock(side_effect=error)
+    with pytest.raises(CommandTimedOut):
+        ssh_recovery.retry(client, operation, 'protected long work')
+    assert operation.call_count == 1
+
+
+def test_explicit_longer_read_timeout_is_preserved_until_outage(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock())
+    operation = Mock(side_effect=[EOFError(), 'observed'])
+    assert ssh_recovery.read(client, operation, 'read', timeout=120) == 'observed'
+    assert [call.kwargs['timeout'] for call in operation.call_args_list] == [120, 120]
+    operation = Mock(return_value='observed')
+    with ssh_recovery.scope(client) as state:
+        state.deadline = recovery_clock.now + 2
+        assert ssh_recovery.read(client, operation, 'read', timeout=120) == 'observed'
+    assert operation.call_args.kwargs['timeout'] == 2
+
+
+def test_nested_native_bounds_use_remaining_outage_budget(recovery_clock):
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True, ssh_recovery_timeout=20)
+    original = dict(client.connect_kwargs)
+    with ssh_recovery.scope(client) as state:
+        state.deadline = 1.5
+        with ssh_recovery.native_timeouts(client):
+            assert client.connect_kwargs['auth_timeout'] == 1.5
+            assert client.connect_timeout == 1.5
+            assert ssh_recovery.io_timeout(client) == 1.5
+            assert ssh_recovery.io_timeout(client, .2) == .2
+        assert dict(client.connect_kwargs) == original
+
+
 def test_disabled_keeps_single_attempt(recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=0, close=Mock())
     operation = Mock(side_effect=EOFError())

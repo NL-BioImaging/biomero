@@ -1,4 +1,4 @@
-"""Real private SSH connections must not hide silent in-flight outages."""
+"""Native SSH bounds return monitoring to the existing recovery policy."""
 import socket
 import select
 import threading
@@ -201,15 +201,15 @@ def test_channel_timeout_is_transient_but_not_arbitrary_ssh_error():
 
 
 @pytest.mark.parametrize('phase', ['channel-open', 'command-read'])
-def test_silent_outage_bounds_real_io_and_services_heartbeat(private_ssh, phase):
+def test_native_bounds_return_silent_monitoring_to_recovery(private_ssh, phase):
     client, relay = private_ssh.client, private_ssh.relay
-    heartbeats = []
-    assert client.check_job_status([42])[0] == {42: 'COMPLETED'}
-    private_ssh.started.clear()
+    pulses = []
+    original_channel_timeout = client.transport.channel_timeout
+    original_kwargs = dict(client.connect_kwargs)
 
     def operation():
-        with ssh_recovery.scope(client, heartbeat=lambda: heartbeats.append(
-                (time.monotonic(), threading.get_ident()))):
+        with ssh_recovery.scope(client, heartbeat=lambda: pulses.append(
+                threading.get_ident())):
             if phase == 'channel-open':
                 return client.check_job_status([42])
             return client.run_read_only('wait-output', hide=True)
@@ -223,207 +223,172 @@ def test_silent_outage_bounds_real_io_and_services_heartbeat(private_ssh, phase)
         time.sleep(.1)
         relay.paused.set()
         private_ssh.release_output.set()
-    worker.join(2)
+    worker.join(2.5)
     bounded = not worker.is_alive()
-    # Always restore the relay, including on the unfixed baseline.
     relay.paused.clear()
     worker.join(3)
-    assert bounded, 'safe monitoring stayed blocked beyond the outage window'
+    assert bounded
     assert isinstance(outcome.get('error'), ssh_recovery.SSHRecoveryTimeout)
-    assert outcome['ended'] - began < 2
-    assert len(heartbeats) >= 2
-    assert {thread for _, thread in heartbeats} == {worker.ident}
+    # Initial detection and the subsequent outage window are separate.
+    assert 1.2 < outcome['ended'] - began < 2.5
+    assert len(pulses) >= 2
+    assert set(pulses) == {worker.ident}
+    assert dict(client.connect_kwargs) == original_kwargs
+    if client.transport is not None:
+        assert client.transport.channel_timeout == original_channel_timeout
     assert not any(t.name.startswith('biomero-ssh-') for t in threading.enumerate())
 
 
-def test_quiet_healthy_command_can_exceed_recovery_window(private_ssh):
-    client = private_ssh.client
-    timer = threading.Timer(1.5, private_ssh.release_output.set)
-    timer.start()
-    try:
-        began = time.monotonic()
-        result = ssh_recovery.run_durable(client, 'wait-output', {}, 'quiet archive')
-        assert result.stdout == '42 COMPLETED\n'
-        assert time.monotonic() - began > client.ssh_recovery_timeout
-        assert private_ssh.commands == ['wait-output']
-    finally:
-        timer.cancel()
-
-
-def test_outage_restored_inside_window_preserves_job_identity(private_ssh):
+def test_channel_timeout_reconnects_and_observes_same_job(private_ssh):
     client, relay = private_ssh.client, private_ssh.relay
+    client.ssh_recovery_timeout = 2
+    client.connect_kwargs['channel_timeout'] = .2
+    relay.paused.set()
+    worker, outcome = observe(lambda: client.check_job_status([42]))
+    time.sleep(.5)
+    relay.paused.clear()
+    worker.join(3)
+    assert not worker.is_alive()
+    assert outcome['result'][0] == {42: 'COMPLETED'}
+    assert client.connect_kwargs['channel_timeout'] == .2
+    assert all('sbatch' not in command for command in private_ssh.commands)
+
+
+def test_first_connection_restores_native_defaults(private_ssh):
+    client = private_ssh.client
+    original = client.transport.channel_timeout
+    client.close()
+    client.transport = None
+    assert client.transport is None
+    assert 'channel_timeout' not in client.connect_kwargs
     assert client.check_job_status([42])[0] == {42: 'COMPLETED'}
-    relay.paused.set()
-    timer = threading.Timer(.3, relay.paused.clear)
-    timer.start()
-    try:
-        assert client.check_job_status([42])[0] == {42: 'COMPLETED'}
-        assert len(private_ssh.commands) == 2
-        assert client.__dict__.get('_ssh_recovery_state') is None
-    finally:
-        relay.paused.clear()
-        timer.cancel()
+    assert client.transport.channel_timeout == original
+    assert 'channel_timeout' not in client.connect_kwargs
+    client.ssh_recovery_timeout = 0
+    assert client.run('read-only-example').ok
+    assert client.transport.channel_timeout == original
 
 
-@pytest.mark.parametrize('failure', ['cancel', 'heartbeat'])
-def test_inflight_cancellation_and_heartbeat_failure_cleanup(private_ssh, failure):
-    client = private_ssh.client
-    beats = []
-    client.ssh_recovery_cancel = threading.Event()
-    marker = EOFError('caller heartbeat failed')
-
-    def pulse():
-        beats.append(threading.get_ident())
-        if len(beats) > 1 and failure == 'heartbeat':
-            raise marker
-
-    timer = threading.Timer(.3, client.ssh_recovery_cancel.set)
-    if failure == 'cancel':
-        timer.start()
-    began = time.monotonic()
-    try:
-        with ssh_recovery.scope(client, heartbeat=pulse):
-            with pytest.raises((ssh_recovery.SSHRecoveryCancelled, EOFError)) as exc:
-                client.run_read_only('wait-output', hide=True)
-        if failure == 'heartbeat':
-            assert exc.value is marker
-        else:
-            assert isinstance(exc.value, ssh_recovery.SSHRecoveryCancelled)
-        assert time.monotonic() - began < 1.5
-        assert set(beats) == {threading.get_ident()}
-        assert private_ssh.commands == ['wait-output']
-        assert not any(t.name.startswith('biomero-ssh-') for t in threading.enumerate())
-    finally:
-        timer.cancel()
-
-
-@pytest.mark.parametrize('disabled', [True, False])
-def test_disabled_or_raw_mutating_call_is_not_timed_out_or_replayed(private_ssh, disabled):
-    client, relay = private_ssh.client, private_ssh.relay
-    if disabled:
-        client.ssh_recovery_timeout = 0
-    relay.paused.set()
-    timer = threading.Timer(1., relay.paused.clear)
-    timer.start()
-    try:
-        began = time.monotonic()
-        call = client.run_read_only if disabled else client.run
-        assert call('single-attempt-command', hide=True).exited == 0
-        assert time.monotonic() - began >= .9
-        assert private_ssh.commands == ['single-attempt-command']
-    finally:
-        relay.paused.clear()
-        timer.cancel()
-
-
-def test_existing_recovery_deadline_is_not_extended(private_ssh):
-    client, relay = private_ssh.client, private_ssh.relay
-    relay.paused.set()
-    began = time.monotonic()
-    try:
-        with ssh_recovery.scope(client) as state:
-            state.deadline = began + .25
-            with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
-                client.check_job_status([42])
-        assert time.monotonic() - began < .65
-    finally:
-        relay.paused.clear()
-
-
-def test_silent_sftp_stat_uses_same_bound_and_restores_connect_settings(private_ssh):
-    client, relay = private_ssh.client, private_ssh.relay
-    assert client.sftp().stat('data').st_size == len(b'complete test data')
-    kwargs, timeout = dict(client.connect_kwargs), client.connect_timeout
-    relay.paused.set()
-    began = time.monotonic()
-    try:
-        with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
-            ssh_recovery.retry(client, lambda: client.sftp().stat('data'), 'stat')
-        assert time.monotonic() - began < 2
-        assert dict(client.connect_kwargs) == kwargs
-        assert client.connect_timeout == timeout
-        assert not any(t.name.startswith('biomero-ssh-') for t in threading.enumerate())
-    finally:
-        relay.paused.clear()
-
-
-def test_healthy_download_progress_outlives_window_and_keeps_sftp(private_ssh, tmp_path):
-    client = private_ssh.client
-    payload = b'complete data\n' * 12000
-    private_ssh.data_path.write_bytes(payload)
-    private_ssh.file_state.delay = .2
-    initial_sftp = client.sftp()
-    (tmp_path / 'download').mkdir()
-    began = time.monotonic()
-    result = ssh_recovery.download(client, 'data', str(tmp_path / 'download'))
-    assert time.monotonic() - began > client.ssh_recovery_timeout
-    assert open(result.local, 'rb').read() == payload
-    assert client.sftp() is initial_sftp
-    assert initial_sftp.stat('data').st_size == len(payload)
-
-
-def test_cleanup_failure_is_bounded_preserves_heartbeat_error_and_blocks_reuse(
-        private_ssh, monkeypatch):
-    from biomero import _ssh_inflight
-    client, relay = private_ssh.client, private_ssh.relay
-    monkeypatch.setattr(_ssh_inflight, 'CLEANUP_SECONDS', .15)
-    original_close = client.client.close
-    marker = EOFError('heartbeat stopped')
-    pulses = []
-
-    def fail_close():
-        raise OSError('test close failure')
-
-    def pulse():
-        pulses.append(True)
-        if len(pulses) > 1:
-            raise marker
-
-    relay.paused.set()
-    monkeypatch.setattr(client.client, 'close', fail_close)
-    try:
-        began = time.monotonic()
-        with ssh_recovery.scope(client, heartbeat=pulse):
-            with pytest.raises(EOFError) as exc:
-                client.check_job_status([42])
-        assert exc.value is marker
-        assert time.monotonic() - began < 1.5
-        assert 'cleanup did not finish' in '\n'.join(marker.__notes__)
-        assert client.__dict__['_ssh_cleanup_failed']
-        with pytest.raises(RuntimeError, match='create a new client'):
-            client.run_read_only('never replay this')
-        assert not private_ssh.commands
-    finally:
-        monkeypatch.setattr(client.client, 'close', original_close)
-        original_close()
-        relay.paused.clear()
-        # A failed cleanup retains explicit ownership; it is not declared a
-        # cleanly cancelled call. Resolve the test's artificial close failure.
-        owned = client.__dict__.get('_ssh_inflight_owner')
-        if owned is not None:
-            owned.thread.join(3)
-            assert not owned.thread.is_alive()
-
-
-def test_healthy_slow_authentication_is_not_cut_off_at_one_second(private_ssh):
+def test_custom_transport_timeout_survives_reconnection(private_ssh):
     client = private_ssh.client
     client.close()
-    client.ssh_recovery_timeout = 3
-    private_ssh.file_state.auth_delay = 1.2
-    began = time.monotonic()
+
+    def transport_factory(sock, **kwargs):
+        transport = paramiko.Transport(sock, **kwargs)
+        transport.channel_timeout = 47
+        return transport
+
+    client.connect_kwargs['transport_factory'] = transport_factory
     assert client.check_job_status([42])[0] == {42: 'COMPLETED'}
-    assert 1.2 <= time.monotonic() - began < 3
+    assert client.transport.channel_timeout == 47
 
 
-def test_native_timeout_closes_transport_even_when_io_already_stopped(private_ssh):
-    from biomero import _ssh_inflight
+def test_quiet_healthy_durable_command_has_no_total_runtime_cap(private_ssh):
     client = private_ssh.client
+    worker, outcome = observe(lambda: ssh_recovery.run_durable(
+        client, 'wait-output', {}, 'existing protected operation'))
+    assert private_ssh.started.wait(2)
+    time.sleep(1)
+    private_ssh.release_output.set()
+    worker.join(2)
+    assert outcome['result'].ok
+    assert private_ssh.commands == ['wait-output']
 
-    def timeout():
-        raise paramiko.SSHException('Timeout opening channel.')
 
-    with ssh_recovery.scope(client):
-        with pytest.raises(paramiko.SSHException):
-            _ssh_inflight.call(client, timeout)
-    assert not client.is_connected
-    assert not any(t.name.startswith('biomero-ssh-') for t in threading.enumerate())
+@pytest.mark.parametrize('enabled', [True, False])
+def test_raw_run_never_replays_or_inherits_read_timeout(private_ssh, enabled):
+    client = private_ssh.client
+    if not enabled:
+        client.ssh_recovery_timeout = 0
+    worker, outcome = observe(lambda: client.run('wait-output', timeout=.2))
+    assert private_ssh.started.wait(2)
+    worker.join(1)
+    from invoke.exceptions import CommandTimedOut, UnexpectedExit
+    # Invoke can observe the timer's channel close as missing exit status.
+    assert isinstance(outcome['error'], (CommandTimedOut, UnexpectedExit))
+    assert private_ssh.commands == ['wait-output']
+
+
+def test_zero_keeps_read_timeout_semantics(private_ssh):
+    client = private_ssh.client
+    client.ssh_recovery_timeout = 0
+    worker, outcome = observe(lambda: client.run_read_only('wait-output', timeout=.2))
+    assert private_ssh.started.wait(2)
+    worker.join(1)
+    from invoke.exceptions import CommandTimedOut, UnexpectedExit
+    assert isinstance(outcome['error'], (CommandTimedOut, UnexpectedExit))
+    assert private_ssh.commands == ['wait-output']
+
+
+def test_cancellation_checked_when_native_channel_wait_returns(private_ssh):
+    client, relay = private_ssh.client, private_ssh.relay
+    client.ssh_recovery_cancel = threading.Event()
+    relay.paused.set()
+    worker, outcome = observe(lambda: client.check_job_status([42]))
+    time.sleep(.15)
+    client.ssh_recovery_cancel.set()
+    worker.join(1.5)
+    relay.paused.clear()
+    worker.join(2)
+    assert isinstance(outcome['error'], ssh_recovery.SSHRecoveryCancelled)
+    assert private_ssh.commands == []
+
+
+def test_callback_error_preserves_identity_and_caller_thread(private_ssh):
+    client, relay = private_ssh.client, private_ssh.relay
+    error = ConnectionError('caller heartbeat failed')
+    threads = []
+
+    def heartbeat():
+        threads.append(threading.get_ident())
+        if len(threads) > 1:
+            raise error
+
+    def operation():
+        with ssh_recovery.scope(client, heartbeat):
+            return client.check_job_status([42])
+
+    relay.paused.set()
+    worker, outcome = observe(operation)
+    worker.join(2)
+    relay.paused.clear()
+    worker.join(2)
+    assert outcome['error'] is error
+    assert set(threads) == {worker.ident}
+
+
+def test_existing_sftp_stall_is_bounded_and_timeout_restored(private_ssh):
+    client, relay = private_ssh.client, private_ssh.relay
+    sftp = client.sftp()
+    channel = sftp.get_channel()
+    channel.settimeout(.2)
+
+    def operation():
+        with ssh_recovery.sftp_timeout(client) as bounded:
+            return bounded.stat('data')
+
+    relay.paused.set()
+    worker, outcome = observe(lambda: ssh_recovery.retry(client, operation, 'stat result'))
+    worker.join(2)
+    relay.paused.clear()
+    worker.join(2)
+    assert isinstance(outcome['error'], ssh_recovery.SSHRecoveryTimeout)
+    assert channel.gettimeout() == .2
+
+
+def test_healthy_long_download_uses_read_timeout_not_total_cap(private_ssh, tmp_path):
+    client = private_ssh.client
+    client.ssh_recovery_timeout = .25
+    private_ssh.data_path.write_bytes(b'x' * 400000)
+    private_ssh.file_state.delay = .05
+    sftp = client.sftp()
+    original = sftp.get_channel().gettimeout()
+    destination = tmp_path / 'download'
+    destination.mkdir()
+    began = time.monotonic()
+    result = ssh_recovery.download(client, 'data', str(destination))
+    assert time.monotonic() - began > .25
+    assert (destination / 'data').read_bytes() == private_ssh.data_path.read_bytes()
+    assert result.local == str(destination / 'data')
+    assert client.sftp() is sftp
+    assert sftp.get_channel().gettimeout() == original

@@ -818,28 +818,35 @@ absent or empty. Recovery applies to inline and detached workflows. Explicit
 ``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
 Slurm Init is not needed just to change the window.
 
-The window covers an unresponsive SSH request as well as an exception from a
-failed attempt. Channel establishment, command startup and short safe reads
-are bounded even when no transport exception arrives. Healthy queueing,
-computation and helper runtime do not consume the window. Nested operations
-share the active interruption's deadline instead of multiplying retry budgets.
-Caller-supplied heartbeat callbacks remain on the caller's thread during
-network waits and backoff, including shallower polling.
+The window starts at the first failed attempt in each interruption. Healthy
+queueing, computation and helper runtime do not consume it. Nested
+operations share the active interruption's deadline instead of multiplying
+retry budgets. Caller-supplied heartbeat callbacks remain active during nested
+recovery and backoff, including shallower polling.
 
-Long durable commands can remain quiet while the SSH server answers independent
-channel probes (at most once every 10 seconds for the default window). Streaming
-transfers use byte progress and bounded SFTP reads instead of a total copy-time
-limit. Heartbeats and cancellation are checked at least once per second while
-supervising SSH I/O; a smaller recovery window shortens that interval.
+Detection precedes that window. Within a recovery operation, native connection
+stages and channel opening use at most 30 seconds, or the configured recovery
+window when smaller; stricter caller settings remain effective. Short read-only
+commands (status queries, progress and result-location reads) use the same
+default detection limit. The 30-second limit follows the existing banner,
+authentication and SFTP-read bounds, rather than Paramiko's hour-long channel
+default. A positive explicit ``timeout`` on ``run_read_only`` or
+``run_commands_read_only`` permits a longer legitimate read. Once an outage is
+active, native timeouts and read timeouts are capped by its remaining budget;
+an expired budget never starts another attempt. Temporary native settings are
+restored afterward, including on a reconnected transport.
 
-On expiry or cancellation, BIOMERO closes its transport and waits for its owned
-network calls to stop before retrying or returning. Cleanup has a separate
-11-second ceiling, so reported elapsed time can include this cleanup in addition
-to the recovery window. Platform DNS resolution and blocked local file/callback
-code cannot be forcibly interrupted by Python. If cleanup cannot finish, the
-failure is reported, that client is prohibited from further I/O and no retry is
-attempted. Such a result is not a clean cancellation; investigate the retained
-local operation and create a new client after resolving it.
+Heartbeat and cancellation callbacks run on the caller thread before attempts
+and during backoff, and regain control when a bounded call returns. They do not
+run concurrently inside a blocking dependency call. Detection can therefore add
+time before recovery starts, and callbacks can wait for the current native
+timeout. Native bounds apply per connection stage, not to DNS or the whole call.
+Paramiko's exec/subsystem acknowledgement waits are not covered by these native
+settings. They require a lower-layer fix; this is not a universal SSH deadline.
+Healthy long durable commands and complete transfers have no new runtime cap;
+SFTP bounds individual reads instead. Arbitrary commands retain their original
+timeout and single-attempt behavior. Explicit ``0`` disables these recovery
+changes as well as retries.
 
 With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity

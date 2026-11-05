@@ -587,8 +587,7 @@ class SlurmClient(Connection):
                 to disable recovery explicitly, or override with
                 BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires
                 tracking, flock and durable writable HPC storage; it reserves
-                the Slurm job name for task identity. Includes silent channel
-                and safe-read stalls; transport cleanup can add up to 11 seconds.
+                the Slurm job name for task identity.
             host (str, optional): The hostname or IP address of the remote 
                 server. Defaults to `_DEFAULT_HOST`.
             user (str, optional): The username to use when connecting to 
@@ -2255,6 +2254,7 @@ class SlurmClient(Connection):
     def open(self):
         """Keep a quiet SSH link detectable without limiting long commands."""
         result = super().open()
+        ssh_recovery.limit_channel_open(self)
         if ssh_recovery.enabled(self) and self.transport is not None:
             self.transport.set_keepalive(15)
             sock = self.transport.sock
@@ -2272,51 +2272,17 @@ class SlurmClient(Connection):
                                          name)
         return result
 
-    def run(self, command, **kwargs):
-        from ._ssh_inflight import call
-        return call(self, lambda: super(SlurmClient, self).run(command, **kwargs))
-
-    def get(self, *args, **kwargs):
-        from ._ssh_inflight import call
-        return call(self, lambda: super(SlurmClient, self).get(*args, **kwargs),
-                    transfer=True)
-
-    def put(self, *args, **kwargs):
-        from ._ssh_inflight import call
-        return call(self, lambda: super(SlurmClient, self).put(*args, **kwargs),
-                    transfer=True)
-
-    def sftp(self):
-        from ._ssh_inflight import call, SFTP, sftp_ready
-        result = call(self, lambda: super(SlurmClient, self).sftp())
-        sftp_ready(self, result)
-        if self.__dict__.get('_ssh_recovery_state') is not None:
-            return SFTP(self, result)
-        return result
-
-    def _remote_runner(self):
-        runner = super()._remote_runner()
-        if self.__dict__.get('_ssh_inflight_owner') is not None:
-            from ._ssh_inflight import runner_started
-            start = runner.start
-
-            def guarded_start(*args, **kwargs):
-                start(*args, **kwargs)
-                runner_started(self)
-
-            runner.start = guarded_start
-        return runner
-
     def run_read_only(self, command, **kwargs):
-        """Reconnect and repeat a caller-declared read-only command."""
-        return ssh_recovery.retry(
-            self, lambda: self.run(command, **kwargs), "read remote state")
+        """Bound, reconnect and repeat a caller-declared short read."""
+        return ssh_recovery.read(
+            self, lambda **options: self.run(command, **options),
+            "read remote state", **kwargs)
 
     def run_commands_read_only(self, commands, env=None, **kwargs):
         """Read remote state while preserving the last known job status."""
-        return ssh_recovery.retry(
-            self, lambda: self.run_commands(commands, env=env, **kwargs),
-            "read remote state")
+        return ssh_recovery.read(
+            self, lambda **options: self.run_commands(commands, env=env, **options),
+            "read remote state", **kwargs)
 
     def run_commands(self, cmdlist: List[str],
                      env: Optional[Dict[str, str]] = None,
@@ -3203,8 +3169,8 @@ class SlurmClient(Connection):
         retry_status = 0
         last_result = None
         while retry_status < 3:
-            result = ssh_recovery.retry(
-                self, lambda: self.run_commands([cmd], env=env),
+            result = ssh_recovery.read(
+                self, lambda **options: self.run_commands([cmd], env=env, **options),
                 "monitor Slurm jobs")
             last_result = result
             logger.info(result)
@@ -3293,8 +3259,9 @@ class SlurmClient(Connection):
             logfile = self._LOGFILE
             logfile = logfile.format(slurm_job_id=slurm_job_id)
         cmd = self._LOGFILE_DATA_CMD.format(log_file=logfile)
-        result = ssh_recovery.retry(
-            self, lambda: self.run_commands([cmd]), "read result location")
+        result = ssh_recovery.read(
+            self, lambda **options: self.run_commands([cmd], **options),
+            "read result location")
         if result.ok:
             return result.stdout
         else:

@@ -534,11 +534,15 @@ SSH Recovery
 
 ``[SLURM] ssh_recovery_timeout`` (environment
 ``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds per
-interruption, including silent channel establishment and safe-read stalls. Default:
+interruption, starting at the first failure rather than operation start. Default:
 ``900`` (15 minutes), also for absent or empty configuration. Explicit ``0``
 disables recovery. This applies to inline and detached workflows; expiry remains
-a terminal failure. Healthy job runtime and advancing transfers do not consume
-an outage window. Transport cleanup has a separate maximum of 11 seconds;
-uninterruptible local resolver/file/callback failures prohibit client reuse.
-For dependencies, submission reconciliation and limits, see
+a terminal failure. For dependencies, submission reconciliation and limits, see
 :ref:`the SSH recovery section <ssh-recovery>` in :doc:`slurm-configuration`.
+
+Native connection/channel and short-read detection normally uses at most 30
+seconds (or the smaller recovery window), separately from the outage budget.
+Caller-specified positive read timeouts are honored until an outage is active.
+Callbacks regain control at bounded-call and retry boundaries, not inside every
+dependency wait. Exec/SFTP acknowledgement waits and DNS remain lower-layer
+limitations; see the linked section for the exact scope.

@@ -1,6 +1,6 @@
 ---
 name: biomero-dev
-description: BIOMERO core library (pylib) development runbook for the surf branch. Use when changing biomero/slurm_client.py or related modules, debugging event-sourced workflow state and projections, adding or migrating a config option, writing or running pytest tests, following TDD, or building the Sphinx docs. Covers event and aggregate inspection, config precedence, the existing pytest fixture style, the venvTest test runner, and the docs build. Also use when drafting component release notes.
+description: BIOMERO core library development runbook. Use when changing biomero/slurm_client.py or related modules, reviewing component ownership and dependency reuse, debugging event-sourced workflow state and projections, adding or migrating a config option, writing or running pytest tests, following TDD, or building the Sphinx docs. Covers event and aggregate inspection, config precedence, the existing pytest fixture style, the venvTest test runner, and the docs build. Also use when drafting component release notes.
 ---
 
 # BIOMERO Core Development
@@ -22,7 +22,83 @@ transitions and upgrade steps in dedicated upgrade guides or release notes, not
 in ordinary feature/API explanations. Keep development history and the narrative
 of how a bug was fixed in PRs or developer records.
 
-## Core / OMERO scripts boundary
+## Design: reuse and responsibility
+
+BIOMERO provides bioimage/HPC workflow functionality and durable workflow state.
+Reuse existing component functions and supported dependency APIs (DRY), keeping
+generic execution mechanisms with the libraries that own them. For example,
+BIOMERO decides whether an operation is safe to retry and how to reconcile a
+Slurm job; Fabric/Paramiko own SSH execution and protocol mechanics.
+
+Before adding an infrastructure wrapper, inspect the installed and supported
+upstream APIs and the existing owner elsewhere in the stack. Isolate a missing
+dependency behavior with a minimal reproduction. Prefer native configuration or
+a narrow supported extension; assess an upstream fix or small maintained patch
+when the gap belongs there. Neither upgrading nor forking is an automatic fix.
+Explain the remaining gap and maintenance cost before expanding our own layer.
+
+Prefer the current functions, contracts and execution model. A new class or
+module is justified by a cohesive responsibility or actual reuse, not merely by
+moving complexity out of a long function. A generic I/O proxy, watchdog or second
+execution supervisor is a signal to reconsider ownership and simpler options.
+New abstractions are allowed; demonstrate why they fit our responsibilities and
+why existing libraries/components cannot supply the behavior. Passing tests
+alone do not establish that the architecture is appropriate.
+
+## Recovery means workflow continuity
+
+The goal is to let users continue work after a transient failure without
+orphaning costly HPC allocations. Loss of SSH observation is not evidence that
+the Slurm job failed. Preserve workflow/task/job identity and durable progress,
+reconnect and reconcile the existing allocation, then continue monitoring,
+retrieval and finalization without duplicate jobs or imports.
+
+Keep retries at explicitly safe domain-operation boundaries; an arbitrary
+`run()` is not automatically replayable. Reuse the existing recovery budget,
+submission reconciliation and transfer-publication safeguards. Bound a stalled
+dependency call sufficiently to return control to that recovery path; do not
+turn this requirement into a general SSH execution framework. Distinguish
+detection time, the outage budget and legitimate healthy command duration.
+
+Preserve intentional cancellation and the agreed terminal-attempt behavior when
+the recovery window expires, retaining job IDs and recovery evidence. A restart
+or outer supervisor must not silently reset that policy or resurrect terminal
+attempts. Callbacks can expose heartbeat/cancellation to a caller, while the
+OMERO implementation stays in its adapter layer.
+
+Validation should show that the original Slurm allocation survives SSH loss and
+supplies the completed results after recovery, with one submission/import.
+Test silent stalls separately as a way to regain control, not as a replacement
+for workflow-continuity acceptance.
+
+## Component ownership and execution modes
+
+- **Core (`biomero`)** owns reusable HPC/workflow operations, durable state,
+  job identity/reconciliation and the detached launcher/claim/resume contracts.
+- **`biomero-scripts`** owns the OMERO script adapter and workflow pipeline:
+  inputs, session/group handling, script invocation and OMERO output/annotations.
+  It calls core functionality rather than duplicating it.
+- **`OMERO.biomero`** owns the web/admin interface, configuration presentation
+  and launch/status interactions. It consumes shared contracts rather than
+  becoming another workflow executor or recovery implementation.
+- **NL-BIOMERO's `biomeroworker/processor.py`** supplies the optional detached
+  execution host: worker lifecycle, concurrency, OMERO sessions and discovery of
+  recoverable work after restart. It reuses core's persisted contracts and the
+  scripts' workflow pipeline. It is an alternative to executing that pipeline
+  inline, not another core library or a replacement for all scripts.
+
+Process supervision and per-operation recovery solve different failures. Reuse
+core recovery within the pipeline; do not stack an independent retry budget,
+submission policy or result-finalization implementation in the processor.
+Factor shared domain behavior into core and shared OMERO behavior into the
+adapter/pipeline, rather than copying either between execution modes.
+
+Detached execution is optional but strongly recommended for long workflows.
+Maintain supported inline behavior and verify both modes when changing shared
+functionality. Making detached execution mandatory in 3.0 is a possible future
+direction, not a current requirement or permission to remove inline support.
+
+### Core / OMERO scripts boundary
 
 BIOMERO core owns event-store aggregates, historical replay, and versioned
 metadata views or update plans expressed as plain data structures. It does not

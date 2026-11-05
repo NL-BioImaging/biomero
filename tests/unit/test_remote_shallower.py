@@ -41,6 +41,18 @@ def test_latest_image_can_be_selected_in_configuration():
     assert spec['version'] == 'latest'
 
 
+def test_shallower_can_read_original_inputs_without_write_access():
+    from biomero.remote_shallower import build_command
+    client = SlurmClient(config_only=True, remote_shallow_zarr=True)
+    command = build_command(client, '/scratch/out', '/helper.sif',
+                            '/manifest.json', str(uuid4()),
+                            input_root='/scratch/input with spaces')
+    wrapped = shlex.split(command)[-1]
+    tokens = shlex.split(wrapped)
+    assert '/scratch/input with spaces:/inputs:ro' in tokens
+    assert tokens[tokens.index('--input-root') + 1] == '/inputs'
+
+
 def test_default_helper_image_is_latest():
     from biomero.remote_shallower import image_spec
     client = SlurmClient(config_only=True)

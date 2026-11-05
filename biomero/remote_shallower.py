@@ -165,7 +165,7 @@ def _job_name(task_id, *, recovery=False):
 
 
 def build_command(client, output, sif, manifest, task_id, *, recovery=False,
-                  image=None):
+                  image=None, input_root=None):
     """Build shallowing or recovery using the same helper resource policy.
 
     Paths refer to the remote filesystem. The result directory is writable in
@@ -178,11 +178,14 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False,
             or client.remote_shallower_workers < 1):
         raise ValueError('Result shallower worker count must be positive')
     params = client.get_shallower_job_params()
+    input_bind = (f'--bind {quote(input_root + ":/inputs:ro")} '
+                  if input_root is not None else '')
     runtime = ('runtime=$(command -v apptainer || command -v singularity); '
                'test -n "$runtime"; exec "$runtime" exec --containall --cleanenv '
                '--env SLURM_JOB_ID="$SLURM_JOB_ID" '
                f'--bind {quote(output + ":/results:rw")} '
                f'--bind {quote(manifest + ":/canonical.json:ro")} '
+               + input_bind +
                f'{quote(sif)} biomero-shallower normalize-tree '
                '--returned-zarr /results --canonical-inputs /canonical.json '
                '--contract-version 1 --failure-policy keep-full '
@@ -190,6 +193,8 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False,
                f'--identity-workers {client.remote_shallower_workers} '
                f'--image {quote(image)} '
                f'--task-id {quote(task_id)}')
+    if input_root is not None:
+        runtime += ' --input-root /inputs'
     if recovery:
         runtime += ' --recover-only'
     return ('sbatch --parsable --export=NONE ' + ' '.join(params) +
@@ -446,7 +451,8 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
     _prepare_manifest(client, manifest, canonical, submitted=bool(task.job_ids))
     output = posixpath.join(data_path, 'data/out')
     command = build_command(
-        client, output, sif, manifest, str(task_id), image=image)
+        client, output, sif, manifest, str(task_id), image=image,
+        input_root=posixpath.join(data_path, 'data/in'))
     job_id = (int(task.job_ids[0]) if task.job_ids
               else _submit_once(client, command,
                                 state_dir + '/shallow',
@@ -467,7 +473,8 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
         # Recover in the same configured image on CPU. Completed stores retain
         # receipts; interrupted stores roll back before any archive is allowed.
         recovery = build_command(client, output, sif, manifest,
-                                 str(task_id), recovery=True, image=image)
+                                 str(task_id), recovery=True, image=image,
+                                 input_root=posixpath.join(data_path, 'data/in'))
         # Recorded IDs remain authoritative on resume.
         recovery_id = (int(task.job_ids[1]) if len(task.job_ids) > 1
                        else _submit_once(

@@ -196,6 +196,9 @@ def read_only(function):
 def sftp_timeout(client):
     """Bound individual transfer reads without timing the complete transfer."""
     sftp = client.sftp()
+    if not enabled(client):
+        yield sftp
+        return
     channel = sftp.get_channel()
     previous = channel.gettimeout()
     channel.settimeout(io_timeout(client, previous))

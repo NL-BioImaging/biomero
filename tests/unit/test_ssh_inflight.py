@@ -1,9 +1,11 @@
 """Native SSH bounds return monitoring to the existing recovery policy."""
 import socket
 import select
+import os
 import threading
 import time
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import paramiko
 import pytest
@@ -92,12 +94,49 @@ def private_ssh(tmp_path):
 
     class Files(paramiko.SFTPServerInterface):
         def stat(self, path):
-            return paramiko.SFTPAttributes.from_stat((tmp_path / 'data').stat())
+            try:
+                return paramiko.SFTPAttributes.from_stat(
+                    (tmp_path / path.lstrip('/')).stat())
+            except OSError as error:
+                return paramiko.SFTPServer.convert_errno(error.errno)
 
         def open(self, path, flags, attr):
             handle = Handle(flags)
-            handle.readfile = (tmp_path / 'data').open('rb')
+            try:
+                fd = os.open(tmp_path / path.lstrip('/'), flags, 0o666)
+            except OSError as error:
+                return paramiko.SFTPServer.convert_errno(error.errno)
+            mode = 'r+b' if flags & os.O_RDWR else (
+                'wb' if flags & os.O_WRONLY else 'rb')
+            file = os.fdopen(fd, mode)
+            if flags & (os.O_WRONLY | os.O_RDWR):
+                handle.writefile = file
+            if not flags & os.O_WRONLY:
+                handle.readfile = file
             return handle
+
+        def posix_rename(self, oldpath, newpath):
+            try:
+                (tmp_path / oldpath.lstrip('/')).replace(
+                    tmp_path / newpath.lstrip('/'))
+            except OSError as error:
+                return paramiko.SFTPServer.convert_errno(error.errno)
+            return paramiko.SFTP_OK
+
+        def remove(self, path):
+            try:
+                (tmp_path / path.lstrip('/')).unlink()
+            except OSError as error:
+                return paramiko.SFTPServer.convert_errno(error.errno)
+            return paramiko.SFTP_OK
+
+        def chattr(self, path, attr):
+            try:
+                paramiko.SFTPServer.set_file_attr(
+                    str(tmp_path / path.lstrip('/')), attr)
+            except OSError as error:
+                return paramiko.SFTPServer.convert_errno(error.errno)
+            return paramiko.SFTP_OK
 
     (tmp_path / 'data').write_bytes(b'complete test data')
 
@@ -168,8 +207,8 @@ def private_ssh(tmp_path):
                               file_state=file_state, data_path=tmp_path / 'data')
     yield fixture
     release_output.set()
-    relay.close()
     client.close()
+    relay.close()
     stopped.set()
     listener.close()
     for transport in transports:
@@ -374,6 +413,69 @@ def test_existing_sftp_stall_is_bounded_and_timeout_restored(private_ssh):
     worker.join(2)
     assert isinstance(outcome['error'], ssh_recovery.SSHRecoveryTimeout)
     assert channel.gettimeout() == .2
+
+
+@pytest.mark.parametrize('previous', [None, 3.0])
+@pytest.mark.parametrize('operation', ['download', 'upload', 'publish'])
+def test_zero_recovery_preserves_sftp_timeout_during_transfers(
+        private_ssh, tmp_path, previous, operation):
+    client = private_ssh.client
+    client.ssh_recovery_timeout = 0
+    sftp = client.sftp()
+    channel = sftp.get_channel()
+    channel.settimeout(previous)
+    original_stat = sftp.stat
+    observed_timeouts = []
+
+    def stat_with_timeout(path):
+        observed_timeouts.append(channel.gettimeout())
+        return original_stat(path)
+
+    sftp.stat = stat_with_timeout
+    if operation == 'download':
+        destination = tmp_path / 'download'
+        destination.mkdir()
+        result = ssh_recovery.download(client, 'data', str(destination))
+        assert (destination / 'data').read_bytes() == private_ssh.data_path.read_bytes()
+        assert result.local == str(destination / 'data')
+    elif operation == 'upload':
+        upload = tmp_path / 'upload'
+        upload.mkdir()
+        source = upload / 'input'
+        source.write_bytes(b'complete upload')
+        result = ssh_recovery.upload(client, str(source), '.')
+        assert (tmp_path / 'input').read_bytes() == b'complete upload'
+        assert result.remote == './input'
+    else:
+        result = ssh_recovery.publish_script(client, 'echo complete\n', 'job.sh')
+        assert (tmp_path / 'job.sh').read_text() == 'echo complete\n'
+        assert result.remote == 'job.sh'
+
+    assert observed_timeouts
+    assert all(timeout == previous for timeout in observed_timeouts)
+    assert channel.gettimeout() == previous
+
+
+@pytest.mark.parametrize('operation', ['download', 'upload', 'publish'])
+def test_zero_recovery_does_not_retry_closed_sftp(
+        private_ssh, tmp_path, operation, monkeypatch):
+    client = private_ssh.client
+    client.ssh_recovery_timeout = 0
+    sftp = client.sftp()
+    sftp.close()
+    client.sftp = Mock(return_value=sftp)
+    attempt = Mock(wraps=ssh_recovery.sftp_timeout)
+    monkeypatch.setattr(ssh_recovery, 'sftp_timeout', attempt)
+    source = tmp_path / 'source'
+    source.write_bytes(b'input')
+    with pytest.raises((EOFError, OSError)):
+        if operation == 'download':
+            ssh_recovery.download(client, 'data', str(tmp_path))
+        elif operation == 'upload':
+            ssh_recovery.upload(client, str(source), '.')
+        else:
+            ssh_recovery.publish_script(client, 'echo complete\n', 'job.sh')
+    attempt.assert_called_once_with(client)
 
 
 def test_final_native_timeout_closes_transport_at_existing_deadline(private_ssh):

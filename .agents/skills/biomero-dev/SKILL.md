@@ -111,6 +111,23 @@ for workflow-continuity acceptance.
   scripts' workflow pipeline. It is an alternative to executing that pipeline
   inline, not another core library or a replacement for all scripts.
 
+### License and library boundaries
+
+BIOMERO core is Apache-2.0, which requires it to stay independent of the
+OME/OMERO libraries. Do not import them in `biomero/` or add them to the
+required dependencies; OMERO-facing behavior belongs in biomero-scripts and the
+detached processor. Check the transitive dependencies and licenses of any new
+dependency before adding it.
+
+Core provides mechanisms; callers make the workflow decisions. Whether to run
+a stage, which result path to take and how to react to its outcome belong in
+biomero-scripts, OMERO.biomero or the importer, which call core operations.
+
+Keep the package small. It had about seven modules for years; a new module is a
+design change. Propose it and justify it in the PR (a cohesive responsibility or
+actual reuse) and show why an existing module or another component cannot own
+it.
+
 OMERO.biomero owns `[UI]` settings and workflow launch defaults, including Zarr
 version, GPU preferences and optional comparison shortcuts. Resolve those biases
 in its launch adapter and pass normal typed OMERO script parameters, with shared

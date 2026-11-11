@@ -5,6 +5,10 @@ description: BIOMERO core library development runbook. Use when changing biomero
 
 # BIOMERO Core Development
 
+Read the [shared NL-BIOMERO engineering rules](https://github.com/NL-BioImaging/NL-BIOMERO/blob/master/.agents/skills/nl-biomero-engineering/SKILL.md)
+first: they cover branches, pull requests, merging, agent guidance and local
+checkouts. This skill adds only the BIOMERO core rules.
+
 Use this skill for development work on the BIOMERO Python library in this repo
 (`biomero/`), especially `biomero/slurm_client.py`. Favor matching existing
 conventions over inventing new ones: read the surrounding code, mirror the
@@ -149,21 +153,6 @@ own OMERO connections or annotation persistence.
 - Test rendering and event-store view logic in core; test OMERO adapters in the
   scripts test harness. Preserve the repositories' separate dependency and
   licensing boundaries.
-
-## Pull-request branch workflow
-
-On an existing non-default branch intended for a pull request, make focused,
-coherent commits and push them as normal completion of authorized development
-work. Do not hold the branch locally merely to run a slow full suite: run cheap,
-relevant checks that catch immediate mistakes, inspect the diff, then let the
-required GitHub Actions checks be the full-suite gate. If CI fails, inspect it
-and push a follow-up fix. Incremental branch commits may stay small because the
-pull request will normally be squash-merged.
-
-Use proportionate local verification before a direct default-branch push,
-release, change without suitable CI coverage, or higher-risk operation. This
-workflow does not authorize unrelated publication, merging, deployment, or
-destructive actions.
 
 ## Environment
 

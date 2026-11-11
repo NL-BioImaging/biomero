@@ -51,8 +51,9 @@ when the gap belongs there. Neither upgrading nor forking is an automatic fix.
 Explain the remaining gap and maintenance cost before expanding our own layer.
 
 Prefer the current functions, contracts and execution model. A new class or
-module is justified by a cohesive responsibility or actual reuse, not merely by
-moving complexity out of a long function. A generic I/O proxy, watchdog or second
+module is a design change: justify it in the PR by a cohesive responsibility or
+actual reuse, and why an existing module or another component cannot own it,
+not merely by moving complexity out of a long function. A generic I/O proxy, watchdog or second
 execution supervisor is a signal to reconsider ownership and simpler options.
 New abstractions are allowed; demonstrate why they fit our responsibilities and
 why existing libraries/components cannot supply the behavior. Passing tests
@@ -99,6 +100,9 @@ for workflow-continuity acceptance.
 
 - **Core (`biomero`)** owns reusable HPC/workflow operations, durable state,
   job identity/reconciliation and the detached launcher/claim/resume contracts.
+  It provides mechanisms; callers (scripts, OMERO.biomero, the importer and the
+  processor) decide whether to run a stage, which result path to take and how
+  to react to its outcome.
 - **`biomero-scripts`** owns the OMERO script adapter and workflow pipeline:
   inputs, session/group handling, script invocation and OMERO output/annotations.
   It calls core functionality rather than duplicating it.
@@ -110,23 +114,6 @@ for workflow-continuity acceptance.
   recoverable work after restart. It reuses core's persisted contracts and the
   scripts' workflow pipeline. It is an alternative to executing that pipeline
   inline, not another core library or a replacement for all scripts.
-
-### License and library boundaries
-
-BIOMERO core is Apache-2.0, which requires it to stay independent of the
-OME/OMERO libraries. Do not import them in `biomero/` or add them to the
-required dependencies; OMERO-facing behavior belongs in biomero-scripts and the
-detached processor. Check the transitive dependencies and licenses of any new
-dependency before adding it.
-
-Core provides mechanisms; callers make the workflow decisions. Whether to run
-a stage, which result path to take and how to react to its outcome belong in
-biomero-scripts, OMERO.biomero or the importer, which call core operations.
-
-Keep the package small. It had about seven modules for years; a new module is a
-design change. Propose it and justify it in the PR (a cohesive responsibility or
-actual reuse) and show why an existing module or another component cannot own
-it.
 
 OMERO.biomero owns `[UI]` settings and workflow launch defaults, including Zarr
 version, GPU preferences and optional comparison shortcuts. Resolve those biases
@@ -161,8 +148,14 @@ own OMERO connections or annotation persistence.
   core APIs. Optional imports and duck-typed connection adapters do not bypass
   this boundary.
 - Do not introduce dependencies, imports, copied implementation code, or
-  client-library-specific references to omeropy or ezomero in core code.
-  Describe compatible data structures by their contract, not by a client library.
+  client-library-specific references to OME/OMERO libraries (omeropy, `omero-*`
+  plugins, ezomero, ome-zarr) in core code or its required dependencies; core
+  is Apache-2.0 and must stay licensable independently of them. Describe
+  compatible data structures by their contract, not by a client library. The
+  optional `full` extra is only an install list for biomero-scripts, which is
+  installed by cloning and has no packaging of its own; it may list these
+  libraries for the NL-BIOMERO containers, but nothing in `biomero/` may rely on
+  it.
 - Keep OMERO reads/writes, annotation creation/update/unlinking, permissions,
   session keepalives and persistence backups in biomero-scripts. Scripts request
   a view from core and apply it to OMERO; they must not pass the connection back

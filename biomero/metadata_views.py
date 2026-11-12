@@ -25,7 +25,7 @@ from biomero.constants import (
     RUN_WF_BATCHED_SCRIPT,
     RUN_WF_SCRIPT,
 )
-from biomero.detached import LAUNCHER_MARKER
+from biomero.eventsourcing import is_launcher_task
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +53,20 @@ OUTPUT_SETTINGS_PARAM = "output_settings"
 # "<workflow> | <parameter>" and the older "<workflow>_|_<parameter>".
 WORKFLOW_PARAM_SEPARATORS = (" | ", "_|_")
 WORKFLOW_VERSION_SUFFIX = "_Version"
-# Orchestration parameters that only duplicate the workflow descriptors.
-EXCLUDED_PARAM_PREFIXES = ("wf_params_", "wf_file_params_", "_biomero_")
+# Orchestration parameters that only duplicate the workflow descriptors
+# (wf_params_, wf_file_params_) or are BIOMERO bookkeeping such as the
+# launcher marker (_biomero_).
+WF_PARAMS_PREFIX = "wf_params_"
+WF_FILE_PARAMS_PREFIX = "wf_file_params_"
+BIOMERO_PARAM_PREFIX = "_biomero_"
+EXCLUDED_PARAM_PREFIXES = (
+    WF_PARAMS_PREFIX, WF_FILE_PARAMS_PREFIX, BIOMERO_PARAM_PREFIX)
 
 UNKNOWN_SOFTWARE_VERSION = "Unknown"
 SOFTWARE_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+")
+# The scripts store the software version as the last line of the workflow
+# description ("<description>\n<version>"); core's own conversion workflow
+# stores it as the whole description.
 
 STORAGE_SHALLOW_ZARR = "shallow-zarr"
 STORAGE_FULL_ZARR = "full-zarr"
@@ -160,7 +169,7 @@ def is_internal_task(task: Any) -> bool:
     Returns:
         True for a detached launcher task or a remote shallower task.
     """
-    return (LAUNCHER_MARKER in (task.params or {})
+    return (is_launcher_task(task)
             or task.task_name == REMOTE_SHALLOWER_TASK_NAME)
 
 
@@ -335,18 +344,25 @@ def load_visible_tasks(
     return tasks
 
 
-def software_version(description: Optional[str]) -> str:
+def software_version(description: Any) -> str:
     """Extract the software version from a workflow description.
 
+    Only the last line is searched: a version number earlier in the
+    description (for example "based on cellpose 2.1.1") is not the software
+    version.
+
     Args:
-        description: The workflow description, e.g. ``"BIOMERO 2.9.0"``.
+        description: The workflow description, e.g. ``"Segments nuclei\n2.9.0"``.
 
     Returns:
-        The first ``x.y.z`` version found, else ``UNKNOWN_SOFTWARE_VERSION``.
+        The first ``x.y.z`` version on the last line, else
+        ``UNKNOWN_SOFTWARE_VERSION``.
     """
-    match = SOFTWARE_VERSION_PATTERN.search(description or "")
+    lines = str(description or "").strip().splitlines()
+    match = SOFTWARE_VERSION_PATTERN.search(lines[-1]) if lines else None
     if match is None:
-        logger.debug(f"No software version in description {description!r}")
+        logger.warning(f"No software version on the last line of the "
+                       f"workflow description {description!r}")
         return UNKNOWN_SOFTWARE_VERSION
     return match.group()
 
@@ -354,9 +370,16 @@ def software_version(description: Optional[str]) -> str:
 def storage_evidence_for(task: Any, target_key: Optional[str]) -> Optional[dict]:
     """Return the storage evidence recorded on a task for a result target.
 
-    Tasks replayed from streams that predate storage events have no attribute.
     """
-    return getattr(task, "storage_provenance", {}).get(target_key)
+    return task.storage_provenance.get(target_key)
+
+
+def make_annotation(
+        namespace: str, values: Dict[str, Any], aggregate: Any,
+        view_version: str, revision_fields: bool) -> MetadataAnnotation:
+    """Return an annotation, with revision markers when they are enabled."""
+    return MetadataAnnotation(namespace, with_revision(
+        values, aggregate, view_version, revision_fields))
 
 
 def with_revision(
@@ -472,21 +495,19 @@ def render_workflow_metadata(
     workflow = load_aggregate(tracker, workflow_id, aggregate_versions)
     tasks = load_visible_tasks(tracker, workflow, aggregate_versions)
 
-    def annotation(namespace, values, aggregate):
-        return MetadataAnnotation(namespace, with_revision(
-            values, aggregate, view_version, revision_fields))
-
-    rows = [annotation(NAMESPACE,
-                       workflow_row_values(workflow, workflow_id, tasks),
-                       workflow)]
+    rows = [make_annotation(
+        NAMESPACE, workflow_row_values(workflow, workflow_id, tasks),
+        workflow, view_version, revision_fields)]
     for task in tasks:
         namespace = task_namespace(task)
-        rows.append(annotation(
+        rows.append(make_annotation(
             namespace, task_row_values(task, workflow, workflow_id, target_key),
-            task))
-        rows.extend(annotation(f"{namespace}{JOB_NAMESPACE_SUFFIX}",
-                               job_row_values(task, job_id, workflow_id), task)
-                    for job_id in task.job_ids)
+            task, view_version, revision_fields))
+        rows.extend(make_annotation(
+            f"{namespace}{JOB_NAMESPACE_SUFFIX}",
+            job_row_values(task, job_id, workflow_id),
+            task, view_version, revision_fields)
+            for job_id in task.job_ids)
     logger.debug(f"Rendered {len(rows)} metadata annotations for workflow "
                  f"{workflow_id} (view={view_version}, "
                  f"pinned={aggregate_versions is not None})")

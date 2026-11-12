@@ -272,19 +272,72 @@ def test_record_canonical_inputs_on_workflow(workflow_tracker):
     assert manifest.inputs == (canonical_input,)
 
 
-def test_legacy_workflow_state_without_canonical_fields_is_readable(
+def test_streams_without_the_newer_events_replay_with_empty_defaults(
     workflow_tracker,
 ):
-    """Pre-feature aggregate state behaves as an empty canonical snapshot."""
-    legacy_workflow = SimpleNamespace()
-    with unittest.mock.patch.object(
-        workflow_tracker.repository,
-        "get",
-        return_value=legacy_workflow,
-    ):
-        snapshot = workflow_tracker.get_canonical_inputs(uuid.uuid4())
+    """Workflow and task streams that only hold the original events replay
+    with an empty canonical snapshot and empty storage evidence."""
+    workflow_id = workflow_tracker.initiate_workflow("Legacy", "", 1, 1)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "Export", "1", {}, {})
+    topics = [n.topic.rsplit(".", 1)[-1] for n in
+              workflow_tracker.notification_log.select(start=1, limit=10)]
+    assert "CanonicalInputsRecorded" not in topics
+    assert "StorageProvenanceRecorded" not in topics
 
-    assert snapshot == {"export_task_id": None, "inputs": []}
+    assert workflow_tracker.get_canonical_inputs(workflow_id) == {
+        "export_task_id": None, "inputs": []}
+    assert workflow_tracker.repository.get(task_id).storage_provenance == {}
+
+
+def test_storage_provenance_events_replay_and_old_versions_stay_empty(
+    workflow_tracker,
+):
+    workflow_id = workflow_tracker.initiate_workflow("wf", "", 1, 1)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "SLURM_Import_Results.py", "1", {}, {})
+    before = workflow_tracker.repository.get(task_id).version
+    workflow_tracker.record_storage_provenance(
+        task_id, "Plate:1", {"storage": "full-zarr"})
+    assert workflow_tracker.repository.get(
+        task_id).storage_provenance == {"Plate:1": {"storage": "full-zarr"}}
+    assert workflow_tracker.repository.get(
+        task_id, version=before).storage_provenance == {}
+
+
+def test_storage_provenance_with_a_non_string_target_key_is_recorded_once(
+    workflow_tracker,
+):
+    workflow_id = workflow_tracker.initiate_workflow("wf", "", 1, 1)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "SLURM_Import_Results.py", "1", {}, {})
+    evidence = {"storage": "full-zarr"}
+    workflow_tracker.record_storage_provenance(task_id, 7, evidence)
+    version = workflow_tracker.repository.get(task_id).version
+    workflow_tracker.record_storage_provenance(task_id, 7, evidence)
+    task = workflow_tracker.repository.get(task_id)
+    assert task.version == version
+    assert task.storage_provenance == {"7": evidence}
+
+
+def test_canonical_input_invariants_are_enforced_by_the_aggregate(
+    workflow_tracker,
+):
+    """Recording directly on the aggregate cannot bypass the rules."""
+    workflow_id = workflow_tracker.initiate_workflow("wf", "", 1, 1)
+    export_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "Export", "1", {}, {})
+    workflow = workflow_tracker.repository.get(workflow_id)
+    with pytest.raises(ValueError, match="does not belong"):
+        workflow.record_canonical_inputs(uuid.uuid4(), [])
+    assert workflow.record_canonical_inputs(export_id, [{"a": 1}]) is True
+    assert workflow.record_canonical_inputs(export_id, [{"a": 1}]) is False
+    with pytest.raises(ValueError, match="immutable"):
+        workflow.record_canonical_inputs(export_id, [{"a": 2}])
+    other_export = uuid.uuid4()
+    workflow.tasks.append(other_export)
+    with pytest.raises(ValueError, match="immutable"):
+        workflow.record_canonical_inputs(other_export, [{"a": 1}])
 
 
 def test_workflow_initiated_event_schema_stays_legacy_compatible(
@@ -2571,3 +2624,121 @@ def test_task_started_and_status_update_agree_on_the_phase(
     after_status = (progress.workflows[workflow_id]['status'],
                     progress.workflows[workflow_id]['progress'])
     assert after_start == after_status == (wfs.CONVERTING, '25%')
+
+
+# ---------------- Review follow-ups: lookups, guards, exports ---------------- #
+
+def test_owner_lookup_does_not_swallow_a_database_outage():
+    """User and group are data, not a cosmetic name: an outage must raise."""
+    from sqlalchemy.exc import OperationalError
+    from biomero.views import resolve_workflow_owner
+    broken = SimpleNamespace(get=unittest.mock.Mock(
+        side_effect=OperationalError("SELECT", {}, Exception("locked"))))
+    with patch("biomero.views.tracker_repository", return_value=broken):
+        with pytest.raises(OperationalError):
+            resolve_workflow_owner({}, uuid.uuid4())
+
+
+def test_main_task_name_reconstruction_tolerates_a_lookup_outage(
+        workflow_tracker_and_workflow_progress, caplog):
+    """Only the cosmetic main task name falls back, with a [WFP] warning."""
+    from sqlalchemy.exc import OperationalError
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    progress.tasks.clear()
+    broken = SimpleNamespace(get=unittest.mock.Mock(
+        side_effect=OperationalError("SELECT", {}, Exception("locked"))))
+    with patch("biomero.views.tracker_repository", return_value=broken):
+        with caplog.at_level("WARNING", logger="biomero.views"):
+            name = progress._determine_main_task_name(workflow_id)
+    assert name == progress.workflows[workflow_id].get("task", "unknown")
+    assert (f"[WFP] Could not reconstruct the tasks of workflow "
+            f"{workflow_id}") in caplog.text
+
+
+def test_first_user_task_name_skips_infrastructure_tasks():
+    from biomero.views import first_user_task_name
+    tasks = [{"task_name": name} for name in (
+        "_SLURM_Image_Transfer.py", "convert_x", "SLURM_Get_Results.py",
+        "my-workflow", "later")]
+    assert first_user_task_name(tasks) == "my-workflow"
+    assert first_user_task_name(tasks[:3]) is None
+    assert first_user_task_name([{"task_name": "convert_only"}]) is None
+
+
+def test_remote_shallower_events_are_committed_and_ignored(
+        workflow_tracker_and_workflow_progress):
+    from biomero.constants import REMOTE_SHALLOWER_TASK_NAME
+    _, progress = workflow_tracker_and_workflow_progress
+    helper = {"task_name": REMOTE_SHALLOWER_TASK_NAME}
+    with patch("biomero.views.EngineManager.commit") as commit:
+        assert progress.skip_remote_shallower(uuid.uuid4(), helper, "X")
+    commit.assert_called_once_with()
+    with patch("biomero.views.EngineManager.commit") as commit:
+        assert not progress.skip_remote_shallower(
+            uuid.uuid4(), {"task_name": "analysis"}, "X")
+        assert not progress.skip_remote_shallower(uuid.uuid4(), None, "X")
+    commit.assert_not_called()
+
+
+def test_launcher_rule_needs_the_script_name_and_the_marker():
+    from biomero import constants
+    from biomero.eventsourcing import is_launcher_task
+    marked = {constants.LAUNCHER_MARKER: "2.9.0"}
+    for name in constants.LAUNCHER_TASK_NAMES:
+        assert is_launcher_task(SimpleNamespace(task_name=name, params=marked))
+        assert not is_launcher_task(SimpleNamespace(task_name=name, params={}))
+        assert not is_launcher_task(SimpleNamespace(task_name=name, params=None))
+    assert not is_launcher_task(
+        SimpleNamespace(task_name="analysis", params=marked))
+
+
+def test_launcher_constants_are_shared_with_the_detached_module():
+    from biomero import constants, detached
+    assert detached.LAUNCHER_MARKER == constants.LAUNCHER_MARKER
+    assert detached.CLAIMED == constants.LEGACY_CLAIMED_STATUS == "CLAIMED"
+    assert detached.LAUNCHER_TASK_NAMES == constants.LAUNCHER_TASK_NAMES
+
+
+def test_import_biomero_exports_the_projections_but_not_their_helpers():
+    import biomero
+    import biomero.views as views
+    for name in ("JobAccounting", "JobProgress", "WorkflowProgress",
+                 "WorkflowAnalytics"):
+        assert getattr(biomero, name) is getattr(views, name)
+    for name in ("get_tracker_aggregate", "resolve_workflow_owner",
+                 "first_user_task_name", "PROGRESS_RUNNING"):
+        assert name in dir(views)
+        assert name not in views.__all__
+        assert not hasattr(biomero, name)
+
+
+def test_commit_and_rollback_without_a_session_do_nothing(caplog):
+    EngineManager.close_engine()
+    with caplog.at_level("DEBUG", logger="biomero.database"):
+        EngineManager.commit()
+        EngineManager.rollback()
+    assert "No database session to commit" in caplog.text
+    assert "No database session to roll back" in caplog.text
+
+
+def test_failed_commit_rolls_back_and_raises_without_logging_a_warning(caplog):
+    session = unittest.mock.Mock()
+    session.commit.side_effect = RuntimeError("boom")
+    with patch.object(EngineManager, "_session", session):
+        with caplog.at_level("WARNING", logger="biomero.database"):
+            with pytest.raises(RuntimeError, match="boom"):
+                EngineManager.commit()
+    session.rollback.assert_called_once_with()
+    assert caplog.text == ""
+
+
+def test_failed_rollback_removes_the_session_and_raises_without_logging(caplog):
+    session = unittest.mock.Mock()
+    session.rollback.side_effect = RuntimeError("stuck")
+    with patch.object(EngineManager, "_session", session):
+        with caplog.at_level("WARNING", logger="biomero.database"):
+            with pytest.raises(RuntimeError, match="stuck"):
+                EngineManager.rollback()
+    session.remove.assert_called_once_with()
+    assert caplog.text == ""

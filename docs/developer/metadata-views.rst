@@ -135,10 +135,6 @@ migration runs during initialization. New result scripts continue to write
 Versioning and compatibility
 ----------------------------
 
-The module was named ``biomero.provenance`` in the 2.9 prereleases. That name is
-a deprecated alias of ``biomero.metadata_views`` and will be removed in the next
-release.
-
 ``Metadata_View_Version`` identifies the rendering policy; ``Aggregate_Version``
 identifies the exact event-sourced snapshot. Neither changes the existing
 software ``Version`` field. A refresh reapplies the selected policy to the

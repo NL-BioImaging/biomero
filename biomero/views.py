@@ -21,21 +21,26 @@ from eventsourcing.dispatch import singledispatchmethod
 import logging
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.sql import func
-from biomero.eventsourcing import WorkflowRun, Task, WorkflowTracker
+from biomero.eventsourcing import (
+    WorkflowRun, Task, WorkflowTracker, is_launcher_task)
 from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
 from biomero.constants import (
     CONVERSION_SCRIPT,
     IMAGE_EXPORT_SCRIPT,
     IMAGE_IMPORT_SCRIPT,
     IMPORT_RESULTS_SCRIPT,
+    LEGACY_CLAIMED_STATUS,
     REMOTE_SHALLOWER_TASK_NAME,
     RUN_WF_BATCHED_SCRIPT,
     RUN_WF_SCRIPT,
     workflow_status as wfs,
 )
-from biomero.detached import CLAIMED, LAUNCHER_MARKER
 
 logger = logging.getLogger(__name__)
+
+# What `import biomero` exposes from this module.
+__all__ = ["JobAccounting", "JobProgress", "WorkflowProgress",
+           "WorkflowAnalytics", "tracker_repository", "workflow_phase_for"]
 
 # Progress shown for each phase of a workflow in the progress view.
 PROGRESS_STARTED = "0%"
@@ -103,25 +108,11 @@ def resolve_workflow_owner(workflows: Dict[UUID, dict],
         The cached owner, or None if the workflow is unknown to the tracker.
     """
     if wf_id not in workflows:
-        try:
-            workflow = get_tracker_aggregate(wf_id, "Workflow")
-        except OperationalError:
-            # The name is cosmetic and the view write that follows fails and
-            # is retried on a real outage, so do not fail the event here.
-            logger.warning(f"[WFP] Could not reconstruct the tasks of "
-                           f"workflow {wf_id}; using its current task",
-                           exc_info=True)
-            workflow = None
+        workflow = get_tracker_aggregate(wf_id, "Workflow")
         if workflow is not None:
             workflows[wf_id] = {"user": workflow.user,
                                 "group": workflow.group}
     return workflows.get(wf_id)
-
-
-def is_launcher_task(task_name: str, params: Optional[dict]) -> bool:
-    """Whether a task is a detached launcher (queued by a workflow script)."""
-    return (task_name in (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
-            and LAUNCHER_MARKER in (params or {}))
 
 
 def workflow_phase_for(task_name: str, status: Optional[str] = None,
@@ -386,8 +377,7 @@ class WorkflowProgress(ProcessApplication):
                 self.tasks[task_id] = {
                     "task_name": task_agg.task_name,
                     "workflow_id": task_agg.workflow_id,
-                    "is_launcher": is_launcher_task(
-                        task_agg.task_name, task_agg.params),
+                    "is_launcher": is_launcher_task(task_agg),
                     # Progress is reported by events, not kept on the task.
                     "progress": None
                 }
@@ -495,7 +485,7 @@ class WorkflowProgress(ProcessApplication):
         self.tasks[task_id] = {
             "task_name": task_name,
             "workflow_id": None,
-            "is_launcher": is_launcher_task(task_name, domain_event.params),
+            "is_launcher": is_launcher_task(domain_event),
             "progress": None
             }
         logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
@@ -541,7 +531,7 @@ class WorkflowProgress(ProcessApplication):
 
             # CLAIMED is supervisor bookkeeping, not workflow execution. The
             # first real task's TaskStarted event will set the visible phase.
-            if task_info.get("is_launcher") and status == CLAIMED:
+            if task_info.get("is_launcher") and status == LEGACY_CLAIMED_STATUS:
                 logger.debug(
                     f"[WFP] Ignoring detached launcher claim: "
                     f"task_id={task_id}, wf_id={wf_id}"

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine, inspect
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 from biomero.constants import slurm_env
 from biomero.database import Base, EngineManager
@@ -57,3 +57,34 @@ def test_unexpected_creation_error_is_raised(sqlite_url):
         with pytest.raises(RuntimeError, match='boom'):
             EngineManager.create_scoped_session(sqlite_url)
     assert EngineManager._engine is None
+
+
+@pytest.mark.parametrize("error", [
+    IntegrityError("CREATE TABLE", {}, Exception("duplicate type")),
+    OperationalError("CREATE TABLE", {}, Exception("table exists")),
+])
+def test_any_database_error_is_tolerated_when_the_tables_exist(sqlite_url, error):
+    """PostgreSQL reports a lost creation race as an IntegrityError."""
+    Base.metadata.create_all(create_engine(sqlite_url))
+    with patch.object(Base.metadata, "create_all", side_effect=error):
+        EngineManager.create_scoped_session(sqlite_url)
+    assert EngineManager._engine is not None
+
+
+def test_other_errors_are_raised_even_when_the_tables_exist(sqlite_url):
+    Base.metadata.create_all(create_engine(sqlite_url))
+    with patch.object(Base.metadata, "create_all",
+                      side_effect=RuntimeError("boom")):
+        with pytest.raises(RuntimeError, match="boom"):
+            EngineManager.create_scoped_session(sqlite_url)
+    assert EngineManager._engine is None
+
+
+def test_the_creation_error_is_reported_when_the_table_check_fails_too(sqlite_url):
+    creation_error = OperationalError("CREATE", {}, Exception("no privileges"))
+    with patch.object(Base.metadata, "create_all", side_effect=creation_error):
+        with patch("biomero.database.inspect",
+                   side_effect=OperationalError("SELECT", {}, Exception("gone"))):
+            with pytest.raises(OperationalError) as raised:
+                EngineManager.create_scoped_session(sqlite_url)
+    assert raised.value is creation_error

@@ -20,6 +20,7 @@ from copy import deepcopy
 from fabric import Result
 import logging
 from biomero_schema.zarr import CanonicalInput, CanonicalInputManifest
+from biomero import constants
 from biomero.database import EngineManager, retry_on_database_conflict
 
 
@@ -118,13 +119,48 @@ class WorkflowRun(Aggregate):
         canonical_inputs: List[Dict[str, Any]]
 
     @event(CanonicalInputsRecorded)
-    def record_canonical_inputs(
+    def _canonical_inputs_recorded(
         self,
         export_task_id: UUID,
         canonical_inputs: List[Dict[str, Any]],
     ):
         self.canonical_inputs_export_task_id = export_task_id
         self.canonical_inputs = deepcopy(canonical_inputs)
+
+    def record_canonical_inputs(
+        self,
+        export_task_id: UUID,
+        canonical_inputs: List[Dict[str, Any]],
+    ) -> bool:
+        """Record the immutable canonical input snapshot of this workflow.
+
+        Args:
+            export_task_id: The export task of this workflow that used them.
+            canonical_inputs: The wire form of the canonical inputs.
+
+        Returns:
+            True if the snapshot was recorded now, False if exactly this
+            snapshot was already recorded (nothing to save).
+
+        Raises:
+            ValueError: If the export task is not a task of this workflow, or
+                a different snapshot was already recorded.
+        """
+        if export_task_id not in self.tasks:
+            raise ValueError(
+                f"Export task {export_task_id} does not belong to workflow "
+                f"{self.id}"
+            )
+        if self.canonical_inputs_export_task_id is not None:
+            if (self.canonical_inputs_export_task_id == export_task_id
+                    and self.canonical_inputs == canonical_inputs):
+                return False
+            raise ValueError(
+                f"Workflow {self.id} already has an immutable canonical "
+                "input snapshot"
+            )
+        self._canonical_inputs_recorded(export_task_id, canonical_inputs)
+        return True
 
     class WorkflowStarted(Aggregate.Event):
         """
@@ -213,6 +249,10 @@ class Task(Aggregate):
         self.job_ids = []
         self.results = []
         self.result_message = None
+        # Observed storage evidence per result target (see
+        # record_storage_provenance). Streams that predate the event replay
+        # their TaskCreated event through this __init__, so they get it empty.
+        self.storage_provenance = {}
         self.status = None
         # Not logging on aggregates, they get reconstructed so much
         # logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
@@ -286,8 +326,7 @@ class Task(Aggregate):
 
     @event('StorageProvenanceRecorded')
     def record_storage_provenance(self, target_key: str, evidence: dict):
-        # Old aggregate snapshots need no migration until this event is applied.
-        self.storage_provenance = dict(getattr(self, 'storage_provenance', {}))
+        self.storage_provenance = dict(self.storage_provenance)
         self.storage_provenance[target_key] = deepcopy(evidence)
 
     @event(TaskStarted)
@@ -326,6 +365,23 @@ class Task(Aggregate):
 
 
 # -------------------- APPLICATIONS -------------------- #
+
+def is_launcher_task(task) -> bool:
+    """Whether a task is a launcher queued for a detached supervisor.
+
+    Works on a Task aggregate and on a Task.TaskCreated event alike, so every
+    reader (supervisor, views, metadata views) applies the same rule.
+
+    Args:
+        task: Anything with ``task_name`` and ``params``.
+
+    Returns:
+        bool: True for a launching script's task that carries the marker.
+    """
+    params = getattr(task, "params", None) or {}
+    return (getattr(task, "task_name", None) in constants.LAUNCHER_TASK_NAMES
+            and constants.LAUNCHER_MARKER in params)
+
 
 class NoOpWorkflowTracker:
     """
@@ -441,46 +497,22 @@ class WorkflowTracker(Application):
     ) -> None:
         """Records the exact canonical input generations used by a workflow."""
         workflow: WorkflowRun = self.repository.get(workflow_id)
-        if export_task_id not in workflow.tasks:
-            raise ValueError(
-                f"Export task {export_task_id} does not belong to workflow "
-                f"{workflow_id}"
-            )
         manifest = CanonicalInputManifest(
             workflow_id=workflow_id,
             export_task_id=export_task_id,
             inputs=tuple(canonical_inputs),
         )
         wire_inputs = [item.to_dict() for item in manifest.inputs]
-        existing_export_task_id = getattr(
-            workflow, "canonical_inputs_export_task_id", None
-        )
-        existing_inputs = getattr(workflow, "canonical_inputs", [])
-        if existing_export_task_id is not None:
-            if (
-                existing_export_task_id == export_task_id
-                and existing_inputs == wire_inputs
-            ):
-                return
-            raise ValueError(
-                f"Workflow {workflow_id} already has an immutable canonical "
-                "input snapshot"
-            )
-        workflow.record_canonical_inputs(
-            export_task_id,
-            wire_inputs,
-        )
-        self.save(workflow)
-        EngineManager.safe_commit()
+        if workflow.record_canonical_inputs(export_task_id, wire_inputs):
+            self.save(workflow)
+            EngineManager.safe_commit()
 
     def get_canonical_inputs(self, workflow_id: UUID) -> Dict[str, Any]:
         """Returns the canonical input snapshot recorded for a workflow."""
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return {
-            "export_task_id": getattr(
-                workflow, "canonical_inputs_export_task_id", None
-            ),
-            "inputs": deepcopy(getattr(workflow, "canonical_inputs", [])),
+            "export_task_id": workflow.canonical_inputs_export_task_id,
+            "inputs": deepcopy(workflow.canonical_inputs),
         }
 
     def get_canonical_input_manifest(
@@ -611,10 +643,11 @@ class WorkflowTracker(Application):
     @retry_on_database_conflict(max_retries=3)
     def record_storage_provenance(self, task_id, target_key, evidence):
         """Persist observed storage provenance for an opaque result target."""
+        target_key = str(target_key)
         task = self.repository.get(task_id)
-        if getattr(task, 'storage_provenance', {}).get(target_key) == evidence:
+        if task.storage_provenance.get(target_key) == evidence:
             return
-        task.record_storage_provenance(str(target_key), deepcopy(evidence))
+        task.record_storage_provenance(target_key, deepcopy(evidence))
         self.save(task)
         EngineManager.safe_commit()
 

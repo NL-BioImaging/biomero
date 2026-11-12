@@ -21,6 +21,17 @@ FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
+
+# Detached runs: a workflow script queues a run for a supervisor by recording a
+# "launcher" task. Only a task of a launching script that carries the marker
+# key in its params is a launcher; the batched script, for instance, also adds
+# one ordinary task per batch under the launching script's name.
+LAUNCHER_MARKER = "_biomero_detached_launcher"
+LAUNCHER_TASK_NAMES = (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
+# Status that 2.9 betas wrote on a launcher task to mark it as claimed. It is
+# no longer written (a claim is its own event), but may exist in stored events.
+LEGACY_CLAIMED_STATUS = "CLAIMED"
+
 IMPORT_RESULTS_SCRIPT = "SLURM_Import_Results.py"
 # Name of the workflow task that records one remote shallower (helper) run.
 REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"

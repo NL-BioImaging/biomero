@@ -343,10 +343,14 @@ class EngineManager:
         """
         try:
             Base.metadata.create_all(cls._engine)
-        except DBAPIError:
-            existing = inspect(cls._engine)
-            missing = [name for name in Base.metadata.tables
-                       if not existing.has_table(name)]
+        except DBAPIError as create_error:
+            try:
+                existing = inspect(cls._engine)
+                missing = [name for name in Base.metadata.tables
+                           if not existing.has_table(name)]
+            except DBAPIError:
+                # The check failed too: report the error that started it.
+                raise create_error
             if missing:
                 raise
             logger.debug("Lost the race to create the tables; they exist now")
@@ -429,10 +433,13 @@ class EngineManager:
         """
         Commits the current transaction in the scoped session.
         """
+        if cls._session is None:
+            logger.debug("No database session to commit")
+            return
         try:
             cls._session.commit()
-        except Exception as e:
-            logger.warning(f"Database commit failed (will be retried if applicable): {e}")
+        except Exception:
+            # The caller (or retry_on_database_conflict) logs the error.
             cls.rollback()
             raise
     
@@ -441,11 +448,14 @@ class EngineManager:
         """
         Rolls back the current transaction in the scoped session.
         """
+        if cls._session is None:
+            logger.debug("No database session to roll back")
+            return
         try:
             cls._session.rollback()
-        except Exception as e:
-            logger.warning(f"Database rollback failed (forcing session removal): {e}")
-            # Force session removal on rollback failure
+        except Exception:
+            # Force session removal on rollback failure; the error is raised
+            # for the caller to log.
             cls._session.remove()
             raise
     

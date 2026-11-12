@@ -38,18 +38,13 @@ from biomero import constants
 
 logger = logging.getLogger(__name__)
 
-# Marker key in a launcher task's params. Its value is the version of the
-# script that queued the run. Tasks without it are ordinary workflow tasks and
-# must never be executed by a supervisor: the batched script, for instance,
-# adds one task per batch under the same name as the launching script.
-LAUNCHER_MARKER = "_biomero_detached_launcher"
-
-# Claim state, kept as the launcher task's status so it survives a restart of
-# the process that owns the worker.
-CLAIMED = "CLAIMED"
-
-# Scripts that can queue a detached run.
-LAUNCHER_TASK_NAMES = (constants.RUN_WF_SCRIPT, constants.RUN_WF_BATCHED_SCRIPT)
+# The launcher marker, its scripts and the claim state live in constants (the
+# marker's value is the version of the script that queued the run). The claim
+# state is kept as the launcher task's status so it survives a restart of the
+# process that owns the worker.
+LAUNCHER_MARKER = constants.LAUNCHER_MARKER
+CLAIMED = constants.LEGACY_CLAIMED_STATUS
+LAUNCHER_TASK_NAMES = constants.LAUNCHER_TASK_NAMES
 
 # A workflow may accumulate a great many tasks. The launcher is registered
 # immediately after the workflow is started, so only the first few tasks ever

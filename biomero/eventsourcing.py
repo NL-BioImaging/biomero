@@ -54,8 +54,17 @@ class ResultDict(dict):
         self['stderr'] = result.stderr
 
 
-class WorkflowCancelled(InterruptedError):
-    """A workflow was asked to cancel, so whoever runs it must stop."""
+class WorkflowInterrupted(Exception):
+    """Whoever runs a workflow must stop now, between its steps.
+
+    Deliberately not an ``InterruptedError``: that is an ``OSError``, which
+    ``except OSError`` handlers and the SSH recovery classifier would catch.
+    Stage handlers let it pass; subclasses say why the run stopped.
+    """
+
+
+class WorkflowCancelled(WorkflowInterrupted):
+    """A workflow was asked to cancel: stop, cancel its jobs, fail it."""
 
 
 # When updating Aggregate classes, take care of versioning for compatibility:

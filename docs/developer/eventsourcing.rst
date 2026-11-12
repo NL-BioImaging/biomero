@@ -131,9 +131,9 @@ call returns ``False``. A claim is valid for
 again (the processor renews three times per lease), and a claim that is not
 renewed can be taken over. The lease is judged against each supervisor's own
 clock, so supervisors need clocks that agree to well within the lease; the
-position in the event store, not the clock, is what keeps two claims apart. A supervisor that
-stops cleanly gives its claim up with ``release_launcher_task``. The claim does
-not change ``Task.status``. Launchers claimed by 2.9 betas carry the status
+position in the event store, not the clock, is what keeps two claims apart. A
+supervisor that stops cleanly gives its claim up with
+``release_launcher_task``. The claim does not change ``Task.status``. Launchers claimed by 2.9 betas carry the status
 ``CLAIMED`` and no owner; they still load, the views still ignore that status,
 and such a launcher is free to claim.
 
@@ -142,6 +142,16 @@ and such a launcher is free to claim.
 ``raise_if_cancel_requested`` between its steps; that raises
 ``WorkflowCancelled``, upon which the executor cancels the workflow's Slurm jobs
 with ``SlurmClient.cancel_slurm_jobs`` and fails the workflow.
+``WorkflowCancelled`` is a ``WorkflowInterrupted``, the base for "stop now"
+conditions (an executor that lost its claim raises its own subclass): stage
+handlers let any ``WorkflowInterrupted`` pass without failing their task, and
+only a cancel makes the executor fail the workflow. It is deliberately not an
+``InterruptedError``, which is an ``OSError`` that SSH recovery handlers could
+catch.
+
+Resuming reads every task of the workflow once per call, and a run checks for a
+cancel once per poll; both are cheap next to a Slurm poll, but are one read per
+task for a workflow with very many tasks.
 
 Inspecting aggregate history
 ----------------------------

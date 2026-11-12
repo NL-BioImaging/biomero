@@ -339,3 +339,11 @@ def test_a_run_stops_between_steps_once_cancel_was_requested(tracker, launcher):
     tracker.request_workflow_cancel(workflow_id, "user asked")
     with pytest.raises(WorkflowCancelled, match="user asked"):
         tracker.raise_if_cancel_requested(workflow_id)
+
+
+def test_interruptions_are_not_os_errors():
+    """SSH recovery and `except OSError` handlers must never catch them."""
+    from biomero.eventsourcing import WorkflowCancelled, WorkflowInterrupted
+    assert issubclass(WorkflowCancelled, WorkflowInterrupted)
+    assert not issubclass(WorkflowInterrupted, OSError)
+    assert not issubclass(WorkflowCancelled, OSError)

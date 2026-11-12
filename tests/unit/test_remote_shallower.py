@@ -51,7 +51,7 @@ def test_default_helper_image_is_latest():
 
 def test_setup_without_helper_configuration_acquires_default_helper():
     from biomero.remote_shallower import image_spec
-    client = SlurmClient(config_only=True)
+    client = SlurmClient(config_only=True, remote_shallow_zarr=True)
     client.validate = MagicMock(return_value=True)
     client.setup_directories = MagicMock()
     client.setup_job_scripts = MagicMock()
@@ -193,11 +193,12 @@ def test_submission_uses_explicit_reconciliation_identity():
 
 @pytest.mark.parametrize('executable,expected', [('7z', "'-xr!*.biomero-lock'"),
                                                ('zip', "-x '*.biomero-lock'")])
-def test_internal_locks_are_excluded_only_when_enabled(executable, expected):
+@pytest.mark.parametrize('remote_shallow_zarr', [False, True])
+def test_internal_locks_are_always_excluded(executable, expected,
+                                            remote_shallow_zarr):
+    """Lock files never ship in a results archive, whatever the feature flag."""
     client = SlurmClient(config_only=True, slurm_zip_cmd=executable,
-                         remote_shallow_zarr=False)
-    assert 'biomero-lock' not in client.get_zip_command('/data', 'results')
-    client.remote_shallow_zarr = True
+                         remote_shallow_zarr=remote_shallow_zarr)
     assert expected in client.get_zip_command('/data', 'results')
 
 

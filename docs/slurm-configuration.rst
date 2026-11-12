@@ -25,6 +25,9 @@ set ``BIOMERO_SLURM_CONFIG_FILE`` to the path of that file. This enables
 authoritative-file mode: BIOMERO reads only that file and does not merge the
 default paths or an explicit ``configfile=...`` path. Removing a setting from
 the authoritative file therefore cannot reveal a lower-precedence file value.
+BIOMERO logs the files it read, and warns when an explicit ``configfile`` is
+ignored or the authoritative file is missing (the defaults and environment
+variables then apply).
 If the variable is unset or empty, the layered behavior above is unchanged.
 
 For the settings documented on this page, environment variables then override
@@ -261,6 +264,10 @@ Impact:
   ``sbatch_cpus-per-task`` and ``sbatch_mem`` respectively. When neither level
   is configured, Slurm uses its scheduler defaults; SquashFS falls back to one
   worker if the allocation does not expose ``SLURM_CPUS_PER_TASK``.
+* Every submission writes its status files and job logs to its own folder under
+  ``<slurm_script_path>/image-pulls``. After submitting, BIOMERO removes the
+  folders of earlier submissions that are older than seven days (never the
+  current one); if that cleanup fails it only logs a warning.
 * The compatibility default concurrency is ``1``; ``2`` to ``4`` is recommended
   to limit metadata and I/O pressure on shared storage.
 * Each compute task auto-detects ``apptainer`` first and then ``singularity``.
@@ -341,7 +348,11 @@ Impact:
 * For image arrays, dedicated ``image_pull_cpus``, ``image_pull_mem``,
   ``image_pull_time``, and ``image_pull_partition`` values take precedence over
   matching global flags. Blank dedicated values inherit their matching global
-  flag; if that is also unset, the scheduler default applies.
+  flag; if that is also unset, the scheduler default applies. The
+  ``slurm_default_partition`` applies to image arrays as it does to workflow
+  jobs, ahead of a global ``sbatch_partition``. Image arrays have no built-in
+  CPU or memory request: BIOMERO does not guess a size for your cluster, and
+  logs the resources it submits at INFO.
 * Global params with empty values are ignored.
 * There is no environment variable override for these — they are intentionally admin-only at config time.
 
@@ -366,6 +377,10 @@ Impact:
   sibling path (``/usr/bin/unzip``) for extraction.
 * Other configured values retain the legacy 7-Zip syntax for backward
   compatibility.
+* Info-ZIP extraction with a file filter also needs ``mktemp`` and a ``find``
+  that supports ``-cnewer`` and ``-print -quit`` (GNU findutils) on the
+  cluster: it uses them to tell a partial filter match from an empty
+  extraction.
 
 Use this when:
 
@@ -740,10 +755,10 @@ Optional result shallower
 --------------------------
 
 The administrator-only CPU helper runs before result ZIP creation. All options
-are in ``[SLURM]``; environment values override ini values. Shallow Zarr remains
-opt-in; when enabled, remote shallowing is the default. Set
-``remote_shallow_zarr=false`` or ``BIOMERO_REMOTE_SHALLOW_ZARR=false`` to use
-local importer shallowing instead, for example to avoid extra Slurm costs.
+are in ``[SLURM]``; environment values override ini values. Remote shallowing
+is off unless you set ``remote_shallow_zarr=true`` (or
+``BIOMERO_REMOTE_SHALLOW_ZARR=true``); a missing or empty value keeps the local
+importer shallowing. Shallow Zarr itself must be enabled separately.
 The helper requests no GPU; workers
 set CPUs per task. Shallowing and recovery share conversion's resource
 merging: the helper partition overrides ``slurm_default_partition``, which
@@ -789,7 +804,7 @@ available until those tasks finish. Resource settings remain configurable.
      - Default
      - Environment variable
    * - ``remote_shallow_zarr``
-     - ``true`` (shallow Zarr must be enabled separately)
+     - ``false`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
    * - ``remote_shallower_image``
      - ``cellularimagingcf/biomero-shallower:latest``; prefer an ini pin

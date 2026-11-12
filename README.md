@@ -138,8 +138,8 @@ Installing the Python package does not install the helper image on Slurm.
 For a deployment using shallow Zarr:
 
 1. Enable the importer integration and `BIOMERO_SHALLOW_ZARR=true`. Remote
-   shallowing is preferred when enabled; `BIOMERO_REMOTE_SHALLOW_ZARR=false`
-   selects local importer shallowing instead.
+   shallowing is enabled with `BIOMERO_REMOTE_SHALLOW_ZARR=true`; without it,
+   shallowing runs locally in the importer.
 2. Prefer a pinned `remote_shallower_image` in the `[SLURM]` section of
    `slurm-config.ini`; the fallback is `cellularimagingcf/biomero-shallower:latest`.
    Core reads the installed image's tool version unless `remote_shallower_version`

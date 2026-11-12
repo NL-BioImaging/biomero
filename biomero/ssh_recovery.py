@@ -565,7 +565,7 @@ def _raise_window_expired(error: BaseException, description: str) -> None:
         raise RemoteOperationStillPending(
             f"{description} is still running or unresolved on the cluster "
             "after the waiting time. The SSH connection works and nothing "
-            "was repeated; ask again later") from error
+            f"was repeated. {error}") from error
     raise SSHRecoveryTimeout(
         f"SSH recovery deadline exceeded during {description}; existing "
         "jobs and recovery data are retained") from error

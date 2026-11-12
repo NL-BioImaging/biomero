@@ -42,8 +42,20 @@ import shlex
 from typing import Iterable, Optional
 
 from biomero.constants import (
-    LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SUBMISSION_REJECTED_EXIT_CODE,
-    SUBMISSION_STATE_FILES, SUBMISSION_STATE_SUFFIXES)
+    LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SUBMISSION_REJECTED_EXIT_CODE)
+
+# Receipt files of one submission: the shell variable that names each one in
+# the generated script, and its suffix. This is the only place they are listed.
+SUBMISSION_STATE_FILES = {
+    "digest_file": ".digest",
+    "intent_file": ".intent",
+    "job_file": ".job",
+    "job_tmp_file": ".job.tmp",
+    "failed_file": ".failed",
+    "stdout_file": ".stdout",
+    "stderr_file": ".stderr",
+}
+SUBMISSION_STATE_SUFFIXES = (".lock", *SUBMISSION_STATE_FILES.values())
 
 TIMESTAMP_COMMAND = "date +%Y-%m-%dT%H:%M:%S"
 # Matches both "Submitted batch job 42" and the ``sbatch --parsable`` output
@@ -154,8 +166,9 @@ def remove_state_files_command(state_prefix: str) -> str:
     Returns:
         str: The ``rm -f`` command.
     """
-    files = " ".join(shlex.quote(state_prefix + suffix)
-                     for suffix in SUBMISSION_STATE_SUFFIXES)
+    files = " ".join(
+        shlex.quote(state_prefix + suffix)
+        for suffix in SUBMISSION_STATE_SUFFIXES)
     return f"rm -f {files}"
 
 

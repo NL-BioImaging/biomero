@@ -38,8 +38,8 @@ import hashlib
 import json
 import string
 from biomero.constants import (
-    slurm_env, COMMAND_NOT_FOUND_EXIT_CODE, DEFAULT_SLURM_LOCK_CMD, DEFAULT_SSH_RECOVERY_TIMEOUT,
-    LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SSH_AUTH_TIMEOUT_SECONDS,
+    slurm_env, COMMAND_NOT_FOUND_EXIT_CODE, DEFAULT_SLURM_LOCK_CMD,
+    DEFAULT_SSH_RECOVERY_TIMEOUT, LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SSH_AUTH_TIMEOUT_SECONDS,
     SSH_BANNER_TIMEOUT_SECONDS, SSH_CONNECT_TIMEOUT_SECONDS,
     SSH_KEEPALIVE_SECONDS, SUBMISSION_JOB_NAME_PREFIX,
     SUBMISSION_REJECTED_EXIT_CODE, SUBMISSION_STATE_DIRECTORY,
@@ -159,11 +159,36 @@ class SlurmJob:
                    wf_id, task_id, **kwargs)
 
     @staticmethod
-    def is_terminal(state):
-        """Accept sacct suffixes and cancellation details as well as states."""
+    def state_name(state: Optional[str]) -> str:
+        """Return the bare Slurm state from a raw sacct/squeue state.
+
+        sacct may add a suffix (``CANCELLED+``) or details
+        (``CANCELLED by 1000``).
+
+        Args:
+            state (Optional[str]): The raw state, or None.
+
+        Returns:
+            str: The state name, for example ``CANCELLED``; empty if unknown.
+        """
         parts = (state or '').split()
-        name = parts[0].rstrip('+') if parts else ''
-        return name in TERMINAL_JOB_STATES
+        return parts[0].rstrip('+') if parts else ''
+
+    @staticmethod
+    def is_terminal(state: Optional[str]) -> bool:
+        """Tell whether a (raw) job state is final."""
+        return SlurmJob.state_name(state) in TERMINAL_JOB_STATES
+
+    @staticmethod
+    def ended_without_success(state: Optional[str]) -> bool:
+        """Tell whether a (raw) job state is final and not COMPLETED.
+
+        Failed, cancelled, timed-out, out-of-memory ... jobs are never
+        re-attached to on resume; a COMPLETED job may be, so that its
+        outputs are processed instead of running the analysis again.
+        """
+        return (SlurmJob.is_terminal(state)
+                and SlurmJob.state_name(state) != 'COMPLETED')
 
     def wait_for_completion(self, slurmClient, *, heartbeat=None,
                             track_progress=True, update_task=True,
@@ -529,6 +554,36 @@ class SlurmClient(Connection):
             return env_value
 
         return typed_value
+
+    @staticmethod
+    def _validate_lock_template(lock_template: str) -> None:
+        """Check that a lock command template can be filled in.
+
+        Args:
+            lock_template (str): The template, for example
+                ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``.
+
+        Raises:
+            ValueError: If the template is empty, uses an unknown
+                placeholder, or lacks ``{lock_file}`` or ``{busy_exit_code}``.
+        """
+        if not lock_template or not lock_template.strip():
+            raise ValueError("slurm_lock_cmd must not be empty")
+        allowed = {"wait_seconds", "busy_exit_code", "lock_file"}
+        required = {"busy_exit_code", "lock_file"}
+        try:
+            used = {field for _, field, _, _ in
+                    string.Formatter().parse(lock_template)
+                    if field is not None}
+        except ValueError as error:
+            raise ValueError(
+                f"slurm_lock_cmd {lock_template!r} is not a valid "
+                f"template: {error}") from error
+        if not used <= allowed or not required <= used:
+            raise ValueError(
+                f"slurm_lock_cmd {lock_template!r} must use {{lock_file}} "
+                "and {busy_exit_code} and may use {wait_seconds}; no other "
+                "placeholders are known")
 
     def __init__(self,
                  host=_DEFAULT_HOST,
@@ -1305,6 +1360,11 @@ class SlurmClient(Connection):
             converter_specs = [*converter_specs, image_spec(self)]
         return self.setup_container_images(extra_image_specs=converter_specs)
 
+    @staticmethod
+    def _lock_executable(lock_template: str) -> str:
+        """Return the program a lock command template starts with."""
+        return shlex.split(lock_template)[0]
+
     def check_remote_commands_available(self) -> List[str]:
         """Check that the cluster has the commands that recovery relies on.
 
@@ -1333,8 +1393,10 @@ class SlurmClient(Connection):
             missing.append(executable)
             logger.warning(
                 f"{executable} is not available on the Slurm cluster: the "
-                f"{purpose} is needed to repeat submissions, archives and "
-                "extractions safely after a lost SSH connection")
+                f"{purpose} is required, and tracked job submissions, input "
+                "extraction and result archive creation will fail until it "
+                "is installed or slurm_lock_cmd / BIOMERO_SLURM_LOCK_CMD "
+                "names an equivalent tool")
         return missing
 
     @staticmethod
@@ -2329,40 +2391,6 @@ class SlurmClient(Connection):
 
         return latest_progress
 
-    @staticmethod
-    def _validate_lock_template(lock_template: str) -> None:
-        """Check that a lock command template can be filled in.
-
-        Args:
-            lock_template (str): The template, for example
-                ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``.
-
-        Raises:
-            ValueError: If the template is empty, uses an unknown
-                placeholder, or lacks ``{lock_file}`` or ``{busy_exit_code}``.
-        """
-        if not lock_template or not lock_template.strip():
-            raise ValueError("slurm_lock_cmd must not be empty")
-        allowed = {"wait_seconds", "busy_exit_code", "lock_file"}
-        required = {"busy_exit_code", "lock_file"}
-        try:
-            used = {field for _, field, _, _ in
-                    string.Formatter().parse(lock_template) if field}
-        except ValueError as error:
-            raise ValueError(
-                f"slurm_lock_cmd {lock_template!r} is not a valid "
-                f"template: {error}") from error
-        if not used <= allowed or not required <= used:
-            raise ValueError(
-                f"slurm_lock_cmd {lock_template!r} must use {{lock_file}} "
-                "and {busy_exit_code} and may use {wait_seconds}; no other "
-                "placeholders are known")
-
-    @staticmethod
-    def _lock_executable(lock_template: str) -> str:
-        """Return the program a lock command template starts with."""
-        return shlex.split(lock_template)[0]
-
     def _set_connection_stage_timeouts(self) -> None:
         """Bound the connection stages so that a silent stall is detected.
 
@@ -3038,11 +3066,8 @@ class SlurmClient(Connection):
         """
         submission_failed = bool(task.job_ids) and all(
             int(job_id) <= 0 for job_id in task.job_ids)
-        job_ended_without_success = (
-            SlurmJob.is_terminal(task.status)
-            and task.status.split()[0].rstrip("+") != "COMPLETED")
         return (task.result_message is not None
-                or job_ended_without_success
+                or SlurmJob.ended_without_success(task.status)
                 or submission_failed)
 
     def _find_resumable_task(self, wf_id: Any, name: str,
@@ -3076,8 +3101,7 @@ class SlurmClient(Connection):
                 f"Several unfinished '{name}' tasks for {input_data} in "
                 f"workflow {wf_id} ({task_ids}); fail or complete all but "
                 "one, then resume")
-        resumable_task = unfinished_tasks[0]
-        return resumable_task
+        return unfinished_tasks[0]
 
     def _submission_task(self, wf_id: Any, name: str, version: str,
                          input_data: str, params: Dict) -> Optional[UUID]:
@@ -3171,8 +3195,7 @@ class SlurmClient(Connection):
                     f"(exit 127). The lock command is "
                     f"{self.slurm_lock_cmd!r} (setting slurm_lock_cmd, "
                     "BIOMERO_SLURM_LOCK_CMD); Slurm setup checks that it "
-                    f"exists. Output: {result.stderr.strip()}") from (
-                        UnexpectedExit(result))
+                    f"exists. Output: {result.stderr.strip()}") from None
             if not result.ok and result.exited not in accepted_exit_codes:
                 raise UnexpectedExit(result)
             return result

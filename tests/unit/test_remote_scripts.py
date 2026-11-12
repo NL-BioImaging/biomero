@@ -13,8 +13,8 @@ from invoke.exceptions import UnexpectedExit
 from biomero import remote_scripts, ssh_recovery
 from biomero.slurm_client import SlurmClient
 from biomero.constants import (
-    REMOTE_BUSY_EXIT_CODE, SUBMISSION_REJECTED_EXIT_CODE,
-    SUBMISSION_STATE_SUFFIXES)
+    REMOTE_BUSY_EXIT_CODE, SUBMISSION_REJECTED_EXIT_CODE)
+from biomero.remote_scripts import SUBMISSION_STATE_SUFFIXES
 from .remote_shell import POSIX_ONLY, make_remote, require_flock
 from .test_ssh_recovery import recovery_clock  # noqa: F401
 
@@ -419,6 +419,8 @@ def test_valid_lock_templates_are_accepted(template):
 @pytest.mark.parametrize('template', [
     '', '   ', 'flock {unknown}', 'flock {0}', 'flock {lock_file',
     'lock-only {lock_file}',
+    'flock {} {lock_file} {busy_exit_code}',
+    'flock {foo} {lock_file} {busy_exit_code}',
     'flock -E {busy_exit_code}',
     'lockf -t {wait_seconds} {lock_file}',
 ])
@@ -468,7 +470,7 @@ def test_an_unresolved_intent_tells_how_to_resolve_it(remote, recovery_clock):
     Path(str(prefix) + '.intent').write_text('2026-10-30T00:00:00')
     with pytest.raises(ssh_recovery.RemoteOperationStillPending) as pending:
         submit(remote, task_id)
-    message = str(pending.value.__cause__)
+    message = str(pending.value)
     assert str(prefix) + '.intent' in message
     assert '2026-10-30T00:00:00' in message
     assert 'sacct' in message and 'delete the receipt files' in message

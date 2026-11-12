@@ -922,26 +922,25 @@ the job ID is stored on the task, the receipt files are removed. A refusal by
 replaces it. A command that differs from the one recorded for a possibly
 submitted job is rejected.
 
-A task identifies its own submission: a run is continued only while its task is
-unfinished (not completed, failed, cancelled, timed out, and its submission did
-not fail). Running the same workflow on the same input again after a finished
-run creates a new task with its own job name and receipt files, and never adopts
-the old job.
-A task is continued after a crash while its job is running, or while its job
-COMPLETED but the outputs were not processed yet, so the analysis does not run a
-second time. A job that failed, was cancelled or timed out is not adopted: the
-next run of that workflow step gets a new task and job. A new workflow run
-always has new tasks.
+A task identifies its own submission, and a run is continued only while its
+task is unfinished. After a crash, BIOMERO continues the task while its job is
+running, and also while its job COMPLETED but the outputs were not processed
+yet, so the analysis does not run a second time. It never re-attaches to a job
+that failed, was cancelled or timed out, nor to a task that was completed or
+whose submission failed: the next run of that workflow step gets a new task with
+its own job name and receipt files. A new workflow run always has new tasks.
 
 If a submission never resolves, the error names the intent file
 (``<slurm_data_path>/.biomero-recovery/<task id>.intent``), the time the
-submission started, and says what to do: look in ``sacct`` and ``squeue`` for a
-job named ``biomero-<task id>``. If one exists, wait for accounting to show it (or
-write its ID into ``<task id>.job``). Only if no such job exists, delete the
-files ``<task id>.*`` in that directory to allow a fresh submission. If sbatch
-refused a job, the answer is replayed with a note; delete ``<task id>.failed``
-(and the other ``<task id>.*`` files) to submit that task again, or correct the
-command, which replaces the recorded refusal. Receipts do not expire by age.
+submission started, and what to check. Look in ``sacct`` and ``squeue`` for a
+job named ``biomero-<task id>`` (for the shallower helper:
+``biomero-shallower-<task id>`` or ``biomero-recovery-<task id>``). If one
+exists, wait for accounting to show it. Only if no such job exists, delete all
+receipt files with that prefix (``<task id>.*``, or ``shallow.*`` / ``recovery.*``
+in the helper's ``.biomero-shallower/<task id>`` directory) to allow a fresh
+submission. If sbatch refused a job, the answer is replayed with a note;
+deleting the same receipt files submits that task again, and a corrected command
+replaces the recorded refusal by itself. Receipts do not expire by age.
 
 Tracking must remain enabled for resumable submission; arbitrary ``run`` and
 ``run_commands`` calls are deliberately not retried. Untracked submissions are
@@ -950,8 +949,8 @@ attempted once because they lack a durable task identity.
 Result archive creation is serialized and published through a temporary path.
 Completed archives are reused on retry, unless a result file changed after the
 archive was made. An input archive that was already extracted is extracted
-again only when it was uploaded again after the extraction. Downloads and input archives are copied
-to partial paths, checked for completeness and published atomically. A retry
+again only when it was uploaded again after the extraction. Downloads and input
+archives are copied to partial paths, checked for completeness and published atomically. A retry
 restarts an interrupted copy from the beginning, rather than requiring rsync or
 SSHFS. Existing local final files remain available until replacement succeeds.
 Normal ZIP extraction still validates member CRCs before import.

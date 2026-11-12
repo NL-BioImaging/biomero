@@ -109,23 +109,13 @@ COMMAND_NOT_FOUND_EXIT_CODE = 127
 # Remote marker and receipt files, all next to the data they describe.
 SUBMISSION_STATE_DIRECTORY = ".biomero-recovery"
 SUBMISSION_JOB_NAME_PREFIX = "biomero-"
-# Receipt files of one submission: the shell variable that names each one in
-# the generated script, and its suffix. This is the only place they are listed.
-SUBMISSION_STATE_FILES = {
-    "digest_file": ".digest",
-    "intent_file": ".intent",
-    "job_file": ".job",
-    "job_tmp_file": ".job.tmp",
-    "failed_file": ".failed",
-    "stdout_file": ".stdout",
-    "stderr_file": ".stderr",
-}
-SUBMISSION_STATE_SUFFIXES = (".lock", *SUBMISSION_STATE_FILES.values())
 UNPACKED_MARKER_SUFFIX = ".biomero-unpacked"
 ARCHIVE_READY_SUFFIX = ".biomero-ready"
 ARCHIVE_PARTIAL_SUFFIX = ".biomero-partial"
 ARCHIVE_LOCK_SUFFIX = ".biomero-lock"
 SCRIPT_UPDATE_LOCK_SUFFIX = ".biomero-update.lock"
+# Seconds a caller waits for the lock on the canonical shallower manifest.
+MANIFEST_LOCK_WAIT_SECONDS = 30
 TRANSFER_PARTIAL_SUFFIX = ".biomero-partial"
 
 

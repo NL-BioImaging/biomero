@@ -18,10 +18,10 @@ from packaging.version import InvalidVersion, Version
 
 from .slurm_client import SlurmJob
 from . import remote_scripts
-from .constants import SUBMISSION_REJECTED_EXIT_CODE
+from .constants import (
+    MANIFEST_LOCK_WAIT_SECONDS, SUBMISSION_REJECTED_EXIT_CODE)
 
 TASK_NAME = "_SLURM_Remote_Shallower"
-MANIFEST_LOCK_WAIT_SECONDS = 30
 CAPABILITY_SCHEMA = 1
 REQUIRED_RUNTIME_CONTRACT = 1
 REQUIRED_MANIFEST_SCHEMA = 2

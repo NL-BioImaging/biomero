@@ -1,6 +1,7 @@
 """Transport recovery must never replay arbitrary remote side effects."""
 import errno
 import inspect
+import logging
 import socket
 from threading import Event
 from types import SimpleNamespace
@@ -636,21 +637,12 @@ def test_exit_127_names_the_lock_command_setting(slurm_client):
 
 def test_an_inner_window_never_outlasts_the_outer_outage(recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=100, close=Mock())
-    inner_failures = []
-
-    def outer():
-        recovery_clock.now += 0  # the outer outage starts at its failure
-
-        def inner():
-            inner_failures.append(recovery_clock.now)
-            raise EOFError()
-        ssh_recovery.retry(client, inner, 'inner')
-
     with ssh_recovery.scope(client) as state:
+        # The outer call is 10 seconds into an outage window.
         state.windows.append(ssh_recovery.OutageWindow(
             100, outage_deadline=10))
         with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
-            outer()
+            ssh_recovery.retry(client, Mock(side_effect=EOFError()), 'inner')
     assert recovery_clock.now == 10
 
 
@@ -682,3 +674,58 @@ def test_window_zero_sets_no_native_timeouts_and_no_keepalive(monkeypatch):
                         property(lambda self: transport), raising=False)
     off.open()
     transport.set_keepalive.assert_not_called()
+
+
+def test_the_final_pending_error_carries_the_manual_step(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=5, close=Mock())
+    pending = ssh_recovery.RecoveryPending(
+        'submit biomero-x never resolved. intent file /d/x.intent; delete '
+        'the receipt files only if no such job exists')
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending) as caught:
+        ssh_recovery.retry(client, Mock(side_effect=pending), 'submit')
+    assert '/d/x.intent' in str(caught.value)
+    assert 'ask again later' not in str(caught.value)
+
+
+@pytest.mark.parametrize('state,name,terminal,unsuccessful', [
+    (None, '', False, False),
+    ('', '', False, False),
+    ('RUNNING', 'RUNNING', False, False),
+    ('COMPLETED', 'COMPLETED', True, False),
+    ('COMPLETED+', 'COMPLETED', True, False),
+    ('FAILED', 'FAILED', True, True),
+    ('CANCELLED+', 'CANCELLED', True, True),
+    ('CANCELLED by 1000', 'CANCELLED', True, True),
+    ('TIMEOUT', 'TIMEOUT', True, True),
+])
+def test_slurm_state_helpers_parse_sacct_suffixes(state, name, terminal,
+                                                  unsuccessful):
+    from biomero.slurm_client import SlurmJob
+    assert SlurmJob.state_name(state) == name
+    assert SlurmJob.is_terminal(state) is terminal
+    assert SlurmJob.ended_without_success(state) is unsuccessful
+
+
+def test_run_commands_logs_the_command_at_the_requested_level(
+        slurm_client, caplog):
+    slurm_client.run = Mock(return_value=Result(
+        connection=None, exited=0, stdout=''))
+    with caplog.at_level(logging.DEBUG, logger='biomero.slurm_client'):
+        slurm_client.run_commands(['echo quiet'], log_level=logging.DEBUG)
+        slurm_client.run_commands(['echo loud'])
+    levels = {record.getMessage().split(': ')[-1]: record.levelno
+              for record in caplog.records
+              if 'Running commands' in record.getMessage()}
+    assert levels['echo quiet'] == logging.DEBUG
+    assert levels['echo loud'] == logging.INFO
+    slurm_client.run.assert_called_with('echo loud', env={})
+
+
+def test_a_finished_task_with_a_plus_suffixed_state_is_not_resumed(
+        slurm_client):
+    from biomero.slurm_client import SlurmClient
+    task = SimpleNamespace(job_ids=[42], status='CANCELLED+',
+                           result_message=None)
+    assert SlurmClient._task_is_finished(task)
+    task.status = 'COMPLETED+'
+    assert not SlurmClient._task_is_finished(task)

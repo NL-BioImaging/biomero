@@ -357,3 +357,47 @@ def test_workflow_is_finished_once_it_completed_or_failed(tracker):
     tracker.fail_workflow(failed, "broke")
     assert [tracker.is_workflow_finished(w) for w in (running, completed, failed)] == [
         False, True, True]
+
+
+def final_events(tracker, workflow_id):
+    return [e.topic.rsplit(".", 1)[-1]
+            for e in tracker.recorder.select_events(workflow_id)
+            if e.topic.rsplit(".", 1)[-1] in ("WorkflowCompleted",
+                                              "WorkflowFailed")]
+
+
+@pytest.mark.parametrize("first, second", [
+    ("complete", "complete"), ("complete", "fail"), ("fail", "complete"),
+    ("fail", "fail")])
+def test_a_final_workflow_refuses_a_second_final_state(tracker, first, second,
+                                                       caplog):
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+
+    def end(kind):
+        if kind == "complete":
+            tracker.complete_workflow(workflow_id)
+        else:
+            tracker.fail_workflow(workflow_id, "broke")
+    end(first)
+    with caplog.at_level(logging.WARNING, logger="biomero.eventsourcing"):
+        end(second)
+
+    assert len(final_events(tracker, workflow_id)) == 1
+    assert tracker.is_workflow_finished(workflow_id)
+    assert any(r.levelno == logging.WARNING and "already final" in r.getMessage()
+               for r in caplog.records)
+
+
+def test_streams_with_two_final_events_still_replay(tracker):
+    """Old streams may hold a failure after a completion; they must load."""
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    workflow = tracker.repository.get(workflow_id)
+    workflow._complete()  # what an old, unguarded writer recorded
+    workflow._fail("late failure")
+    tracker.save(workflow)
+    assert len(final_events(tracker, workflow_id)) == 2
+
+    replayed = WorkflowTracker().repository.get(workflow_id)
+
+    assert replayed.finished
+    assert WorkflowTracker().is_workflow_finished(workflow_id)

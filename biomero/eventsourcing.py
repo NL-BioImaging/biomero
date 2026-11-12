@@ -115,6 +115,7 @@ class WorkflowRun(Aggregate):
         self.canonical_inputs_export_task_id = None
         self.cancel_requested = False
         self.cancel_reason = None
+        self.finished = False
         # logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")
 
     class TaskAdded(Aggregate.Event):
@@ -162,10 +163,30 @@ class WorkflowRun(Aggregate):
         """
         pass
 
+    def complete_workflow(self) -> bool:
+        """Complete the workflow, unless it already reached a final state.
+
+        The refusal is not part of the events, so streams that already contain
+        two final events still replay; only new transitions are refused.
+
+        Returns:
+            bool: False when the workflow was already final and nothing
+                was recorded.
+        """
+        if self._refuse_second_final_state("complete"):
+            return False
+        self._complete()
+        return True
+
     @event(WorkflowCompleted)
-    def complete_workflow(self):
-        # logger.debug(f"Completing workflow: id={self.id}")
-        pass
+    def _complete(self):
+        self.finished = True
+
+    def _refuse_second_final_state(self, wanted: str) -> bool:
+        if self.finished:
+            logger.warning(f"[WFT] Workflow {self.id} is already final; "
+                           f"refusing to {wanted} it again")
+        return self.finished
 
     class CancelRequested(Aggregate.Event):
         """
@@ -190,10 +211,21 @@ class WorkflowRun(Aggregate):
         """
         error_message: str
 
+    def fail_workflow(self, error_message: str) -> bool:
+        """Fail the workflow, unless it already reached a final state.
+
+        Returns:
+            bool: False when the workflow was already final and nothing
+                was recorded.
+        """
+        if self._refuse_second_final_state("fail"):
+            return False
+        self._fail(error_message)
+        return True
+
     @event(WorkflowFailed)
-    def fail_workflow(self, error_message: str):
-        # logger.debug(f"Failing workflow: id={self.id}, error_message={error_message}")
-        pass
+    def _fail(self, error_message: str):
+        self.finished = True
 
 
 class Task(Aggregate):
@@ -969,11 +1001,10 @@ class WorkflowTracker(Application):
             workflow_id (UUID): The workflow to check.
 
         Returns:
-            bool: True once a WorkflowCompleted or WorkflowFailed event exists.
+            bool: True once the workflow reached a final state.
         """
-        final_events = (WorkflowRun.WorkflowCompleted, WorkflowRun.WorkflowFailed)
-        return any(isinstance(domain_event, final_events)
-                   for domain_event in self.events.get(workflow_id))
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        return workflow.finished
 
     def raise_if_cancel_requested(self, workflow_id: UUID) -> None:
         """

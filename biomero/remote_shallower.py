@@ -14,11 +14,12 @@ import re
 import shlex
 from uuid import UUID, uuid4
 
-from invoke.exceptions import UnexpectedExit
 from packaging.version import InvalidVersion, Version
 
 from .slurm_client import SlurmJob
-from . import ssh_recovery
+from . import remote_scripts
+from .constants import (
+    MANIFEST_LOCK_WAIT_SECONDS, SUBMISSION_REJECTED_EXIT_CODE)
 
 TASK_NAME = "_SLURM_Remote_Shallower"
 CAPABILITY_SCHEMA = 1
@@ -280,7 +281,9 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
     try:
         client.put(io.StringIO(json.dumps(payload)), temporary)
         published = client.run_commands([
-            f'flock -w 30 {quote(manifest + ".lock")} sh -c {quote(script)}'],
+            remote_scripts.locked_script(
+                client.slurm_lock_cmd, manifest + '.lock', script,
+                wait_seconds=MANIFEST_LOCK_WAIT_SECONDS)],
             log_stdout=False)
         if not published.ok:
             raise RuntimeError('Cannot publish canonical manifest; output preserved')
@@ -311,47 +314,26 @@ def completed_receipts(client, workflow_id, canonical):
 
 
 def _submit_once(client, command, state, *, job_name):
-    """Submit or adopt a job under a remote filesystem lock.
+    """Submit or adopt a job once, through ``SlurmClient.submit_job_once``.
 
     ``state`` is the remote filename prefix for the lock, submission intent
-    and recorded job ID. Return the job ID, or None for a rejected submission.
-    ``job_name`` is the operation-specific identity used for reconciliation,
-    not a value inferred by parsing shell commands. Ambiguous submission state
-    raises instead of risking a duplicate job.
+    and recorded job ID; ``job_name`` is the operation-specific identity used
+    to find a lost submission again. A rejected submission is forgotten, so
+    that the caller falls back to full results. Return the job ID, or None
+    for a rejected submission. Ambiguous submission state raises instead of
+    risking a duplicate job.
     """
-    # Reuse the same reconciliation and receipt publication as analysis jobs.
-    # Keep the helper's existing rejected-submission fallback to full results.
-    quote = shlex.quote
-    recovering = ssh_recovery.enabled(client)
-    find_job = ssh_recovery.reconcile_submission(state, job_name)
-    publish = ssh_recovery.publish_job_id(state)
-    script = (
-        f'if test -s {quote(state + ".job")}; then cat {quote(state + ".job")}; '
-        f'elif test -e {quote(state + ".intent")}; then '
-        f'job=$({find_job}) || exit 1; {publish}printf "%s\\n" "$job"; '
-        f'else date +%Y-%m-%dT%H:%M:%S > {quote(state + ".intent")}; '
-        f'job=$({command}) || {{ rm -f {quote(state + ".intent")}; '
-        'printf "NOT_SUBMITTED\\n"; exit 0; }; '
-        'job=${job%%;*}; '
-        f'{publish}'
-        'printf "%s\\n" "$job"; fi'
-    )
-    result = client.run_commands([
-        ssh_recovery.locked_command(
-            state + '.lock', script, wait=5 if recovering else 30)],
-        **({'warn': True} if recovering else {}))
-    if recovering and result.exited in (-1, 200):
-        if result.exited == -1:
-            raise UnexpectedExit(result)
-        raise ssh_recovery.RecoveryPending(
-            'Waiting for the existing shallower submission')
-    if result.ok and result.stdout.strip() == 'NOT_SUBMITTED':
+    result = client.submit_job_once(
+        command, state, job_name=job_name, raise_on_rejection=False,
+        verify_command_unchanged=False)
+    if result.exited == SUBMISSION_REJECTED_EXIT_CODE:
         return None
-    if not result.ok or not result.stdout.strip().isdigit():
+    job_id = client.extract_job_id(result)
+    if job_id < 0:
         raise RuntimeError(
             'Shallower submission is unresolved; preserve results and resume '
             'after reconciliation')
-    return int(result.stdout.strip())
+    return job_id
 
 
 def _wait(client, job_id, heartbeat=None):

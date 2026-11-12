@@ -1,33 +1,84 @@
-"""Bounded transport recovery for explicitly replayable HPC operations.
+# -*- coding: utf-8 -*-
+# Copyright 2026 Torec Luik
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Bounded recovery from interrupted SSH connections.
 
-An arbitrary command, especially sbatch, must never be retried on the strength
-of an SSH exception alone. Callers own replay safety and durable job identity.
+An SSH connection to the cluster can drop while a Slurm job keeps running.
+This module retries an operation that is safe to repeat, within a time window
+(``ssh_recovery_timeout``), and stops with a clear error when the window ends.
+A window of 0 means no retries: the same code runs once and raises the
+original error.
+
+Only transport loss is retried: never authentication, never a command that
+failed on the cluster, and never an arbitrary command. The caller decides
+which operations are safe to repeat and wraps them in ``retry``. The Slurm
+side (never submitting twice) lives in ``SlurmClient`` and ``remote_scripts``.
 """
 import errno
-from contextlib import contextmanager
-from dataclasses import dataclass, field
-from functools import wraps
-import hashlib
 import io
-import json
 import logging
 import os
-import posixpath
-import shlex
+import random
 import socket
 import stat
 import tempfile
 import time
-from uuid import uuid4
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from functools import wraps
+from typing import Any, Callable, Iterator, List, Optional, Union
 
+from fabric import Connection
+from fabric.transfer import Result as TransferResult
 from invoke.exceptions import CommandTimedOut, UnexpectedExit
 from invoke.runners import Result
 from paramiko import AuthenticationException, BadHostKeyException, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
 
+from biomero.constants import (
+    DEFAULT_SSH_RECOVERY_TIMEOUT, SSH_DETECTION_LIMIT_SECONDS,
+    SSH_HEARTBEAT_INTERVAL_SECONDS, SSH_RETRY_INITIAL_DELAY_SECONDS,
+    SSH_RETRY_JITTER_FRACTION, SSH_RETRY_MAX_DELAY_SECONDS,
+    TRANSFER_PARTIAL_SUFFIX)
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_SSH_RECOVERY_TIMEOUT = 900
+# Recovery state of a client lives in its __dict__: Fabric redirects attribute
+# assignment into its configuration proxy, and this state is not configuration.
+# One client is assumed to be driven by one thread at a time.
+STATE_KEY = "_ssh_recovery_state"
+NATIVE_CHANNELS_KEY = "_ssh_native_channels"
+# The shortest native timeout we hand out when a window is nearly used up.
+MINIMUM_TIMEOUT_SECONDS = 0.001
+
+# Errors that mean the connection was lost. On Windows the same names carry
+# the WSA codes (for example ``errno.ECONNRESET`` is 10054), so there is no
+# separate list per platform.
+TRANSIENT_ERRNOS = frozenset({
+    errno.ECONNRESET, errno.ECONNREFUSED, errno.ECONNABORTED, errno.EPIPE,
+    errno.ETIMEDOUT, errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ENETDOWN,
+})
+# Paramiko reports some lost connections only through its message text. They
+# are matched only on the exact exception class, so that a reworded or an
+# unrelated error is never mistaken for a lost connection.
+PARAMIKO_SOCKET_CLOSED_MESSAGE = "Socket is closed"
+PARAMIKO_CHANNEL_TIMEOUT_MESSAGE = "Timeout opening channel."
+TRANSIENT_SSH_MESSAGES = (
+    "ssh session not active", "no existing session",
+    "error reading ssh protocol banner", "socket is closed",
+    "server connection dropped", "connection reset",
+)
 
 
 class SSHRecoveryTimeout(ConnectionError):
@@ -38,165 +89,429 @@ class SSHRecoveryCancelled(InterruptedError):
     """The caller cancelled while waiting for connectivity."""
 
 
-class RecoveryPending(ConnectionError):
-    """A durable operation is still locked or awaiting job reconciliation."""
+class RecoveryPending(Exception):
+    """A durable remote operation is still locked or not yet visible.
+
+    The connection works; the operation may still be running remotely. It is
+    asked again after a pause, and never resubmitted.
+    """
 
 
-def is_transient(error):
-    """Recognize transport loss, excluding credentials and remote failures."""
-    if isinstance(error, (AuthenticationException, BadHostKeyException)):
-        return False
-    if isinstance(error, UnexpectedExit):
-        return _missing_exit_status(error.result)
-    if isinstance(error, NoValidConnectionsError):
-        return bool(error.errors) and all(
-            is_transient(e) for e in error.errors.values())
-    if isinstance(error, (EOFError, ConnectionError, TimeoutError)):
-        return not isinstance(
-            error, (SSHRecoveryTimeout, SSHRecoveryCancelled))
-    if isinstance(error, socket.gaierror):
-        return error.errno == socket.EAI_AGAIN
-    if isinstance(error, OSError):
-        # Paramiko Channel._send reports a closed SFTP channel as socket.error
-        # (OSError) without errno. Do not broaden this to filesystem errors or
-        # messages which merely contain the same words.
-        if (type(error) is OSError and error.errno is None and
-                str(error) == 'Socket is closed'):
-            return True
-        return error.errno in {
-            errno.ECONNRESET, errno.ECONNREFUSED, errno.ECONNABORTED,
-            errno.EPIPE, errno.ETIMEDOUT, errno.ENETUNREACH,
-            errno.EHOSTUNREACH,
-            errno.ENETDOWN, 10050, 10051, 10053, 10054, 10060, 10061, 10065,
-        }
-    if isinstance(error, SSHException):
-        if type(error) is SSHException and str(error) == 'Timeout opening channel.':
-            return True
-        message = str(error).lower()
-        return any(text in message for text in (
-            'ssh session not active', 'no existing session',
-            'error reading ssh protocol banner', 'socket is closed',
-            'server connection dropped', 'connection reset',
-        ))
-    # Invoke may deliver a Paramiko error from its output-reading thread.
-    exceptions = getattr(error, 'exceptions', ())
-    return bool(exceptions) and all(
-        is_transient(item.value) for item in exceptions)
+class RemoteOperationStillPending(RuntimeError):
+    """A remote operation was still running when its waiting time ended.
+
+    The SSH connection is healthy and nothing was repeated: the operation
+    continues on the cluster and can be asked again later.
+    """
 
 
-def enabled(client):
-    value = getattr(client, 'ssh_recovery_timeout', 0)
-    return isinstance(value, (int, float)) and value > 0
+class IncompleteTransfer(ConnectionError):
+    """A file transfer ended with a different size than its source."""
 
 
-def _missing_exit_status(result):
-    # Fabric uses -1 when the SSH channel closes without a remote exit status.
-    # This is interpreted only inside an explicitly replay-safe boundary.
+class ReadOnlyCommandTimeout(TimeoutError):
+    """A short read-only command did not answer within its bound."""
+
+
+# --- Which errors are a lost connection --------------------------------------
+
+def _missing_exit_status(result: Any) -> bool:
+    """Tell whether a command ended without a remote exit status.
+
+    Fabric uses -1 when the SSH channel closes before the command reports one.
+    This is only interpreted inside an explicitly repeatable operation.
+    """
     return isinstance(result, Result) and result.exited == -1
 
 
-def io_timeout(client, configured=None):
-    """Native detection limit; an existing outage gets only its remaining time.
+def _transient_os_error_reason(error: OSError) -> Optional[str]:
+    """Classify a plain OS error: a lost connection, or a local problem."""
+    # Paramiko reports a closed SFTP channel as a bare OSError without errno.
+    # Do not widen this to filesystem errors or to messages that merely
+    # contain the same words.
+    if (type(error) is OSError and error.errno is None
+            and str(error) == PARAMIKO_SOCKET_CLOSED_MESSAGE):
+        return "SFTP channel closed"
+    if error.errno in TRANSIENT_ERRNOS:
+        return f"network error {errno.errorcode.get(error.errno, error.errno)}"
+    return None
 
-    This is not a timeout for healthy long commands. It is used for connection
-    stages, SFTP reads and explicitly declared short read-only commands.
+
+def _transient_ssh_error_reason(error: SSHException) -> Optional[str]:
+    """Classify a Paramiko error by its exact class and wording."""
+    if (type(error) is SSHException
+            and str(error) == PARAMIKO_CHANNEL_TIMEOUT_MESSAGE):
+        return "channel open timed out"
+    message = str(error).lower()
+    for text in TRANSIENT_SSH_MESSAGES:
+        if text in message:
+            return f"SSH message {text!r}"
+    return None
+
+
+def transient_reason(error: BaseException) -> Optional[str]:
+    """Explain why an error counts as a lost connection, if it does.
+
+    Credentials, host keys and remote command failures never count.
+
+    Args:
+        error (BaseException): The error raised by an SSH operation.
+
+    Returns:
+        Optional[str]: A short reason when the error is transport loss, else
+            None.
     """
-    seconds = min(30., client.ssh_recovery_timeout)
-    state = client.__dict__.get('_ssh_recovery_state')
-    if state is not None and state.deadline is not None:
-        seconds = min(seconds, max(.001, state.deadline - time.monotonic()))
+    if isinstance(error, (AuthenticationException, BadHostKeyException,
+                          SSHRecoveryTimeout, SSHRecoveryCancelled)):
+        return None
+    if isinstance(error, UnexpectedExit):
+        return ("channel closed without exit status"
+                if _missing_exit_status(error.result) else None)
+    if isinstance(error, NoValidConnectionsError):
+        all_transient = bool(error.errors) and all(
+            transient_reason(cause) for cause in error.errors.values())
+        return "no connection could be opened" if all_transient else None
+    if isinstance(error, (EOFError, ConnectionError, TimeoutError)):
+        return type(error).__name__
+    if isinstance(error, socket.gaierror):
+        return ("temporary name resolution failure"
+                if error.errno == socket.EAI_AGAIN else None)
+    if isinstance(error, OSError):
+        return _transient_os_error_reason(error)
+    if isinstance(error, SSHException):
+        return _transient_ssh_error_reason(error)
+    # Invoke may deliver a Paramiko error from its output-reading thread.
+    wrapped = getattr(error, "exceptions", ())
+    if wrapped and all(transient_reason(item.value) for item in wrapped):
+        return "transport error in the output reader"
+    return None
+
+
+def is_transient(error: BaseException) -> bool:
+    """Tell whether an error is transport loss (see ``transient_reason``).
+
+    Args:
+        error (BaseException): The error raised by an SSH operation.
+
+    Returns:
+        bool: True if retrying may help.
+    """
+    return transient_reason(error) is not None
+
+
+# --- Time windows and shared state -------------------------------------------
+
+@dataclass
+class OutageWindow:
+    """The time budget of one ``retry`` call.
+
+    A deadline starts at the first failure of its kind and is never moved by
+    anything else, so that repeated failures cannot extend a call forever.
+    A new ``retry`` call (the next poll, the next transfer) gets a new window.
+
+    Attributes:
+        timeout (float): Seconds a kind of failure may last.
+        outage_deadline (Optional[float]): End of the SSH outage window.
+        pending_deadline (Optional[float]): End of the window in which a
+            healthy remote operation is awaited.
+        delay (float): The next pause between attempts, in seconds.
+    """
+    timeout: float
+    outage_deadline: Optional[float] = None
+    pending_deadline: Optional[float] = None
+    delay: float = SSH_RETRY_INITIAL_DELAY_SECONDS
+
+    def start_if_new(self, error: BaseException, now: float) -> None:
+        """Open the window of this kind of failure at its first occurrence."""
+        if isinstance(error, RecoveryPending):
+            if self.pending_deadline is None:
+                self.pending_deadline = now + self.timeout
+        elif self.outage_deadline is None:
+            self.outage_deadline = now + self.timeout
+
+    def seconds_left(self, error: BaseException, now: float) -> float:
+        """Seconds left in the window of this kind of failure."""
+        deadline = (self.pending_deadline if isinstance(error, RecoveryPending)
+                    else self.outage_deadline)
+        return deadline - now
+
+    def next_pause(self, seconds_left: float) -> float:
+        """Return the pause before the next attempt and grow the delay."""
+        jitter = random.uniform(0, SSH_RETRY_JITTER_FRACTION) * self.delay
+        pause = min(self.delay + jitter, seconds_left)
+        self.delay = min(self.delay * 2, SSH_RETRY_MAX_DELAY_SECONDS)
+        return pause
+
+
+@dataclass
+class RecoveryState:
+    """What nested operations of one client share while recovering.
+
+    Attributes:
+        timeout (float): The recovery window in seconds; 0 means no retries.
+        windows (List[OutageWindow]): The windows of the active ``retry``
+            calls, outermost first.
+        heartbeats (List[Callable[[], None]]): Caller callbacks that run
+            during waits (for example an OMERO session keepalive).
+        heartbeat_error (Optional[Exception]): An error raised by a callback;
+            it is the caller's, so it is never retried.
+    """
+    timeout: float
+    windows: List[OutageWindow] = field(default_factory=list)
+    heartbeats: List[Callable[[], None]] = field(default_factory=list)
+    heartbeat_error: Optional[Exception] = None
+
+    def seconds_left_in_outage(self) -> Optional[float]:
+        """Seconds left in the tightest active outage window, if any."""
+        deadlines = [window.outage_deadline for window in self.windows
+                     if window.outage_deadline is not None]
+        return min(deadlines) - time.monotonic() if deadlines else None
+
+    def pulse(self) -> None:
+        """Run the caller callbacks once each.
+
+        Raises:
+            Exception: Whatever a callback raised; it is remembered so that
+                it is not mistaken for an SSH error.
+        """
+        for callback in {id(item): item for item in self.heartbeats}.values():
+            try:
+                callback()
+            except Exception as error:
+                self.heartbeat_error = error
+                raise
+
+    def wait(self, seconds: float, cancel: Optional[Any],
+             description: str) -> None:
+        """Sleep, staying responsive to cancellation and heartbeats."""
+        remaining = seconds
+        while remaining > 0:
+            self.raise_if_cancelled(cancel, description)
+            interval = (min(remaining, SSH_HEARTBEAT_INTERVAL_SECONDS)
+                        if self.heartbeats else remaining)
+            if cancel is None:
+                time.sleep(interval)
+            else:
+                cancel.wait(interval)
+            remaining -= interval
+            self.raise_if_cancelled(cancel, description)
+            self.pulse()
+
+    @staticmethod
+    def raise_if_cancelled(cancel: Optional[Any], description: str) -> None:
+        """Raise ``SSHRecoveryCancelled`` when the caller's event is set."""
+        if cancel is not None and cancel.is_set():
+            raise SSHRecoveryCancelled(
+                f"Cancelled while waiting for SSH: {description}")
+
+
+def _state(client: Any) -> Optional[RecoveryState]:
+    """Return the active recovery state of a client, if inside a scope."""
+    return client.__dict__.get(STATE_KEY)
+
+
+@contextmanager
+def scope(client: Any, heartbeat: Optional[Callable[[], None]] = None
+          ) -> Iterator[RecoveryState]:
+    """Share recovery state and caller callbacks with nested operations.
+
+    The outermost scope creates the state from the client's
+    ``ssh_recovery_timeout``; nested scopes join it.
+
+    Args:
+        client (Any): The ``SlurmClient``.
+        heartbeat (Optional[Callable[[], None]]): A caller callback that runs
+            during waits, such as a session keepalive.
+
+    Yields:
+        RecoveryState: The shared state.
+
+    Raises:
+        TypeError: If ``heartbeat`` is not callable.
+    """
+    if heartbeat is not None and not callable(heartbeat):
+        raise TypeError("heartbeat must be callable")
+    state = _state(client)
+    owner = state is None
+    if owner:
+        state = RecoveryState(getattr(client, "ssh_recovery_timeout", 0))
+        client.__dict__[STATE_KEY] = state
+    if heartbeat is not None:
+        state.heartbeats.append(heartbeat)
+    try:
+        yield state
+    finally:
+        if heartbeat is not None:
+            state.heartbeats.remove(heartbeat)
+        if owner:
+            client.__dict__.pop(STATE_KEY, None)
+
+
+# --- Native timeouts ---------------------------------------------------------
+
+def io_timeout(client: Any, configured: Optional[float] = None) -> float:
+    """Return the native limit for connection stages and short reads.
+
+    This is a detection limit, not a limit on healthy long commands. It is
+    never longer than the recovery window, and during an outage never longer
+    than what is left of it.
+
+    Args:
+        client (Any): The ``SlurmClient``, inside a ``scope``.
+        configured (Optional[float]): A stricter limit set by the caller,
+            which stays in force.
+
+    Returns:
+        float: The limit in seconds.
+    """
+    state = _state(client)
+    seconds = min(float(SSH_DETECTION_LIMIT_SECONDS), state.timeout)
+    seconds_left = state.seconds_left_in_outage()
+    if seconds_left is not None:
+        seconds = min(seconds, max(MINIMUM_TIMEOUT_SECONDS, seconds_left))
     if isinstance(configured, (int, float)) and configured > 0:
         seconds = min(seconds, configured)
     return seconds
 
 
-@contextmanager
-def native_timeouts(client):
-    """Temporarily configure supported Fabric/Paramiko timeout settings.
+def bounded_read_timeout(client: Any, requested: Optional[float]
+                         ) -> Optional[float]:
+    """Return the timeout for a short read-only command.
 
-    No execution threads or replay policy live here. Paramiko acknowledgement
-    waits and OS name resolution are not bounded by these settings.
+    Args:
+        client (Any): The ``SlurmClient``, inside a ``scope``.
+        requested (Optional[float]): A longer timeout the caller asked for
+            because the read is legitimately slow.
+
+    Returns:
+        Optional[float]: The requested timeout (capped by what is left of an
+            outage), or the detection limit when none was requested. The
+            request is returned unchanged when recovery is off.
     """
-    kwargs = getattr(client, 'connect_kwargs', None)
-    if kwargs is None:
+    state = _state(client)
+    if state is None or state.timeout <= 0:
+        return requested
+    if not (isinstance(requested, (int, float)) and requested > 0):
+        return io_timeout(client)
+    seconds_left = state.seconds_left_in_outage()
+    if seconds_left is None:
+        return requested
+    return min(requested, max(MINIMUM_TIMEOUT_SECONDS, seconds_left))
+
+
+class _RestorableSettings:
+    """Set values temporarily and put the original values back afterwards."""
+
+    _MISSING = object()
+
+    def __init__(self) -> None:
+        self._restorers: List[Callable[[], None]] = []
+
+    def set_item(self, mapping: dict, key: str, value: Any) -> None:
+        """Set ``mapping[key]``; restore (or remove) it on ``restore``."""
+        original = mapping.get(key, self._MISSING)
+
+        def restore() -> None:
+            if original is self._MISSING:
+                mapping.pop(key, None)
+            else:
+                mapping[key] = original
+        self._restorers.append(restore)
+        mapping[key] = value
+
+    def set_attribute(self, target: Any, name: str, value: Any) -> None:
+        """Set ``target.name``; restore it on ``restore``."""
+        original = getattr(target, name)
+        self._restorers.append(lambda: setattr(target, name, original))
+        setattr(target, name, value)
+
+    def restore(self) -> None:
+        """Put every original value back, last change first."""
+        while self._restorers:
+            self._restorers.pop()()
+
+
+@contextmanager
+def native_timeouts(client: Any) -> Iterator[None]:
+    """Bound connection stages with the supported Fabric/Paramiko settings.
+
+    Within an attempt the banner, authentication, connect and channel-open
+    timeouts are limited by ``io_timeout``; the previous values are restored
+    afterwards, also on a reconnected transport. Nothing happens when
+    recovery is off. Paramiko's exec/subsystem acknowledgement waits and name
+    resolution are not covered by these settings.
+
+    Args:
+        client (Any): The ``SlurmClient``, inside a ``scope``.
+
+    Yields:
+        None: Control, while the temporary limits are in force.
+    """
+    state = _state(client)
+    connect_kwargs = getattr(client, "connect_kwargs", None)
+    if state is None or state.timeout <= 0 or connect_kwargs is None:
         yield
         return
-    missing = object()
-    keys = ('banner_timeout', 'auth_timeout')
-    saved = {key: kwargs.get(key, missing) for key in keys}
-    connect_timeout = client.connect_timeout
-    saved_timeout = kwargs.get('timeout', missing)
-    previous = client.__dict__.get('_ssh_native_channels')
-    channels = []
-    client.__dict__['_ssh_native_channels'] = channels
+    settings = _RestorableSettings()
+    previous_channels = client.__dict__.get(NATIVE_CHANNELS_KEY)
+    client.__dict__[NATIVE_CHANNELS_KEY] = []
     try:
-        for key in keys:
-            kwargs[key] = io_timeout(client, saved[key])
-        if saved_timeout is not missing:
-            kwargs['timeout'] = io_timeout(client, saved_timeout)
-            client.connect_timeout = None
+        for key in ("banner_timeout", "auth_timeout"):
+            settings.set_item(
+                connect_kwargs, key,
+                io_timeout(client, connect_kwargs.get(key)))
+        if "timeout" in connect_kwargs:
+            settings.set_item(
+                connect_kwargs, "timeout",
+                io_timeout(client, connect_kwargs["timeout"]))
+            settings.set_attribute(client, "connect_timeout", None)
         else:
-            client.connect_timeout = io_timeout(client, connect_timeout)
+            settings.set_attribute(
+                client, "connect_timeout",
+                io_timeout(client, client.connect_timeout))
         limit_channel_open(client)
         yield
     finally:
-        client.connect_timeout = connect_timeout
-        for key, value in saved.items():
-            if value is missing:
-                kwargs.pop(key, None)
-            else:
-                kwargs[key] = value
-        if saved_timeout is not missing:
-            kwargs['timeout'] = saved_timeout
-        for transport, timeout in channels:
-            transport.channel_timeout = timeout
-        if previous is None:
-            client.__dict__.pop('_ssh_native_channels', None)
+        settings.restore()
+        for transport, channel_timeout in client.__dict__[NATIVE_CHANNELS_KEY]:
+            transport.channel_timeout = channel_timeout
+        if previous_channels is None:
+            client.__dict__.pop(NATIVE_CHANNELS_KEY, None)
         else:
-            client.__dict__['_ssh_native_channels'] = previous
+            client.__dict__[NATIVE_CHANNELS_KEY] = previous_channels
 
 
-def limit_channel_open(client):
-    """Capture each actual transport's setting before temporarily limiting it."""
-    channels = client.__dict__.get('_ssh_native_channels')
+def limit_channel_open(client: Any) -> None:
+    """Limit channel opening on the current transport, within native_timeouts.
+
+    Remembers the transport's own setting so that ``native_timeouts`` can put
+    it back. Does nothing outside ``native_timeouts``.
+
+    Args:
+        client (Any): The ``SlurmClient``.
+    """
+    channels = client.__dict__.get(NATIVE_CHANNELS_KEY)
     transport = client.transport
-    if channels is not None and transport is not None:
-        if not any(item is transport for item, _ in channels):
-            channels.append((transport, transport.channel_timeout))
-        transport.channel_timeout = io_timeout(client, transport.channel_timeout)
-
-
-def read_only(function):
-    """Declare a short remote read safe to repeat, preserving its public API."""
-    @wraps(function)
-    def wrapped(client, *args, **kwargs):
-        def attempt():
-            options = dict(kwargs)
-            if enabled(client):
-                requested = options.get('timeout')
-                seconds = (requested if isinstance(requested, (int, float))
-                           and requested > 0 else io_timeout(client))
-                state = client.__dict__.get('_ssh_recovery_state')
-                if state is not None and state.deadline is not None:
-                    seconds = min(seconds, max(.001, state.deadline - time.monotonic()))
-                options['timeout'] = seconds
-            try:
-                return function(client, *args, **options)
-            except CommandTimedOut as error:
-                if not enabled(client):
-                    raise
-                # Observation is unavailable; the Slurm job has not failed.
-                # Do not classify arbitrary command timeouts globally.
-                raise TimeoutError('Read-only SSH command timed out') from error
-        return retry(client, attempt, function.__name__)
-    return wrapped
+    if channels is None or transport is None:
+        return
+    if not any(known is transport for known, _ in channels):
+        channels.append((transport, transport.channel_timeout))
+    transport.channel_timeout = io_timeout(client, transport.channel_timeout)
 
 
 @contextmanager
-def sftp_timeout(client):
-    """Bound individual transfer reads without timing the complete transfer."""
+def sftp_timeout(client: Any) -> Iterator[Any]:
+    """Bound each SFTP read, not the whole transfer.
+
+    Args:
+        client (Any): The ``SlurmClient``, inside a ``scope``.
+
+    Yields:
+        paramiko.SFTPClient: The SFTP client.
+    """
     sftp = client.sftp()
-    if not enabled(client):
+    state = _state(client)
+    if state is None or state.timeout <= 0:
         yield sftp
         return
     channel = sftp.get_channel()
@@ -208,153 +523,278 @@ def sftp_timeout(client):
         channel.settimeout(previous)
 
 
-@dataclass
-class _RecoveryState:
-    timeout: float
-    deadline: float | None = None
-    heartbeats: dict = field(default_factory=dict)
-    heartbeat_error: Exception | None = None
+# --- Retrying an operation ---------------------------------------------------
 
-    def pulse(self):
-        seen = set()
-        for callback in tuple(self.heartbeats.values()):
-            if id(callback) in seen:
-                continue
-            seen.add(id(callback))
-            try:
-                callback()
-            except Exception as error:
-                # A caller-owned liveness failure must not become an SSH retry
-                # simply because it happens to be an EOFError/ConnectionError.
-                self.heartbeat_error = error
-                raise
-
-    def wait(self, seconds, cancel, description):
-        remaining = seconds
-        while remaining > 0:
-            self.check_cancelled(cancel, description)
-            interval = min(remaining, 10) if self.heartbeats else remaining
-            if cancel is None:
-                time.sleep(interval)
-            else:
-                cancel.wait(interval)
-            remaining -= interval
-            self.check_cancelled(cancel, description)
-            self.pulse()
-
-    @staticmethod
-    def check_cancelled(cancel, description):
-        if cancel is not None and cancel.is_set():
-            raise SSHRecoveryCancelled(
-                f'Cancelled while waiting for SSH: {description}')
+def _run_attempt(client: Any, operation: Callable[[], Any]) -> Any:
+    """Run one attempt, treating a missing exit status as a lost connection."""
+    with native_timeouts(client):
+        result = operation()
+    if _missing_exit_status(result):
+        raise UnexpectedExit(result)
+    return result
 
 
-@contextmanager
-def scope(client, heartbeat=None):
-    """Share an outage budget and caller callbacks with nested retries."""
-    if not enabled(client):
-        yield None
-        return
-    if heartbeat is not None and not callable(heartbeat):
-        raise TypeError('heartbeat must be callable')
-    state = client.__dict__.get('_ssh_recovery_state')
-    owner = state is None
-    if owner:
-        state = _RecoveryState(client.ssh_recovery_timeout)
-        # Fabric redirects attribute assignment into its configuration proxy.
-        # Recovery state belongs to this client instance, never its config.
-        client.__dict__['_ssh_recovery_state'] = state
-    marker = object()
-    if heartbeat is not None:
-        state.heartbeats[marker] = heartbeat
+def _should_retry(state: RecoveryState, error: BaseException) -> bool:
+    """Decide whether an attempt's error may be retried, and log why not."""
+    if state.timeout <= 0:
+        return False
+    if error is state.heartbeat_error:
+        # A caller-owned liveness failure must not become an SSH retry just
+        # because it looks like a connection error.
+        return False
+    if isinstance(error, RecoveryPending):
+        return True
+    reason = transient_reason(error)
+    if reason is None:
+        logger.debug(f"Not retrying {type(error).__name__}: not a lost "
+                     f"connection ({error})")
+    return reason is not None
+
+
+def _close_stale_transport(client: Any) -> None:
+    """Close the broken transport so that the next attempt reconnects."""
     try:
-        yield state
-    finally:
-        state.heartbeats.pop(marker, None)
-        if owner:
-            client.__dict__.pop('_ssh_recovery_state', None)
+        client.close()
+    except Exception as error:
+        logger.debug(f"Could not close the stale SSH transport: {error}")
 
 
-def retry(client, operation, description, *, heartbeat=None):
-    """Recover an explicitly safe operation within each contiguous outage."""
+def _raise_window_expired(error: BaseException, description: str) -> None:
+    """Raise the error that ends a window, naming what stays intact."""
+    if isinstance(error, RecoveryPending):
+        raise RemoteOperationStillPending(
+            f"{description} is still running or unresolved on the cluster "
+            "after the waiting time. The SSH connection works and nothing "
+            f"was repeated. {error}") from error
+    raise SSHRecoveryTimeout(
+        f"SSH recovery deadline exceeded during {description}; existing "
+        "jobs and recovery data are retained") from error
+
+
+def retry(client: Any, operation: Callable[[], Any], description: str, *,
+          heartbeat: Optional[Callable[[], None]] = None) -> Any:
+    """Run an operation that is safe to repeat, recovering from SSH loss.
+
+    On a lost connection the stale transport is closed and the operation is
+    tried again with growing pauses, until the window set by
+    ``client.ssh_recovery_timeout`` ends. The window starts at the first
+    failure of this call and is not extended by anything else. With a window
+    of 0 the operation runs once and its own error is raised.
+
+    Args:
+        client (Any): The ``SlurmClient``.
+        operation (Callable[[], Any]): The repeatable operation.
+        description (str): What the operation does, for logs and errors.
+        heartbeat (Optional[Callable[[], None]]): A callback that runs during
+            waits.
+
+    Returns:
+        Any: The result of the first successful attempt.
+
+    Raises:
+        SSHRecoveryTimeout: If the connection did not come back in time.
+        RemoteOperationStillPending: If a healthy remote operation was still
+            pending when the window ended.
+        SSHRecoveryCancelled: If the caller cancelled during a wait.
+    """
     with scope(client, heartbeat) as state:
-        if state is None:
-            return operation()
-        cancel = getattr(client, 'ssh_recovery_cancel', None)
-        delay, failures = 1, 0
-        last_error = None
-        while True:
-            state.check_cancelled(cancel, description)
-            state.pulse()
-            if state.deadline is not None and time.monotonic() >= state.deadline:
-                raise SSHRecoveryTimeout(
-                    'SSH recovery deadline exceeded during '
-                    f'{description}; existing jobs and recovery data '
-                    'are retained') from last_error
+        # A nested call never outlasts the outage of the call around it.
+        seconds_left = state.seconds_left_in_outage()
+        window = OutageWindow(
+            state.timeout if seconds_left is None
+            else min(state.timeout, max(MINIMUM_TIMEOUT_SECONDS,
+                                        seconds_left)))
+        state.windows.append(window)
+        try:
+            return _attempt_until_done(
+                client, state, window, operation, description)
+        finally:
+            state.windows.pop()
+
+
+def _attempt_until_done(client: Any, state: RecoveryState,
+                        window: OutageWindow, operation: Callable[[], Any],
+                        description: str) -> Any:
+    """Run the attempts of ``retry`` until one succeeds or a window ends."""
+    cancel = getattr(client, "ssh_recovery_cancel", None)
+    last_error: Optional[BaseException] = None
+    while True:
+        state.raise_if_cancelled(cancel, description)
+        state.pulse()
+        if (last_error is not None
+                and window.seconds_left(last_error, time.monotonic()) <= 0):
+            # The wait used up the window: never start a late attempt.
+            _raise_window_expired(last_error, description)
+        try:
+            result = _run_attempt(client, operation)
+        except Exception as error:
+            if not _should_retry(state, error):
+                if isinstance(error, RecoveryPending):
+                    # No retries (window 0): still the documented error.
+                    _raise_window_expired(error, description)
+                raise
+            last_error = error
+            now = time.monotonic()
+            window.start_if_new(error, now)
+            seconds_left = window.seconds_left(error, now)
+            if seconds_left <= 0:
+                _raise_window_expired(error, description)
+            if not isinstance(error, RecoveryPending):
+                _close_stale_transport(client)
+            pause = window.next_pause(seconds_left)
+            waiting_for = ("the remote operation"
+                           if isinstance(error, RecoveryPending)
+                           else "the SSH connection")
+            logger.warning(
+                f"Waiting for {waiting_for} during {description} "
+                f"({type(error).__name__}: "
+                f"{transient_reason(error) or error}); retry in "
+                f"{pause:.1f}s, {seconds_left:.1f}s left. Existing job "
+                "state is unchanged.")
+            state.wait(pause, cancel, description)
+            continue
+        if last_error is not None:
+            logger.info(f"Operation resumed after an interruption: "
+                        f"{description}")
+        return result
+
+
+def read_only(function: Callable[..., Any]) -> Callable[..., Any]:
+    """Declare a short remote read that is safe to repeat.
+
+    The decorated method keeps its signature. It runs through ``retry`` with
+    a bounded timeout, so that a silent stall returns control; a timeout
+    counts as a lost connection (the Slurm job has not failed).
+
+    Args:
+        function (Callable[..., Any]): A method taking ``client`` first.
+
+    Returns:
+        Callable[..., Any]: The wrapped method.
+    """
+    @wraps(function)
+    def wrapped(client: Any, *args: Any, **kwargs: Any) -> Any:
+        def attempt() -> Any:
+            options = dict(kwargs)
+            timeout = bounded_read_timeout(client, options.get("timeout"))
+            if timeout is not None:
+                options["timeout"] = timeout
             try:
-                with native_timeouts(client):
-                    result = operation()
-                if _missing_exit_status(result):
-                    raise UnexpectedExit(result)
-            except Exception as error:
-                if (error is state.heartbeat_error or
-                        not is_transient(error)):
+                return function(client, *args, **options)
+            except CommandTimedOut as error:
+                if client.__dict__[STATE_KEY].timeout <= 0:
                     raise
-                last_error = error
-                now = time.monotonic()
-                if state.deadline is None:
-                    state.deadline = now + state.timeout
-                    delay = 1
-                if not isinstance(error, RecoveryPending):
-                    try:
-                        client.close()
-                    except Exception:
-                        logger.debug('Could not close stale SSH transport',
-                                     exc_info=True)
-                remaining = state.deadline - time.monotonic()
-                if remaining <= 0:
-                    raise SSHRecoveryTimeout(
-                        'SSH recovery deadline exceeded during '
-                        f'{description}; existing jobs and recovery data '
-                        'are retained') from error
-                failures += 1
-                wait = min(delay, remaining)
-                logger.warning(
-                    'Waiting for %s during %s (%s); retry in %.1fs, '
-                    '%.1fs remaining. Existing job state is unchanged.',
-                    'remote operation' if isinstance(error, RecoveryPending)
-                    else 'SSH connection', description, type(error).__name__,
-                    wait, remaining)
-                state.wait(wait, cancel, description)
-                delay = min(delay * 2, 30)
-                continue
-            # A successful operation ends this interruption. Subsequent healthy
-            # queue/runtime must not consume the next outage's recovery window.
-            state.deadline = None
-            if failures:
-                logger.info('SSH operation resumed: %s', description)
+                raise ReadOnlyCommandTimeout(
+                    "Read-only SSH command timed out") from error
+        return retry(client, attempt, function.__name__)
+    return wrapped
+
+
+# --- Transfers published atomically ------------------------------------------
+
+def _local_size(local: Union[str, io.StringIO, io.BytesIO]) -> int:
+    """Return the size in bytes of a local file or in-memory source."""
+    if isinstance(local, io.StringIO):
+        return len(local.getvalue().encode("utf-8"))
+    if isinstance(local, io.BytesIO):
+        return len(local.getvalue())
+    return os.path.getsize(local)
+
+
+def _existing_mode(sftp: Any, remote: str) -> Optional[int]:
+    """Return the permission bits of a remote file, or None if it is new."""
+    try:
+        return stat.S_IMODE(sftp.stat(remote).st_mode)
+    except FileNotFoundError:
+        return None
+
+
+def atomic_put(connection: Connection,
+               local: Union[str, io.StringIO, io.BytesIO], remote: str,
+               partial_suffix: str = TRANSFER_PARTIAL_SUFFIX
+               ) -> TransferResult:
+    """Upload a file so that the remote name never shows a partial file.
+
+    The data goes to ``<remote><partial_suffix>`` first, is checked for its
+    size, and is renamed to ``remote``. An interrupted upload restarts from the
+    beginning. A previous remote file keeps its permission bits. Concurrent
+    uploads to one remote name are not coordinated: the last rename wins.
+
+    Args:
+        connection (Connection): The ``SlurmClient``.
+        local (Union[str, io.StringIO, io.BytesIO]): A local path or an
+            in-memory source.
+        remote (str): The final remote path.
+        partial_suffix (str): Suffix of the temporary remote name.
+
+    Returns:
+        TransferResult: The result, with ``remote`` set to the final path.
+
+    Raises:
+        IncompleteTransfer: If the uploaded size is wrong (retried).
+    """
+    partial = remote + partial_suffix
+    expected_size = _local_size(local)
+
+    def attempt() -> TransferResult:
+        if hasattr(local, "seek"):
+            local.seek(0)
+        with sftp_timeout(connection) as sftp:
+            mode = _existing_mode(sftp, remote)
+            result = connection.put(local=local, remote=partial)
+            uploaded_size = sftp.stat(partial).st_size
+            if uploaded_size != expected_size:
+                raise IncompleteTransfer(
+                    f"Uploaded {uploaded_size} of {expected_size} bytes "
+                    f"to {partial}")
+            if mode is not None:
+                sftp.chmod(partial, mode)
+            sftp.posix_rename(partial, remote)
+            result.remote = remote
             return result
 
+    return retry(connection, attempt, f"upload to {remote}")
 
-def download(client, remote, directory):
-    """Publish a complete download without exposing partial data."""
-    destination = os.path.join(directory, remote.rsplit('/', 1)[-1])
 
-    def attempt():
-        with sftp_timeout(client) as sftp:
+def atomic_get(connection: Connection, remote: str, directory: str
+               ) -> TransferResult:
+    """Download a file so that the local name never shows a partial file.
+
+    The data goes to a temporary local file, is checked against the remote
+    file (unchanged and complete), and then replaces the local file. An
+    earlier complete local file stays available until then.
+
+    Args:
+        connection (Connection): The ``SlurmClient``.
+        remote (str): The remote path.
+        directory (str): The local directory to download into.
+
+    Returns:
+        TransferResult: The result, with ``local`` set to the final path.
+
+    Raises:
+        IncompleteTransfer: If the remote file changed or the download is
+            incomplete (retried).
+    """
+    name = remote.rsplit("/", 1)[-1]
+    destination = os.path.join(directory, name)
+
+    def attempt() -> TransferResult:
+        with sftp_timeout(connection) as sftp:
             before = sftp.stat(remote)
-            fd, partial = tempfile.mkstemp(
-                prefix='.' + os.path.basename(destination) + '.', suffix='.part',
-                dir=directory)
-            os.close(fd)
+            descriptor, partial = tempfile.mkstemp(
+                prefix=f".{name}.", suffix=".part", dir=directory)
+            os.close(descriptor)
             try:
-                result = client.get(remote=remote, local=partial)
+                result = connection.get(remote=remote, local=partial)
                 after = sftp.stat(remote)
-                if ((before.st_size, before.st_mtime) !=
-                        (after.st_size, after.st_mtime) or
-                        os.path.getsize(partial) != after.st_size):
-                    raise RuntimeError(
-                        'Remote file changed or download is incomplete')
+                remote_unchanged = ((before.st_size, before.st_mtime)
+                                    == (after.st_size, after.st_mtime))
+                if (not remote_unchanged
+                        or os.path.getsize(partial) != after.st_size):
+                    raise IncompleteTransfer(
+                        f"Remote file {remote} changed or the download is "
+                        "incomplete")
                 os.replace(partial, destination)
                 result.local = destination
                 return result
@@ -362,181 +802,19 @@ def download(client, remote, directory):
                 if os.path.exists(partial):
                     os.unlink(partial)
 
-    return retry(client, attempt, 'download ' + remote.rsplit('/', 1)[-1])
+    return retry(connection, attempt, f"download {name}")
 
 
-def publish_script(client, content, remote):
-    """Publish generated job scripts completely, including after channel loss."""
-    payload = content.encode('utf-8')
-
-    def attempt():
-        with sftp_timeout(client) as sftp:
-            partial = remote + '.biomero-partial-' + uuid4().hex
-            try:
-                mode = stat.S_IMODE(sftp.stat(remote).st_mode)
-            except FileNotFoundError:
-                mode = None
-            try:
-                result = client.put(local=io.BytesIO(payload), remote=partial)
-                if sftp.stat(partial).st_size != len(payload):
-                    raise RuntimeError('Incomplete generated script upload')
-                if mode is not None:
-                    sftp.chmod(partial, mode)
-                sftp.posix_rename(partial, remote)
-                result.remote = remote
-                return result
-            finally:
-                try:
-                    sftp.remove(partial)
-                except FileNotFoundError:
-                    # Successful rename removes the temporary name. On transport
-                    # loss a private partial may remain; it is not published as
-                    # the job script.
-                    pass
-                except Exception:
-                    logger.debug('Could not remove partial script', exc_info=True)
-
-    return retry(client, attempt, 'publish generated job script')
+# Deprecated alias: biomero-scripts' acceptance scripts call ``download``.
+download = atomic_get
 
 
-def upload(client, local, directory):
-    """Retry immutable input archives without publishing partial files."""
-    remote = posixpath.join(directory, os.path.basename(local))
-    partial = remote + '.biomero-partial'
-
-    def attempt():
-        with sftp_timeout(client) as sftp:
-            result = client.put(local=local, remote=partial)
-            if sftp.stat(partial).st_size != os.path.getsize(local):
-                raise RuntimeError('Incomplete input archive upload')
-            sftp.posix_rename(partial, remote)
-            result.remote = remote
-            return result
-
-    return retry(client, attempt, 'upload input archive')
-
-
-def run_durable(client, command, env, description):
-    """Replay commands protected by a remote lock and completion record."""
-    def attempt():
-        result = client.run_commands([command], env=env, warn=True)
-        if result.exited == 200:
-            raise RecoveryPending('Remote operation is pending reconciliation')
-        if not result.ok:
-            raise UnexpectedExit(result)
-        return result
-
-    return retry(client, attempt, description)
-
-
-def locked_command(lock, body, *, wait=5):
-    """Reserve exit 200 for lock contention or an unresolved submission."""
-    return (f'flock -w {wait} -E 200 {shlex.quote(lock)} '
-            f'sh -c {shlex.quote(body)}')
-
-
-def reconcile_submission(state, job_name):
-    """Find exactly one allocation for an operation-specific intent."""
-    quote = shlex.quote
-    return (
-        'live=$(squeue -h -u "$(id -un)" -o "%A|%j") || exit 1; '
-        f'recorded=$(sacct -n -X -u "$(id -un)" --name={quote(job_name)} '
-        f'-S "$(cat {quote(state + ".intent")})" '
-        '--format=JobID,JobName%100 -P) || exit 1; '
-        'printf "%s\\n%s\\n" "$live" "$recorded" | '
-        f'awk -F\'|\' -v token={quote(job_name)} '
-        "'$2 == token {split($1, a, \"_\"); "
-        "if (a[1] ~ /^[0-9]+$/) print a[1]}' | sort -u")
-
-
-def publish_job_id(state):
-    """Validate and publish an allocation before acknowledging it."""
-    quote = shlex.quote
-    return (
-        'case "$job" in ""|*[!0-9]*) '
-        'echo "Waiting for Slurm submission reconciliation" >&2; '
-        'exit 200;; esac; '
-        f'printf "%s\\n" "$job" > {quote(state + ".job.tmp")} && '
-        f'mv -f {quote(state + ".job.tmp")} {quote(state + ".job")} '
-        '|| exit 1; ')
-
-
-def archive(client, data_location, filename, env):
-    """Serialize archive creation and reuse only a completed publication."""
-    quote = shlex.quote
-    destination = posixpath.join(data_location, filename + '.zip')
-    partial_name = filename + '.biomero-partial'
-    partial = posixpath.join(data_location, partial_name + '.zip')
-    ready = destination + '.biomero-ready'
-    body = (
-        f'if test -f {quote(ready)} && test -f {quote(destination)} && '
-        f'test "$(cat {quote(ready)})" = '
-        f'"$(wc -c < {quote(destination)})"; then '
-        'echo "Reusing completed result archive"; else '
-        f'rm -f -- {quote(partial)}; '
-        f'({client.get_zip_command(data_location, partial_name)}) || exit 1; '
-        f'mv -f -- {quote(partial)} {quote(destination)} || exit 1; '
-        f'wc -c < {quote(destination)} > {quote(ready + ".tmp")} && '
-        f'mv -f -- {quote(ready + ".tmp")} {quote(ready)} || exit 1; fi')
-    return run_durable(client, locked_command(
-        destination + '.biomero-lock', body), env, 'create result archive')
-
-
-def unpack(client, filename, env):
-    """Do not race a still-running extraction after losing its SSH response."""
-    quote = shlex.quote
-    state = posixpath.join(
-        client.slurm_data_path, filename + '.biomero-unpacked')
-    body = (f'if test -f {quote(state)}; then echo "Input already extracted"; '
-            f'else ({client.get_unzip_command(filename)}) || exit 1; '
-            f'printf "complete\\n" > {quote(state + ".tmp")} && '
-            f'mv -f {quote(state + ".tmp")} {quote(state)} || exit 1; fi')
-    return run_durable(client, locked_command(state + '.lock', body), env,
-                       'extract input archive')
-
-
-def submit(client, command, env, task_id):
-    """Reconcile lost sbatch responses by task identity, never resubmit intent.
-
-    A remote receipt bridges a process restart and the gap between Slurm's
-    acceptance and recording the job locally. Unresolved intent
-    waits for accounting visibility; an absent match never authorizes a second
-    submission. Failed submissions retain their original diagnostics.
-    """
-    from uuid import UUID
-    token = 'biomero-' + str(UUID(str(task_id)))
-    directory = posixpath.join(client.slurm_data_path, '.biomero-recovery')
-    state = posixpath.join(directory, str(task_id))
-    quote = shlex.quote
-    digest = hashlib.sha256(json.dumps(
-        [command, env], sort_keys=True).encode()).hexdigest()
-
-    def p(suffix):
-        return quote(state + suffix)
-
-    find_job = reconcile_submission(state, token)
-    publish = publish_job_id(state)
-    body = (
-        f'if test -e {p(".digest")} && '
-        f'test "$(cat {p(".digest")})" != {quote(digest)}; then '
-        'echo "Submission settings changed; manual reconciliation required" '
-        '>&2; '
-        'exit 1; fi; '
-        f'if test -f {p(".failed")}; then cat {p(".stdout")}; '
-        f'cat {p(".stderr")} >&2; exit 1; fi; '
-        f'if test -s {p(".job")}; then job=$(cat {p(".job")}); '
-        f'elif test -e {p(".intent")}; then job=$({find_job}) || exit 1; '
-        f'{publish}'
-        f'else printf "%s\\n" {quote(digest)} > {p(".digest")} && '
-        f'date +%Y-%m-%dT%H:%M:%S > {p(".intent")} || exit 1; '
-        f'({command}) > {p(".stdout")} 2> {p(".stderr")}; rc=$?; '
-        f'if test "$rc" != 0; then printf "%s\\n" "$rc" > {p(".failed")}; '
-        f'cat {p(".stdout")}; cat {p(".stderr")} >&2; exit 1; fi; '
-        f'job=$(sed -n "s/^Submitted batch job \\([0-9][0-9]*\\)$/\\1/p" '
-        f'{p(".stdout")} | tail -1); '
-        f'{publish}fi; '
-        'case "$job" in ""|*[!0-9]*) exit 1;; esac; '
-        'printf "Submitted batch job %s\\n" "$job"')
-    wrapped = (f'mkdir -p {quote(directory)} && ' +
-               locked_command(state + '.lock', body))
-    return run_durable(client, wrapped, env, 'submit/reconcile Slurm job')
+__all__ = [
+    "DEFAULT_SSH_RECOVERY_TIMEOUT", "IncompleteTransfer", "OutageWindow",
+    "ReadOnlyCommandTimeout", "RecoveryPending", "RecoveryState",
+    "RemoteOperationStillPending", "SSHRecoveryCancelled",
+    "SSHRecoveryTimeout", "atomic_get", "atomic_put", "bounded_read_timeout",
+    "download", "io_timeout", "is_transient", "limit_channel_open",
+    "native_timeouts", "read_only", "retry", "scope", "sftp_timeout",
+    "transient_reason",
+]

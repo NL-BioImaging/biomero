@@ -17,9 +17,6 @@
 import re
 from uuid import UUID
 
-# Files that helper jobs create next to results for locking; never archived.
-LOCK_FILE_PATTERN = "*.biomero-lock"
-
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
@@ -70,6 +67,60 @@ def resolve_workflow_color(color_override, workflow_id):
 CLEANUP = "Cleanup?"
 
 
+# ------------------------------------------------------------
+# SSH recovery and durable remote operations (biomero core)
+# ------------------------------------------------------------
+
+# Seconds an interrupted SSH operation is retried; 0 means no retries.
+DEFAULT_SSH_RECOVERY_TIMEOUT = 900
+# Upper bound for a native connect/read detection limit, so that a silent
+# stall returns control long before the recovery window ends.
+SSH_DETECTION_LIMIT_SECONDS = 30
+# Exponential backoff between attempts, doubling from the first to the cap.
+SSH_RETRY_INITIAL_DELAY_SECONDS = 1
+SSH_RETRY_MAX_DELAY_SECONDS = 30
+# Fraction of the delay added as random jitter so clients do not retry in
+# lock step after a shared outage.
+SSH_RETRY_JITTER_FRACTION = 0.25
+# How often caller heartbeats run while waiting between attempts.
+SSH_HEARTBEAT_INTERVAL_SECONDS = 10
+# Connection-stage timeouts and TCP keepalive applied when connecting.
+SSH_CONNECT_TIMEOUT_SECONDS = 10
+SSH_BANNER_TIMEOUT_SECONDS = 30
+SSH_AUTH_TIMEOUT_SECONDS = 30
+SSH_KEEPALIVE_SECONDS = 15
+TCP_KEEPALIVE_IDLE_SECONDS = 30
+TCP_KEEPALIVE_INTERVAL_SECONDS = 10
+TCP_KEEPALIVE_PROBES = 3
+TCP_USER_TIMEOUT_MILLISECONDS = 30000
+
+# Lock command template: ``{wait_seconds}``, ``{busy_exit_code}`` and
+# ``{lock_file}`` are filled in; the script to run is appended to the result.
+# Overridable through ``slurm_lock_cmd`` / ``BIOMERO_SLURM_LOCK_CMD``.
+DEFAULT_SLURM_LOCK_CMD = "flock -w {wait_seconds} -E {busy_exit_code} {lock_file}"
+LOCK_WAIT_SECONDS = 5
+# Remote exit codes that carry meaning for the recovery protocol. They sit
+# outside the ranges that sbatch, flock, zip and 7z use for their own errors.
+REMOTE_BUSY_EXIT_CODE = 200
+SUBMISSION_REJECTED_EXIT_CODE = 201
+# The shell's answer when a command, such as the lock command, is not found.
+COMMAND_NOT_FOUND_EXIT_CODE = 127
+
+# Remote marker and receipt files, all next to the data they describe.
+SUBMISSION_STATE_DIRECTORY = ".biomero-recovery"
+SUBMISSION_JOB_NAME_PREFIX = "biomero-"
+UNPACKED_MARKER_SUFFIX = ".biomero-unpacked"
+ARCHIVE_READY_SUFFIX = ".biomero-ready"
+ARCHIVE_PARTIAL_SUFFIX = ".biomero-partial"
+ARCHIVE_LOCK_SUFFIX = ".biomero-lock"
+# Files that helper jobs create next to results for locking; never archived.
+LOCK_FILE_PATTERN = f"*{ARCHIVE_LOCK_SUFFIX}"
+SCRIPT_UPDATE_LOCK_SUFFIX = ".biomero-update.lock"
+# Seconds a caller waits for the lock on the canonical shallower manifest.
+MANIFEST_LOCK_WAIT_SECONDS = 30
+TRANSFER_PARTIAL_SUFFIX = ".biomero-partial"
+
+
 class slurm_env:
     BIOMERO_SSH_RECOVERY_TIMEOUT = "BIOMERO_SSH_RECOVERY_TIMEOUT"
     BIOMERO_REMOTE_SHALLOW_ZARR = "BIOMERO_REMOTE_SHALLOW_ZARR"
@@ -99,6 +150,7 @@ class slurm_env:
     BIOMERO_GPU_GPUS = "BIOMERO_GPU_GPUS"
     BIOMERO_DEFAULT_PARTITION = "BIOMERO_DEFAULT_PARTITION"
     BIOMERO_SLURM_ZIP_CMD = "BIOMERO_SLURM_ZIP_CMD"
+    BIOMERO_SLURM_LOCK_CMD = "BIOMERO_SLURM_LOCK_CMD"
     BIOMERO_IMAGE_PULL_VIA_SBATCH = "BIOMERO_IMAGE_PULL_VIA_SBATCH"
     BIOMERO_PULL_CPUS = "BIOMERO_PULL_CPUS"
     BIOMERO_PULL_MEM = "BIOMERO_PULL_MEM"

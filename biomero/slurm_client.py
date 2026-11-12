@@ -3014,13 +3014,17 @@ class SlurmClient(Connection):
         """Read the tasks of a workflow from the workflow tracker.
 
         Args:
-            workflow_id (Any): ID of the workflow.
+            workflow_id (Any): ID of the workflow, as UUID or string.
             task_name (Optional[str]): Only return tasks with this name.
             input_data (Optional[str]): Only return tasks with this input data.
 
         Returns:
-            List[Task]: The matching task aggregates, in workflow order.
+            List[Task]: The matching task aggregates, in workflow order;
+                empty when workflow tracking is disabled.
         """
+        if isinstance(self.workflowTracker, NoOpWorkflowTracker):
+            logger.debug("Workflow tracking is disabled: no tasks to read")
+            return []
         workflow = self.get_workflow(workflow_id)
         tasks = [self.get_task(task_id) for task_id in workflow.tasks]
         return [task for task in tasks

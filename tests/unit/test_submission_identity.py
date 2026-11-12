@@ -198,3 +198,20 @@ def test_job_name_and_receipt_prefix_keep_the_layout_of_2_9_betas(
     assert slurm_client.get_submission_job_name(task_id) == f'biomero-{task_id}'
     assert slurm_client.get_submission_state_prefix(task_id) == \
         f'/shared/data/.biomero-recovery/{task_id}'
+
+
+def test_get_workflow_tasks_is_empty_when_tracking_is_off(slurm_client):
+    slurm_client.workflowTracker = NoOpWorkflowTracker()
+    assert slurm_client.get_workflow_tasks(uuid4()) == []
+    assert slurm_client.get_workflow_tasks(str(uuid4()), task_name=NAME) == []
+
+
+def test_get_workflow_tasks_accepts_a_uuid_or_a_string(tracked):
+    client, workflow_id = tracked
+    task_id = new_task(client, workflow_id)
+    by_uuid = client.get_workflow_tasks(workflow_id)
+    by_string = client.get_workflow_tasks(str(workflow_id), task_name=NAME,
+                                          input_data=INPUTS)
+    assert [task.id for task in by_uuid] == [task_id]
+    assert [task.id for task in by_string] == [task_id]
+    assert client.get_workflow_tasks(workflow_id, task_name='other') == []

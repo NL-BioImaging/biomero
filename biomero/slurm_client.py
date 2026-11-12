@@ -36,7 +36,7 @@ import shlex
 import socket
 from biomero.constants import slurm_env
 from biomero import ssh_recovery
-from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
+from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker, Task
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
@@ -375,6 +375,7 @@ class SlurmClient(Connection):
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
+    _CANCEL_JOBS_CMD = "scancel {slurm_job_ids}"
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
@@ -3150,17 +3151,7 @@ class SlurmClient(Connection):
             SSHException: If the command execution fails or no response is
                 received after multiple retries.
         """
-        # Filter job IDs to only include valid positive integers
-        valid_job_ids = []
-        for jid in slurm_job_ids:
-            try:
-                if jid is not None:
-                    val = int(jid)
-                    if val > 0:
-                        valid_job_ids.append(val)
-            except (ValueError, TypeError):
-                continue
-                
+        valid_job_ids = self.positive_job_ids(slurm_job_ids)
         if not valid_job_ids:
             return {}, None
 
@@ -3220,6 +3211,70 @@ class SlurmClient(Connection):
                        f"{valid_job_ids} after {retry_status} retries; "
                        f"reporting them as PENDING.")
         return {jid: 'PENDING' for jid in valid_job_ids}, last_result
+
+    @staticmethod
+    def positive_job_ids(slurm_job_ids: List) -> List[int]:
+        """
+        Keep the entries that are valid Slurm job IDs: positive integers.
+
+        Args:
+            slurm_job_ids (List): Job IDs as numbers or strings; None and
+                values that are not numbers (such as the -1 that
+                ``extract_job_id`` returns for "not found") are dropped.
+
+        Returns:
+            List[int]: The valid job IDs, in the original order.
+        """
+        valid_job_ids = []
+        for job_id in slurm_job_ids:
+            try:
+                if job_id is not None and int(job_id) > 0:
+                    valid_job_ids.append(int(job_id))
+            except (ValueError, TypeError):
+                continue
+        return valid_job_ids
+
+    def cancel_slurm_jobs(self, slurm_job_ids: List[int]) -> Result:
+        """
+        Cancel Slurm jobs, for example when the workflow they belong to is
+        cancelled.
+
+        Cancelling a job that already ended is not an error for the caller: the
+        job is gone either way, so this logs what Slurm answered and returns
+        the result instead of raising.
+
+        Args:
+            slurm_job_ids (List[int]): The job IDs of the jobs to cancel.
+
+        Returns:
+            Result: The result of the ``scancel`` command, or None when none
+                of the IDs is a valid job ID.
+        """
+        valid_job_ids = self.positive_job_ids(slurm_job_ids)
+        if not valid_job_ids:
+            logger.debug(f"No valid Slurm job to cancel in {slurm_job_ids}")
+            return None
+        cancel_cmd = self._CANCEL_JOBS_CMD.format(
+            slurm_job_ids=" ".join(str(job_id) for job_id in valid_job_ids))
+        logger.info(f"Cancelling Slurm jobs {valid_job_ids}")
+        result = self.run_commands([cancel_cmd], warn=True)
+        if not result.ok:
+            logger.warning(f"scancel of {valid_job_ids} reported: "
+                           f"{result.stderr or result.stdout}")
+        return result
+
+    def get_workflow_tasks(self, workflow_id: UUID) -> List[Task]:
+        """
+        Get the tasks of a workflow, in the order they were added.
+
+        Args:
+            workflow_id (UUID): The workflow to read.
+
+        Returns:
+            List[Task]: The task aggregates. Read errors are raised: an
+                unreadable history is not an empty one.
+        """
+        return list(self.workflowTracker.iter_workflow_tasks(workflow_id))
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """

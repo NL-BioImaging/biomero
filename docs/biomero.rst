@@ -35,6 +35,13 @@ biomero.provenance module
    :members:
    :show-inheritance:
 
+biomero.detached module
+-----------------------
+
+.. automodule:: biomero.detached
+   :members:
+   :show-inheritance:
+
 biomero.maintenance module
 --------------------------
 

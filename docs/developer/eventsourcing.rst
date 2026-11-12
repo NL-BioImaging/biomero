@@ -97,7 +97,11 @@ Metadata maintenance requests
 -----------------------------
 
 ``biomero.maintenance.MetadataRefresh`` stores administrative metadata-refresh
-requests in the same ``WorkflowTracker`` event store, separately from
+requests in the same ``WorkflowTracker`` event store. The class stays in core
+because every projection of that store resolves an event's class from its stored
+topic (the import path of the class); the lifecycle guards, the topics and the
+notification scan live with it, while running a request is the processor's job.
+Requests are kept separate from
 ``WorkflowRun`` and ``Task``. These requests do not create analysis projection
 rows. The aggregate contains plain options, requester IDs, lifecycle status,
 progress counters and a compact final outcome; annotation operations remain in
@@ -106,6 +110,33 @@ and use its aggregate versions for historical replay. The processor discovers
 unfinished requests through topic-filtered notifications and retries interrupted
 idempotent sweeps. See NL-BIOMERO's developer supervisor documentation for the
 execution and recovery policy.
+
+Detached launcher claim and cancellation
+----------------------------------------
+
+A detached run is queued as a *launcher task*: a task of a launching script
+whose params carry ``constants.LAUNCHER_MARKER``. Every reader (views,
+provenance, the supervisor) decides with the one rule
+``biomero.eventsourcing.is_launcher_task``, and finds the task with
+``WorkflowTracker.find_launcher_task(workflow_id)``. The scripts decide what a
+launcher records and how a run resumes; the supervisor decides what to run.
+
+A supervisor takes a launcher with ``WorkflowTracker.claim_launcher_task(task_id,
+owner)``. The claim is a ``Task.LauncherClaimed`` event appended to the task's
+stream, so it is a compare-and-set: when two supervisors read the same
+unclaimed task and both claim it, the event store accepts one and the other
+call returns ``False``. A claim is valid for
+``constants.LAUNCHER_CLAIM_LEASE_SECONDS``; its owner renews it by claiming
+again, and a claim that is not renewed can be taken over. A supervisor that
+stops cleanly gives its claim up with ``release_launcher_task``. The claim does
+not change ``Task.status``. Launchers claimed by 2.9 betas carry the status
+``CLAIMED`` and no owner; they still load, the views still ignore that status,
+and such a launcher is free to claim.
+
+``WorkflowTracker.request_workflow_cancel(workflow_id, reason)`` records a
+``WorkflowRun.CancelRequested`` event. Whoever executes the workflow reads it
+with ``is_workflow_cancel_requested``, cancels its Slurm jobs with
+``SlurmClient.cancel_slurm_jobs`` and fails the workflow.
 
 Inspecting aggregate history
 ----------------------------

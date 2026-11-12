@@ -300,8 +300,8 @@ The boolean and integer fallback rules below apply to options resolved by
 contract. ``BIOMERO_SHALLOW_ZARR`` is enabled only by the case-insensitive
 literal value ``true``; an absent or different value leaves the opt-in feature
 disabled. ``BIOMERO_DETACHED_WORKFLOWS`` accepts the case-insensitive values
-``1``, ``true``, ``yes`` and ``on``; it is disabled when absent or set to any
-other value.
+``1``, ``true``, ``yes``, ``y`` and ``on``; it is disabled when absent or set
+to any other value.
 
 Detached worker supervisor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -315,7 +315,8 @@ Detached worker supervisor
 
 The four detached variable names are centralized in
 ``biomero.constants.slurm_env`` and form one deployment contract. The workflow
-scripts and worker both read ``BIOMERO_DETACHED_WORKFLOWS``. The three
+scripts and worker both read ``BIOMERO_DETACHED_WORKFLOWS``, always through
+``biomero.detached.detached_mode_enabled()``. The three
 supervisor settings are consumed only by deployments that provide a detached
 workflow supervisor, such as the NL-BIOMERO ``biomeroworker`` container; they
 do not configure ``SlurmClient`` and do not need entries in

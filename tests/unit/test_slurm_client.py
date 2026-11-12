@@ -1380,6 +1380,63 @@ def test_check_job_status(mock_run_commands,
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
     assert job_status_dict == {12345: 'RUNNING', 67890: 'COMPLETED'}
+
+
+@pytest.mark.parametrize("job_ids, expected", [
+    ([12, "34"], [12, 34]),
+    # extract_job_id() returns -1 when no job was found; None and text are noise
+    ([-1, 0, None, "x", 56], [56]),
+    ([], []),
+])
+def test_positive_job_ids_keeps_only_valid_slurm_jobs(slurm_client, job_ids,
+                                                      expected):
+    assert slurm_client.positive_job_ids(job_ids) == expected
+
+
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+def test_cancel_slurm_jobs_cancels_the_valid_jobs_in_one_scancel(
+        mock_run_commands, slurm_client):
+    mock_run_commands.return_value = SerializableMagicMock(ok=True)
+
+    slurm_client.cancel_slurm_jobs([12345, -1, "67890"])
+
+    mock_run_commands.assert_called_once_with(
+        ['scancel 12345 67890'], warn=True)
+
+
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+def test_cancel_slurm_jobs_without_a_valid_job_runs_nothing(
+        mock_run_commands, slurm_client):
+    assert slurm_client.cancel_slurm_jobs([-1, None]) is None
+    mock_run_commands.assert_not_called()
+
+
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+def test_cancel_slurm_jobs_that_already_ended_is_only_a_warning(
+        mock_run_commands, slurm_client, caplog):
+    mock_run_commands.return_value = SerializableMagicMock(
+        ok=False, stderr="Job/step already completing or completed")
+
+    with caplog.at_level(logging.WARNING, logger="biomero.slurm_client"):
+        result = slurm_client.cancel_slurm_jobs([12345])
+
+    assert result.ok is False
+    assert any(record.levelno == logging.WARNING
+               and "already completing" in record.getMessage()
+               for record in caplog.records)
+
+
+def test_get_workflow_tasks_returns_tasks_and_raises_on_read_errors(
+        slurm_client):
+    tracker = MagicMock()
+    tracker.iter_workflow_tasks.return_value = iter(["task-1", "task-2"])
+    slurm_client.workflowTracker = tracker
+    assert slurm_client.get_workflow_tasks("wf") == ["task-1", "task-2"]
+    tracker.iter_workflow_tasks.assert_called_once_with("wf")
+
+    tracker.iter_workflow_tasks.side_effect = RuntimeError("database down")
+    with pytest.raises(RuntimeError, match="database down"):
+        slurm_client.get_workflow_tasks("wf")
     
     
 @patch('biomero.slurm_client.SlurmClient.run_commands')

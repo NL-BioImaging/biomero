@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import re
 from uuid import UUID
 
+from biomero.eventsourcing import is_launcher_task
+
 
 NAMESPACE = 'biomero/workflow'
 
@@ -18,7 +20,7 @@ class MetadataAnnotation:
 
 
 def _internal(task):
-    return ('_biomero_detached_launcher' in (task.params or {}) or
+    return (is_launcher_task(task) or
             task.task_name == '_SLURM_Remote_Shallower')
 
 

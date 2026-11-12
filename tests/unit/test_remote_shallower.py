@@ -52,7 +52,7 @@ def test_default_helper_image_is_latest():
 
 def test_setup_without_helper_configuration_acquires_default_helper():
     from biomero.remote_shallower import image_spec
-    client = SlurmClient(config_only=True)
+    client = SlurmClient(config_only=True, remote_shallow_zarr=True)
     client.validate = MagicMock(return_value=True)
     client.setup_directories = MagicMock()
     client.setup_job_scripts = MagicMock()
@@ -195,11 +195,12 @@ def test_submission_uses_explicit_reconciliation_identity():
 
 @pytest.mark.parametrize('executable,expected', [('7z', "'-xr!*.biomero-lock'"),
                                                ('zip', "-x '*.biomero-lock'")])
-def test_internal_locks_are_excluded_only_when_enabled(executable, expected):
+@pytest.mark.parametrize('remote_shallow_zarr', [False, True])
+def test_internal_locks_are_always_excluded(executable, expected,
+                                            remote_shallow_zarr):
+    """Lock files never ship in a results archive, whatever the feature flag."""
     client = SlurmClient(config_only=True, slurm_zip_cmd=executable,
-                         remote_shallow_zarr=False)
-    assert 'biomero-lock' not in client.get_zip_command('/data', 'results')
-    client.remote_shallow_zarr = True
+                         remote_shallow_zarr=remote_shallow_zarr)
     assert expected in client.get_zip_command('/data', 'results')
 
 
@@ -227,25 +228,6 @@ def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, level,
     levels = [record.levelname for record in caplog.records
               if expected in record.getMessage()]
     assert levels == [level]
-
-
-@pytest.mark.parametrize('enabled,expected', [
-    (True, 'applied'), (False, 'not applied (remote_shallow_zarr disabled)')])
-def test_zip_exclusion_decision_is_logged_at_debug(caplog, enabled, expected):
-    client = SlurmClient(config_only=True, slurm_zip_cmd='zip',
-                         remote_shallow_zarr=enabled)
-    with caplog.at_level('DEBUG', logger='biomero.slurm_client'):
-        client.get_zip_command('/data', 'results')
-    records = [record for record in caplog.records
-               if 'ZIP exclusion' in record.getMessage()]
-    assert [record.levelname for record in records] == ['DEBUG']
-    assert records[0].getMessage().endswith(f'shallowing: {expected}')
-
-
-
-
-
-
 
 
 def test_sbatch_wrap_command_applies_site_defaults():
@@ -283,12 +265,6 @@ def test_workflow_tasks_are_read_once_and_filtered():
     assert client.get_workflow_tasks(workflow_id, task_name='b') == [second, third]
     assert client.get_workflow_tasks(
         workflow_id, task_name='b', input_data='/x') == [second]
-
-
-
-
-
-
 
 
 HELPER_CLIENT_SETTINGS = dict(
@@ -395,12 +371,6 @@ def _fabric_result(exited):
     return Result(stdout='', stderr='', exited=exited, command='sbatch')
 
 
-
-
-
-
-
-
 def test_workflow_and_task_reads_go_through_the_tracker():
     client = SlurmClient(config_only=True)
     client.workflowTracker = MagicMock()
@@ -448,3 +418,18 @@ def test_an_unparsable_job_id_is_an_unresolved_submission():
         ok=True, exited=0, stdout='no job id here'))
     with pytest.raises(RuntimeError, match='unresolved'):
         _submit_helper_job(client, 'sbatch w.sh', '/state/x', 'n')
+
+
+def test_global_flags_owned_by_the_helper_job_are_excluded():
+    client = SlurmClient(
+        config_only=True, remote_shallower_workers=2,
+        slurm_global_job_params=[' --account=lab', ' --gres=gpu:1',
+                                 ' --gpus-per-node=1', ' --job-name=global',
+                                 ' --output=/global.log'])
+    assert client.get_shallower_job_params() == [
+        '--cpus-per-task=2', '--account=lab']
+    command = shlex.split(client.build_sbatch_wrap_command(
+        'true', job_name='mine', output_path='/mine.log'))
+    assert '--account=lab' in command and '--gres=gpu:1' in command
+    assert '--job-name=global' not in command
+    assert '--output=/global.log' not in command

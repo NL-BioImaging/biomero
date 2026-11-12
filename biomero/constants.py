@@ -115,6 +115,8 @@ UNPACKED_MARKER_SUFFIX = ".biomero-unpacked"
 ARCHIVE_READY_SUFFIX = ".biomero-ready"
 ARCHIVE_PARTIAL_SUFFIX = ".biomero-partial"
 ARCHIVE_LOCK_SUFFIX = ".biomero-lock"
+# Files that helper jobs create next to results for locking; never archived.
+LOCK_FILE_PATTERN = f"*{ARCHIVE_LOCK_SUFFIX}"
 SCRIPT_UPDATE_LOCK_SUFFIX = ".biomero-update.lock"
 # Seconds a caller waits for the lock on the canonical shallower manifest.
 MANIFEST_LOCK_WAIT_SECONDS = 30

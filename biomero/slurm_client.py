@@ -1278,11 +1278,13 @@ class SlurmClient(Connection):
             logger.info("Including remote shallower helper image %s in "
                         "Slurm image setup", spec["source"])
             converter_specs = [*converter_specs, spec]
+        elif self.remote_shallow_zarr:
+            logger.warning("Remote shallowing is enabled but "
+                           "remote_shallower_image is empty; the helper image "
+                           "is not set up and remote shallowing cannot run")
         else:
-            logger.info("Skipping remote shallower helper image setup: "
-                        "remote_shallow_zarr=%s, remote_shallower_image=%s",
-                        self.remote_shallow_zarr,
-                        self.remote_shallower_image or "<unset>")
+            logger.debug("Skipping remote shallower helper image setup: "
+                         "remote_shallow_zarr is disabled")
         return self.setup_container_images(extra_image_specs=converter_specs)
 
     @staticmethod

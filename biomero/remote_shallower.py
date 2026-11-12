@@ -377,7 +377,7 @@ def _submit_once(client, command, state, *, job_name):
     if not result.ok or not result.stdout.strip().isdigit():
         raise RuntimeError(
             f'Shallower submission {job_name} is unresolved (exit '
-            f'{getattr(result, "exited", None)}); preserve results and resume '
+            f'{result.exited}); preserve results and resume '
             'after reconciliation')
     logger.info('Remote shallower job %s is Slurm job %s', job_name,
                 result.stdout.strip())

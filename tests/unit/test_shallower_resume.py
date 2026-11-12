@@ -280,6 +280,24 @@ def test_disabled_shallowing_logs_why_it_is_skipped(caplog):
     assert 'remote_shallow_zarr is disabled' in caplog.text
 
 
+def test_untracked_workflows_warn_that_shallowing_is_skipped(caplog):
+    client, workflow_id, canonical, _ = client_fixture()
+    client.track_workflows = False
+    with caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        assert run(client, '/data', workflow_id, canonical) is None
+    assert [r.levelname for r in caplog.records
+            if 'track_workflows is disabled' in r.getMessage()] == ['WARNING']
+
+
+def test_non_completed_helper_job_warns_before_recovery(caplog):
+    client, workflow_id, canonical, batch = client_fixture()
+    with patch('biomero.remote_shallower._batch', return_value=batch),          patch('biomero.remote_shallower._submit_once', return_value=124),          patch('biomero.remote_shallower._wait',
+               side_effect=['FAILED', 'COMPLETED']),          caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        run(client, '/data', workflow_id, canonical)
+    assert [r.levelname for r in caplog.records
+            if 'ended as FAILED; running recovery' in r.getMessage()]         == ['WARNING']
+
+
 def test_rejected_submission_warns_about_full_results_fallback(caplog):
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     batch_cls = MagicMock()

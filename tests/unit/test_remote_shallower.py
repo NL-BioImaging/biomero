@@ -199,12 +199,15 @@ def test_internal_locks_are_excluded_only_when_enabled(executable, expected):
     assert expected in client.get_zip_command('/data', 'results')
 
 
-@pytest.mark.parametrize('enabled,image,expected', [
-    (True, 'registry/helper:0.1.0', 'Including remote shallower helper image'),
-    (False, 'registry/helper:0.1.0', 'Skipping remote shallower helper image'),
-    (True, '', 'Skipping remote shallower helper image'),
+@pytest.mark.parametrize('enabled,image,level,expected', [
+    (True, 'registry/helper:0.1.0', 'INFO',
+     'Including remote shallower helper image'),
+    (False, 'registry/helper:0.1.0', 'DEBUG',
+     'Skipping remote shallower helper image'),
+    (True, '', 'WARNING', 'remote_shallower_image is empty'),
 ])
-def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, expected):
+def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, level,
+                                                expected):
     client = SlurmClient(config_only=True, remote_shallow_zarr=enabled,
                          remote_shallower_image=image,
                          slurm_converters_path='/sifs')
@@ -213,9 +216,9 @@ def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, expected
     client.setup_job_scripts = MagicMock()
     client.prepare_converters = MagicMock(return_value=[])
     client.setup_container_images = MagicMock(return_value=None)
-    with caplog.at_level('INFO', logger='biomero.slurm_client'):
+    with caplog.at_level('DEBUG', logger='biomero.slurm_client'):
         client.setup_slurm()
-    assert expected in caplog.text
+    assert [r.levelname for r in caplog.records if expected in r.getMessage()]         == [level]
 
 
 def test_zip_exclusion_decision_is_logged(caplog):

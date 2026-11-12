@@ -126,3 +126,14 @@ def test_failed_heartbeat_preserves_adopted_job():
         job.wait_for_completion(client, heartbeat=heartbeat, strict_status=True)
     client.workflowTracker.update_task_status.assert_not_called()
     assert not job.completed()
+
+
+def test_deprecation_warning_points_at_the_caller():
+    client, connection = MagicMock(), MagicMock()
+    client.check_job_status.return_value = ({7: 'COMPLETED'}, MagicMock(ok=True))
+    job = SlurmJob.from_job_id(7, slurm_polling_interval=0)
+
+    with pytest.warns(DeprecationWarning) as record:
+        job.wait_for_completion(client, connection)
+
+    assert record[0].filename == __file__

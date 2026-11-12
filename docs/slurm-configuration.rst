@@ -377,6 +377,10 @@ Impact:
   sibling path (``/usr/bin/unzip``) for extraction.
 * Other configured values retain the legacy 7-Zip syntax for backward
   compatibility.
+* Info-ZIP extraction with a file filter also needs ``mktemp`` and a ``find``
+  that supports ``-cnewer`` and ``-print -quit`` (GNU findutils) on the
+  cluster: it uses them to tell a partial filter match from an empty
+  extraction.
 
 Use this when:
 

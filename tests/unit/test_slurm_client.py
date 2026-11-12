@@ -11,7 +11,8 @@ import subprocess
 from uuid import uuid4
 from uuid import UUID
 from biomero.slurm_client import (
-    SlurmClient, SlurmJob, JOB_STATUS_EMPTY_RETRIES,
+    SlurmClient, SlurmJob, DEFAULT_JOB_STATUS_ATTEMPTS,
+    DEFAULT_JOB_STATUS_RETRY_SECONDS,
     IMAGE_PULL_STATUS_RETENTION_DAYS, GITHUB_CACHE_VERSIONED_FALLBACK_SECONDS,
     GITHUB_CACHE_UNVERSIONED_FALLBACK_SECONDS
 )
@@ -406,7 +407,7 @@ def test_get_unzip_command_infozip(slurm_client, zip_cmd, unzip_cmd):
         ' "/data/batch1/data/in"'
         ' "/data/batch1/data/out"'
         ' "/data/batch1/data/gt";'
-        ' marker=$(mktemp) && ('
+        ' marker=$(mktemp "/data/batch1/data/.biomero-unzip.XXXXXX") && ('
         f'{unzip_cmd} -o "/data/batch1.zip"'
         " '*.tif' '*.zarr/*'"
         ' -d "/data/batch1/data/in"; unzip_status=$?;')
@@ -1497,7 +1498,7 @@ def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
 
     # THEN it asks a bounded number of times, instead of reporting PENDING
     # forever
-    assert mock_run_commands.call_count == JOB_STATUS_EMPTY_RETRIES
+    assert mock_run_commands.call_count == DEFAULT_JOB_STATUS_ATTEMPTS
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
 
@@ -2598,6 +2599,8 @@ def test_from_config(mock_ConfigParser,
         remote_shallower_partition=mv,
         remote_shallower_mem=mv,
         remote_shallower_time=mv,
+        job_status_attempts=DEFAULT_JOB_STATUS_ATTEMPTS,
+        job_status_retry_seconds=DEFAULT_JOB_STATUS_RETRY_SECONDS,
         slurm_conversion_partition=mv,
         slurm_default_partition=mv,
         sacct_start_time=None,
@@ -5400,7 +5403,7 @@ def test_image_pull_prunes_old_status_folders_but_not_the_current_one(
     assert command == (
         "find /scripts/image-pulls -mindepth 1 -maxdepth 1 -type d "
         f"-mtime +{IMAGE_PULL_STATUS_RETENTION_DAYS} "
-        "! -path /scripts/image-pulls/current -exec rm -rf {} +")
+        "! -name current -exec rm -rf {} +")
 
 
 def test_image_pull_prune_failure_does_not_fail_the_submission(slurm_client):
@@ -5445,7 +5448,7 @@ def test_check_job_status_fails_after_bounded_empty_sacct_output(
         slurm_client.check_job_status([42])
 
     assert (slurm_client.run_commands_read_only.call_count
-            == JOB_STATUS_EMPTY_RETRIES)
+            == DEFAULT_JOB_STATUS_ATTEMPTS)
 
 
 @patch('biomero.slurm_client.timesleep')
@@ -5503,7 +5506,9 @@ def _run_unzip_command(tmp_path, unzip_exit, extracted_file,
         (extract_dir / existing_file).write_text("from an earlier run")
     fake_unzip = bin_dir / "unzip"
     touch_extracted = (
-        f'touch "$dest/{extracted_file}"\n' if extracted_file else "")
+        # Info-ZIP restores the archive's modification time: an old one.
+        f'touch -d 2020-01-01 "$dest/{extracted_file}"\n'
+        if extracted_file else "")
     fake_unzip.write_text(
         "#!/bin/bash\n"
         "dest=''\n"
@@ -5673,114 +5678,6 @@ def test_config_load_logs_the_files_it_read(monkeypatch, tmp_path, caplog):
 
 
 # ---------------------------------------------------------------------------
-# Teardown disposes the database engine with the last client that holds it
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def engine_holders(monkeypatch):
-    """An empty registry of engine holders, and spies on the teardown."""
-    monkeypatch.setattr(SlurmClient, "_engine_holders",
-                        weakref.WeakValueDictionary())
-    with patch.object(EngineManager, "close_engine") as close_engine, \
-            patch.object(EngineManager, "remove_session") as remove_session:
-        yield SimpleNamespace(close_engine=close_engine,
-                              remove_session=remove_session)
-
-
-def _client_holding_the_engine():
-    client = SlurmClient(config_only=True)
-    client._hold_engine()
-    return client
-
-
-def test_exit_disposes_the_database_engine_of_the_last_client(engine_holders):
-    client = _client_holding_the_engine()
-
-    with client:
-        pass
-
-    engine_holders.close_engine.assert_called_once_with()
-    engine_holders.remove_session.assert_not_called()
-
-
-def test_exit_keeps_the_engine_of_a_client_that_is_not_entered_yet(
-        engine_holders):
-    """B is constructed but not entered while A exits: B keeps its engine."""
-    client_a = _client_holding_the_engine()
-    client_b = _client_holding_the_engine()  # same host: equal to client_a
-
-    with client_a:
-        pass
-
-    engine_holders.close_engine.assert_not_called()
-    engine_holders.remove_session.assert_called_once_with()
-    with client_b:
-        pass
-    engine_holders.close_engine.assert_called_once_with()
-
-
-def test_nested_clients_dispose_the_engine_once_at_the_outermost_exit(
-        engine_holders):
-    outer, inner = _client_holding_the_engine(), _client_holding_the_engine()
-
-    with outer:
-        with inner:
-            pass
-        engine_holders.close_engine.assert_not_called()
-
-    engine_holders.close_engine.assert_called_once_with()
-
-
-def test_engine_is_released_when_the_parent_exit_raises(engine_holders):
-    client = _client_holding_the_engine()
-
-    with patch("biomero.slurm_client.Connection.__exit__",
-               side_effect=OSError("close failed")):
-        with pytest.raises(OSError, match="close failed"):
-            client.__exit__(None, None, None)
-
-    engine_holders.close_engine.assert_called_once_with()
-
-
-def test_exiting_twice_never_counts_below_zero(engine_holders):
-    client = _client_holding_the_engine()
-    other = _client_holding_the_engine()
-
-    client.__exit__(None, None, None)
-    client.__exit__(None, None, None)
-
-    engine_holders.close_engine.assert_not_called()
-    other.__exit__(None, None, None)
-    engine_holders.close_engine.assert_called_once_with()
-
-
-def test_a_client_that_never_exits_does_not_keep_the_engine_forever(
-        engine_holders):
-    forgotten = _client_holding_the_engine()
-    del forgotten
-    gc.collect()
-    client = _client_holding_the_engine()
-
-    client.__exit__(None, None, None)
-
-    engine_holders.close_engine.assert_called_once_with()
-
-
-def test_initializing_analytics_registers_the_client_as_engine_holder(
-        slurm_client, engine_holders):
-    slurm_client.sqlalchemy_url = "sqlite:///test.db"
-    slurm_client.track_workflows = True
-    slurm_client.setup_listeners = MagicMock()
-
-    with patch.object(EngineManager, "create_scoped_session",
-                      return_value="topic"), \
-            patch("biomero.slurm_client.SingleThreadedRunner"):
-        slurm_client.initialize_analytics_system()
-
-    assert SlurmClient._engine_holders[id(slurm_client)] is slurm_client
-
-
-# ---------------------------------------------------------------------------
 # Config readers, job object, cache and other follow-ups of the review
 # ---------------------------------------------------------------------------
 
@@ -5828,7 +5725,7 @@ def test_check_job_status_does_not_sleep_after_the_last_attempt(
     with pytest.raises(SSHException):
         slurm_client.check_job_status([42])
 
-    assert mock_sleep.sleep.call_count == JOB_STATUS_EMPTY_RETRIES - 1
+    assert mock_sleep.sleep.call_count == DEFAULT_JOB_STATUS_ATTEMPTS - 1
 
 
 def test_image_pull_prune_connection_error_only_warns(slurm_client, caplog):
@@ -5909,3 +5806,38 @@ def test_github_cache_expiry_uses_the_fallback_unless_github_says_otherwise(
 
     lifetime = response.expires - response.created_at
     assert lifetime.total_seconds() == pytest.approx(expected_seconds, abs=5)
+
+
+def test_job_status_attempts_are_reachable_from_the_constructor_and_config(
+        slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(config_values={
+        "job_status_attempts": "9", "job_status_retry_seconds": "7"})
+
+    assert client.job_status_attempts == 9
+    assert client.job_status_retry_seconds == 7
+    assert SlurmClient(config_only=True, job_status_attempts=0
+                       ).job_status_attempts == 1
+
+
+def test_default_job_status_wait_is_at_least_as_tolerant_as_2_8_0():
+    """2.8.0 asked 3 times and slept 3 s after each empty answer: 9 s."""
+    total_wait = ((DEFAULT_JOB_STATUS_ATTEMPTS - 1)
+                  * DEFAULT_JOB_STATUS_RETRY_SECONDS)
+
+    assert DEFAULT_JOB_STATUS_ATTEMPTS >= 3
+    assert total_wait >= 9
+
+
+@patch('biomero.slurm_client.timesleep')
+def test_check_job_status_waits_the_configured_time_between_attempts(
+        mock_sleep, slurm_client):
+    slurm_client.job_status_attempts = 4
+    slurm_client.job_status_retry_seconds = 2
+    slurm_client.run_commands_read_only = MagicMock(
+        return_value=MagicMock(ok=True, stdout=""))
+
+    with pytest.raises(SSHException, match="after 4 attempts"):
+        slurm_client.check_job_status([42])
+
+    assert slurm_client.run_commands_read_only.call_count == 4
+    assert [c.args for c in mock_sleep.sleep.call_args_list] == [(2,)] * 3

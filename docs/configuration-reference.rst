@@ -211,6 +211,14 @@ Environment Variable Lookup Table
      - integer or empty
      - unset
      - Relative history window; takes precedence over ``sacct_start_time``
+   * - ``job_status_attempts``
+     - integer
+     - ``5``
+     - How many times the job status check asks ``sacct`` while it returns no rows (a new job can take a while to appear) before failing
+   * - ``job_status_retry_seconds``
+     - integer
+     - ``3``
+     - Seconds to wait between those attempts
    * - ``env_file_submission``
      - boolean
      - ``false``

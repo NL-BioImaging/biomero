@@ -34,15 +34,13 @@ import posixpath
 import yaml
 import shlex
 import socket
-import threading
 import warnings
-import weakref
 from biomero.constants import slurm_env, LOCK_FILE_PATTERN
 from biomero import ssh_recovery
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
-from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
+from biomero.database import EngineManager, EngineHolder, JobProgressView, JobView, TaskExecution, WorkflowProgressView
 from eventsourcing.system import System, SingleThreadedRunner
 from eventsourcing.persistence import IntegrityError as ESIntegrityError
 from sqlalchemy.exc import IntegrityError
@@ -57,10 +55,12 @@ TERMINAL_JOB_STATES = frozenset({
     'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
     'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED',
 })
-# ``check_job_status`` asks sacct again this many times, waiting this many
-# seconds in between, when it returns no rows, then raises.
-JOB_STATUS_EMPTY_RETRIES = 3
-JOB_STATUS_RETRY_SECONDS = 3
+# ``check_job_status`` asks sacct up to this many times, waiting this many
+# seconds in between, while it returns no rows (a freshly submitted job can take
+# a while to show up on a busy cluster), then raises. 2.8.0 asked 3 times and
+# waited 9 seconds in total.
+DEFAULT_JOB_STATUS_ATTEMPTS = 5
+DEFAULT_JOB_STATUS_RETRY_SECONDS = 3
 # How long cached GitHub responses (workflow descriptors) stay fresh when the
 # response carries no Cache-Control header of its own; with ``cache_control``
 # on, a ``max-age`` sent by GitHub wins over these. Expired responses are
@@ -446,12 +446,6 @@ class SlurmClient(Connection):
         ("SLURM", "remote_shallower_time"): [
             slurm_env.BIOMERO_REMOTE_SHALLOWER_TIME],
     }
-    # The clients that acquired the database engine, by ``id`` (Connection
-    # equality is by host, so equal-looking clients must stay distinct). The
-    # engine is disposed when the last one exits; a client that is garbage
-    # collected without exiting drops out by itself.
-    _engine_holders = weakref.WeakValueDictionary()
-    _engine_holders_lock = threading.Lock()
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -716,6 +710,9 @@ class SlurmClient(Connection):
                  remote_shallower_partition: str = None,
                  remote_shallower_mem: str = None,
                  remote_shallower_time: str = None,
+                 job_status_attempts: int = DEFAULT_JOB_STATUS_ATTEMPTS,
+                 job_status_retry_seconds: float =
+                 DEFAULT_JOB_STATUS_RETRY_SECONDS,
                  ssh_recovery_timeout: int =
                  ssh_recovery.DEFAULT_SSH_RECOVERY_TIMEOUT):
         """
@@ -844,6 +841,13 @@ class SlurmClient(Connection):
                 inherits global sbatch memory. Environment: BIOMERO_REMOTE_SHALLOWER_MEM.
             remote_shallower_time (str, optional): Time limit override; default
                 None inherits global sbatch_time. Environment: BIOMERO_REMOTE_SHALLOWER_TIME.
+            job_status_attempts (int, optional): How many times
+                ``check_job_status`` asks ``sacct`` while it returns no job
+                rows (for instance right after submitting on a busy cluster)
+                before it raises. Defaults to ``DEFAULT_JOB_STATUS_ATTEMPTS``.
+            job_status_retry_seconds (float, optional): Seconds to wait
+                between those attempts. Defaults to
+                ``DEFAULT_JOB_STATUS_RETRY_SECONDS``.
             slurm_conversion_partition (str, optional): SLURM partition to use 
                 for conversion jobs when no default partition is configured on 
                 your HPC. Defaults to None (use system default partition).
@@ -975,6 +979,13 @@ class SlurmClient(Connection):
         self.remote_shallower_partition = remote_shallower_partition
         self.remote_shallower_mem = remote_shallower_mem
         self.remote_shallower_time = remote_shallower_time
+        self.job_status_attempts = self._at_least_one(
+            "job_status_attempts", job_status_attempts)
+        self.job_status_retry_seconds = max(0, job_status_retry_seconds)
+        # Identity of this client as a user of the database engine. Fabric's
+        # attribute proxy would store (and later deep-copy) a plain
+        # assignment in its config, so set it directly on the instance.
+        object.__setattr__(self, "_engine_token", EngineHolder())
         self.slurm_conversion_partition = slurm_conversion_partition
         self.slurm_default_partition = slurm_default_partition
         self.sacct_start_time = sacct_start_time
@@ -1250,9 +1261,8 @@ class SlurmClient(Connection):
                 pipes = [[WorkflowTracker]]
 
             system = System(pipes=pipes)
-            scoped_session_topic = EngineManager.create_scoped_session(
-                sqlalchemy_url=sqlalchemy_url)
-            self._hold_engine()
+            scoped_session_topic = EngineManager.acquire(
+                self._engine_token, sqlalchemy_url=sqlalchemy_url)
             runner = SingleThreadedRunner(system, env={
                 'SQLALCHEMY_SCOPED_SESSION_TOPIC': scoped_session_topic,
                 'PERSISTENCE_MODULE': persistence_module})
@@ -1408,35 +1418,21 @@ class SlurmClient(Connection):
                     logger.warning(
                         f"Database conflict in bring_listener_uptodate (non-unique): {e}")
 
-    def _hold_engine(self):
-        """Register this client as a user of the database engine."""
-        with SlurmClient._engine_holders_lock:
-            SlurmClient._engine_holders[id(self)] = self
-
-    def _release_engine(self):
-        """Release the database engine of this client.
-
-        The engine is disposed with the last client that holds it; while
-        others hold it (the workflow supervisor runs several), only this
-        thread's session is removed. Deciding and disposing happen under one
-        lock, so a client created meanwhile is never left without an engine.
-        """
-        with SlurmClient._engine_holders_lock:
-            SlurmClient._engine_holders.pop(id(self), None)
-            if SlurmClient._engine_holders:
-                logger.debug("Other SlurmClients hold the database engine; "
-                             "releasing only this thread's session")
-                EngineManager.remove_session()
-            else:
-                EngineManager.close_engine()
-
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Clean up the Connection resources, then release the database
-        # engine even when that fails.
+        """Close the connection and release the database engine.
+
+        The engine is disposed with the last client that holds it (see
+        ``EngineManager.release``). Only leaving the ``with`` block releases
+        it: ``close()`` alone does not. A failure while releasing is logged
+        and never replaces an exception from closing the connection.
+        """
         try:
             super().__exit__(exc_type, exc_val, exc_tb)
         finally:
-            self._release_engine()
+            try:
+                EngineManager.release(self._engine_token)
+            except Exception:
+                logger.exception("Could not release the database engine")
 
     def init_workflows(self, force_update: bool = False):
         """
@@ -1678,7 +1674,8 @@ class SlurmClient(Connection):
             result = self.run_commands([
                 f"find {shlex.quote(status_root)} -mindepth 1 -maxdepth 1 "
                 f"-type d -mtime +{IMAGE_PULL_STATUS_RETENTION_DAYS} "
-                f"! -path {shlex.quote(status_dir)} -exec rm -rf {{}} +"],
+                f"! -name {shlex.quote(posixpath.basename(status_dir))} "
+                f"-exec rm -rf {{}} +"],
                 warn=True)
             failure = None if result.ok else result.stderr
         except Exception as error:
@@ -2126,6 +2123,20 @@ class SlurmClient(Connection):
             env_vars=cls._CONFIG_ENV_VARS[("SLURM", "remote_shallower_time")],
             empty_is_none=True,
         )
+        job_status_attempts = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="job_status_attempts",
+            default=DEFAULT_JOB_STATUS_ATTEMPTS,
+            value_type=int,
+        )
+        job_status_retry_seconds = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="job_status_retry_seconds",
+            default=DEFAULT_JOB_STATUS_RETRY_SECONDS,
+            value_type=int,
+        )
         slurm_conversion_partition = cls._get_config_value(
             configs,
             section="SLURM",
@@ -2392,9 +2403,8 @@ class SlurmClient(Connection):
         enable_job_accounting = analytics_flags["enable_job_accounting"]
         enable_job_progress = analytics_flags["enable_job_progress"]
         enable_workflow_analytics = analytics_flags["enable_workflow_analytics"]
-        # The only place that reads sqlalchemy_url: ini value, then the
-        # SQLALCHEMY_URL environment variable. The environment variable also
-        # works without an ANALYTICS section.
+        # Resolved here: the SQLALCHEMY_URL environment variable wins over the
+        # ini value, and also works without an ANALYTICS section.
         sqlalchemy_url = cls._get_config_value(
             configs,
             section='ANALYTICS',
@@ -2436,6 +2446,8 @@ class SlurmClient(Connection):
                    remote_shallower_partition=remote_shallower_partition,
                    remote_shallower_mem=remote_shallower_mem,
                    remote_shallower_time=remote_shallower_time,
+                   job_status_attempts=job_status_attempts,
+                   job_status_retry_seconds=job_status_retry_seconds,
                    slurm_conversion_partition=slurm_conversion_partition,
                    slurm_default_partition=slurm_default_partition,
                    sacct_start_time=sacct_start_time,
@@ -3506,7 +3518,7 @@ class SlurmClient(Connection):
 
         Raises:
             SSHException: If the command fails, or sacct returns no job rows
-                after ``JOB_STATUS_EMPTY_RETRIES`` attempts.
+                after ``job_status_attempts`` attempts.
         """
         # Filter job IDs to only include valid positive integers
         valid_job_ids = []
@@ -3524,7 +3536,7 @@ class SlurmClient(Connection):
 
         cmd = self.get_job_status_command(valid_job_ids)
         logger.info(f"Getting status of {valid_job_ids} on Slurm")
-        for retry_status in range(1, JOB_STATUS_EMPTY_RETRIES + 1):
+        for retry_status in range(1, self.job_status_attempts + 1):
             result = self.run_commands_read_only([cmd], env=env)
             logger.info(result)
             if not result.ok:
@@ -3550,14 +3562,14 @@ class SlurmClient(Connection):
                 return result_dict, result
             logger.debug(f"Attempt {retry_status} getting status of "
                          f"{valid_job_ids}: sacct returned no job rows")
-            if retry_status < JOB_STATUS_EMPTY_RETRIES:
-                timesleep.sleep(JOB_STATUS_RETRY_SECONDS)
+            if retry_status < self.job_status_attempts:
+                timesleep.sleep(self.job_status_retry_seconds)
 
         # No rows at all is not a state: a job that left the accounting (or a
         # wrong ID) would otherwise be polled forever.
         raise SSHException(
             f"Slurm sacct returned no job rows for {valid_job_ids} after "
-            f"{JOB_STATUS_EMPTY_RETRIES} attempts")
+            f"{self.job_status_attempts} attempts")
 
     @staticmethod
     def _parse_job_statuses(sacct_output: str) -> Dict[int, str]:
@@ -4293,26 +4305,36 @@ class SlurmClient(Connection):
         return posixpath.basename(executable) == "zip"
 
     @staticmethod
-    def _guard_partial_match(unzip_args: str, extract_dir: str) -> str:
+    def _guard_partial_match(unzip_args: str, extract_dir: str,
+                             marker_dir: str) -> str:
         """Wrap an Info-ZIP extraction that filters, so only a real one succeeds.
 
         Info-ZIP exits with 11 when any one filter matched nothing, also when
         the others extracted files (a result without Zarr but with TIFF).
-        Exit 11 counts as success only if this run created or changed files in
+        Exit 11 counts as success only if this run changed files in
         ``extract_dir``: a marker file taken before extraction is compared
-        with the change time (``-cnewer``) of what is there, so a re-run into
-        a non-empty directory cannot pass on the files of an earlier run.
-        Any other non-zero exit is a failure.
+        with the change time of what is there (``find -cnewer``, not the
+        modification time, which Info-ZIP restores from the archive), so a
+        re-run into a non-empty directory cannot pass on the files of an
+        earlier run. Any other non-zero exit is a failure.
+
+        The marker is created next to the target (``marker_dir``, same
+        filesystem, so the comparison uses the same clock as the extracted
+        files) and removed afterwards. This needs ``mktemp`` and a ``find``
+        with ``-cnewer`` and ``-print -quit`` (GNU findutils) on the cluster.
 
         Args:
             unzip_args (str): The complete ``unzip`` command.
             extract_dir (str): The directory it extracts into.
+            marker_dir (str): The directory for the marker file; not inside
+                ``extract_dir``.
 
         Returns:
             str: A command whose exit status is the extraction's outcome.
         """
         return (
-            f"marker=$(mktemp) && ({unzip_args}; unzip_status=$?; "
+            f"marker=$(mktemp \"{marker_dir}/.biomero-unzip.XXXXXX\") && "
+            f"({unzip_args}; unzip_status=$?; "
             "[ $unzip_status -eq 0 ] || { [ $unzip_status -eq 11 ] && "
             f"[ -n \"$(find \"{extract_dir}\" -mindepth 1 -cnewer "
             "\"$marker\" -print -quit)\" ]; }; "
@@ -4455,6 +4477,7 @@ class SlurmClient(Connection):
             unzip_cmd = self._get_infozip_unzip_command()
             filter_args = self._get_infozip_filter_args(filter_filetypes)
             extract_dir = f"{self.slurm_data_path}/{zipfile}/data/in"
+            marker_dir = f"{self.slurm_data_path}/{zipfile}/data"
             unzip_args = (
                 f"{unzip_cmd} -o"
                 f" \"{self.slurm_data_path}/{zipfile}.zip\""
@@ -4466,7 +4489,7 @@ class SlurmClient(Connection):
                 f" \"{extract_dir}\""
                 f" \"{self.slurm_data_path}/{zipfile}/data/out\""
                 f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
-                f" {self._guard_partial_match(unzip_args, extract_dir) if filter_args else unzip_args}"
+                f" {self._guard_partial_match(unzip_args, extract_dir, marker_dir) if filter_args else unzip_args}"
             )
         unzip_cmd = (
             f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""

@@ -3410,7 +3410,7 @@ def test_slurm_job_cleanup_passes_explicit_log_file():
     ('helper', 'default', 'helper'), (None, 'default', 'default'),
     (None, None, 'global')])
 def test_shallower_scheduler_precedence(slurm_client, dedicated, default, expected):
-    from biomero.remote_shallower import build_command
+    from biomero.remote_shallower import build_helper_command
     slurm_client.remote_shallower_partition = dedicated
     slurm_client.slurm_default_partition = default
     slurm_client.slurm_global_job_params = [
@@ -3419,7 +3419,7 @@ def test_shallower_scheduler_precedence(slurm_client, dedicated, default, expect
         ' --gpus-per-node=1', ' --array=1-9', ' --export=ALL',
         ' --output=wrong', ' --ntasks=8']
     for recovery in (False, True):
-        command = build_command(slurm_client, '/out', '/helper.sif', '/manifest',
+        command = build_helper_command(slurm_client, '/out', '/helper.sif', '/manifest',
                                 str(uuid4()), recovery=recovery)
         assert f'--partition={expected}' in command
         assert command.count('--partition=') == 1
@@ -3433,12 +3433,12 @@ def test_shallower_scheduler_precedence(slurm_client, dedicated, default, expect
 
 
 def test_shallower_resource_overrides(slurm_client):
-    from biomero.remote_shallower import build_command
+    from biomero.remote_shallower import build_helper_command
     slurm_client.remote_shallower_mem = '8G'
     slurm_client.remote_shallower_time = '03:00:00'
     slurm_client.slurm_global_job_params = [' --mem=4G', ' --time=01:00:00',
                                           ' --mem-per-cpu=1G']
-    command = build_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()))
+    command = build_helper_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()))
     assert '--mem=8G' in command and '--mem=4G' not in command
     assert '--mem-per-cpu' not in command
     assert '--time=03:00:00' in command and '--time=01:00:00' not in command

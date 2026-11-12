@@ -391,7 +391,7 @@ def test_unknown_submission_waits_without_resubmission(
 @pytest.mark.parametrize('lose_receipt', [False, True])
 def test_shallower_lost_acknowledgement_adopts_one_job(
         shell_client, recovery_clock, lose_receipt):
-    from biomero.remote_shallower import _submit_once
+    from biomero.slurm_client import SlurmClient
     state = str(Path(shell_client.slurm_data_path) / 'shallow')
     original = shell_client.run_commands
     calls = []
@@ -409,19 +409,19 @@ def test_shallower_lost_acknowledgement_adopts_one_job(
         return result
 
     shell_client.run_commands = lose_response
-    assert ssh_recovery.retry(shell_client, lambda: _submit_once(
+    assert ssh_recovery.retry(shell_client, lambda: SlurmClient.submit_job_once(
         shell_client, 'sbatch --parsable --job-name=helper job.sh', state,
         job_name='helper'), 'helper submission') == 42
     assert shell_client.counter.read_text().splitlines() == ['submitted']
 
 
 def test_shallower_ambiguous_intent_never_resubmits(shell_client, recovery_clock):
-    from biomero.remote_shallower import _submit_once
+    from biomero.slurm_client import SlurmClient
     state = str(Path(shell_client.slurm_data_path) / 'shallow')
     Path(state + '.intent').write_text('2026-11-03T00:00:00')
     shell_client.jobs.write_text('41|helper\n42|helper\n99|other\n')
     with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
-        ssh_recovery.retry(shell_client, lambda: _submit_once(
+        ssh_recovery.retry(shell_client, lambda: SlurmClient.submit_job_once(
             shell_client, 'sbatch --parsable job.sh', state, job_name='helper'),
             'helper submission')
     assert not shell_client.counter.exists()
@@ -650,7 +650,7 @@ def test_shallower_contention_recovers_after_lock_release(
         shell_client, recovery_clock):
     import fcntl
     from threading import Timer
-    from biomero.remote_shallower import _submit_once
+    from biomero.slurm_client import SlurmClient
     state = str(Path(shell_client.slurm_data_path) / 'shallow')
     lock = open(state + '.lock', 'w')
     fcntl.flock(lock, fcntl.LOCK_EX)
@@ -666,7 +666,7 @@ def test_shallower_contention_recovers_after_lock_release(
     release = Timer(0.25, lambda: fcntl.flock(lock, fcntl.LOCK_UN))
     release.start()
     try:
-        assert ssh_recovery.retry(shell_client, lambda: _submit_once(
+        assert ssh_recovery.retry(shell_client, lambda: SlurmClient.submit_job_once(
             shell_client, 'sbatch --parsable --job-name=helper job.sh', state,
             job_name='helper'), 'helper submission') == 42
     finally:

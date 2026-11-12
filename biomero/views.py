@@ -21,6 +21,7 @@ from biomero.eventsourcing import WorkflowRun, Task
 from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
 from biomero.constants import (
     RUN_WF_BATCHED_SCRIPT,
+    REMOTE_SHALLOWER_TASK_NAME,
     RUN_WF_SCRIPT,
     workflow_status as wfs,
 )
@@ -336,7 +337,7 @@ class WorkflowProgress(ProcessApplication):
 
         # Track task to workflow mapping
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
+        if task_info and task_info["task_name"] == REMOTE_SHALLOWER_TASK_NAME:
             EngineManager.commit()
             return
         if task_info:
@@ -372,7 +373,7 @@ class WorkflowProgress(ProcessApplication):
         """Persist the current task and its initial workflow phase."""
         task_id = domain_event.originator_id
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
+        if task_info and task_info["task_name"] == REMOTE_SHALLOWER_TASK_NAME:
             EngineManager.commit()
             return
         if task_info:
@@ -420,7 +421,7 @@ class WorkflowProgress(ProcessApplication):
 
         # Get the workflow ID and task name associated with this task
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
+        if task_info and task_info["task_name"] == REMOTE_SHALLOWER_TASK_NAME:
             EngineManager.commit()
             return
         if task_info:
@@ -499,7 +500,7 @@ class WorkflowProgress(ProcessApplication):
         progress = domain_event.progress
         
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
+        if task_info and task_info["task_name"] == REMOTE_SHALLOWER_TASK_NAME:
             EngineManager.commit()
             return
         if task_info:

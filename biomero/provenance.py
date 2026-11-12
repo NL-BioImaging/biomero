@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import re
 from uuid import UUID
 
+from biomero.constants import REMOTE_SHALLOWER_TASK_NAME
+
 
 NAMESPACE = 'biomero/workflow'
 
@@ -19,7 +21,7 @@ class MetadataAnnotation:
 
 def _internal(task):
     return ('_biomero_detached_launcher' in (task.params or {}) or
-            task.task_name == '_SLURM_Remote_Shallower')
+            task.task_name == REMOTE_SHALLOWER_TASK_NAME)
 
 
 def _parameters(task):

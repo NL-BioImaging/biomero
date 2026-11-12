@@ -24,6 +24,8 @@ FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
+# Name of the workflow task that records one remote shallower (helper) run.
+REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
 # Blueprint qualitative color scheme. Keep these values in Python because the
 # OMERO scripts do not load the Blueprint JavaScript package.

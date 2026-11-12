@@ -1,8 +1,9 @@
 """Optional CPU result shallowing before result archiving.
 
-SlurmClient owns remote execution, image acquisition and scheduling policy;
-SlurmJob owns monitoring. This module coordinates the shallower's manifest,
-durable submission records, recovery command and receipt validation.
+SlurmClient owns remote execution, image acquisition, job submission and
+scheduling policy; SlurmJob owns monitoring. This module coordinates the
+shallower's manifest, durable submission records, recovery command and receipt
+validation.
 """
 
 import hashlib
@@ -12,26 +13,64 @@ import logging
 import posixpath
 import re
 import shlex
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple
 from uuid import UUID, uuid4
 
-from invoke.exceptions import UnexpectedExit
 from packaging.version import InvalidVersion, Version
 
+from .constants import REMOTE_SHALLOWER_TASK_NAME
 from .slurm_client import SlurmClient, SlurmJob
-from . import ssh_recovery
 
-TASK_NAME = "_SLURM_Remote_Shallower"
+logger = logging.getLogger(__name__)
+
+# Contract between BIOMERO and the biomero-shallower helper image: the helper
+# declares the versions it supports as OCI labels, validated before use.
 CAPABILITY_SCHEMA = 1
 REQUIRED_RUNTIME_CONTRACT = 1
 REQUIRED_MANIFEST_SCHEMA = 2
+BATCH_REPORT_SCHEMA = 1
+OCI_VERSION_LABEL = "org.opencontainers.image.version"
 CAPABILITY_LABELS = {
     "schema": "org.biomeroproject.shallower.capability-schema",
     "contracts": "org.biomeroproject.shallower.runtime-contracts",
     "manifest_schemas": "org.biomeroproject.shallower.manifest-schemas",
     "migrations": "org.biomeroproject.shallower.migrations",
 }
-logger = logging.getLogger(__name__)
+
+# How the helper is invoked inside its container.
+HELPER_EXECUTABLE = "biomero-shallower"
+HELPER_COMMAND = "normalize-tree"
+FAILURE_POLICY = "keep-full"
+CONTAINER_RESULTS_PATH = "/results"
+CONTAINER_MANIFEST_PATH = "/canonical.json"
+CONTAINER_RUNTIME_LOOKUP = (
+    "runtime=$(command -v apptainer || command -v singularity)")
+
+# Where the helper reads and writes on the Slurm cluster, relative to the
+# workflow data folder.
+RESULTS_SUBPATH = "data/out"
+REPORT_FILENAME = ".biomero-shallow-batch.json"
+STATE_DIRNAME = ".biomero-shallower"
+MANIFEST_FILENAME = "canonical.json"
+
+# Submission state files per operation, in the task state directory.
+SHALLOW_STATE_NAME = "shallow"
+RECOVERY_STATE_NAME = "recovery"
+SUBMISSION_STATE_SUFFIXES = (".intent", ".job")
+
+POLLING_INTERVAL_SECONDS = 15
+MANIFEST_LOCK_WAIT_SECONDS = 30
+
+
+class HelperJob(NamedTuple):
+    """The task, image and remote paths of one helper (shallower) job."""
+
+    task: Any
+    image: str
+    sif_path: str
+    output_path: str
+    manifest_path: str
+    state_dir: str
 
 
 def image_spec(slurm_client: SlurmClient, *,
@@ -72,8 +111,8 @@ def image_spec(slurm_client: SlurmClient, *,
             "shallower-" + hashlib.sha256(image.encode()).hexdigest()[:24]
             + ".sif"),
     }
-    logger.debug("Remote shallower image spec: source=%s version=%s "
-                 "destination=%s", source, version, spec["destination"])
+    logger.debug(f"Remote shallower image spec: source={source} "
+                 f"version={version} destination={spec['destination']}")
     return spec
 
 
@@ -92,10 +131,10 @@ def _installed_labels(slurm_client: SlurmClient,
         RuntimeError: If the image cannot be inspected.
         ValueError: If the image has no usable labels.
     """
-    result = slurm_client.run_commands([
-        "runtime=$(command -v apptainer || command -v singularity); "
-        'test -n "$runtime" && "$runtime" inspect --json --labels '
-        + shlex.quote(sif_path)])
+    inspect_labels_cmd = (
+        f'{CONTAINER_RUNTIME_LOOKUP}; test -n "$runtime" && '
+        f'"$runtime" inspect --json --labels {shlex.quote(sif_path)}')
+    result = slurm_client.run_commands([inspect_labels_cmd])
     if not result.ok:
         raise RuntimeError(
             f"Cannot inspect installed shallower metadata of {sif_path}")
@@ -123,7 +162,7 @@ def _version_from_labels(labels: Dict[str, Any]) -> str:
         ValueError: If the label is missing or not a valid version.
     """
     try:
-        version = labels["org.opencontainers.image.version"]
+        version = labels[OCI_VERSION_LABEL]
         if not isinstance(version, str) or not version.strip():
             raise ValueError("Empty version")
         Version(version.strip())
@@ -149,8 +188,8 @@ def installed_tool_version(slurm_client: SlurmClient, sif_path: str) -> str:
     return _version_from_labels(_installed_labels(slurm_client, sif_path))
 
 
-def _csv_capability(labels: Dict[str, Any], name: str, *,
-                    integers: bool = False) -> Tuple[Any, ...]:
+def _parse_capability_label(labels: Dict[str, Any], name: str, *,
+                            integers: bool = False) -> Tuple[Any, ...]:
     """Parse a comma-separated capability label.
 
     Args:
@@ -181,8 +220,71 @@ def _csv_capability(labels: Dict[str, Any], name: str, *,
         raise ValueError(f"Installed shallower has invalid {label}") from error
 
 
+def _check_configured_version(actual_version: str,
+                              configured_version: Optional[str]) -> None:
+    """Raise unless the installed version equals the configured one, if any.
+
+    Args:
+        actual_version (str): The installed tool version.
+        configured_version (Optional[str]): The expected version, if any.
+
+    Raises:
+        ValueError: If the configured version is not a valid version.
+        RuntimeError: If the versions differ.
+    """
+    if not configured_version:
+        return
+    try:
+        matches = Version(actual_version) == Version(configured_version)
+    except InvalidVersion as error:
+        raise ValueError(
+            f"Invalid configured remote_shallower_version: "
+            f"{configured_version}"
+        ) from error
+    if not matches:
+        raise RuntimeError(
+            f"Installed remote Shallower {actual_version} does not match "
+            f"configured version {configured_version}; run SLURM Init "
+            "and verify the selected helper image")
+
+
+def _check_capabilities(labels: Dict[str, Any], actual_version: str,
+                        runtime_contract: int,
+                        manifest_schema: int) -> None:
+    """Raise unless the helper supports the required contracts and schemas.
+
+    Args:
+        labels (Dict[str, Any]): The OCI labels of the image.
+        actual_version (str): The installed tool version, for messages.
+        runtime_contract (int): The runtime contract this runtime requires.
+        manifest_schema (int): The shallow manifest schema it requires.
+
+    Raises:
+        RuntimeError: If a capability is missing or unsupported.
+        ValueError: If a capability label is missing or invalid.
+    """
+    if labels.get(CAPABILITY_LABELS["schema"]) != str(CAPABILITY_SCHEMA):
+        raise RuntimeError(
+            "Installed remote Shallower has missing or unsupported capability "
+            "metadata; update the helper image and run SLURM Init")
+    contracts = _parse_capability_label(labels, "contracts", integers=True)
+    manifest_schemas = _parse_capability_label(
+        labels, "manifest_schemas", integers=True)
+    if runtime_contract not in contracts:
+        raise RuntimeError(
+            f"Installed remote Shallower {actual_version} does not support "
+            f"runtime contract {runtime_contract}")
+    if manifest_schema not in manifest_schemas:
+        raise RuntimeError(
+            f"Installed remote Shallower {actual_version} does not emit "
+            f"shallow manifest schema {manifest_schema}")
+
+
 def validate_installed_tool(slurm_client: SlurmClient, sif_path: str, *,
-                            expected_version: Optional[str] = None) -> str:
+                            expected_version: Optional[str] = None,
+                            runtime_contract: int = REQUIRED_RUNTIME_CONTRACT,
+                            manifest_schema: int = REQUIRED_MANIFEST_SCHEMA
+                            ) -> str:
     """Fail closed unless the installed SIF satisfies this runtime contract.
 
     Args:
@@ -190,6 +292,8 @@ def validate_installed_tool(slurm_client: SlurmClient, sif_path: str, *,
         sif_path (str): Remote path of the installed helper image.
         expected_version (Optional[str]): Version the image must have; defaults
             to the configured ``remote_shallower_version``.
+        runtime_contract (int): Runtime contract the image must support.
+        manifest_schema (int): Shallow manifest schema the image must emit.
 
     Returns:
         str: The installed tool version.
@@ -206,43 +310,17 @@ def validate_installed_tool(slurm_client: SlurmClient, sif_path: str, *,
         if expected_version is not None
         else slurm_client.remote_shallower_version
     )
-    if configured_version:
-        try:
-            matches = Version(actual_version) == Version(configured_version)
-        except InvalidVersion as error:
-            raise ValueError(
-                f"Invalid configured remote_shallower_version: "
-                f"{configured_version}"
-            ) from error
-        if not matches:
-            raise RuntimeError(
-                f"Installed remote Shallower {actual_version} does not match "
-                f"configured version {configured_version}; run SLURM Init "
-                "and verify the selected helper image")
-    if labels.get(CAPABILITY_LABELS["schema"]) != str(CAPABILITY_SCHEMA):
-        raise RuntimeError(
-            "Installed remote Shallower has missing or unsupported capability "
-            "metadata; update the helper image and run SLURM Init")
-    contracts = _csv_capability(labels, "contracts", integers=True)
-    manifest_schemas = _csv_capability(
-        labels, "manifest_schemas", integers=True
-    )
-    if REQUIRED_RUNTIME_CONTRACT not in contracts:
-        raise RuntimeError(
-            f"Installed remote Shallower {actual_version} does not support "
-            f"runtime contract {REQUIRED_RUNTIME_CONTRACT}")
-    if REQUIRED_MANIFEST_SCHEMA not in manifest_schemas:
-        raise RuntimeError(
-            f"Installed remote Shallower {actual_version} does not emit "
-            f"shallow manifest schema {REQUIRED_MANIFEST_SCHEMA}")
-    logger.debug("Installed remote shallower %s at %s satisfies runtime "
-                 "contract %s and manifest schema %s (configured version: %s)",
-                 actual_version, sif_path, REQUIRED_RUNTIME_CONTRACT,
-                 REQUIRED_MANIFEST_SCHEMA, configured_version or "any")
+    _check_configured_version(actual_version, configured_version)
+    _check_capabilities(
+        labels, actual_version, runtime_contract, manifest_schema)
+    logger.debug(f"Installed remote shallower {actual_version} at {sif_path} "
+                 f"satisfies runtime contract {runtime_contract} and "
+                 f"manifest schema {manifest_schema} (configured version: "
+                 f"{configured_version or 'any'})")
     return actual_version
 
 
-def _job_name(task_id: Any, *, recovery: bool = False) -> str:
+def helper_job_name(task_id: Any, *, recovery: bool = False) -> str:
     """Keep submission reconciliation specific to one task and operation.
 
     Args:
@@ -257,24 +335,73 @@ def _job_name(task_id: Any, *, recovery: bool = False) -> str:
     return f"biomero-{operation}-{task_id}"
 
 
-def build_command(slurm_client: SlurmClient, output: str, sif_path: str,
-                  manifest: str, task_id: str, *, recovery: bool = False,
-                  image: Optional[str] = None) -> str:
-    """Build shallowing or recovery using the same helper resource policy.
+def _build_container_command(slurm_client: SlurmClient, output_path: str,
+                             sif_path: str, manifest_path: str, task_id: str,
+                             image: str, recovery: bool,
+                             contract_version: int) -> str:
+    """Build the shell command running the helper in its container.
 
-    Paths refer to the remote filesystem. The result directory is writable in
-    the container; the canonical input manifest is mounted read-only.
+    The command looks up Apptainer or Singularity on the compute node and
+    executes the helper in the image with a clean environment. The results
+    folder is writable in the container; the canonical manifest is read-only.
 
     Args:
         slurm_client (SlurmClient): The Slurm client holding the configuration.
-        output (str): Result directory to shallow.
+        output_path (str): Result directory to shallow.
         sif_path (str): Path of the helper image.
-        manifest (str): Path of the canonical input manifest.
+        manifest_path (str): Path of the canonical input manifest.
+        task_id (str): ID of the helper task.
+        image (str): Image reference recorded for the task.
+        recovery (bool): Only recover an interrupted run.
+        contract_version (int): Runtime contract the helper must follow.
+
+    Returns:
+        str: The shell command to run inside the Slurm job.
+    """
+    quote = shlex.quote
+    results_bind = quote(f"{output_path}:{CONTAINER_RESULTS_PATH}:rw")
+    manifest_bind = quote(f"{manifest_path}:{CONTAINER_MANIFEST_PATH}:ro")
+    report_path = posixpath.join(CONTAINER_RESULTS_PATH, REPORT_FILENAME)
+    container_exec = (
+        'exec "$runtime" exec --containall --cleanenv '
+        '--env SLURM_JOB_ID="$SLURM_JOB_ID" '
+        f"--bind {results_bind} --bind {manifest_bind} {quote(sif_path)}")
+    helper_arguments = (
+        f"{HELPER_EXECUTABLE} {HELPER_COMMAND} "
+        f"--returned-zarr {CONTAINER_RESULTS_PATH} "
+        f"--canonical-inputs {CONTAINER_MANIFEST_PATH} "
+        f"--contract-version {contract_version} "
+        f"--failure-policy {FAILURE_POLICY} --report {report_path} "
+        f"--identity-workers {slurm_client.remote_shallower_workers} "
+        f"--image {quote(image)} --task-id {quote(task_id)}")
+    command = (f'{CONTAINER_RUNTIME_LOOKUP}; test -n "$runtime"; '
+               f"{container_exec} {helper_arguments}")
+    if recovery:
+        command += " --recover-only"
+    return command
+
+
+def build_helper_command(slurm_client: SlurmClient, output_path: str,
+                         sif_path: str, manifest_path: str, task_id: str, *,
+                         recovery: bool = False, image: Optional[str] = None,
+                         contract_version: int = REQUIRED_RUNTIME_CONTRACT
+                         ) -> str:
+    """Build the shallowing or recovery job using one helper resource policy.
+
+    Paths refer to the remote filesystem. The job is submitted through the
+    SlurmClient, so the configured site defaults apply.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client holding the configuration.
+        output_path (str): Result directory to shallow.
+        sif_path (str): Path of the helper image.
+        manifest_path (str): Path of the canonical input manifest.
         task_id (str): ID of the helper task.
         recovery (bool): Build the recovery command instead of the shallowing
             command (default False).
         image (Optional[str]): Image reference recorded for the task; defaults
             to the configured ``remote_shallower_image``.
+        contract_version (int): Runtime contract the helper must follow.
 
     Returns:
         str: The ``sbatch`` command.
@@ -282,40 +409,58 @@ def build_command(slurm_client: SlurmClient, output: str, sif_path: str,
     Raises:
         ValueError: If the configured worker count is not positive.
     """
-    quote = shlex.quote
     image = image if image is not None else slurm_client.remote_shallower_image
-    if (isinstance(slurm_client.remote_shallower_workers, bool)
-            or not isinstance(slurm_client.remote_shallower_workers, int)
-            or slurm_client.remote_shallower_workers < 1):
+    worker_count = slurm_client.remote_shallower_workers
+    if (isinstance(worker_count, bool) or not isinstance(worker_count, int)
+            or worker_count < 1):
         raise ValueError("Result shallower worker count must be positive")
-    params = slurm_client.get_shallower_job_params()
-    runtime = ("runtime=$(command -v apptainer || command -v singularity); "
-               'test -n "$runtime"; exec "$runtime" exec --containall --cleanenv '
-               '--env SLURM_JOB_ID="$SLURM_JOB_ID" '
-               f'--bind {quote(output + ":/results:rw")} '
-               f'--bind {quote(manifest + ":/canonical.json:ro")} '
-               f"{quote(sif_path)} biomero-shallower normalize-tree "
-               "--returned-zarr /results --canonical-inputs /canonical.json "
-               "--contract-version 1 --failure-policy keep-full "
-               "--report /results/.biomero-shallow-batch.json "
-               f"--identity-workers {slurm_client.remote_shallower_workers} "
-               f"--image {quote(image)} "
-               f"--task-id {quote(task_id)}")
-    if recovery:
-        runtime += " --recover-only"
-    logger.debug("Built remote shallower %s command for task %s: image=%s "
-                 "workers=%s sbatch params=%s",
-                 "recovery" if recovery else "shallowing", task_id, image,
-                 slurm_client.remote_shallower_workers, params)
-    return ("sbatch --parsable --export=NONE " + " ".join(params) +
-            f" --job-name={quote(_job_name(task_id, recovery=recovery))}"
-            f' --output={quote(manifest + ".%j.log")}' +
-            " --wrap=" + quote(runtime))
+    job_params = slurm_client.get_shallower_job_params()
+    container_command = _build_container_command(
+        slurm_client, output_path, sif_path, manifest_path, task_id, image,
+        recovery, contract_version)
+    sbatch_command = slurm_client.build_sbatch_wrap_command(
+        container_command,
+        job_name=helper_job_name(task_id, recovery=recovery),
+        output_path=manifest_path + ".%j.log",
+        job_params=job_params)
+    logger.debug(f"Built remote shallower "
+                 f"{'recovery' if recovery else 'shallowing'} command for "
+                 f"task {task_id}: image={image} workers={worker_count} "
+                 f"sbatch params={job_params}")
+    return sbatch_command
 
 
-def _batch(slurm_client: SlurmClient, raw: str, canonical: Any, *,
-           task: Any = None) -> Any:
-    """Parse a batch report and check its input, image and tool version.
+def sha256_of_json(payload: Any) -> str:
+    """Fingerprint JSON content independently of key order and whitespace.
+
+    Args:
+        payload (Any): A JSON-serializable value.
+
+    Returns:
+        str: The hex SHA-256 of the canonical JSON encoding.
+    """
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def verify_task_canonical_inputs(task: Any, canonical: Any) -> None:
+    """Raise unless the canonical inputs equal those recorded on the task.
+
+    Args:
+        task (Any): The recorded helper task.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Raises:
+        ValueError: If the task recorded a different canonical manifest.
+    """
+    recorded_sha256 = task.params.get("canonical_sha256")
+    if recorded_sha256 and recorded_sha256 != sha256_of_json(canonical.to_dict()):
+        raise ValueError("Canonical manifest differs from the recorded task")
+
+
+def parse_batch_report(slurm_client: SlurmClient, report_json: str,
+                       canonical: Any, *, task: Any = None) -> Any:
+    """Parse a helper batch report and check its input, image and tool version.
 
     When a task is supplied, its recorded image/version and submission own the
     report; current deployment defaults must not invalidate historical results.
@@ -323,7 +468,7 @@ def _batch(slurm_client: SlurmClient, raw: str, canonical: Any, *,
 
     Args:
         slurm_client (SlurmClient): The Slurm client holding the configuration.
-        raw (str): The JSON batch report.
+        report_json (str): The JSON batch report written by the helper.
         canonical (Any): The canonical input manifest the report must match.
         task (Any): The recorded helper task owning the report, if any.
 
@@ -335,11 +480,14 @@ def _batch(slurm_client: SlurmClient, raw: str, canonical: Any, *,
             task or job.
     """
     from biomero_schema.shallower import ShallowBatchReport
-    batch = ShallowBatchReport.from_dict(json.loads(raw))
-    image = task.params["image"] if task else slurm_client.remote_shallower_image
-    version = task.task_version if task else slurm_client.remote_shallower_version
+    batch = ShallowBatchReport.from_dict(json.loads(report_json))
+    expected_image = (task.params["image"] if task
+                      else slurm_client.remote_shallower_image)
+    expected_version = (task.task_version if task
+                        else slurm_client.remote_shallower_version)
     if (batch.canonical_inputs != canonical
-            or batch.image != image or batch.tool_version != version):
+            or batch.image != expected_image
+            or batch.tool_version != expected_version):
         raise ValueError(
             "Result shallower report does not match configuration/input")
     if any(receipt.image != batch.image
@@ -347,7 +495,7 @@ def _batch(slurm_client: SlurmClient, raw: str, canonical: Any, *,
            for receipt in batch.receipts):
         raise ValueError("Inconsistent helper receipts")
     if task is not None:
-        _check_canonical(task, canonical)
+        verify_task_canonical_inputs(task, canonical)
         if any(receipt.task_id != task.id or not task.job_ids
                or int(receipt.slurm_job_id) != int(task.job_ids[0])
                for receipt in batch.receipts):
@@ -355,21 +503,102 @@ def _batch(slurm_client: SlurmClient, raw: str, canonical: Any, *,
     return batch
 
 
-def _canonical_digest(payload: Any) -> str:
-    """Fingerprint JSON content independently of key order and whitespace."""
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+def _read_existing_manifest(slurm_client: SlurmClient,
+                            manifest_path: str) -> str:
+    """Read the remote manifest unless it is absent; refuse a symbolic link.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to run commands.
+        manifest_path (str): Remote path of the canonical input manifest.
+
+    Returns:
+        str: The manifest content, empty if it does not exist.
+
+    Raises:
+        RuntimeError: If the manifest cannot be read.
+    """
+    target = shlex.quote(manifest_path)
+    read_manifest_cmd = (
+        f"if test -f {target} && ! test -L {target}; then cat {target}; "
+        f"elif test -e {target} || test -L {target}; then exit 1; fi")
+    result = slurm_client.run_commands([read_manifest_cmd], log_stdout=False)
+    if not result.ok:
+        raise RuntimeError("Cannot read canonical manifest; output preserved")
+    return result.stdout
 
 
-def _check_canonical(task: Any, canonical: Any) -> None:
-    """Raise ValueError if the manifest differs from the one on the task."""
-    expected = task.params.get("canonical_sha256")
-    if expected and expected != _canonical_digest(canonical.to_dict()):
-        raise ValueError("Canonical manifest differs from the recorded task")
+def _verify_manifest_content(manifest_json: str, payload: Any) -> None:
+    """Raise unless the remote manifest content equals the workflow input."""
+    if sha256_of_json(json.loads(manifest_json)) != sha256_of_json(payload):
+        raise ValueError("Remote canonical manifest differs from workflow input")
 
 
-def _prepare_manifest(slurm_client: SlurmClient, manifest: str,
-                      canonical: Any, *, submitted: bool) -> None:
+def _publish_manifest(slurm_client: SlurmClient, manifest_path: str,
+                      payload: Any,
+                      lock_wait_seconds: int = MANIFEST_LOCK_WAIT_SECONDS
+                      ) -> None:
+    """Upload the manifest to a staging file and publish it atomically.
+
+    ``flock`` takes an exclusive lock on the manifest's lock file, so
+    concurrent processes publish one at a time; ``ln`` hard-links the staging
+    file to the final name, which fails instead of overwriting. SlurmClient
+    checks that ``flock`` exists during Slurm setup (``check_flock_available``).
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to run commands.
+        manifest_path (str): Remote path of the canonical input manifest.
+        payload (Any): The JSON-serializable manifest content.
+        lock_wait_seconds (int): How long to wait for the lock.
+
+    Raises:
+        RuntimeError: If the manifest cannot be published, or a submission
+            exists without a manifest.
+        ValueError: If the published manifest differs from the input.
+    """
+    quote = shlex.quote
+    target = quote(manifest_path)
+    staging_path = manifest_path + "." + uuid4().hex + ".tmp"
+    state_dir = posixpath.dirname(manifest_path)
+    submission_state_exists_cmd = " || ".join(
+        "test -e " + quote(posixpath.join(state_dir, operation + suffix))
+        for operation in (SHALLOW_STATE_NAME, RECOVERY_STATE_NAME)
+        for suffix in SUBMISSION_STATE_SUFFIXES)
+    publish_script = (
+        f"set -eu; if test -L {target}; then exit 1; fi; "
+        f"if test -e {target}; then cat {target}; "
+        f"elif {submission_state_exists_cmd}; then "
+        'echo "Missing manifest after submission intent" >&2; exit 1; '
+        f"else ln {quote(staging_path)} {target}; cat {target}; fi")
+    publish_manifest_cmd = (
+        f"flock -w {lock_wait_seconds} {quote(manifest_path + '.lock')} "
+        f"sh -c {quote(publish_script)}")
+    try:
+        slurm_client.put(io.StringIO(json.dumps(payload)), staging_path)
+        published = slurm_client.run_commands(
+            [publish_manifest_cmd], log_stdout=False)
+        if not published.ok:
+            raise RuntimeError("Cannot publish canonical manifest; output preserved")
+        _verify_manifest_content(published.stdout, payload)
+        logger.info(f"Published canonical manifest {manifest_path} for "
+                    "remote shallowing")
+    finally:
+        _remove_staging_file(slurm_client, staging_path)
+
+
+def _remove_staging_file(slurm_client: SlurmClient, staging_path: str) -> None:
+    """Remove the unique staging file owned by the calling publication."""
+    try:
+        cleanup = slurm_client.run_commands(
+            ["rm -f -- " + shlex.quote(staging_path)])
+        if not cleanup.ok:
+            logger.warning(f"Could not remove manifest staging file {staging_path}")
+    except Exception:
+        logger.warning(f"Could not remove manifest staging file {staging_path}",
+                       exc_info=True)
+
+
+def publish_or_verify_manifest(slurm_client: SlurmClient, manifest_path: str,
+                               canonical: Any, *, submitted: bool) -> None:
     """Verify an existing manifest or publish a new one without overwriting.
 
     A sibling temporary file is fully uploaded before an atomic hard-link
@@ -378,7 +607,7 @@ def _prepare_manifest(slurm_client: SlurmClient, manifest: str,
 
     Args:
         slurm_client (SlurmClient): The Slurm client used to run commands.
-        manifest (str): Remote path of the canonical input manifest.
+        manifest_path (str): Remote path of the canonical input manifest.
         canonical (Any): The canonical input manifest to publish or verify.
         submitted (bool): Whether the helper job was already submitted, which
             makes a missing manifest an error.
@@ -388,59 +617,16 @@ def _prepare_manifest(slurm_client: SlurmClient, manifest: str,
             missing for a submitted job.
         ValueError: If an existing manifest differs from the workflow input.
     """
-    quote = shlex.quote
-    target = quote(manifest)
     payload = canonical.to_dict()
-
-    def verify(raw: str) -> None:
-        if _canonical_digest(json.loads(raw)) != _canonical_digest(payload):
-            raise ValueError("Remote canonical manifest differs from workflow input")
-
-    found = slurm_client.run_commands([
-        f"if test -f {target} && ! test -L {target}; then cat {target}; "
-        f"elif test -e {target} || test -L {target}; then exit 1; fi"],
-        log_stdout=False)
-    if not found.ok:
-        raise RuntimeError("Cannot read canonical manifest; output preserved")
-    if found.stdout.strip():
-        verify(found.stdout)
-        logger.debug("Existing canonical manifest %s verified; not "
-                     "uploading again", manifest)
+    existing_manifest = _read_existing_manifest(slurm_client, manifest_path)
+    if existing_manifest.strip():
+        _verify_manifest_content(existing_manifest, payload)
+        logger.debug(f"Existing canonical manifest {manifest_path} verified; "
+                     "not uploading again")
         return
     if submitted:
         raise RuntimeError("Missing canonical manifest for submitted job; output preserved")
-
-    temporary = manifest + "." + uuid4().hex + ".tmp"
-    state_dir = posixpath.dirname(manifest)
-    guards = " || ".join(
-        "test -e " + quote(posixpath.join(state_dir, operation + suffix))
-        for operation in ("shallow", "recovery")
-        for suffix in (".intent", ".job"))
-    script = (
-        f"set -eu; if test -L {target}; then exit 1; fi; "
-        f"if test -e {target}; then cat {target}; "
-        f"elif {guards}; then "
-        'echo "Missing manifest after submission intent" >&2; exit 1; '
-        f"else ln {quote(temporary)} {target}; cat {target}; fi")
-    try:
-        slurm_client.put(io.StringIO(json.dumps(payload)), temporary)
-        published = slurm_client.run_commands([
-            f'flock -w 30 {quote(manifest + ".lock")} sh -c {quote(script)}'],
-            log_stdout=False)
-        if not published.ok:
-            raise RuntimeError("Cannot publish canonical manifest; output preserved")
-        verify(published.stdout)
-        logger.info("Published canonical manifest %s for remote shallowing",
-                    manifest)
-    finally:
-        # Only the unique staging file owned by this call is removed.
-        try:
-            cleanup = slurm_client.run_commands(["rm -f -- " + quote(temporary)])
-            if not cleanup.ok:
-                logger.warning("Could not remove manifest staging file %s", temporary)
-        except Exception:
-            logger.warning("Could not remove manifest staging file %s",
-                           temporary, exc_info=True)
+    _publish_manifest(slurm_client, manifest_path, payload)
 
 
 def completed_receipts(slurm_client: SlurmClient, workflow_id: Any,
@@ -457,123 +643,405 @@ def completed_receipts(slurm_client: SlurmClient, workflow_id: Any,
             remote shallowing or workflow tracking is disabled.
     """
     if not slurm_client.remote_shallow_zarr or not slurm_client.track_workflows:
-        logger.debug("No remote shallower receipts for workflow %s: "
-                     "remote_shallow_zarr=%s track_workflows=%s", workflow_id,
-                     slurm_client.remote_shallow_zarr, slurm_client.track_workflows)
+        logger.debug(f"No remote shallower receipts for workflow {workflow_id}: "
+                     f"remote_shallow_zarr={slurm_client.remote_shallow_zarr} "
+                     f"track_workflows={slurm_client.track_workflows}")
         return ()
-    workflow = slurm_client.workflowTracker.repository.get(UUID(str(workflow_id)))
     receipts = []
-    for task_id in workflow.tasks:
-        task = slurm_client.workflowTracker.repository.get(task_id)
-        if task.task_name == TASK_NAME and task.result_message:
-            receipts.extend(_batch(slurm_client, task.result_message, canonical,
-                                   task=task).receipts)
-    logger.debug("Read %d remote shallower receipts for workflow %s",
-                 len(receipts), workflow_id)
+    for task in slurm_client.get_workflow_tasks(
+            workflow_id, task_name=REMOTE_SHALLOWER_TASK_NAME):
+        if task.result_message:
+            receipts.extend(parse_batch_report(
+                slurm_client, task.result_message, canonical,
+                task=task).receipts)
+    logger.debug(f"Read {len(receipts)} remote shallower receipts for "
+                 f"workflow {workflow_id}")
     return tuple(receipts)
 
 
-def _submit_once(slurm_client: SlurmClient, command: str, state: str, *,
-                 job_name: str) -> Optional[int]:
-    """Submit or adopt a job under a remote filesystem lock.
-
-    Ambiguous submission state raises instead of risking a duplicate job.
-
-    Args:
-        slurm_client (SlurmClient): The Slurm client used to run commands.
-        command (str): The ``sbatch`` command to run.
-        state (str): Remote filename prefix for the lock, submission intent
-            and recorded job ID.
-        job_name (str): Operation-specific identity used for reconciliation,
-            not a value inferred by parsing shell commands.
-
-    Returns:
-        Optional[int]: The Slurm job ID, or None for a rejected submission.
-
-    Raises:
-        UnexpectedExit: If the submission command lost its SSH connection.
-        ssh_recovery.RecoveryPending: If another process holds the submission.
-        RuntimeError: If the submission state cannot be resolved.
-    """
-    # Reuse the same reconciliation and receipt publication as analysis jobs.
-    # Keep the helper's existing rejected-submission fallback to full results.
-    quote = shlex.quote
-    recovering = ssh_recovery.enabled(slurm_client)
-    logger.info("Submitting remote shallower job %s (state %s, "
-                "SSH recovery %s)", job_name, state,
-                "enabled" if recovering else "disabled")
-    find_job = ssh_recovery.reconcile_submission(state, job_name)
-    publish = ssh_recovery.publish_job_id(state)
-    script = (
-        f'if test -s {quote(state + ".job")}; then cat {quote(state + ".job")}; '
-        f'elif test -e {quote(state + ".intent")}; then '
-        f'job=$({find_job}) || exit 1; {publish}printf "%s\\n" "$job"; '
-        f'else date +%Y-%m-%dT%H:%M:%S > {quote(state + ".intent")}; '
-        f'job=$({command}) || {{ rm -f {quote(state + ".intent")}; '
-        'printf "NOT_SUBMITTED\\n"; exit 0; }; '
-        "job=${job%%;*}; "
-        f"{publish}"
-        'printf "%s\\n" "$job"; fi'
-    )
-    result = slurm_client.run_commands([
-        ssh_recovery.locked_command(
-            state + ".lock", script, wait=5 if recovering else 30)],
-        **({"warn": True} if recovering else {}))
-    if recovering and result.exited in (-1, 200):
-        if result.exited == -1:
-            raise UnexpectedExit(result)
-        logger.info("Shallower submission %s is held by another process; "
-                    "waiting", job_name)
-        raise ssh_recovery.RecoveryPending(
-            "Waiting for the existing shallower submission")
-    if result.ok and result.stdout.strip() == "NOT_SUBMITTED":
-        logger.warning("sbatch rejected remote shallower job %s", job_name)
-        return None
-    if not result.ok or not result.stdout.strip().isdigit():
-        # ``exited`` is only guaranteed on Fabric results; tolerate others.
-        raise RuntimeError(
-            f"Shallower submission {job_name} is unresolved (exit "
-            f'{getattr(result, "exited", None)}); preserve results and resume '
-            "after reconciliation")
-    logger.info("Remote shallower job %s is Slurm job %s", job_name,
-                result.stdout.strip())
-    return int(result.stdout.strip())
-
-
-def _wait(slurm_client: SlurmClient, job_id: int,
-          heartbeat: Optional[Callable[[], None]] = None) -> str:
+def wait_for_helper_job(slurm_client: SlurmClient, job_id: int,
+                        heartbeat: Optional[Callable[[], None]] = None,
+                        polling_interval: int = POLLING_INTERVAL_SECONDS
+                        ) -> str:
     """Monitor an adopted job without analysis-log or task-status updates.
 
-    The helper task is completed by ``run`` after report validation, not merely
-    because its Slurm process exited successfully.
+    The helper task is completed after report validation, not merely because
+    its Slurm process exited successfully.
 
     Args:
         slurm_client (SlurmClient): The Slurm client used to poll the job.
         job_id (int): The Slurm job ID.
         heartbeat (Optional[Callable[[], None]]): Callback invoked before each
             poll.
+        polling_interval (int): Seconds between status polls.
 
     Returns:
         str: The final state of the Slurm job.
     """
-    logger.info("Waiting for remote shallower Slurm job %s", job_id)
-    job = SlurmJob.from_job_id(job_id, slurm_polling_interval=15)
+    logger.info(f"Waiting for remote shallower Slurm job {job_id}")
+    job = SlurmJob.from_job_id(job_id, slurm_polling_interval=polling_interval)
     state = job.wait_for_completion(
-        slurm_client, heartbeat=heartbeat, track_progress=False, update_task=False,
-        strict_status=True)
+        slurm_client, heartbeat=heartbeat, track_progress=False,
+        update_task=False, strict_status=True)
     outcome = "COMPLETED" if job.completed() else state
-    logger.info("Remote shallower Slurm job %s finished with state %s",
-                job_id, outcome)
+    logger.info(f"Remote shallower Slurm job {job_id} finished with state "
+                f"{outcome}")
     return outcome
 
 
-def run(slurm_client: SlurmClient, data_path: str, workflow_id: Any,
-        canonical: Any,
-        heartbeat: Optional[Callable[[], None]] = None) -> Optional[Any]:
-    """Run or resume shallowing and return the validated batch report.
+def _shallowing_applies(slurm_client: SlurmClient, workflow_id: Any,
+                        canonical: Any) -> bool:
+    """Decide whether this workflow is shallowed on the cluster, and log why not.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client holding the configuration.
+        workflow_id (Any): ID of the workflow.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Returns:
+        bool: True if remote shallowing is enabled, tracked and has inputs.
+    """
+    if not slurm_client.remote_shallow_zarr:
+        logger.debug(f"Remote shallowing skipped for workflow {workflow_id}: "
+                     "remote_shallow_zarr is disabled")
+        return False
+    if canonical is None or not canonical.inputs:
+        logger.debug(f"Remote shallowing skipped for workflow {workflow_id}: "
+                     "no canonical inputs")
+        return False
+    if not slurm_client.track_workflows:
+        logger.warning(f"Remote shallowing skipped for workflow {workflow_id}: "
+                       "track_workflows is disabled; results stay full")
+        return False
+    return True
+
+
+def _find_existing_task(slurm_client: SlurmClient, workflow_id: Any,
+                        data_path: str, canonical: Any) -> Optional[Any]:
+    """Find the helper task already recorded for this data folder, if any.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client with the workflow tracker.
+        workflow_id (Any): ID of the workflow.
+        data_path (str): Remote data folder of the workflow results.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Returns:
+        Optional[Any]: The recorded helper task, or None for a first run.
+
+    Raises:
+        RuntimeError: If more than one helper task exists for the folder.
+        ValueError: If the task recorded different canonical inputs.
+    """
+    recorded_tasks = slurm_client.get_workflow_tasks(
+        workflow_id, task_name=REMOTE_SHALLOWER_TASK_NAME,
+        input_data=data_path)
+    if len(recorded_tasks) > 1:
+        raise RuntimeError("Ambiguous result shallower tasks")
+    if not recorded_tasks:
+        return None
+    verify_task_canonical_inputs(recorded_tasks[0], canonical)
+    return recorded_tasks[0]
+
+
+def _adopt_report_of_finished_job(slurm_client: SlurmClient, task: Any,
+                                  data_path: str,
+                                  canonical: Any) -> Optional[Any]:
+    """Complete the task from a valid report a submitted helper already wrote.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client with the workflow tracker.
+        task (Any): The recorded helper task, with a recorded job.
+        data_path (str): Remote data folder of the workflow results.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Returns:
+        Optional[Any]: The report, or None if it is absent, partial or stale
+            and the recorded job must be polled instead.
+    """
+    report_path = posixpath.join(data_path, RESULTS_SUBPATH, REPORT_FILENAME)
+    quoted_report_path = shlex.quote(report_path)
+    read_report_cmd = (f"if test -f {quoted_report_path}; "
+                       f"then cat {quoted_report_path}; fi")
+    found = slurm_client.run_commands([read_report_cmd])
+    if not (found.ok and found.stdout.strip()):
+        return None
+    try:
+        batch = parse_batch_report(
+            slurm_client, found.stdout, canonical, task=task)
+    except (ValueError, KeyError):
+        # Partial/stale report: poll the recorded job instead.
+        logger.debug(f"Existing shallower report {report_path} is partial or "
+                     "stale; polling recorded job", exc_info=True)
+        return None
+    logger.info(f"Adopted existing shallower report {report_path} for task "
+                f"{task.id}; completing task")
+    slurm_client.workflowTracker.complete_task(
+        task.id, json.dumps(batch.to_dict()))
+    return batch
+
+
+def _reuse_recorded_outcome(slurm_client: SlurmClient, task: Any,
+                            data_path: str, canonical: Any) -> Optional[Any]:
+    """Return the report of an already completed or finished helper task.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client with the workflow tracker.
+        task (Any): The recorded helper task.
+        data_path (str): Remote data folder of the workflow results.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Returns:
+        Optional[Any]: The report, or None if the task still has to run.
+    """
+    shallower_already_completed = bool(task.result_message)
+    helper_job_was_submitted = bool(task.job_ids)
+    if shallower_already_completed:
+        logger.info(f"Remote shallower task {task.id} already completed; "
+                    "reusing its receipts")
+        return parse_batch_report(
+            slurm_client, task.result_message, canonical, task=task)
+    if helper_job_was_submitted:
+        return _adopt_report_of_finished_job(
+            slurm_client, task, data_path, canonical)
+    return None
+
+
+def _ensure_image_installed(slurm_client: SlurmClient,
+                            image_specification: Dict[str, str]) -> None:
+    """Raise unless the helper image is installed; only Init acquires images.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to inspect images.
+        image_specification (Dict[str, str]): The helper image specification.
+
+    Raises:
+        RuntimeError: If the image is missing or invalid.
+    """
+    ready, pending = slurm_client._partition_existing_images(
+        [image_specification])
+    if pending or not ready:
+        raise RuntimeError(
+            f'Remote shallower image missing or invalid: '
+            f'{image_specification["destination"]}. '
+            "Run SLURM_Init_environment and verify image setup with "
+            "SLURM_check_setup before retrying.")
+
+
+def _start_or_resume_helper(slurm_client: SlurmClient, workflow_id: Any,
+                            data_path: str, canonical: Any,
+                            existing_task: Optional[Any]) -> HelperJob:
+    """Validate the installed helper and start, or resume, its tracked task.
+
+    A resumed task keeps the image, version and image path it recorded, so a
+    configuration change does not invalidate historical results.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client with the workflow tracker.
+        workflow_id (Any): ID of the workflow.
+        data_path (str): Remote data folder of the workflow results.
+        canonical (Any): The canonical input manifest of the workflow.
+        existing_task (Optional[Any]): The recorded helper task, if any.
+
+    Returns:
+        HelperJob: The task with its image and remote paths.
+
+    Raises:
+        RuntimeError: If the image is missing or the installed tool does not
+            satisfy the runtime contract.
+    """
+    image = (existing_task.params["image"] if existing_task
+             else slurm_client.remote_shallower_image)
+    image_specification = image_spec(slurm_client, image=image)
+    if existing_task:
+        image_specification["destination"] = existing_task.params.get(
+            "sif", image_specification["destination"])
+    _ensure_image_installed(slurm_client, image_specification)
+    expected_version = (existing_task.task_version if existing_task
+                        else slurm_client.remote_shallower_version)
+    installed_version = validate_installed_tool(
+        slurm_client, image_specification["destination"],
+        expected_version=expected_version)
+    if existing_task:
+        task = existing_task
+        logger.info(f"Resuming remote shallower task {task.id} "
+                    f"(jobs recorded: {list(task.job_ids)})")
+    else:
+        tracker = slurm_client.workflowTracker
+        task_id = tracker.add_task_to_workflow(
+            UUID(str(workflow_id)), REMOTE_SHALLOWER_TASK_NAME,
+            installed_version, data_path,
+            {"image": image, "contract": REQUIRED_RUNTIME_CONTRACT,
+             "sif": image_specification["destination"],
+             "canonical_sha256": sha256_of_json(canonical.to_dict())})
+        tracker.start_task(task_id)
+        task = slurm_client.get_task(task_id)
+        logger.info(f"Started remote shallower task {task_id} (workflow "
+                    f"{workflow_id}, image {image}, tool version "
+                    f"{installed_version}, {len(canonical.inputs)} inputs)")
+    state_dir = posixpath.join(data_path, STATE_DIRNAME, str(task.id))
+    return HelperJob(
+        task=task, image=image,
+        sif_path=task.params.get("sif", image_specification["destination"]),
+        output_path=posixpath.join(data_path, RESULTS_SUBPATH),
+        manifest_path=posixpath.join(state_dir, MANIFEST_FILENAME),
+        state_dir=state_dir)
+
+
+def _prepare_remote_state(slurm_client: SlurmClient, helper: HelperJob,
+                          canonical: Any) -> None:
+    """Create the task state directory and publish or verify the manifest.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to run commands.
+        helper (HelperJob): The helper task with its remote paths.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Raises:
+        RuntimeError: If the state directory or manifest cannot be prepared.
+    """
+    make_state_dir_cmd = "mkdir -p " + shlex.quote(helper.state_dir)
+    if not slurm_client.run_commands([make_state_dir_cmd]).ok:
+        raise RuntimeError(
+            f"Cannot prepare shallower state directory {helper.state_dir}")
+    publish_or_verify_manifest(
+        slurm_client, helper.manifest_path, canonical,
+        submitted=bool(helper.task.job_ids))
+
+
+def _submit_or_adopt_helper_job(slurm_client: SlurmClient,
+                                helper: HelperJob) -> Optional[int]:
+    """Adopt the recorded helper job, or submit it exactly once.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to submit the job.
+        helper (HelperJob): The helper task with its remote paths.
+
+    Returns:
+        Optional[int]: The Slurm job ID, or None if sbatch rejected the job.
+    """
+    task = helper.task
+    sbatch_command = build_helper_command(
+        slurm_client, helper.output_path, helper.sif_path,
+        helper.manifest_path, str(task.id), image=helper.image)
+    if task.job_ids:
+        logger.debug(f"Adopting recorded shallower job {task.job_ids[0]}; "
+                     "no new submission")
+        return int(task.job_ids[0])
+    return slurm_client.submit_job_once(
+        sbatch_command, posixpath.join(helper.state_dir, SHALLOW_STATE_NAME),
+        job_name=helper_job_name(task.id))
+
+
+def _complete_with_full_results(slurm_client: SlurmClient,
+                                helper: HelperJob, canonical: Any) -> Any:
+    """Complete the task with an empty report after a rejected submission.
+
+    The caller then keeps the full results instead of shallow ones.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client with the workflow tracker.
+        helper (HelperJob): The helper task whose submission was rejected.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Returns:
+        Any: A report without receipts.
+    """
+    from biomero_schema.shallower import ShallowBatchReport
+    batch = ShallowBatchReport(
+        schema=BATCH_REPORT_SCHEMA, canonicalInputs=canonical,
+        image=helper.image, toolVersion=helper.task.task_version,
+        result="complete", receipts=())
+    slurm_client.workflowTracker.complete_task(
+        helper.task.id, json.dumps(batch.to_dict()))
+    logger.warning(f"Shallower submission rejected for task {helper.task.id}; "
+                   "retaining full results (empty receipts)")
+    return batch
+
+
+def _recover_after_failed_job(slurm_client: SlurmClient, helper: HelperJob,
+                              heartbeat: Optional[Callable[[], None]]
+                              ) -> None:
+    """Run the recovery job in the same image on CPU, adopting a recorded one.
+
+    Completed stores retain receipts; interrupted stores roll back before any
+    archive is allowed.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to submit the job.
+        helper (HelperJob): The helper task with its remote paths.
+        heartbeat (Optional[Callable[[], None]]): Callback invoked during waits.
+
+    Raises:
+        RuntimeError: If the recovery submission is rejected or the recovery
+            job fails.
+    """
+    task_id = helper.task.id
+    recorded_job_ids = slurm_client.get_task(task_id).job_ids
+    recovery_command = build_helper_command(
+        slurm_client, helper.output_path, helper.sif_path,
+        helper.manifest_path, str(task_id), recovery=True, image=helper.image)
+    # Recorded IDs remain authoritative on resume.
+    if len(recorded_job_ids) > 1:
+        recovery_job_id = int(recorded_job_ids[1])
+    else:
+        recovery_job_id = slurm_client.submit_job_once(
+            recovery_command,
+            posixpath.join(helper.state_dir, RECOVERY_STATE_NAME),
+            job_name=helper_job_name(task_id, recovery=True))
+    if recovery_job_id is None:
+        raise RuntimeError(
+            f"Shallower recovery submission rejected for task {task_id}; "
+            "output preserved")
+    if recovery_job_id not in recorded_job_ids:
+        slurm_client.workflowTracker.add_job_id(task_id, recovery_job_id)
+    if wait_for_helper_job(slurm_client, recovery_job_id,
+                           heartbeat) != "COMPLETED":
+        raise RuntimeError(
+            f"Shallower recovery job {recovery_job_id} failed for task "
+            f"{task_id}; output preserved for recovery")
+
+
+def _complete_from_report(slurm_client: SlurmClient, helper: HelperJob,
+                          canonical: Any) -> Any:
+    """Validate the report the helper wrote and complete the task with it.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client with the workflow tracker.
+        helper (HelperJob): The helper task with its remote paths.
+        canonical (Any): The canonical input manifest of the workflow.
+
+    Returns:
+        Any: The validated report.
+
+    Raises:
+        RuntimeError: If the report is missing.
+        ValueError: If the report is invalid.
+    """
+    read_report_cmd = "cat " + shlex.quote(
+        posixpath.join(helper.output_path, REPORT_FILENAME))
+    report = slurm_client.run_commands([read_report_cmd])
+    if not report.ok:
+        raise RuntimeError(
+            f"Missing shallower report for task {helper.task.id}; cannot "
+            "archive safely")
+    task = slurm_client.get_task(helper.task.id)
+    batch = parse_batch_report(slurm_client, report.stdout, canonical, task=task)
+    slurm_client.workflowTracker.complete_task(
+        helper.task.id, json.dumps(batch.to_dict()))
+    logger.info(f"Remote shallower task {helper.task.id} completed with "
+                f"{len(batch.receipts)} receipts")
+    return batch
+
+
+def shallow_workflow_results(slurm_client: SlurmClient, data_path: str,
+                             workflow_id: Any, canonical: Any,
+                             heartbeat: Optional[Callable[[], None]] = None
+                             ) -> Optional[Any]:
+    """Shallow the workflow results on the cluster, or resume that work.
 
     Only initialization acquires container images. A rejected shallowing
-    submission returns an empty-receipt batch so the caller can retain full
+    submission returns an empty-receipt report so the caller can retain full
     results. Callers must not archive potentially incomplete output.
 
     Args:
@@ -585,7 +1053,7 @@ def run(slurm_client: SlurmClient, data_path: str, workflow_id: Any,
             waits.
 
     Returns:
-        Optional[Any]: The validated batch report, or None when shallowing is
+        Optional[Any]: The validated report, or None when shallowing is
             disabled or inapplicable.
 
     Raises:
@@ -593,150 +1061,28 @@ def run(slurm_client: SlurmClient, data_path: str, workflow_id: Any,
             unresolved or failed, or the report is missing.
         ValueError: If the installed tool or the report is invalid.
     """
-    if not slurm_client.remote_shallow_zarr:
-        logger.debug("Remote shallowing skipped for workflow %s: "
-                     "remote_shallow_zarr is disabled", workflow_id)
+    if not _shallowing_applies(slurm_client, workflow_id, canonical):
         return None
-    if canonical is None or not canonical.inputs:
-        logger.debug("Remote shallowing skipped for workflow %s: no "
-                     "canonical inputs", workflow_id)
-        return None
-    if not slurm_client.track_workflows:
-        logger.warning("Remote shallowing skipped for workflow %s: "
-                       "track_workflows is disabled; results stay full",
-                       workflow_id)
-        return None
-    tracker = slurm_client.workflowTracker
-    workflow_id = UUID(str(workflow_id))
-    workflow = tracker.repository.get(workflow_id)
-    tasks = [tracker.repository.get(task_id) for task_id in workflow.tasks]
-    matches = [task for task in tasks
-               if task.task_name == TASK_NAME and task.input_data == data_path]
-    if len(matches) > 1:
-        raise RuntimeError("Ambiguous result shallower tasks")
-    if matches:
-        _check_canonical(matches[0], canonical)
-    if matches and matches[0].result_message:
-        logger.info("Remote shallower task %s already completed; reusing its "
-                    "receipts", matches[0].id)
-        return _batch(slurm_client, matches[0].result_message, canonical,
-                      task=matches[0])
-    if matches and matches[0].job_ids:
-        report_path = posixpath.join(
-            data_path, "data/out/.biomero-shallow-batch.json")
-        found = slurm_client.run_commands([
-            f"if test -f {shlex.quote(report_path)}; "
-            f"then cat {shlex.quote(report_path)}; fi"])
-        if found.ok and found.stdout.strip():
-            try:
-                batch = _batch(slurm_client, found.stdout, canonical, task=matches[0])
-            except (ValueError, KeyError):
-                # Partial/stale report: poll the recorded job below.
-                logger.debug("Existing shallower report %s is partial or "
-                             "stale; polling recorded job", report_path,
-                             exc_info=True)
-            else:
-                logger.info("Adopted existing shallower report %s for task "
-                            "%s; completing task", report_path, matches[0].id)
-                tracker.complete_task(
-                    matches[0].id, json.dumps(batch.to_dict()))
-                return batch
-    image = matches[0].params["image"] if matches else slurm_client.remote_shallower_image
-    spec = image_spec(slurm_client, image=image)
-    if matches:
-        spec["destination"] = matches[0].params.get("sif", spec["destination"])
-    ready, pending = slurm_client._partition_existing_images([spec])
-    if pending or not ready:
-        raise RuntimeError(
-            f'Remote shallower image missing or invalid: {spec["destination"]}. '
-            "Run SLURM_Init_environment and verify image setup with "
-            "SLURM_check_setup before retrying.")
-    expected_version = (
-        matches[0].task_version if matches else slurm_client.remote_shallower_version
-    )
-    installed_version = validate_installed_tool(
-        slurm_client,
-        spec["destination"],
-        expected_version=expected_version,
-    )
-    if not matches:
-        version = installed_version
-        task_id = tracker.add_task_to_workflow(
-            workflow_id, TASK_NAME, version, data_path,
-            {"image": image, "contract": 1, "sif": spec["destination"],
-             "canonical_sha256": _canonical_digest(canonical.to_dict())})
-        tracker.start_task(task_id)
-        task = tracker.repository.get(task_id)
-        logger.info("Started remote shallower task %s (workflow %s, image %s, "
-                    "tool version %s, %d inputs)", task_id, workflow_id, image,
-                    version, len(canonical.inputs))
-    else:
-        task = matches[0]
-        task_id = task.id
-        logger.info("Resuming remote shallower task %s (jobs recorded: %s)",
-                    task_id, list(task.job_ids))
-    sif_path = task.params.get("sif", spec["destination"])
-    state_dir = posixpath.join(data_path, ".biomero-shallower", str(task_id))
-    prepared = slurm_client.run_commands(["mkdir -p " + shlex.quote(state_dir)])
-    if not prepared.ok:
-        raise RuntimeError(
-            f"Cannot prepare shallower state directory {state_dir}")
-    manifest = posixpath.join(state_dir, "canonical.json")
-    _prepare_manifest(slurm_client, manifest, canonical, submitted=bool(task.job_ids))
-    output = posixpath.join(data_path, "data/out")
-    command = build_command(
-        slurm_client, output, sif_path, manifest, str(task_id), image=image)
-    if task.job_ids:
-        logger.debug("Adopting recorded shallower job %s; no new submission",
-                     task.job_ids[0])
-    job_id = (int(task.job_ids[0]) if task.job_ids
-              else _submit_once(slurm_client, command,
-                                state_dir + "/shallow",
-                                job_name=_job_name(task_id)))
+    existing_task = _find_existing_task(
+        slurm_client, workflow_id, data_path, canonical)
+    if existing_task is not None:
+        recorded_batch = _reuse_recorded_outcome(
+            slurm_client, existing_task, data_path, canonical)
+        if recorded_batch is not None:
+            return recorded_batch
+    helper = _start_or_resume_helper(
+        slurm_client, workflow_id, data_path, canonical, existing_task)
+    _prepare_remote_state(slurm_client, helper, canonical)
+    job_id = _submit_or_adopt_helper_job(slurm_client, helper)
     if job_id is None:
-        from biomero_schema.shallower import ShallowBatchReport
-        batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
-                                   image=image, toolVersion=task.task_version,
-                                   result="complete", receipts=())
-        tracker.complete_task(task_id, json.dumps(batch.to_dict()))
-        logger.warning("Shallower submission rejected for task %s; retaining "
-                       "full results (empty receipts)", task_id)
-        return batch
-    if not task.job_ids:
-        tracker.add_job_id(task_id, job_id)
-        task = tracker.repository.get(task_id)
-        logger.debug("Recorded shallower job %s on task %s", job_id, task_id)
-    status = _wait(slurm_client, job_id, heartbeat)
+        return _complete_with_full_results(slurm_client, helper, canonical)
+    if not helper.task.job_ids:
+        slurm_client.workflowTracker.add_job_id(helper.task.id, job_id)
+        logger.debug(f"Recorded shallower job {job_id} on task "
+                     f"{helper.task.id}")
+    status = wait_for_helper_job(slurm_client, job_id, heartbeat)
     if status != "COMPLETED":
-        logger.warning("Remote shallower job %s ended as %s; running "
-                       "recovery to keep results consistent", job_id, status)
-        # Recover in the same configured image on CPU. Completed stores retain
-        # receipts; interrupted stores roll back before any archive is allowed.
-        recovery = build_command(slurm_client, output, sif_path, manifest,
-                                 str(task_id), recovery=True, image=image)
-        # Recorded IDs remain authoritative on resume.
-        recovery_id = (int(task.job_ids[1]) if len(task.job_ids) > 1
-                       else _submit_once(
-                           slurm_client, recovery, state_dir + "/recovery",
-                           job_name=_job_name(task_id, recovery=True)))
-        if recovery_id is None:
-            raise RuntimeError(
-                f"Shallower recovery submission rejected for task {task_id}; "
-                "output preserved")
-        if recovery_id not in task.job_ids:
-            tracker.add_job_id(task_id, recovery_id)
-        if _wait(slurm_client, recovery_id, heartbeat) != "COMPLETED":
-            raise RuntimeError(
-                f"Shallower recovery job {recovery_id} failed for task "
-                f"{task_id}; output preserved for recovery")
-    report = slurm_client.run_commands([
-        "cat " + shlex.quote(output + "/.biomero-shallow-batch.json")])
-    if not report.ok:
-        raise RuntimeError(
-            f"Missing shallower report for task {task_id}; cannot archive "
-            "safely")
-    batch = _batch(slurm_client, report.stdout, canonical, task=task)
-    tracker.complete_task(task_id, json.dumps(batch.to_dict()))
-    logger.info("Remote shallower task %s completed with %d receipts",
-                task_id, len(batch.receipts))
-    return batch
+        logger.warning(f"Remote shallower job {job_id} ended as {status}; "
+                       "running recovery to keep results consistent")
+        _recover_after_failed_job(slurm_client, helper, heartbeat)
+    return _complete_from_report(slurm_client, helper, canonical)

@@ -932,6 +932,37 @@ class SlurmClient(Connection):
             'time': self.remote_shallower_time,
         }, excluded=excluded)
 
+    def build_sbatch_wrap_command(
+            self,
+            wrapped_command: str,
+            *,
+            job_name: str,
+            output_path: str,
+            job_params: Optional[List[str]] = None,
+            export: str = "NONE") -> str:
+        """Build an ``sbatch --wrap`` command that honours the site defaults.
+
+        Args:
+            wrapped_command (str): The shell command the job runs.
+            job_name (str): Slurm job name.
+            output_path (str): Remote path of the job log; may contain Slurm
+                filename patterns such as ``%j``.
+            job_params (Optional[List[str]]): Resource flags; defaults to
+                ``get_job_params()``, which applies the configured default
+                partition and global ``sbatch_*`` parameters.
+            export (str): Value of ``--export`` (default "NONE").
+
+        Returns:
+            str: The ``sbatch`` command, printing the job ID on submission.
+        """
+        if job_params is None:
+            job_params = self.get_job_params()
+        return (f"sbatch --parsable --export={export} "
+                f"{' '.join(job_params)} "
+                f"--job-name={shlex.quote(job_name)} "
+                f"--output={shlex.quote(output_path)} "
+                f"--wrap={shlex.quote(wrapped_command)}")
+
     def _build_image_pull_sbatch_command(
             self,
             script_path: str,
@@ -1275,9 +1306,10 @@ class SlurmClient(Connection):
         if self.remote_shallow_zarr and self.remote_shallower_image:
             from .remote_shallower import image_spec
             spec = image_spec(self)
-            logger.info("Including remote shallower helper image %s in "
-                        "Slurm image setup", spec["source"])
+            logger.info(f"Including remote shallower helper image "
+                        f"{spec['source']} in Slurm image setup")
             converter_specs = [*converter_specs, spec]
+            self.check_flock_available()
         elif self.remote_shallow_zarr:
             logger.warning("Remote shallowing is enabled but "
                            "remote_shallower_image is empty; the helper image "
@@ -1286,6 +1318,25 @@ class SlurmClient(Connection):
             logger.debug("Skipping remote shallower helper image setup: "
                          "remote_shallow_zarr is disabled")
         return self.setup_container_images(extra_image_specs=converter_specs)
+
+    def check_flock_available(self) -> bool:
+        """Check that the cluster provides ``flock`` and warn if it does not.
+
+        ``flock`` (util-linux) takes an exclusive lock on a file, so that
+        concurrent processes run a critical section one at a time. Remote
+        shallowing uses it to publish its manifest and to submit its helper
+        job exactly once; durable submission recovery needs it too.
+
+        Returns:
+            bool: True if ``flock`` is available on the Slurm login node.
+        """
+        result = self.run_commands(["command -v flock"], warn=True)
+        if result.ok:
+            logger.debug(f"flock is available on Slurm: {result.stdout.strip()}")
+            return True
+        logger.warning("flock was not found on the Slurm cluster; remote "
+                       "shallowing and durable submission recovery need it")
+        return False
 
     @staticmethod
     def _image_status_record(spec: Dict[str, str], state: str,
@@ -1511,12 +1562,13 @@ class SlurmClient(Connection):
         ``heartbeat`` is a caller-owned no-argument callback invoked during
         job waits.
         """
-        from .remote_shallower import run
+        from .remote_shallower import shallow_workflow_results
         if heartbeat is not None and not callable(heartbeat):
             raise TypeError('heartbeat must be callable')
         return ssh_recovery.retry(
-            self, lambda: run(self, data_path, workflow_id, canonical_inputs,
-                              heartbeat), "remote shallowing",
+            self, lambda: shallow_workflow_results(
+                self, data_path, workflow_id, canonical_inputs, heartbeat),
+            "remote shallowing",
             heartbeat=heartbeat)
 
     def get_remote_shallower_receipts(self, workflow_id, canonical_inputs):
@@ -2824,17 +2876,43 @@ class SlurmClient(Connection):
                 result = self.run_commands([cmd], env=env)
         return result
 
+    def get_task(self, task_id: Any) -> Any:
+        """Read a task or workflow aggregate from the workflow tracker.
+
+        Args:
+            task_id (Any): ID of the task or workflow.
+
+        Returns:
+            Any: The aggregate.
+        """
+        return self.workflowTracker.repository.get(task_id)
+
+    def get_workflow_tasks(self, workflow_id: Any, *,
+                           task_name: Optional[str] = None,
+                           input_data: Optional[str] = None) -> List[Any]:
+        """Read the tasks of a workflow from the workflow tracker.
+
+        Args:
+            workflow_id (Any): ID of the workflow.
+            task_name (Optional[str]): Only return tasks with this name.
+            input_data (Optional[str]): Only return tasks with this input data.
+
+        Returns:
+            List[Any]: The matching task aggregates, in workflow order.
+        """
+        workflow = self.get_task(UUID(str(workflow_id)))
+        tasks = [self.get_task(task_id) for task_id in workflow.tasks]
+        return [task for task in tasks
+                if (task_name is None or task.task_name == task_name)
+                and (input_data is None or task.input_data == input_data)]
+
     def _submission_task(self, wf_id, name, version, input_data, params):
         """Recover task identity before attempting any new Slurm submission."""
         tracker = self.workflowTracker
         if ssh_recovery.enabled(self) and not isinstance(
                 tracker, NoOpWorkflowTracker):
-            workflow = tracker.repository.get(wf_id)
-            matches = []
-            for task_id in workflow.tasks:
-                task = tracker.repository.get(task_id)
-                if task.task_name == name and task.input_data == input_data:
-                    matches.append(task)
+            matches = self.get_workflow_tasks(
+                wf_id, task_name=name, input_data=input_data)
             if len(matches) > 1:
                 raise RuntimeError('Ambiguous submission tasks; reconcile first')
             if matches:
@@ -2844,6 +2922,79 @@ class SlurmClient(Connection):
                 return task.id
         return tracker.add_task_to_workflow(
             wf_id, name, version, input_data, params)
+
+    def submit_job_once(self, sbatch_command: str, state_prefix: str, *,
+                        job_name: str) -> Optional[int]:
+        """Submit or adopt a Slurm job under a remote filesystem lock.
+
+        The lock (``flock``, see ``check_flock_available``) serializes
+        concurrent callers. A submission intent file lets a restarted caller
+        find the job already accepted by Slurm instead of submitting a
+        duplicate. Ambiguous submission state raises instead of risking a
+        duplicate job.
+
+        Args:
+            sbatch_command (str): The ``sbatch --parsable`` command to run.
+            state_prefix (str): Remote filename prefix for the lock, the
+                submission intent and the recorded job ID.
+            job_name (str): Operation-specific Slurm job name used to
+                reconcile an earlier submission.
+
+        Returns:
+            Optional[int]: The Slurm job ID, or None if sbatch rejected the
+                submission.
+
+        Raises:
+            UnexpectedExit: If the connection was lost during submission.
+            ssh_recovery.RecoveryPending: If another process holds the
+                submission.
+            RuntimeError: If the submission state cannot be resolved.
+        """
+        quote = shlex.quote
+        recovering = ssh_recovery.enabled(self)
+        logger.info(f"Submitting Slurm job {job_name} (state {state_prefix}, "
+                    f"SSH recovery {'enabled' if recovering else 'disabled'})")
+        intent_file = quote(state_prefix + ".intent")
+        job_file = quote(state_prefix + ".job")
+        find_job_cmd = ssh_recovery.reconcile_submission(state_prefix, job_name)
+        publish_job_cmd = ssh_recovery.publish_job_id(state_prefix)
+        # Adopt a recorded job; else reconcile an intent whose sbatch outcome is
+        # unknown; else record the intent, submit and record the job ID.
+        submit_script = (
+            f"if test -s {job_file}; then cat {job_file}; "
+            f"elif test -e {intent_file}; then "
+            f"job=$({find_job_cmd}) || exit 1; {publish_job_cmd}"
+            'printf "%s\\n" "$job"; '
+            f"else date +%Y-%m-%dT%H:%M:%S > {intent_file}; "
+            f"job=$({sbatch_command}) || {{ rm -f {intent_file}; "
+            'printf "NOT_SUBMITTED\\n"; exit 0; }; '
+            "job=${job%%;*}; "
+            f"{publish_job_cmd}"
+            'printf "%s\\n" "$job"; fi'
+        )
+        submit_cmd = ssh_recovery.locked_command(
+            state_prefix + ".lock", submit_script,
+            wait=5 if recovering else 30)
+        result = self.run_commands(
+            [submit_cmd], **({"warn": True} if recovering else {}))
+        if recovering and result.exited in (-1, 200):
+            if result.exited == -1:
+                raise UnexpectedExit(result)
+            logger.info(f"Submission of {job_name} is held by another "
+                        "process; waiting")
+            raise ssh_recovery.RecoveryPending(
+                f"Waiting for the existing submission of {job_name}")
+        if result.ok and result.stdout.strip() == "NOT_SUBMITTED":
+            logger.warning(f"sbatch rejected job {job_name}")
+            return None
+        if not result.ok or not result.stdout.strip().isdigit():
+            # ``exited`` is only guaranteed on Fabric results; tolerate others.
+            raise RuntimeError(
+                f"Submission of {job_name} is unresolved (exit "
+                f"{getattr(result, 'exited', None)}); preserve results and "
+                "resume after reconciliation")
+        logger.info(f"Slurm job {job_name} is job {result.stdout.strip()}")
+        return int(result.stdout.strip())
 
     def _submit_tracked(self, command, env, task_id):
         if ssh_recovery.enabled(self) and task_id:
@@ -3920,9 +4071,8 @@ class SlurmClient(Connection):
         Returns:
             str: The command to create the zip file.
         """
-        logger.debug("ZIP exclusion of *.biomero-lock for remote shallowing: %s",
-                     "applied" if self.remote_shallow_zarr
-                     else "not applied (remote_shallow_zarr disabled)")
+        logger.debug("ZIP exclusion of *.biomero-lock for remote shallowing: "
+                     f"{'applied' if self.remote_shallow_zarr else 'not applied (remote_shallow_zarr disabled)'}")
         if self._uses_infozip():
             exclusions = " -x '*.biomero-lock'" if self.remote_shallow_zarr else ""
             return (

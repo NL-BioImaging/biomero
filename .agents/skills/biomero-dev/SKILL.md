@@ -218,6 +218,11 @@ Read only the relevant reference before acting:
 - Keep `pep8`/line-length style consistent with the file you edit; the module
   already carries many pre-existing long-line lints, so do not reflow unrelated
   code.
+- `slurm_client.py` is the reference style for every module in `biomero/`:
+  Google-style docstrings (summary line, then `Args:` with `name (type):`,
+  `Returns:` and `Raises:`) on public and non-trivial private functions, type
+  hints on all signatures, descriptive names (`slurm_client`, not `client`)
+  and double-quoted strings. New and touched modules follow it.
 - Keep container acquisition portable across HPC environments. Use the
   administrator-selected Apptainer or Singularity executable for registry
   resolution, pulling, and SIF inspection; do not introduce a separate registry

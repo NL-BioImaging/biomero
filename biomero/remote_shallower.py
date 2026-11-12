@@ -69,8 +69,8 @@ def _installed_labels(client, sif):
         'test -n "$runtime" && "$runtime" inspect --json --labels '
         + shlex.quote(sif)])
     if not result.ok:
-        logger.error('Cannot inspect installed shallower metadata of %s', sif)
-        raise RuntimeError('Cannot inspect installed shallower metadata')
+        raise RuntimeError(
+            f'Cannot inspect installed shallower metadata of {sif}')
     try:
         labels = json.loads(result.stdout)['data']['attributes']['labels']
     except (ValueError, KeyError, TypeError) as error:
@@ -375,10 +375,9 @@ def _submit_once(client, command, state, *, job_name):
         logger.warning('sbatch rejected remote shallower job %s', job_name)
         return None
     if not result.ok or not result.stdout.strip().isdigit():
-        logger.error('Shallower submission %s is unresolved (exit %s)',
-                     job_name, getattr(result, 'exited', None))
         raise RuntimeError(
-            'Shallower submission is unresolved; preserve results and resume '
+            f'Shallower submission {job_name} is unresolved (exit '
+            f'{getattr(result, "exited", None)}); preserve results and resume '
             'after reconciliation')
     logger.info('Remote shallower job %s is Slurm job %s', job_name,
                 result.stdout.strip())
@@ -465,8 +464,6 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
         spec['destination'] = matches[0].params.get('sif', spec['destination'])
     ready, pending = client._partition_existing_images([spec])
     if pending or not ready:
-        logger.error('Remote shallower image missing or invalid: %s',
-                     spec['destination'])
         raise RuntimeError(
             f'Remote shallower image missing or invalid: {spec["destination"]}. '
             'Run SLURM_Init_environment and verify image setup with '
@@ -499,8 +496,8 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
     state_dir = posixpath.join(data_path, '.biomero-shallower', str(task_id))
     prepared = client.run_commands(['mkdir -p ' + shlex.quote(state_dir)])
     if not prepared.ok:
-        logger.error('Cannot prepare shallower state directory %s', state_dir)
-        raise RuntimeError('Cannot prepare shallower state directory')
+        raise RuntimeError(
+            f'Cannot prepare shallower state directory {state_dir}')
     manifest = posixpath.join(state_dir, 'canonical.json')
     _prepare_manifest(client, manifest, canonical, submitted=bool(task.job_ids))
     output = posixpath.join(data_path, 'data/out')
@@ -540,23 +537,21 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                            client, recovery, state_dir + '/recovery',
                            job_name=_job_name(task_id, recovery=True)))
         if recovery_id is None:
-            logger.error('Shallower recovery submission rejected for task %s',
-                         task_id)
             raise RuntimeError(
-                'Shallower recovery submission rejected; output preserved')
+                f'Shallower recovery submission rejected for task {task_id}; '
+                'output preserved')
         if recovery_id not in task.job_ids:
             tracker.add_job_id(task_id, recovery_id)
         if _wait(client, recovery_id, heartbeat) != 'COMPLETED':
-            logger.error('Shallower recovery job %s failed for task %s',
-                         recovery_id, task_id)
             raise RuntimeError(
-                'Shallower recovery failed; output preserved for recovery')
+                f'Shallower recovery job {recovery_id} failed for task '
+                f'{task_id}; output preserved for recovery')
     report = client.run_commands([
         'cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
     if not report.ok:
-        logger.error('Missing shallower report for task %s; cannot archive '
-                     'safely', task_id)
-        raise RuntimeError('Missing shallower report; cannot archive safely')
+        raise RuntimeError(
+            f'Missing shallower report for task {task_id}; cannot archive '
+            'safely')
     batch = _batch(client, report.stdout, canonical, task=task)
     tracker.complete_task(task_id, json.dumps(batch.to_dict()))
     logger.info('Remote shallower task %s completed with %d receipts',

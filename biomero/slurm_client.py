@@ -4809,6 +4809,10 @@ class SlurmClient(Connection):
 
     def _uses_infozip(self) -> bool:
         """Return whether ``slurm_zip_cmd`` names the Info-ZIP executable."""
+        if not self.slurm_zip_cmd:
+            # Not configured (a directly constructed client). shlex.split(None)
+            # would read standard input before Python 3.12.
+            return False
         try:
             executable = shlex.split(self.slurm_zip_cmd)[0]
         except (IndexError, TypeError, ValueError):

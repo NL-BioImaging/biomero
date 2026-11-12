@@ -5958,3 +5958,13 @@ def test_check_job_status_waits_the_configured_time_between_attempts(
 
     assert slurm_client.run_commands_read_only.call_count == 4
     assert [c.args for c in mock_sleep.sleep.call_args_list] == [(2,)] * 3
+
+
+@pytest.mark.parametrize("zip_cmd", [None, ""])
+def test_unconfigured_zip_command_is_not_infozip_and_reads_no_stdin(
+        slurm_client, zip_cmd):
+    slurm_client.slurm_zip_cmd = zip_cmd
+
+    with patch("biomero.slurm_client.shlex.split",
+               side_effect=AssertionError("split must not be called")):
+        assert slurm_client._uses_infozip() is False

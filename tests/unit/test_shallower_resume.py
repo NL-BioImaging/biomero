@@ -270,3 +270,35 @@ def test_heartbeat_failure_preserves_shallowing_or_recovery_job(during_recovery)
     assert submit.call_count == int(during_recovery)
     client.workflowTracker.complete_task.assert_not_called()
     client.workflowTracker.fail_task.assert_not_called()
+
+
+def test_disabled_shallowing_logs_why_it_is_skipped(caplog):
+    client, workflow_id, canonical, _ = client_fixture()
+    client.remote_shallow_zarr = False
+    with caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        assert run(client, '/data', workflow_id, canonical) is None
+    assert 'remote_shallow_zarr is disabled' in caplog.text
+
+
+def test_rejected_submission_warns_about_full_results_fallback(caplog):
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    batch_cls = MagicMock()
+    batch_cls.return_value.to_dict.return_value = {}
+    with patch('biomero.remote_shallower._submit_once', return_value=None), \
+         patch('biomero_schema.shallower.ShallowBatchReport', batch_cls), \
+         caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        run(client, '/data', workflow_id, canonical)
+    warnings = [r for r in caplog.records if r.levelname == 'WARNING']
+    assert any('retaining full results' in r.getMessage() for r in warnings)
+
+
+def test_resumed_task_and_completion_are_logged_at_info(caplog):
+    client, workflow_id, canonical, batch = client_fixture(jobs=())
+    with patch('biomero.remote_shallower._batch', return_value=batch), \
+         patch('biomero.remote_shallower._submit_once', return_value=123), \
+         patch('biomero.remote_shallower._wait', return_value='COMPLETED'), \
+         caplog.at_level('INFO', logger='biomero.remote_shallower'):
+        run(client, '/data', workflow_id, canonical)
+    info = [r.getMessage() for r in caplog.records if r.levelname == 'INFO']
+    assert any('Resuming remote shallower task' in m for m in info)
+    assert any('completed with 0 receipts' in m for m in info)

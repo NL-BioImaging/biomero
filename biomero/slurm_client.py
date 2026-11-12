@@ -1274,7 +1274,15 @@ class SlurmClient(Connection):
         converter_specs = self.prepare_converters()
         if self.remote_shallow_zarr and self.remote_shallower_image:
             from .remote_shallower import image_spec
-            converter_specs = [*converter_specs, image_spec(self)]
+            spec = image_spec(self)
+            logger.info("Including remote shallower helper image %s in "
+                        "Slurm image setup", spec["source"])
+            converter_specs = [*converter_specs, spec]
+        else:
+            logger.info("Skipping remote shallower helper image setup: "
+                        "remote_shallow_zarr=%s, remote_shallower_image=%s",
+                        self.remote_shallow_zarr,
+                        self.remote_shallower_image or "<unset>")
         return self.setup_container_images(extra_image_specs=converter_specs)
 
     @staticmethod
@@ -3910,6 +3918,9 @@ class SlurmClient(Connection):
         Returns:
             str: The command to create the zip file.
         """
+        logger.debug("ZIP exclusion of *.biomero-lock for remote shallowing: %s",
+                     "applied" if self.remote_shallow_zarr
+                     else "not applied (remote_shallow_zarr disabled)")
         if self._uses_infozip():
             exclusions = " -x '*.biomero-lock'" if self.remote_shallow_zarr else ""
             return (

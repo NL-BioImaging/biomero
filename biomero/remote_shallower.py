@@ -49,7 +49,7 @@ def image_spec(client, *, image=None):
         source, separator, version = image.rpartition(':')
         if not separator or '/' in version or not version:
             raise ValueError('Result shallower requires an explicit image version')
-    return {
+    spec = {
         'kind': 'result-shallower', 'name': 'biomero-shallower',
         'version': version, 'source_type': 'registry', 'source': source,
         'destination': posixpath.join(
@@ -57,6 +57,9 @@ def image_spec(client, *, image=None):
             'shallower-' + hashlib.sha256(image.encode()).hexdigest()[:24]
             + '.sif'),
     }
+    logger.debug('Remote shallower image spec: source=%s version=%s '
+                 'destination=%s', source, version, spec['destination'])
+    return spec
 
 
 def _installed_labels(client, sif):
@@ -66,6 +69,7 @@ def _installed_labels(client, sif):
         'test -n "$runtime" && "$runtime" inspect --json --labels '
         + shlex.quote(sif)])
     if not result.ok:
+        logger.error('Cannot inspect installed shallower metadata of %s', sif)
         raise RuntimeError('Cannot inspect installed shallower metadata')
     try:
         labels = json.loads(result.stdout)['data']['attributes']['labels']
@@ -155,6 +159,10 @@ def validate_installed_tool(client, sif, *, expected_version=None):
         raise RuntimeError(
             f'Installed remote Shallower {actual_version} does not emit '
             f'shallow manifest schema {REQUIRED_MANIFEST_SCHEMA}')
+    logger.debug('Installed remote shallower %s at %s satisfies runtime '
+                 'contract %s and manifest schema %s (configured version: %s)',
+                 actual_version, sif, REQUIRED_RUNTIME_CONTRACT,
+                 REQUIRED_MANIFEST_SCHEMA, configured_version or 'any')
     return actual_version
 
 
@@ -192,6 +200,10 @@ def build_command(client, output, sif, manifest, task_id, *, recovery=False,
                f'--task-id {quote(task_id)}')
     if recovery:
         runtime += ' --recover-only'
+    logger.debug('Built remote shallower %s command for task %s: image=%s '
+                 'workers=%s sbatch params=%s',
+                 'recovery' if recovery else 'shallowing', task_id, image,
+                 client.remote_shallower_workers, params)
     return ('sbatch --parsable --export=NONE ' + ' '.join(params) +
             f' --job-name={quote(_job_name(task_id, recovery=recovery))}'
             f' --output={quote(manifest + ".%j.log")}' +
@@ -261,6 +273,8 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
         raise RuntimeError('Cannot read canonical manifest; output preserved')
     if found.stdout.strip():
         verify(found.stdout)
+        logger.debug('Existing canonical manifest %s verified; not '
+                     'uploading again', manifest)
         return
     if submitted:
         raise RuntimeError('Missing canonical manifest for submitted job; output preserved')
@@ -285,6 +299,8 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
         if not published.ok:
             raise RuntimeError('Cannot publish canonical manifest; output preserved')
         verify(published.stdout)
+        logger.info('Published canonical manifest %s for remote shallowing',
+                    manifest)
     finally:
         # Only the unique staging file owned by this call is removed.
         try:
@@ -299,6 +315,9 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
 def completed_receipts(client, workflow_id, canonical):
     """Read persisted helper receipts without contacting the cluster."""
     if not client.remote_shallow_zarr or not client.track_workflows:
+        logger.debug('No remote shallower receipts for workflow %s: '
+                     'remote_shallow_zarr=%s track_workflows=%s', workflow_id,
+                     client.remote_shallow_zarr, client.track_workflows)
         return ()
     workflow = client.workflowTracker.repository.get(UUID(str(workflow_id)))
     receipts = []
@@ -307,6 +326,8 @@ def completed_receipts(client, workflow_id, canonical):
         if task.task_name == TASK_NAME and task.result_message:
             receipts.extend(_batch(client, task.result_message, canonical,
                                    task=task).receipts)
+    logger.debug('Read %d remote shallower receipts for workflow %s',
+                 len(receipts), workflow_id)
     return tuple(receipts)
 
 
@@ -323,6 +344,9 @@ def _submit_once(client, command, state, *, job_name):
     # Keep the helper's existing rejected-submission fallback to full results.
     quote = shlex.quote
     recovering = ssh_recovery.enabled(client)
+    logger.info('Submitting remote shallower job %s (state %s, '
+                'SSH recovery %s)', job_name, state,
+                'enabled' if recovering else 'disabled')
     find_job = ssh_recovery.reconcile_submission(state, job_name)
     publish = ssh_recovery.publish_job_id(state)
     script = (
@@ -343,14 +367,21 @@ def _submit_once(client, command, state, *, job_name):
     if recovering and result.exited in (-1, 200):
         if result.exited == -1:
             raise UnexpectedExit(result)
+        logger.info('Shallower submission %s is held by another process; '
+                    'waiting', job_name)
         raise ssh_recovery.RecoveryPending(
             'Waiting for the existing shallower submission')
     if result.ok and result.stdout.strip() == 'NOT_SUBMITTED':
+        logger.warning('sbatch rejected remote shallower job %s', job_name)
         return None
     if not result.ok or not result.stdout.strip().isdigit():
+        logger.error('Shallower submission %s is unresolved (exit %s)',
+                     job_name, getattr(result, 'exited', None))
         raise RuntimeError(
             'Shallower submission is unresolved; preserve results and resume '
             'after reconciliation')
+    logger.info('Remote shallower job %s is Slurm job %s', job_name,
+                result.stdout.strip())
     return int(result.stdout.strip())
 
 
@@ -360,11 +391,15 @@ def _wait(client, job_id, heartbeat=None):
     The helper task is completed by ``run`` after report validation, not merely
     because its Slurm process exited successfully.
     """
+    logger.info('Waiting for remote shallower Slurm job %s', job_id)
     job = SlurmJob.from_job_id(job_id, slurm_polling_interval=15)
     state = job.wait_for_completion(
         client, heartbeat=heartbeat, track_progress=False, update_task=False,
         strict_status=True)
-    return 'COMPLETED' if job.completed() else state
+    outcome = 'COMPLETED' if job.completed() else state
+    logger.info('Remote shallower Slurm job %s finished with state %s',
+                job_id, outcome)
+    return outcome
 
 
 def run(client, data_path, workflow_id, canonical, heartbeat=None):
@@ -376,9 +411,18 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
     caller can retain full results. Unresolved submission, recovery or report
     validation raises; callers must not archive potentially incomplete output.
     """
-    if not client.remote_shallow_zarr or canonical is None or not canonical.inputs:
+    if not client.remote_shallow_zarr:
+        logger.debug('Remote shallowing skipped for workflow %s: '
+                     'remote_shallow_zarr is disabled', workflow_id)
+        return None
+    if canonical is None or not canonical.inputs:
+        logger.debug('Remote shallowing skipped for workflow %s: no '
+                     'canonical inputs', workflow_id)
         return None
     if not client.track_workflows:
+        logger.warning('Remote shallowing skipped for workflow %s: '
+                       'track_workflows is disabled; results stay full',
+                       workflow_id)
         return None
     tracker = client.workflowTracker
     workflow_id = UUID(str(workflow_id))
@@ -391,6 +435,8 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
     if matches:
         _check_canonical(matches[0], canonical)
     if matches and matches[0].result_message:
+        logger.info('Remote shallower task %s already completed; reusing its '
+                    'receipts', matches[0].id)
         return _batch(client, matches[0].result_message, canonical,
                       task=matches[0])
     if matches and matches[0].job_ids:
@@ -403,8 +449,13 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
             try:
                 batch = _batch(client, found.stdout, canonical, task=matches[0])
             except (ValueError, KeyError):
-                pass  # Partial/stale report: poll the recorded job below.
+                # Partial/stale report: poll the recorded job below.
+                logger.debug('Existing shallower report %s is partial or '
+                             'stale; polling recorded job', report_path,
+                             exc_info=True)
             else:
+                logger.info('Adopted existing shallower report %s for task '
+                            '%s; completing task', report_path, matches[0].id)
                 tracker.complete_task(
                     matches[0].id, json.dumps(batch.to_dict()))
                 return batch
@@ -414,6 +465,8 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
         spec['destination'] = matches[0].params.get('sif', spec['destination'])
     ready, pending = client._partition_existing_images([spec])
     if pending or not ready:
+        logger.error('Remote shallower image missing or invalid: %s',
+                     spec['destination'])
         raise RuntimeError(
             f'Remote shallower image missing or invalid: {spec["destination"]}. '
             'Run SLURM_Init_environment and verify image setup with '
@@ -434,19 +487,28 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
              'canonical_sha256': _canonical_digest(canonical.to_dict())})
         tracker.start_task(task_id)
         task = tracker.repository.get(task_id)
+        logger.info('Started remote shallower task %s (workflow %s, image %s, '
+                    'tool version %s, %d inputs)', task_id, workflow_id, image,
+                    version, len(canonical.inputs))
     else:
         task = matches[0]
         task_id = task.id
+        logger.info('Resuming remote shallower task %s (jobs recorded: %s)',
+                    task_id, list(task.job_ids))
     sif = task.params.get('sif', spec['destination'])
     state_dir = posixpath.join(data_path, '.biomero-shallower', str(task_id))
     prepared = client.run_commands(['mkdir -p ' + shlex.quote(state_dir)])
     if not prepared.ok:
+        logger.error('Cannot prepare shallower state directory %s', state_dir)
         raise RuntimeError('Cannot prepare shallower state directory')
     manifest = posixpath.join(state_dir, 'canonical.json')
     _prepare_manifest(client, manifest, canonical, submitted=bool(task.job_ids))
     output = posixpath.join(data_path, 'data/out')
     command = build_command(
         client, output, sif, manifest, str(task_id), image=image)
+    if task.job_ids:
+        logger.debug('Adopting recorded shallower job %s; no new submission',
+                     task.job_ids[0])
     job_id = (int(task.job_ids[0]) if task.job_ids
               else _submit_once(client, command,
                                 state_dir + '/shallow',
@@ -457,13 +519,17 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                                    image=image, toolVersion=task.task_version,
                                    result='complete', receipts=())
         tracker.complete_task(task_id, json.dumps(batch.to_dict()))
-        logger.warning('Shallower submission rejected; retaining full results')
+        logger.warning('Shallower submission rejected for task %s; retaining '
+                       'full results (empty receipts)', task_id)
         return batch
     if not task.job_ids:
         tracker.add_job_id(task_id, job_id)
         task = tracker.repository.get(task_id)
+        logger.debug('Recorded shallower job %s on task %s', job_id, task_id)
     status = _wait(client, job_id, heartbeat)
     if status != 'COMPLETED':
+        logger.warning('Remote shallower job %s ended as %s; running '
+                       'recovery to keep results consistent', job_id, status)
         # Recover in the same configured image on CPU. Completed stores retain
         # receipts; interrupted stores roll back before any archive is allowed.
         recovery = build_command(client, output, sif, manifest,
@@ -474,17 +540,25 @@ def run(client, data_path, workflow_id, canonical, heartbeat=None):
                            client, recovery, state_dir + '/recovery',
                            job_name=_job_name(task_id, recovery=True)))
         if recovery_id is None:
+            logger.error('Shallower recovery submission rejected for task %s',
+                         task_id)
             raise RuntimeError(
                 'Shallower recovery submission rejected; output preserved')
         if recovery_id not in task.job_ids:
             tracker.add_job_id(task_id, recovery_id)
         if _wait(client, recovery_id, heartbeat) != 'COMPLETED':
+            logger.error('Shallower recovery job %s failed for task %s',
+                         recovery_id, task_id)
             raise RuntimeError(
                 'Shallower recovery failed; output preserved for recovery')
     report = client.run_commands([
         'cat ' + shlex.quote(output + '/.biomero-shallow-batch.json')])
     if not report.ok:
+        logger.error('Missing shallower report for task %s; cannot archive '
+                     'safely', task_id)
         raise RuntimeError('Missing shallower report; cannot archive safely')
     batch = _batch(client, report.stdout, canonical, task=task)
     tracker.complete_task(task_id, json.dumps(batch.to_dict()))
+    logger.info('Remote shallower task %s completed with %d receipts',
+                task_id, len(batch.receipts))
     return batch

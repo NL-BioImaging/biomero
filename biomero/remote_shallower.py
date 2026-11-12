@@ -1054,14 +1054,14 @@ def _submit_or_adopt_helper_job(slurm_client: SlurmClient, helper: HelperJob,
         Optional[int]: The Slurm job ID, or None if sbatch rejected the job.
     """
     task = helper.task
-    sbatch_command = build_helper_command(
-        slurm_client, helper.output_path, helper.sif_path,
-        helper.manifest_path, str(task.id), image=helper.image,
-        contract_version=settings.contract_version)
     if task.job_ids:
         logger.debug(f"Adopting recorded shallower job {task.job_ids[0]}; "
                      "no new submission")
         return int(task.job_ids[0])
+    sbatch_command = build_helper_command(
+        slurm_client, helper.output_path, helper.sif_path,
+        helper.manifest_path, str(task.id), image=helper.image,
+        contract_version=settings.contract_version)
     return _submit_helper_job(
         slurm_client, sbatch_command,
         posixpath.join(helper.state_dir, SHALLOW_STATE_NAME),
@@ -1135,7 +1135,8 @@ def _recover_after_failed_job(slurm_client: SlurmClient, helper: HelperJob,
             "output preserved")
     if recovery_job_id not in recorded_job_ids:
         slurm_client.workflowTracker.add_job_id(task_id, recovery_job_id)
-        slurm_client.remove_submission_receipts(recovery_state_prefix)
+    # Also after a resume: a crash may have left the receipts behind.
+    slurm_client.remove_submission_receipts(recovery_state_prefix)
     recovery_state = wait_for_helper_job(
         slurm_client, recovery_job_id, heartbeat, settings.polling_interval)
     if recovery_state != COMPLETED_STATE:
@@ -1237,8 +1238,9 @@ def shallow_workflow_results(
         slurm_client.workflowTracker.add_job_id(helper.task_id, job_id)
         logger.debug(f"Recorded shallower job {job_id} on task "
                      f"{helper.task_id}")
-        slurm_client.remove_submission_receipts(
-            posixpath.join(helper.state_dir, SHALLOW_STATE_NAME))
+    # Also after a resume: a crash may have left the receipts behind.
+    slurm_client.remove_submission_receipts(
+        posixpath.join(helper.state_dir, SHALLOW_STATE_NAME))
     status = wait_for_helper_job(
         slurm_client, job_id, heartbeat, polling_interval)
     if status != COMPLETED_STATE:

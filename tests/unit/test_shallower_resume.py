@@ -389,3 +389,59 @@ def test_rejected_existing_report_warns_and_polls_the_recorded_job(caplog):
               if 'rejected as partial or stale' in record.getMessage()]
     assert levels == ['WARNING']
     client.workflowTracker.complete_task.assert_not_called()
+
+
+def _state_prefix(client, workflow_id, operation):
+    task_id = client.get_workflow(workflow_id).tasks[0]
+    return f'/data/.biomero-shallower/{task_id}/{operation}'
+
+
+def test_receipts_are_removed_after_the_job_id_is_recorded():
+    client, workflow_id, canonical, batch = client_fixture(jobs=())
+    with patch('biomero.remote_shallower.parse_batch_report',
+               return_value=batch), \
+         patch('biomero.remote_shallower._submit_helper_job',
+               return_value=123), \
+         patch('biomero.remote_shallower.wait_for_helper_job',
+               return_value='COMPLETED'):
+        run(client, '/data', workflow_id, canonical)
+    client.workflowTracker.add_job_id.assert_called_once()
+    client.remove_submission_receipts.assert_called_once_with(
+        _state_prefix(client, workflow_id, 'shallow'))
+
+
+def test_receipts_of_the_recovery_job_are_removed_with_its_own_prefix():
+    client, workflow_id, canonical, batch = client_fixture()
+    with patch('biomero.remote_shallower.parse_batch_report',
+               return_value=batch), \
+         patch('biomero.remote_shallower._submit_helper_job',
+               return_value=124), \
+         patch('biomero.remote_shallower.wait_for_helper_job',
+               side_effect=['FAILED', 'COMPLETED']):
+        run(client, '/data', workflow_id, canonical)
+    assert [call.args[0] for call in
+            client.remove_submission_receipts.call_args_list] == [
+        _state_prefix(client, workflow_id, 'shallow'),
+        _state_prefix(client, workflow_id, 'recovery')]
+
+
+def test_receipts_left_by_a_crash_are_removed_on_resume():
+    client, workflow_id, canonical, batch = client_fixture(jobs=(123,))
+    with patch('biomero.remote_shallower.parse_batch_report',
+               return_value=batch), \
+         patch('biomero.remote_shallower.wait_for_helper_job',
+               return_value='COMPLETED'):
+        run(client, '/data', workflow_id, canonical)
+    client.workflowTracker.add_job_id.assert_not_called()
+    client.remove_submission_receipts.assert_called_once_with(
+        _state_prefix(client, workflow_id, 'shallow'))
+
+
+def test_receipts_are_kept_after_a_rejected_submission():
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    with patch('biomero.remote_shallower._submit_helper_job',
+               return_value=None), \
+         patch('biomero_schema.shallower.ShallowBatchReport',
+               lambda **fields: SimpleNamespace(to_dict=lambda: {})):
+        run(client, '/data', workflow_id, canonical)
+    client.remove_submission_receipts.assert_not_called()

@@ -439,3 +439,12 @@ def test_the_manifest_lock_uses_the_configured_lock_command():
     published = next(call.args[0][0] for call in client.run_commands.call_args_list
                      if 'sh -c' in call.args[0][0])
     assert published.startswith("mylock 200 /state/canonical.json.lock sh -c")
+
+
+def test_an_unparsable_job_id_is_an_unresolved_submission():
+    from biomero.remote_shallower import _submit_helper_job
+    client = SlurmClient(config_only=True, slurm_data_path='/data')
+    client.submit_job_once = MagicMock(return_value=SimpleNamespace(
+        ok=True, exited=0, stdout='no job id here'))
+    with pytest.raises(RuntimeError, match='unresolved'):
+        _submit_helper_job(client, 'sbatch w.sh', '/state/x', 'n')

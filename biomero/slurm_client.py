@@ -34,9 +34,21 @@ import posixpath
 import yaml
 import shlex
 import socket
-from biomero.constants import slurm_env
-from biomero import ssh_recovery
-from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
+import hashlib
+import json
+from biomero.constants import (
+    slurm_env, DEFAULT_SLURM_LOCK_CMD, DEFAULT_SSH_RECOVERY_TIMEOUT,
+    LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SSH_AUTH_TIMEOUT_SECONDS,
+    SSH_BANNER_TIMEOUT_SECONDS, SSH_CONNECT_TIMEOUT_SECONDS,
+    SSH_KEEPALIVE_SECONDS, SUBMISSION_JOB_NAME_PREFIX,
+    SUBMISSION_REJECTED_EXIT_CODE, SUBMISSION_STATE_DIRECTORY,
+    ARCHIVE_PARTIAL_SUFFIX, ARCHIVE_READY_SUFFIX, ARCHIVE_LOCK_SUFFIX,
+    SCRIPT_UPDATE_LOCK_SUFFIX, TCP_KEEPALIVE_IDLE_SECONDS,
+    TCP_KEEPALIVE_INTERVAL_SECONDS, TCP_KEEPALIVE_PROBES,
+    TCP_USER_TIMEOUT_MILLISECONDS, UNPACKED_MARKER_SUFFIX)
+from biomero import ssh_recovery, remote_scripts
+from biomero.eventsourcing import (
+    WorkflowTracker, NoOpWorkflowTracker, Task, WorkflowRun)
 from biomero.schema_parsers import DescriptorParserFactory
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import EngineManager, JobProgressView, JobView, TaskExecution, WorkflowProgressView
@@ -47,6 +59,12 @@ from sqlalchemy.sql import text
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
+
+# Slurm job states after which a job does not change any more. sacct may add
+# a suffix such as ``CANCELLED+`` or details such as ``CANCELLED by 1000``.
+TERMINAL_JOB_STATES = frozenset({
+    'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
+    'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED'})
 
 
 class SlurmJob:
@@ -144,10 +162,7 @@ class SlurmJob:
         """Accept sacct suffixes and cancellation details as well as states."""
         parts = (state or '').split()
         name = parts[0].rstrip('+') if parts else ''
-        return name in {
-            'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
-            'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED',
-        }
+        return name in TERMINAL_JOB_STATES
 
     def wait_for_completion(self, slurmClient, *, heartbeat=None,
                             track_progress=True, update_task=True,
@@ -173,10 +188,7 @@ class SlurmJob:
             raise TypeError('heartbeat must be callable')
         with ssh_recovery.scope(slurmClient, heartbeat) as recovery:
             while not self.is_terminal(self.job_state):
-                if recovery is not None:
-                    recovery.pulse()
-                elif heartbeat is not None:
-                    heartbeat()
+                recovery.pulse()
                 job_status_dict, poll_result = slurmClient.check_job_status(
                     [self.job_id])
                 state = job_status_dict.get(self.job_id, 'UNKNOWN')
@@ -189,7 +201,8 @@ class SlurmJob:
                 if poll_result is None or not poll_result.ok:
                     self.job_state = "FAILED"
                     self.error_message = getattr(poll_result, 'stderr', '')
-                    logger.warning('Error checking job status: %s', self.error_message)
+                    logger.warning(
+                        f"Error checking job status: {self.error_message}")
                 else:
                     self.job_state = state
                 if track_progress:
@@ -326,6 +339,7 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
+    _DEFAULT_SLURM_LOCK_CMD = DEFAULT_SLURM_LOCK_CMD
     _CONFIG_ENV_VARS = {
         ("ANALYTICS", "sqlalchemy_url"): [slurm_env.SQLALCHEMY_URL],
         ("SLURM", "slurm_default_partition"): [
@@ -362,6 +376,7 @@ class SlurmClient(Connection):
         ("SLURM", "apptainer_cachedir"): [
             slurm_env.BIOMERO_APPTAINER_CACHEDIR],
         ("SLURM", "slurm_zip_cmd"): [slurm_env.BIOMERO_SLURM_ZIP_CMD],
+        ("SLURM", "slurm_lock_cmd"): [slurm_env.BIOMERO_SLURM_LOCK_CMD],
     }
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
@@ -572,8 +587,8 @@ class SlurmClient(Connection):
                  analytics_rebuild_days_ago: int = None,
                  remote_shallower_mem: str = None,
                  remote_shallower_time: str = None,
-                 ssh_recovery_timeout: int =
-                 ssh_recovery.DEFAULT_SSH_RECOVERY_TIMEOUT):
+                 ssh_recovery_timeout: int = DEFAULT_SSH_RECOVERY_TIMEOUT,
+                 slurm_lock_cmd: str = DEFAULT_SLURM_LOCK_CMD):
         """
         Initializes a new instance of the SlurmClient class.
 
@@ -581,13 +596,21 @@ class SlurmClient(Connection):
         parameters from a configuration file.
 
         Args:
-            ssh_recovery_timeout (int, optional): Maximum seconds to retry an
-                interrupted replay-safe SSH operation. Defaults to 900 seconds
-                (15 minutes), including when the setting is omitted. Set 0
-                to disable recovery explicitly, or override with
-                BIOMERO_SSH_RECOVERY_TIMEOUT. Submission recovery requires
-                tracking, flock and durable writable HPC storage; it reserves
-                the Slurm job name for task identity.
+            ssh_recovery_timeout (int, optional): Window in seconds in which
+                an interrupted SSH operation is retried. Defaults to 900
+                (15 minutes), including when the setting is omitted. The
+                same code runs with every value: 0 means no retries.
+                Overridable via ``BIOMERO_SSH_RECOVERY_TIMEOUT``. Tracked
+                submissions need the workflow tracker, a lock command, Slurm
+                accounting (``sacct``) and writable shared storage on the
+                cluster; they reserve the Slurm job name for the task.
+            slurm_lock_cmd (str, optional): Template of the command that
+                locks a file on the cluster before running a script, so that
+                a repeated request waits for the first. The placeholders
+                ``{wait_seconds}``, ``{busy_exit_code}`` and ``{lock_file}``
+                are filled in, and the script is appended. Defaults to
+                ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``.
+                Overridable via ``BIOMERO_SLURM_LOCK_CMD``.
             host (str, optional): The hostname or IP address of the remote 
                 server. Defaults to `_DEFAULT_HOST`.
             user (str, optional): The username to use when connecting to 
@@ -802,12 +825,11 @@ class SlurmClient(Connection):
                                           inline_ssh_env)
         if ssh_recovery_timeout < 0:
             raise ValueError("ssh_recovery_timeout must be nonnegative")
+        remote_scripts.validate_lock_template(slurm_lock_cmd)
         self.ssh_recovery_timeout = ssh_recovery_timeout
         self.ssh_recovery_cancel = None
-        if ssh_recovery_timeout:
-            self.connect_timeout = self.connect_timeout or 10
-            self.connect_kwargs.setdefault("banner_timeout", 30)
-            self.connect_kwargs.setdefault("auth_timeout", 30)
+        self.slurm_lock_cmd = slurm_lock_cmd
+        self._set_connection_stage_timeouts()
         self.slurm_data_path = slurm_data_path
         self.slurm_images_path = slurm_images_path
         self.slurm_converters_path = slurm_converters_path
@@ -1269,6 +1291,7 @@ class SlurmClient(Connection):
         """Create the cluster setup and return the image array job ID."""
         if not self.validate():
             raise SSHException("Failure in connecting to Slurm cluster")
+        self.check_remote_commands_available()
         self.setup_directories()
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
@@ -1276,6 +1299,38 @@ class SlurmClient(Connection):
             from .remote_shallower import image_spec
             converter_specs = [*converter_specs, image_spec(self)]
         return self.setup_container_images(extra_image_specs=converter_specs)
+
+    def check_remote_commands_available(self) -> List[str]:
+        """Check that the cluster has the commands that recovery relies on.
+
+        Tracked submissions, result archives and input extraction repeat
+        safely after a lost connection only with a lock command
+        (``slurm_lock_cmd``, ``flock`` by default) and with Slurm accounting
+        (``sacct``), which finds a job whose submission reply was lost. A
+        missing command is logged as a WARNING and does not stop the setup.
+
+        Returns:
+            List[str]: The executables that were not found.
+        """
+        required_commands = {
+            "lock command (slurm_lock_cmd)":
+                remote_scripts.lock_executable(self.slurm_lock_cmd),
+            "Slurm accounting (sacct)": "sacct",
+        }
+        missing = []
+        for purpose, executable in required_commands.items():
+            check_cmd = f"command -v {shlex.quote(executable)}"
+            result = self.run_commands(
+                [check_cmd], warn=True, log_stdout=False)
+            if result.ok:
+                logger.debug(f"Found {executable} for the {purpose}")
+                continue
+            missing.append(executable)
+            logger.warning(
+                f"{executable} is not available on the Slurm cluster: the "
+                f"{purpose} is needed to repeat submissions, archives and "
+                "extractions safely after a lost SSH connection")
+        return missing
 
     @staticmethod
     def _image_status_record(spec: Dict[str, str], state: str,
@@ -1498,6 +1553,10 @@ class SlurmClient(Connection):
                                    *, heartbeat=None):
         """Run/adopt optional CPU shallowing before result archiving.
 
+        The whole run is repeated within the SSH recovery window after a lost
+        connection, so every step inside it must be safe to repeat: it adopts
+        the recorded job or submits through ``submit_job_once``.
+
         ``heartbeat`` is a caller-owned no-argument callback invoked during
         job waits.
         """
@@ -1698,7 +1757,7 @@ class SlurmClient(Connection):
         )
         ssh_recovery_timeout = cls._get_config_value(
             configs, section="SLURM", option="ssh_recovery_timeout",
-            default=ssh_recovery.DEFAULT_SSH_RECOVERY_TIMEOUT,
+            default=DEFAULT_SSH_RECOVERY_TIMEOUT,
             env_vars=[slurm_env.BIOMERO_SSH_RECOVERY_TIMEOUT], value_type=int,
         )
         inline_ssh_env = cls._get_config_value(
@@ -1951,6 +2010,16 @@ class SlurmClient(Connection):
             empty_is_none=True,
         )
 
+        # A blank value keeps the default: the lock command is not optional.
+        slurm_lock_cmd = cls._get_config_value(
+            configs,
+            section="SLURM",
+            option="slurm_lock_cmd",
+            default=cls._DEFAULT_SLURM_LOCK_CMD,
+            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "slurm_lock_cmd")],
+            empty_is_none=True,
+        ) or cls._DEFAULT_SLURM_LOCK_CMD
+
         # Split the MODELS into paths, repos and images
         # The section may be named either [MODELS] (legacy) or [WORKFLOWS]
         # (preferred). Both are supported and merged; [MODELS] is read first so
@@ -2051,6 +2120,7 @@ class SlurmClient(Connection):
         # the config file
         return cls(host=host,
                    ssh_recovery_timeout=ssh_recovery_timeout,
+                   slurm_lock_cmd=slurm_lock_cmd,
                    inline_ssh_env=inline_ssh_env,
                    slurm_data_path=slurm_data_path,
                    slurm_images_path=slurm_images_path,
@@ -2243,6 +2313,7 @@ class SlurmClient(Connection):
             raise
         except Exception as e:
             logger.error(f"Issue with run command: {e}")
+            return None
         # Match the specified pattern in the result's stdout
         latest_progress = None
         try:
@@ -2253,25 +2324,55 @@ class SlurmClient(Connection):
 
         return latest_progress
 
+    def _set_connection_stage_timeouts(self) -> None:
+        """Bound the connection stages so that a silent stall is detected.
+
+        Defaults only: a stricter value that the caller or the SSH
+        configuration sets stays in force. The caller's ``connect_kwargs``
+        is copied first, as it may be shared with other connections.
+        """
+        self.connect_timeout = (
+            self.connect_timeout or SSH_CONNECT_TIMEOUT_SECONDS)
+        self.connect_kwargs = dict(self.connect_kwargs)
+        self.connect_kwargs.setdefault(
+            "banner_timeout", SSH_BANNER_TIMEOUT_SECONDS)
+        self.connect_kwargs.setdefault(
+            "auth_timeout", SSH_AUTH_TIMEOUT_SECONDS)
+
+    def _enable_tcp_keepalive(self) -> None:
+        """Make a quiet SSH link detectable without limiting long commands.
+
+        Sets the SSH keepalive and, where the platform has them, the TCP
+        keepalive options. The values are in ``biomero.constants``.
+        """
+        self.transport.set_keepalive(SSH_KEEPALIVE_SECONDS)
+        sock = self.transport.sock
+        if not isinstance(sock, socket.socket):
+            logger.debug("No TCP socket to set keepalive on")
+            return
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        tcp_options = {
+            "TCP_KEEPIDLE": TCP_KEEPALIVE_IDLE_SECONDS,
+            "TCP_KEEPINTVL": TCP_KEEPALIVE_INTERVAL_SECONDS,
+            "TCP_KEEPCNT": TCP_KEEPALIVE_PROBES,
+            "TCP_USER_TIMEOUT": TCP_USER_TIMEOUT_MILLISECONDS,
+        }
+        for name, value in tcp_options.items():
+            option = getattr(socket, name, None)
+            if option is None:
+                logger.debug(f"TCP keepalive {name} not on this platform")
+                continue
+            try:
+                sock.setsockopt(socket.IPPROTO_TCP, option, value)
+            except OSError as error:
+                logger.debug(f"TCP keepalive {name} unavailable: {error}")
+
     def open(self):
-        """Keep a quiet SSH link detectable without limiting long commands."""
+        """Open the SSH connection and make a quiet link detectable."""
         result = super().open()
         ssh_recovery.limit_channel_open(self)
-        if ssh_recovery.enabled(self) and self.transport is not None:
-            self.transport.set_keepalive(15)
-            sock = self.transport.sock
-            if isinstance(sock, socket.socket):
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                for name, value in (("TCP_KEEPIDLE", 30),
-                                    ("TCP_KEEPINTVL", 10), ("TCP_KEEPCNT", 3),
-                                    ("TCP_USER_TIMEOUT", 30000)):
-                    option = getattr(socket, name, None)
-                    if option is not None:
-                        try:
-                            sock.setsockopt(socket.IPPROTO_TCP, option, value)
-                        except OSError:
-                            logger.debug('TCP keepalive option unavailable: %s',
-                                         name)
+        if self.transport is not None:
+            self._enable_tcp_keepalive()
         return result
 
     @ssh_recovery.read_only
@@ -2522,9 +2623,9 @@ class SlurmClient(Connection):
         """
         logger.info(
             f"Transfering file {local_path} to {self.slurm_data_path}")
-        if ssh_recovery.enabled(self):
-            return ssh_recovery.upload(self, local_path, self.slurm_data_path)
-        return self.put(local=local_path, remote=self.slurm_data_path)
+        remote_path = posixpath.join(
+            self.slurm_data_path, os.path.basename(local_path))
+        return ssh_recovery.atomic_put(self, local_path, remote_path)
 
     def unpack_data(self, zipfile: str,
                     env: Optional[Dict[str, str]] = None) -> Result:
@@ -2540,11 +2641,20 @@ class SlurmClient(Connection):
         Returns:
             Result: The result of the command.
         """
-        cmd = self.get_unzip_command(zipfile)
+        unzip_cmd = self.get_unzip_command(zipfile)
         logger.info(f"Unpacking {zipfile} on Slurm")
-        if ssh_recovery.enabled(self):
-            return ssh_recovery.unpack(self, zipfile, env)
-        return self.run_commands([cmd], env=env)
+        zip_file = posixpath.join(self.slurm_data_path, f"{zipfile}.zip")
+        unpacked_marker = posixpath.join(
+            self.slurm_data_path, f"{zipfile}{UNPACKED_MARKER_SUFFIX}")
+        # Extract once: a repeated request after a lost connection must not
+        # race the extraction that may still run. A zip uploaded again
+        # (newer than the marker) is extracted again.
+        unpack_script = remote_scripts.run_once_script(
+            unzip_cmd, unpacked_marker, stale_if_newer=[zip_file],
+            reuse_message="Input already extracted")
+        return self._run_locked(
+            unpack_script, f"{unpacked_marker}.lock",
+            f"extract {zipfile}", env=env)
 
     def generate_slurm_job_for_workflow(self,
                                         workflow: str,
@@ -2790,66 +2900,369 @@ class SlurmClient(Connection):
                 # ensure all dirs exist remotely
                 full_path = self.slurm_script_path+"/"+job_path
                 job_dir, _ = os.path.split(full_path)
-                if ssh_recovery.enabled(self):
-                    ssh_recovery.retry(
-                        self, lambda: self.run(f"mkdir -p \"{job_dir}\""),
-                        'prepare job script directory')
-                    result = ssh_recovery.publish_script(
-                        self, job_script, full_path)
-                else:
-                    self.run(f"mkdir -p \"{job_dir}\"")
-                    result = self.put(local=io.StringIO(job_script),
-                                      remote=full_path)
+                ssh_recovery.retry(
+                    self, lambda: self.run(f"mkdir -p \"{job_dir}\""),
+                    "prepare job script directory")
+                result = ssh_recovery.atomic_put(
+                    self, io.StringIO(job_script), full_path)
         else:
             cmd = self.get_update_slurm_scripts_command()
             logger.info("Updating Slurm job scripts on Slurm")
-            if ssh_recovery.enabled(self):
-                # An interrupted git process may still own its repository.
-                # Serialize retries instead of racing its surviving work.
-                result = ssh_recovery.run_durable(
-                    self, ssh_recovery.locked_command(
-                        self.slurm_script_path + '.biomero-update.lock', cmd),
-                    env, 'update job script repository')
-            else:
-                result = self.run_commands([cmd], env=env)
+            # An interrupted git process may still own its repository.
+            # Serialize retries instead of racing its surviving work.
+            result = self._run_locked(
+                cmd, f"{self.slurm_script_path}{SCRIPT_UPDATE_LOCK_SUFFIX}",
+                "update job script repository", env=env)
         return result
 
-    def _submission_task(self, wf_id, name, version, input_data, params):
-        """Recover task identity before attempting any new Slurm submission."""
+    def get_workflow(self, workflow_id: Any) -> WorkflowRun:
+        """Read a workflow from the workflow tracker.
+
+        Args:
+            workflow_id (Any): ID of the workflow.
+
+        Returns:
+            WorkflowRun: The workflow aggregate.
+        """
+        return self.workflowTracker.repository.get(UUID(str(workflow_id)))
+
+    def get_task(self, task_id: Any) -> Task:
+        """Read a task from the workflow tracker.
+
+        Args:
+            task_id (Any): ID of the task.
+
+        Returns:
+            Task: The task aggregate.
+        """
+        return self.workflowTracker.repository.get(task_id)
+
+    def get_workflow_tasks(self, workflow_id: Any, *,
+                           task_name: Optional[str] = None,
+                           input_data: Optional[str] = None) -> List[Task]:
+        """Read the tasks of a workflow from the workflow tracker.
+
+        Args:
+            workflow_id (Any): ID of the workflow.
+            task_name (Optional[str]): Only return tasks with this name.
+            input_data (Optional[str]): Only return tasks with this input data.
+
+        Returns:
+            List[Task]: The matching task aggregates, in workflow order.
+        """
+        workflow = self.get_workflow(workflow_id)
+        tasks = [self.get_task(task_id) for task_id in workflow.tasks]
+        return [task for task in tasks
+                if (task_name is None or task.task_name == task_name)
+                and (input_data is None or task.input_data == input_data)]
+
+    @staticmethod
+    def get_submission_job_name(task_id: Any) -> str:
+        """Return the Slurm job name that identifies a task's submission.
+
+        A job whose submission reply was lost is found again by this name.
+
+        Args:
+            task_id (Any): ID of the task.
+
+        Returns:
+            str: The job name, for example ``biomero-<task id>``.
+        """
+        return f"{SUBMISSION_JOB_NAME_PREFIX}{UUID(str(task_id))}"
+
+    def get_submission_state_prefix(self, task_id: Any) -> str:
+        """Return the remote path prefix of a task's submission receipts.
+
+        Args:
+            task_id (Any): ID of the task.
+
+        Returns:
+            str: ``<slurm_data_path>/.biomero-recovery/<task id>``.
+        """
+        return posixpath.join(
+            self.slurm_data_path, SUBMISSION_STATE_DIRECTORY, str(task_id))
+
+    @staticmethod
+    def _task_is_finished(task: Task) -> bool:
+        """Tell whether a task is over, so that it cannot be resumed.
+
+        A task is over when it was completed or failed, when its job reached
+        a terminal Slurm state, or when its submission failed (job id -1).
+        """
+        submission_failed = bool(task.job_ids) and all(
+            int(job_id) <= 0 for job_id in task.job_ids)
+        return (task.result_message is not None
+                or SlurmJob.is_terminal(task.status)
+                or submission_failed)
+
+    def _find_resumable_task(self, wf_id: Any, name: str,
+                             input_data: str) -> Optional[Task]:
+        """Find the unfinished task that a repeated submission continues.
+
+        Identity is (workflow, task name, input) among the tasks that are not
+        over. A finished task never matches: running the same workflow on the
+        same input again is a new run, which must not adopt the old job.
+
+        Args:
+            wf_id (Any): ID of the workflow.
+            name (str): Task name.
+            input_data (str): Task input.
+
+        Returns:
+            Optional[Task]: The task to continue, or None.
+
+        Raises:
+            RuntimeError: If more than one unfinished task matches.
+        """
+        unfinished_tasks = [
+            task for task in self.get_workflow_tasks(
+                wf_id, task_name=name, input_data=input_data)
+            if not self._task_is_finished(task)]
+        if not unfinished_tasks:
+            return None
+        if len(unfinished_tasks) > 1:
+            task_ids = ", ".join(str(task.id) for task in unfinished_tasks)
+            raise RuntimeError(
+                f"Several unfinished '{name}' tasks for {input_data} in "
+                f"workflow {wf_id} ({task_ids}); fail or complete all but "
+                "one, then resume")
+        resumable_task = unfinished_tasks[0]
+        return resumable_task
+
+    def _submission_task(self, wf_id: Any, name: str, version: str,
+                         input_data: str, params: Dict) -> Optional[UUID]:
+        """Return the task for a submission: the unfinished one, or a new one.
+
+        Args:
+            wf_id (Any): ID of the workflow.
+            name (str): Task name.
+            version (str): Task version.
+            input_data (str): Task input.
+            params (Dict): Task parameters.
+
+        Returns:
+            Optional[UUID]: The task ID; None when tracking is off.
+
+        Raises:
+            RuntimeError: If the unfinished task has other parameters, or
+                several unfinished tasks match.
+        """
         tracker = self.workflowTracker
-        if ssh_recovery.enabled(self) and not isinstance(
-                tracker, NoOpWorkflowTracker):
-            workflow = tracker.repository.get(wf_id)
-            matches = []
-            for task_id in workflow.tasks:
-                task = tracker.repository.get(task_id)
-                if task.task_name == name and task.input_data == input_data:
-                    matches.append(task)
-            if len(matches) > 1:
-                raise RuntimeError('Ambiguous submission tasks; reconcile first')
-            if matches:
-                task = matches[0]
-                if task.task_version != version or task.params != params:
-                    raise RuntimeError('Submission parameters changed on resume')
-                return task.id
+        if not isinstance(tracker, NoOpWorkflowTracker):
+            resumable_task = self._find_resumable_task(
+                wf_id, name, input_data)
+            if resumable_task is not None:
+                if (resumable_task.task_version != version
+                        or resumable_task.params != params):
+                    raise RuntimeError(
+                        f"The parameters of task {resumable_task.id} "
+                        f"({name} on {input_data}) changed on resume; "
+                        "fail the task to start a new run")
+                logger.info(f"Resuming task {resumable_task.id} ({name} on "
+                            f"{input_data}) of workflow {wf_id}")
+                return resumable_task.id
         return tracker.add_task_to_workflow(
             wf_id, name, version, input_data, params)
 
-    def _submit_tracked(self, command, env, task_id):
-        if ssh_recovery.enabled(self) and task_id:
-            known = self.workflowTracker.repository.get(task_id).job_ids
-            if known:
-                job_ids = {int(job_id) for job_id in known}
-                if len(job_ids) != 1 or min(job_ids) <= 0:
-                    raise RuntimeError(
-                        'Recorded submission is ambiguous or failed; reconcile first')
-                job_id = job_ids.pop()
-                logger.info('Adopting recorded Slurm job %s', job_id)
-                return Result(connection=self, exited=0,
-                              stdout=f'Submitted batch job {job_id}\n')
-            return ssh_recovery.submit(self, command, env, task_id)
-        # No durable task identity: do not replay a potentially accepted sbatch.
-        return self.run_commands([command], env)
+    @staticmethod
+    def _command_digest(sbatch_command: str,
+                        env: Optional[Dict[str, str]]) -> str:
+        """Hash a submission, to notice when a resume uses another command."""
+        canonical = json.dumps([sbatch_command, env or {}], sort_keys=True)
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
+    def _run_locked(self, script: str, lock_file: str, description: str,
+                    env: Optional[Dict[str, str]] = None,
+                    accepted_exit_codes: Tuple[int, ...] = (0,)) -> Result:
+        """Run a script on the cluster under a lock, repeating it safely.
+
+        The script must be safe to ask twice (see ``remote_scripts``). A
+        lock held elsewhere, or the exit code ``REMOTE_BUSY_EXIT_CODE``, makes
+        the call wait and ask again within the recovery window; a lost
+        connection is recovered the same way.
+
+        Args:
+            script (str): The shell script.
+            lock_file (str): Remote path of the lock file; its directory is
+                created if needed.
+            description (str): What the script does, for logs and errors.
+            env (Optional[Dict[str, str]]): Environment variables.
+            accepted_exit_codes (Tuple[int, ...]): Exit codes that count as a
+                result; any other nonzero code raises.
+
+        Returns:
+            Result: The result of the script.
+
+        Raises:
+            UnexpectedExit: If the script failed on the cluster.
+            ssh_recovery.RemoteOperationStillPending: If the operation was
+                still busy when the waiting time ended.
+        """
+        locked_script = remote_scripts.locked_script(
+            self.slurm_lock_cmd, lock_file, script, LOCK_WAIT_SECONDS)
+        lock_directory = shlex.quote(posixpath.dirname(lock_file))
+        command = f"mkdir -p {lock_directory} && {locked_script}"
+
+        def attempt() -> Result:
+            result = self.run_commands([command], env=env, warn=True)
+            if result.exited == REMOTE_BUSY_EXIT_CODE:
+                logger.info(f"{description} is busy or not yet visible on "
+                            "Slurm; asking again")
+                raise ssh_recovery.RecoveryPending(
+                    f"{description} is locked by another operation or not "
+                    "yet visible in Slurm")
+            if not result.ok and result.exited not in accepted_exit_codes:
+                raise UnexpectedExit(result)
+            return result
+
+        return ssh_recovery.retry(self, attempt, description)
+
+    def submit_job_once(self, sbatch_command: str, state_prefix: str, *,
+                        job_name: str, env: Optional[Dict[str, str]] = None,
+                        raise_on_rejection: bool = True,
+                        verify_command_unchanged: bool = True) -> Result:
+        """Submit a Slurm job exactly once, even when the SSH reply is lost.
+
+        This is the one submit-exactly-once implementation, for workflows,
+        conversions and helper jobs. It runs the submission under a remote
+        lock with receipt files (see ``remote_scripts.submit_once_script``):
+        asked again, it adopts the job already submitted, finds a job whose
+        reply was lost by its name in Slurm, and never runs ``sbatch`` again
+        while an earlier attempt may have created a job. The lock command is
+        ``slurm_lock_cmd``; ``sacct`` must be available.
+
+        Args:
+            sbatch_command (str): The submission command (any ``sbatch`` ...).
+                It must use ``job_name`` as its Slurm job name.
+            state_prefix (str): Remote path prefix of the receipt files; see
+                ``get_submission_state_prefix``.
+            job_name (str): The Slurm job name of this submission.
+            env (Optional[Dict[str, str]]): Environment variables for the
+                command.
+            raise_on_rejection (bool): Raise ``UnexpectedExit`` when sbatch
+                refuses the job (default), and keep a receipt that repeats
+                that answer. When False, return the failed ``Result`` and
+                forget the attempt, so that a later call submits again.
+            verify_command_unchanged (bool): Stop when a recorded submission
+                used a different command (default).
+
+        Returns:
+            Result: ``stdout`` is ``Submitted batch job <id>``; see
+                ``extract_job_id``. A refused job gives a failed Result when
+                ``raise_on_rejection`` is False.
+
+        Raises:
+            UnexpectedExit: If sbatch refused the job, or the script failed.
+            ssh_recovery.SSHRecoveryTimeout: If the connection did not
+                recover in time.
+            ssh_recovery.RemoteOperationStillPending: If the submission is
+                still locked or its job is not visible in Slurm after the
+                waiting time. Nothing is submitted again.
+        """
+        logger.info(f"Submitting Slurm job {job_name} once "
+                    f"(receipts {state_prefix}.*)")
+        submit_script = remote_scripts.submit_once_script(
+            sbatch_command, state_prefix, job_name,
+            self._command_digest(sbatch_command, env),
+            verify_command_unchanged=verify_command_unchanged,
+            remember_rejection=raise_on_rejection)
+        accepted_exit_codes = (
+            (0,) if raise_on_rejection else (0, SUBMISSION_REJECTED_EXIT_CODE))
+        result = self._run_locked(
+            submit_script, f"{state_prefix}.lock", f"submit {job_name}",
+            env=env, accepted_exit_codes=accepted_exit_codes)
+        logger.info(f"Slurm job {job_name}: {result.stdout.strip()}")
+        return result
+
+    def _adopt_recorded_job(self, task_id: Any,
+                            recorded_job_ids: List[Any]) -> Result:
+        """Return the job that a task recorded, instead of submitting again.
+
+        Raises:
+            RuntimeError: If the task recorded several jobs or a failure.
+        """
+        job_ids = {int(job_id) for job_id in recorded_job_ids}
+        if len(job_ids) != 1 or min(job_ids) <= 0:
+            raise RuntimeError(
+                f"Task {task_id} recorded the job ids {sorted(job_ids)}: "
+                "ambiguous or failed; reconcile it first")
+        (recorded_job_id,) = job_ids
+        logger.info(f"Adopting recorded Slurm job {recorded_job_id} of task "
+                    f"{task_id}; not submitting again")
+        return Result(connection=self, exited=0,
+                      stdout=f"Submitted batch job {recorded_job_id}\n")
+
+    def _submit_tracked(self, command: str, env: Dict[str, str],
+                        task_id: Optional[UUID]) -> Result:
+        """Submit the job of a tracked task exactly once.
+
+        A job already recorded on the task is adopted. Without a task there
+        is no durable identity to find a lost submission again, so the
+        command runs once and is never repeated.
+
+        Args:
+            command (str): The submission command.
+            env (Dict[str, str]): Environment variables for the command.
+            task_id (Optional[UUID]): The tracked task, or None.
+
+        Returns:
+            Result: ``stdout`` is ``Submitted batch job <id>``.
+        """
+        if not task_id:
+            logger.debug("No tracked task: submitting without recovery of a "
+                         "lost sbatch reply")
+            return self.run_commands([command], env)
+        recorded_job_ids = self.get_task(task_id).job_ids
+        if recorded_job_ids:
+            return self._adopt_recorded_job(task_id, recorded_job_ids)
+        return self.submit_job_once(
+            command, self.get_submission_state_prefix(task_id),
+            job_name=self.get_submission_job_name(task_id), env=env)
+
+    def _record_submission(self, task_id: Optional[UUID],
+                           slurm_job_id: int, result: Result) -> None:
+        """Record the outcome of a submission on its task, once.
+
+        After the event store holds the outcome, the receipt files on the
+        cluster are no longer needed and are removed.
+
+        Args:
+            task_id (Optional[UUID]): The tracked task, or None.
+            slurm_job_id (int): The job ID, or -1 if none was submitted.
+            result (Result): The submission result.
+        """
+        if not task_id:
+            return
+        if slurm_job_id in self.get_task(task_id).job_ids:
+            logger.debug(f"Job {slurm_job_id} is already recorded on task "
+                         f"{task_id}")
+            return
+        self.workflowTracker.start_task(task_id)
+        self.workflowTracker.add_job_id(task_id, slurm_job_id)
+        self.workflowTracker.add_result(task_id, result)
+        self.remove_submission_receipts(
+            self.get_submission_state_prefix(task_id))
+
+    def remove_submission_receipts(self, state_prefix: str) -> None:
+        """Remove the receipt files of a submission whose outcome is recorded.
+
+        Call this once the event store holds the job ID (or the failure): the
+        files are then no longer needed. A failure is only logged, as the
+        files are harmless leftovers.
+
+        Args:
+            state_prefix (str): Remote path prefix of the receipt files; see
+                ``get_submission_state_prefix``.
+        """
+        remove_cmd = remote_scripts.remove_state_files_command(state_prefix)
+        try:
+            ssh_recovery.retry(
+                self, lambda: self.run_commands([remove_cmd], log_stdout=False),
+                "remove submission receipts")
+            logger.debug(f"Removed the submission receipts {state_prefix}.*")
+        except Exception as error:
+            logger.warning(f"Could not remove the submission receipts "
+                           f"{state_prefix}.*: {error}")
 
     def run_workflow(self,
                      workflow_name: str,
@@ -2910,23 +3323,17 @@ class SlurmClient(Connection):
             recorded_params)
         logger.debug(f"Added new task {task_id} to workflow {wf_id}")
 
+        submission_job_name = (
+            self.get_submission_job_name(task_id) if task_id else None)
         sbatch_cmd, sbatch_env = self.get_workflow_command(
             workflow_name, workflow_version, input_data, email, time,
-            **({'_submission_token': 'biomero-' + str(task_id)}
-               if ssh_recovery.enabled(self) and task_id else {}), **kwargs)
+            submission_job_name=submission_job_name, **kwargs)
         print(f"Running {workflow_name} job on {input_data} on Slurm:\
             {sbatch_cmd} w/ {sbatch_env}")
         logger.info(f"Running {workflow_name} job on {input_data} on Slurm")
         res = self._submit_tracked(sbatch_cmd, sbatch_env, task_id)
         slurm_job_id = self.extract_job_id(res)
-
-        if task_id:
-            recorded = (self.workflowTracker.repository.get(task_id).job_ids
-                        if ssh_recovery.enabled(self) else [])
-            if slurm_job_id not in recorded:
-                self.workflowTracker.start_task(task_id)
-                self.workflowTracker.add_job_id(task_id, slurm_job_id)
-                self.workflowTracker.add_result(task_id, res)
+        self._record_submission(task_id, slurm_job_id, res)
 
         return res, slurm_job_id, wf_id, task_id
 
@@ -3008,11 +3415,10 @@ class SlurmClient(Connection):
                         f"-name \"*.{source_format}\" | "
                         f"awk '{{print NR, $0}}' > \"{config_file}\"")
 
-        commands = [
+        preparation_commands = [
             find_cmd,
             f"N=$(wc -l < \"{config_file}\")",
             f"echo \"Number of .{source_format} files: $N\"",
-            conversion_cmd
         ]
         logger.debug(f"wf_id: {wf_id}")
         if not wf_id:
@@ -3031,11 +3437,13 @@ class SlurmClient(Connection):
             sbatch_env
         )
 
-        if ssh_recovery.enabled(self) and task_id:
+        if task_id:
+            # The job name identifies this task's submission in Slurm; only
+            # the command changes, not the environment.
             conversion_cmd, sbatch_env, _, _ = self.get_conversion_command(
                 data_path, config_file, source_format, target_format,
-                submission_token='biomero-' + str(task_id))
-            commands[-1] = conversion_cmd
+                submission_job_name=self.get_submission_job_name(task_id))
+        commands = [*preparation_commands, conversion_cmd]
 
         # Run all commands consecutively.
         # The final command is the sbatch submission. If sbatch rejects the
@@ -3049,9 +3457,8 @@ class SlurmClient(Connection):
         # (job_id=-1) instead of a raw traceback. The caller can then surface
         # the reason via slurmJob.get_error().
         try:
-            res = (self._submit_tracked(" && ".join(commands), sbatch_env, task_id)
-                   if ssh_recovery.enabled(self) and task_id
-                   else self.run_commands(commands, sbatch_env))
+            res = self._submit_tracked(
+                " && ".join(commands), sbatch_env, task_id)
         except UnexpectedExit as e:
             res = e.result
             logger.error(
@@ -3074,13 +3481,7 @@ class SlurmClient(Connection):
                 "be marked failed; there is no Slurm-side log for this job.",
                 task_id)
 
-        if task_id:
-            recorded = (self.workflowTracker.repository.get(task_id).job_ids
-                        if ssh_recovery.enabled(self) else [])
-            if slurm_job_id not in recorded:
-                self.workflowTracker.start_task(task_id)
-                self.workflowTracker.add_job_id(task_id, slurm_job_id)
-                self.workflowTracker.add_result(task_id, res)
+        self._record_submission(task_id, slurm_job_id, res)
 
         # The conversion is submitted with --output=omero-%A_%a.log, so its
         # log(s) live next to the workflow logs as omero-<jobid>_*.log. Track
@@ -3552,7 +3953,8 @@ class SlurmClient(Connection):
                              input_data: str,
                              email: Optional[str] = None,
                              time: Optional[str] = None,
-                             _submission_token=None, **kwargs) -> Tuple[str, Dict]:
+                             submission_job_name: Optional[str] = None,
+                             **kwargs) -> Tuple[str, Dict]:
         """
         Generate the Slurm workflow command and environment variables.
 
@@ -3566,6 +3968,10 @@ class SlurmClient(Connection):
             time (str, optional): The time limit for the job in the 
                 format HH:MM:SS. Defaults to None, which defaults to what 
                 is in the job script.
+            submission_job_name (str, optional): Slurm job name that
+                identifies the submission of a tracked task (see
+                ``get_submission_job_name``). Defaults to None, which keeps
+                the job name of the job script.
             **kwargs: Additional keyword arguments for the workflow.
 
         Returns:
@@ -3659,8 +4065,8 @@ class SlurmClient(Connection):
         time_param = "" if time is None else f" --time={time}"
         job_params.append(time_param)
         job_params.append(email_param)
-        if _submission_token:
-            job_params.append(" --job-name=" + shlex.quote(_submission_token))
+        if submission_job_name:
+            job_params.append(f" --job-name={shlex.quote(submission_job_name)}")
         job_param = "".join(job_params)
 
         if self.env_file_submission:
@@ -3692,7 +4098,8 @@ class SlurmClient(Connection):
                                config_file: str,
                                source_format: str = 'zarr',
                                target_format: str = 'tiff',
-                               submission_token=None) -> Tuple[str, Dict, str, str]:
+                               submission_job_name: Optional[str] = None
+                               ) -> Tuple[str, Dict, str, str]:
         """
         Generate Slurm conversion command and environment variables for data conversion.
 
@@ -3701,6 +4108,9 @@ class SlurmClient(Connection):
             config_file (str): Path to the configuration file.
             source_format (str): Source data format (default is 'zarr').
             target_format (str): Target data format (default is 'tiff').
+            submission_job_name (str, optional): Slurm job name that
+                identifies the submission of a tracked task (see
+                ``get_submission_job_name``). Defaults to ``conversion``.
 
         Returns:
             Tuple[str, Dict, str, str]:
@@ -3755,7 +4165,8 @@ class SlurmClient(Connection):
         conversion_params = self.get_job_params({
             'partition': self.slurm_conversion_partition})
         conversion_param = ''.join(' ' + param for param in conversion_params)
-        job_name = shlex.quote(submission_token) if submission_token else 'conversion'
+        job_name = (shlex.quote(submission_job_name)
+                    if submission_job_name else 'conversion')
         conversion_cmd = (
             f"sbatch{conversion_param} --job-name={job_name} "
             "--output=omero-%A_%a.log "
@@ -3869,12 +4280,8 @@ class SlurmClient(Connection):
         """
         logger.info(f"Copying zip {filename} from\
             Slurm to {local_tmp_storage}")
-        if ssh_recovery.enabled(self):
-            return ssh_recovery.download(
-                self, f"{filename}.zip", local_tmp_storage)
-        return self.get(
-            remote=f"{filename}.zip",
-            local=local_tmp_storage)
+        return ssh_recovery.atomic_get(
+            self, f"{filename}.zip", local_tmp_storage)
 
     def zip_data_on_slurm_server(self, data_location: str, filename: str,
                                  env: Optional[Dict[str, str]] = None
@@ -3891,12 +4298,24 @@ class SlurmClient(Connection):
         Returns:
             Result: The result of the zip attempt.
         """
-        # zip
-        zip_cmd = self.get_zip_command(data_location, filename)
         logger.info(f"Zipping {data_location} as {filename} on Slurm")
-        if ssh_recovery.enabled(self):
-            return ssh_recovery.archive(self, data_location, filename, env)
-        return self.run_commands([zip_cmd], env=env)
+        archive = posixpath.join(data_location, f"{filename}.zip")
+        partial_name = f"{filename}{ARCHIVE_PARTIAL_SUFFIX}"
+        partial_archive = posixpath.join(data_location, f"{partial_name}.zip")
+        zip_cmd = self.get_zip_command(data_location, partial_name)
+        # Build the archive under a temporary name and publish it complete. A
+        # repeated request after a lost connection reuses it, unless results
+        # changed after it was made.
+        create_script = remote_scripts.create_then_publish_script(
+            zip_cmd, partial_archive, archive)
+        zip_script = remote_scripts.run_once_script(
+            create_script, f"{archive}{ARCHIVE_READY_SUFFIX}",
+            stale_if_newer=[posixpath.join(data_location, "data/out")],
+            published_file=archive,
+            reuse_message="Reusing completed result archive")
+        return self._run_locked(
+            zip_script, f"{archive}{ARCHIVE_LOCK_SUFFIX}",
+            f"zip {filename}", env=env)
 
     def get_zip_command(self, data_location: str, filename: str) -> str:
         """

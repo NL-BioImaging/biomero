@@ -374,6 +374,34 @@ Use this when:
   7-Zip; set ``slurm_zip_cmd=zip``
 * auto-detection is not reliable in your environment
 
+Lock command
+~~~~~~~~~~~~
+
+``slurm_lock_cmd`` is the command BIOMERO uses to lock a file on the cluster
+before it runs a script that must not run twice at once: submitting a job,
+extracting an input archive, creating a result archive and updating the job
+scripts. It can also be overridden by ``BIOMERO_SLURM_LOCK_CMD``. See
+:ref:`ssh-recovery` for why these operations are locked.
+
+It is a template. BIOMERO fills in ``{wait_seconds}`` (how long to wait for
+the lock), ``{busy_exit_code}`` (the exit code that means "locked by someone
+else") and ``{lock_file}`` (the quoted path of the lock file) and appends the
+script. Use the placeholders your tool needs; unused ones are ignored.
+
+Impact:
+
+* If unset or empty, BIOMERO uses
+  ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``, which needs
+  ``flock`` from util-linux 2.25 or newer.
+* Any command that takes the lock, runs the script given as its remaining
+  arguments, and exits with the busy exit code when the lock is not obtained
+  in time can replace ``flock`` (for example a small wrapper script around the
+  locking tool of your cluster).
+* BIOMERO checks during Slurm setup (``SlurmClient.setup_slurm``) that the
+  lock command and ``sacct`` exist on the cluster, and logs a WARNING for each
+  that is missing. The setup continues.
+* A template with an unknown placeholder is rejected when the client is created.
+
 Analytics and Provenance Settings
 ----------------------------------
 
@@ -813,16 +841,23 @@ Recovering Interrupted SSH Operations
 
 Set ``ssh_recovery_timeout`` in ``[SLURM]`` to a nonnegative recovery window
 in seconds. The default is ``900`` (15 minutes), including when the setting is
-absent or empty. Recovery applies to inline and detached workflows. Explicit
-``0`` disables recovery. The environment override is
-``BIOMERO_SSH_RECOVERY_TIMEOUT``. This runtime setting applies to new clients;
-Slurm Init is not needed just to change the window.
+absent or empty. Recovery applies to inline and detached workflows. The window
+only sets how long an interrupted operation is retried: the same code runs for
+every value, and ``0`` means no retries, so an interrupted operation fails with
+its own error. The environment override is ``BIOMERO_SSH_RECOVERY_TIMEOUT``.
+This runtime setting applies to new clients; Slurm Init is not needed just to
+change the window. (It lives in ``[SLURM]`` because it also governs the job
+submission, extraction and archive operations on the cluster, not only the
+connection.)
 
-The window starts at the first failed attempt in each interruption. Healthy
-queueing, computation and helper runtime do not consume it. Nested
-operations share the active interruption's deadline instead of multiplying
-retry budgets. Caller-supplied heartbeat callbacks remain active during nested
-recovery and backoff, including shallower polling.
+The window starts at the first failed attempt of an operation and nothing else
+moves it: not a successful nested step, and not a later retry by an outer
+operation. A repeating failure therefore ends at the window instead of retrying
+forever. Healthy queueing, computation and helper runtime do not consume it, and
+each new operation (the next status poll, the next transfer) gets a new window.
+Caller-supplied heartbeat callbacks remain active during nested recovery and
+backoff, including shallower polling. Retries wait 1, 2, 4 ... up to 30 seconds,
+with a little random jitter so that clients do not retry in lock step.
 
 Detection precedes that window. Within a recovery operation, native connection
 stages and channel opening use at most 30 seconds, or the configured recovery
@@ -845,8 +880,8 @@ Paramiko's exec/subsystem acknowledgement waits are not covered by these native
 settings. They require a lower-layer fix; this is not a universal SSH deadline.
 Healthy long durable commands and complete transfers have no new runtime cap;
 SFTP bounds individual reads instead. Arbitrary commands retain their original
-timeout and single-attempt behavior. Explicit ``0`` disables these recovery
-changes as well as retries.
+timeout and single-attempt behavior. With ``0``, no native timeouts are
+applied temporarily and nothing is retried.
 
 With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity
@@ -862,17 +897,38 @@ transport failure, including when Fabric is configured with ``warn=True``.
 Real remote nonzero exit codes retain their usual failure behavior. Temporary
 lock contention waits for the existing durable operation; it does not authorize
 another submission or classify a rejected Slurm job as a connection problem.
+While the cluster still runs the operation (a long extraction or archive) or a
+submitted job is not yet visible in Slurm, the connection is healthy: BIOMERO
+waits within its own window and then stops with a message that says the remote
+operation is still pending and that nothing was repeated, rather than reporting
+an SSH outage. Ask again later; the operation continues on the cluster.
 
-Workflow and conversion submissions use the tracked task identity, a remote
-``.biomero-recovery`` record and the Slurm job name. After a lost response,
-BIOMERO adopts the recorded job or reconciles its exact identity through squeue
-and sacct. Unresolved submission intent never authorizes a second sbatch.
+Workflow, conversion and shallower-helper submissions all use one
+submit-exactly-once routine, ``SlurmClient.submit_job_once``. It works with the
+tracked task identity, receipt files in ``<slurm_data_path>/.biomero-recovery``
+and the Slurm job name ``biomero-<task id>``. The receipt files are a lock file,
+a hash of the command, the intent (written before ``sbatch`` runs), the job ID
+and, if ``sbatch`` refuses the job, the refusal. After a lost response,
+BIOMERO adopts the recorded job or finds its job by exact name through squeue
+and sacct. Unresolved submission intent never authorizes a second sbatch. Once
+the job ID is stored on the task, the receipt files are removed. A refusal by
+``sbatch`` is replayed to the caller; correcting the submission command
+replaces it. A command that differs from the one recorded for a possibly
+submitted job is rejected.
+
+A task identifies its own submission: a run is continued only while its task is
+unfinished (not completed, failed, cancelled, timed out, and its submission did
+not fail). Running the same workflow on the same input again after a finished
+run creates a new task with its own job name and receipt files, and never adopts
+the old job.
 Tracking must remain enabled for resumable submission; arbitrary ``run`` and
 ``run_commands`` calls are deliberately not retried. Untracked submissions are
 attempted once because they lack a durable task identity.
 
 Result archive creation is serialized and published through a temporary path.
-Completed archives are reused on retry. Downloads and input archives are copied
+Completed archives are reused on retry, unless a result file changed after the
+archive was made. An input archive that was already extracted is extracted
+again only when it was uploaded again after the extraction. Downloads and input archives are copied
 to partial paths, checked for completeness and published atomically. A retry
 restarts an interrupted copy from the beginning, rather than requiring rsync or
 SSHFS. Existing local final files remain available until replacement succeeds.
@@ -882,10 +938,14 @@ whole-file retries share the window until the complete copy succeeds; repeated
 interruptions during lengthy retries can exhaust it. There is no ranged or
 progress-aware transfer resume.
 
-Default recovery requires ``flock`` and writable shared HPC storage for submission
-and archive records, Slurm accounting/job-name lookup, and atomic SFTP rename
-support for input and generated-script publication. Keep these records and result
-files while recovery is pending. Do not delete an unresolved intent to force a retry; reconcile the job
-first. A processor restart can reuse the recorded task and job identity, but
+Recovery requires the lock command (``slurm_lock_cmd``, ``flock`` by default),
+Slurm accounting (``sacct``) and job-name lookup, writable shared HPC storage for
+submission and archive records, and atomic SFTP rename support for input and
+generated-script publication. ``setup_slurm`` checks that the lock command and
+``sacct`` exist and logs a WARNING if not. Keep these records and result
+files while recovery is pending. Do not delete an unresolved intent to force a
+retry; reconcile the job first. Marker files of finished runs
+(``<name>.zip.biomero-*``) are removed with the run's other files by the normal
+cleanup. A processor restart can reuse the recorded task and job identity, but
 recovery does not make arbitrary remote commands or OMERO postprocessing
 exactly-once. Use matching core and scripts for the complete pipeline.

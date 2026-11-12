@@ -11,7 +11,9 @@ from threading import Barrier
 
 import pytest
 
+from biomero import ssh_recovery
 from biomero.remote_shallower import _prepare_manifest, _submit_once
+from biomero.slurm_client import SlurmClient
 
 
 pytestmark = pytest.mark.skipif(
@@ -29,11 +31,21 @@ class LocalRemoteClient:
                                 executable='/bin/sh', capture_output=True,
                                 text=True, env=self.environment, timeout=10)
         return SimpleNamespace(ok=result.returncode == 0, stdout=result.stdout,
-                               stderr=result.stderr)
+                               stderr=result.stderr,
+                               exited=result.returncode)
 
     def put(self, stream, path):
         self.uploads.append(path)
         Path(path).write_text(stream.read(), encoding='utf-8')
+
+
+def slurm_client_running_locally(environment=None):
+    """A SlurmClient whose commands run in the local shell (no recovery)."""
+    local = LocalRemoteClient(environment)
+    client = SlurmClient(config_only=True, ssh_recovery_timeout=0)
+    client.run_commands = lambda commands, **kwargs: local.run_commands(
+        commands, **kwargs)
+    return client
 
 
 def test_manifest_is_published_once_and_not_rewritten(tmp_path):
@@ -118,7 +130,8 @@ def test_recovery_reconciliation_uses_only_its_own_name(tmp_path):
     squeue.chmod(0o755)
     state = str(tmp_path / 'recovery')
     Path(state + '.intent').write_text('2026-01-01T00:00:00')
-    client = LocalRemoteClient({'PATH': str(fake_bin) + ':' + os.environ['PATH']})
+    client = slurm_client_running_locally(
+        {'PATH': str(fake_bin) + ':' + os.environ['PATH']})
     assert _submit_once(client, 'exit 99', state,
                         job_name='biomero-recovery-task') == 124
     assert Path(state + '.job').read_text().strip() == '124'
@@ -135,9 +148,10 @@ def test_old_unresolved_recovery_intent_is_not_resubmitted(tmp_path):
     squeue.chmod(0o755)
     state = str(tmp_path / 'recovery')
     Path(state + '.intent').write_text('2026-01-01T00:00:00')
-    client = LocalRemoteClient({'PATH': str(fake_bin) + ':' + os.environ['PATH']})
+    client = slurm_client_running_locally(
+        {'PATH': str(fake_bin) + ':' + os.environ['PATH']})
     marker = tmp_path / 'should-not-submit'
-    with pytest.raises(RuntimeError, match='unresolved'):
+    with pytest.raises(ssh_recovery.RecoveryPending):
         _submit_once(client, f'touch {marker}', state,
                      job_name='biomero-recovery-task')
     assert not Path(state + '.job').exists()

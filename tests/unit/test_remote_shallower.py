@@ -57,6 +57,7 @@ def test_setup_without_helper_configuration_acquires_default_helper():
     client.setup_job_scripts = MagicMock()
     client.prepare_converters = MagicMock(return_value=[{'kind': 'converter'}])
     client.setup_container_images = MagicMock(return_value=42)
+    client.check_remote_commands_available = MagicMock(return_value=[])
     assert client.setup_slurm() == 42
     client.setup_container_images.assert_called_once_with(
         extra_image_specs=[{'kind': 'converter'}, image_spec(client)])
@@ -181,8 +182,9 @@ def test_shallowing_and_recovery_have_distinct_job_names():
 
 def test_submission_uses_explicit_reconciliation_identity():
     from biomero.remote_shallower import _submit_once
-    client = SimpleNamespace(run_commands=MagicMock(
-        return_value=SimpleNamespace(ok=True, stdout='123')))
+    client = SlurmClient(config_only=True, slurm_data_path='/data')
+    client.run_commands = MagicMock(return_value=SimpleNamespace(
+        ok=True, exited=0, stdout='Submitted batch job 123\n'))
     assert _submit_once(client, 'sbatch --parsable worker.sh', '/state/recovery',
                         job_name='biomero-recovery-task') == 123
     script = shlex.split(client.run_commands.call_args.args[0][0])[-1]

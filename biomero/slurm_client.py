@@ -34,7 +34,7 @@ import posixpath
 import yaml
 import shlex
 import socket
-from biomero.constants import slurm_env
+from biomero.constants import slurm_env, TRUTHY_VALUES
 from biomero import ssh_recovery
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker, Task
 from biomero.schema_parsers import DescriptorParserFactory
@@ -487,10 +487,9 @@ class SlurmClient(Connection):
 
         if env_value is not None:
             if value_type is bool:
-                truthy_values = ("true", "1", "yes", "y", "on")
                 falsy_values = ("false", "0", "no", "n", "off")
                 lowered = env_value.lower()
-                if lowered in truthy_values:
+                if lowered in TRUTHY_VALUES:
                     return True
                 if lowered in falsy_values:
                     return False
@@ -1979,9 +1978,8 @@ class SlurmClient(Connection):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
                 slurm_model_jobs_params[k[:-len(suffix_job)]] = []
             elif k.endswith(suffix_use_gpu):
-                slurm_model_use_gpu[k[:-len(suffix_use_gpu)]] = str(v).lower() in (
-                    "true", "1", "yes", "y", "on"
-                )
+                slurm_model_use_gpu[k[:-len(suffix_use_gpu)]] = (
+                    str(v).lower() in TRUTHY_VALUES)
             elif job_param_match:
                 slurm_model_jobs_params[job_param_match.group(1)].append(
                     f" --{job_param_match.group(2)}={v}")
@@ -3234,7 +3232,7 @@ class SlurmClient(Connection):
                 continue
         return valid_job_ids
 
-    def cancel_slurm_jobs(self, slurm_job_ids: List[int]) -> Result:
+    def cancel_slurm_jobs(self, slurm_job_ids: List[int]) -> Optional[Result]:
         """
         Cancel Slurm jobs, for example when the workflow they belong to is
         cancelled.
@@ -3274,6 +3272,10 @@ class SlurmClient(Connection):
             List[Task]: The task aggregates. Read errors are raised: an
                 unreadable history is not an empty one.
         """
+        if isinstance(self.workflowTracker, NoOpWorkflowTracker):
+            logger.debug(f"Workflow tracking is off; no tasks for "
+                         f"{workflow_id}")
+            return []
         return list(self.workflowTracker.iter_workflow_tasks(workflow_id))
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
@@ -3649,9 +3651,7 @@ class SlurmClient(Connection):
         if use_gpu_value is None:
             use_gpu = config_use_gpu
         else:
-            use_gpu = str(use_gpu_value).lower() in (
-                "true", "1", "yes", "y", "on"
-            )
+            use_gpu = str(use_gpu_value).lower() in TRUTHY_VALUES
 
         if self.inject_gpu_flag:
             if use_gpu:

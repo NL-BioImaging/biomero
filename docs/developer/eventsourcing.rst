@@ -128,7 +128,10 @@ stream, so it is a compare-and-set: when two supervisors read the same
 unclaimed task and both claim it, the event store accepts one and the other
 call returns ``False``. A claim is valid for
 ``constants.LAUNCHER_CLAIM_LEASE_SECONDS``; its owner renews it by claiming
-again, and a claim that is not renewed can be taken over. A supervisor that
+again (the processor renews three times per lease), and a claim that is not
+renewed can be taken over. The lease is judged against each supervisor's own
+clock, so supervisors need clocks that agree to well within the lease; the
+position in the event store, not the clock, is what keeps two claims apart. A supervisor that
 stops cleanly gives its claim up with ``release_launcher_task``. The claim does
 not change ``Task.status``. Launchers claimed by 2.9 betas carry the status
 ``CLAIMED`` and no owner; they still load, the views still ignore that status,
@@ -164,7 +167,8 @@ Reading an aggregate does not run or resume it. ``TaskCompleted`` records
 inspect lifecycle events as well as status strings.
 
 When comparing detached and inline runs, account for the additional launcher
-task. ``CLAIMED`` is a coordination state and is not analysis ``RUNNING``.
+task. Its claim (``claimed_by``, ``claimed_at``) is coordination state and is not
+analysis ``RUNNING``; older 2.9 betas stored the claim as the status ``CLAIMED``.
 Remote shallowing adds its own helper task and receipts. These records remain
 in history even when excluded from the searchable metadata view. See
 :doc:`execution-and-storage` and :doc:`metadata-views`.

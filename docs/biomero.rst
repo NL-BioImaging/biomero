@@ -39,7 +39,7 @@ biomero.detached module
 -----------------------
 
 .. automodule:: biomero.detached
-   :members:
+   :members: detached_mode_enabled
    :show-inheritance:
 
 biomero.maintenance module

@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 # A view application only has its own event store, so an aggregate the tracker
 # created is not in it. Since a workflow may now be run by a process that did
-# not create it (see WorkflowTracker.claim_launcher_task), the views have to be able to look those
+# not create it (a detached supervisor claims launchers, see
+# WorkflowTracker.claim_launcher_task), the views have to be able to look those
 # aggregates up rather than relying on what they saw go past in memory.
 _tracker = None
 

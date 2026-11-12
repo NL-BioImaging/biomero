@@ -5316,3 +5316,9 @@ def test_rerun_excludes_existing_valid_images_from_array(
     manifest_text = manifest_upload.args[0].getvalue()
     assert "workflow-15" in manifest_text
     assert "workflow-14" not in manifest_text
+
+
+def test_get_workflow_tasks_without_tracking_is_empty(slurm_client):
+    from biomero.eventsourcing import NoOpWorkflowTracker
+    slurm_client.workflowTracker = NoOpWorkflowTracker()
+    assert slurm_client.get_workflow_tasks("wf") == []

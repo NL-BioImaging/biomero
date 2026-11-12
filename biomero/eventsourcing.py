@@ -849,7 +849,11 @@ class WorkflowTracker(Application):
 
         A claim is valid for ``lease_seconds``. The owner renews it by
         claiming again; a claim that was not renewed (for example because the
-        supervisor crashed) can be taken over by any other owner.
+        supervisor crashed) can be taken over by any other owner. Renew well
+        within the lease (the processor renews three times per lease). The
+        lease compares the claim's timestamp with this process's clock, so
+        supervisors must have clocks that agree to well within the lease; the
+        event-store position, not the clock, is what keeps two claims apart.
 
         Args:
             task_id (UUID): The launcher task to claim.
@@ -959,8 +963,8 @@ class WorkflowTracker(Application):
         Raises:
             WorkflowCancelled: When request_workflow_cancel() was called.
         """
-        if self.is_workflow_cancel_requested(workflow_id):
-            workflow: WorkflowRun = self.repository.get(workflow_id)
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        if workflow.cancel_requested:
             raise WorkflowCancelled(
                 f"Workflow {workflow_id} was cancelled: "
                 f"{workflow.cancel_reason}")

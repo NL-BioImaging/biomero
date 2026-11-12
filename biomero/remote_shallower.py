@@ -375,9 +375,10 @@ def _submit_once(client, command, state, *, job_name):
         logger.warning('sbatch rejected remote shallower job %s', job_name)
         return None
     if not result.ok or not result.stdout.strip().isdigit():
+        # ``exited`` is only guaranteed on Fabric results; tolerate others.
         raise RuntimeError(
             f'Shallower submission {job_name} is unresolved (exit '
-            f'{result.exited}); preserve results and resume '
+            f'{getattr(result, "exited", None)}); preserve results and resume '
             'after reconciliation')
     logger.info('Remote shallower job %s is Slurm job %s', job_name,
                 result.stdout.strip())

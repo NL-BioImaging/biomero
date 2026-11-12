@@ -197,6 +197,10 @@ class Task(Aggregate):
         results (list): List of results from the task execution.
         result_message (str): Message related to the result of the task.
         status (str): The current status of the task.
+        completed (bool): Whether the task was completed.
+        failed (bool): Whether the task failed.
+        claimed_by (str): The supervisor that holds the claim, for a launcher.
+        claimed_at (datetime): When that claim was made or last renewed.
     """
     INITIAL_VERSION = 0
 
@@ -234,6 +238,8 @@ class Task(Aggregate):
         self.results = []
         self.result_message = None
         self.status = None
+        self.completed = False
+        self.failed = False
         self.claimed_by = None
         self.claimed_at = None
         # Not logging on aggregates, they get reconstructed so much
@@ -372,6 +378,7 @@ class Task(Aggregate):
     def complete_task(self, result: str):
         # logger.debug(f"Completing task: id={self.id}, result={result}")
         self.result_message = result
+        self.completed = True
 
     class TaskFailed(Aggregate.Event):
         """
@@ -386,7 +393,7 @@ class Task(Aggregate):
     def fail_task(self, error_message: str):
         # logger.debug(f"Failing task: id={self.id}, error_message={error_message}")
         self.result_message = error_message
-        pass
+        self.failed = True
 
 
 def is_launcher_task(task) -> bool:
@@ -510,6 +517,45 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
         return task.id
+
+    def add_launcher_task(self,
+                          workflow_id: UUID,
+                          task_name: str,
+                          task_version: str,
+                          input_data: Dict[str, Any],
+                          kwargs: Dict[str, Any]
+                          ) -> UUID:
+        """
+        Adds the launcher task that queues a workflow for a detached
+        supervisor: an ordinary task of a launching script, marked as launcher.
+
+        What goes into ``kwargs`` is up to the caller (the script knows what
+        its run needs); this only adds the marker, with the script version as
+        its value, to a copy of it.
+
+        Args:
+            workflow_id (UUID): The UUID of the workflow.
+            task_name (str): The launching script, one of
+                constants.LAUNCHER_TASK_NAMES.
+            task_version (str): The version of the launching script.
+            input_data (dict): Input data for the task.
+            kwargs (dict): Everything the supervisor needs to run the workflow.
+
+        Returns:
+            UUID: The UUID of the launcher task.
+
+        Raises:
+            ValueError: If the task name is not a launching script.
+        """
+        if task_name not in constants.LAUNCHER_TASK_NAMES:
+            raise ValueError(f"{task_name} cannot launch a detached run; "
+                             f"expected one of {constants.LAUNCHER_TASK_NAMES}")
+        launcher_params = {**kwargs, constants.LAUNCHER_MARKER: task_version}
+        task_id = self.add_task_to_workflow(
+            workflow_id, task_name, task_version, input_data, launcher_params)
+        logger.info(f"[WFT] Queued workflow {workflow_id} for a detached "
+                    f"supervisor (launcher task {task_id})")
+        return task_id
 
     @retry_on_database_conflict(max_retries=3)
     def record_canonical_inputs(

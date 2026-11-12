@@ -115,7 +115,8 @@ Detached launcher claim and cancellation
 ----------------------------------------
 
 A detached run is queued as a *launcher task*: a task of a launching script
-whose params carry ``constants.LAUNCHER_MARKER``. Every reader (views,
+whose params carry ``constants.LAUNCHER_MARKER``; a script adds it with
+``WorkflowTracker.add_launcher_task``. Every reader (views,
 provenance, the supervisor) decides with the one rule
 ``biomero.eventsourcing.is_launcher_task``, and finds the task with
 ``WorkflowTracker.find_launcher_task(workflow_id)``. The scripts decide what a

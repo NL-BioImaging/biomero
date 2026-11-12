@@ -18,8 +18,8 @@ A BIOMERO workflow run outlives the OMERO session that asks for it, so a
 script can queue the run in a *launcher task* and a supervisor (the OMERO
 processor in NL-BIOMERO) executes it. Core only provides the mechanisms:
 
-* the launcher marker and rule: ``constants.LAUNCHER_MARKER`` and
-  ``eventsourcing.is_launcher_task``;
+* the launcher marker and rule: ``constants.LAUNCHER_MARKER``,
+  ``WorkflowTracker.add_launcher_task`` and ``eventsourcing.is_launcher_task``;
 * task lookup and the atomic claim: ``WorkflowTracker.find_launcher_task``,
   ``WorkflowTracker.claim_launcher_task`` and
   ``WorkflowTracker.release_launcher_task``;

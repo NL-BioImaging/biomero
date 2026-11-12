@@ -288,3 +288,45 @@ def test_names_that_moved_to_the_scripts_say_where_they_went():
         detached.register_detached_launcher
     with pytest.raises(AttributeError, match="no attribute"):
         detached.nothing_like_this
+
+
+# ------------------------- registering a launcher ------------------------- #
+
+def test_add_launcher_task_marks_the_task_without_touching_the_callers_dict(
+        tracker):
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    script_params = {"workflows": ["a"]}
+
+    task_id = tracker.add_launcher_task(
+        workflow_id, constants.RUN_WF_BATCHED_SCRIPT, "v7", [1], script_params)
+
+    task = tracker.repository.get(task_id)
+    assert task.params == {"workflows": ["a"],
+                           constants.LAUNCHER_MARKER: "v7"}
+    assert script_params == {"workflows": ["a"]}
+    assert is_launcher_task(task)
+    assert tracker.find_launcher_task(workflow_id).id == task_id
+
+
+def test_only_launching_scripts_can_register_a_launcher(tracker):
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    with pytest.raises(ValueError, match="cannot launch"):
+        tracker.add_launcher_task(workflow_id, "_SLURM_Image_Transfer.py",
+                                  "v1", [], {})
+
+
+# ------------------------- task outcome on the aggregate ------------------------- #
+
+def test_task_aggregate_knows_whether_it_completed_or_failed(tracker, launcher):
+    workflow_id, _ = launcher
+    done = tracker.add_task_to_workflow(workflow_id, "a", "v1", [], {})
+    broken = tracker.add_task_to_workflow(workflow_id, "b", "v1", [], {})
+    open_task = tracker.add_task_to_workflow(workflow_id, "c", "v1", [], {})
+    tracker.complete_task(done, "fine")
+    tracker.fail_task(broken, "broke")
+    outcomes = {name: (tracker.repository.get(task_id).completed,
+                       tracker.repository.get(task_id).failed)
+                for name, task_id in (("done", done), ("broken", broken),
+                                      ("open", open_task))}
+    assert outcomes == {"done": (True, False), "broken": (False, True),
+                        "open": (False, False)}

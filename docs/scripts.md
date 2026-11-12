@@ -23,7 +23,7 @@ For custom deployments:
    directories, scripts and images. Wait for the required images to be ready.
 
 Upgrade the installed core, scripts and worker together. The scripts require
-core's `biomero.provenance` and `biomero.maintenance` APIs even when shallow
+core's `biomero.metadata_views` and `biomero.maintenance` APIs even when shallow
 storage or detached execution is disabled. The displayed script `VERSION`
 identifies the release series; compare package versions and scripts tags when
 checking prereleases. The deployment configuration and package dependency

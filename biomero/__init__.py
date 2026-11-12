@@ -7,4 +7,3 @@ except importlib.metadata.PackageNotFoundError:
         
 from .eventsourcing import *
 from .views import *
-from .zarr_contracts import *

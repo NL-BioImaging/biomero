@@ -5,7 +5,7 @@ OMERO MapAnnotations are a searchable view of workflow history, not the source
 used for detached recovery. The event store remains authoritative. Full CSV
 provenance is exported independently and is not reduced by these view policies.
 
-The core function ``biomero.provenance.render_workflow_metadata(tracker,
+The core function ``biomero.metadata_views.render_workflow_metadata(tracker,
 workflow_id)`` renders namespace/value pairs without writing events or OMERO
 objects. Both result scripts use this function. Deploy matching scripts and
 core revisions together.
@@ -97,7 +97,7 @@ annotation updates. Core does not import annotation client libraries.
 
 .. code-block:: python
 
-   from biomero.provenance import MetadataAnnotation, plan_metadata_refresh
+   from biomero.metadata_views import MetadataAnnotation, plan_metadata_refresh
 
    existing = [
        MetadataAnnotation(namespace=namespace, values=values)
@@ -116,6 +116,13 @@ Ambiguous or incomplete snapshots and conflicting identities are refused rather
 than guessed. Unknown namespaces and additional custom keys are preserved.
 Existing CSV references for oversized values are retained.
 
+A reduced value has exactly the text
+``Large field; full value in metadata_<id>.csv (utf8_bytes=<n>; sha256=<hex>)``.
+The scripts write it with ``biomero.metadata_views.format_large_field_reference``
+and the planner recognises it with ``is_large_field_reference``; the format is
+pinned by ``tests/unit/test_metadata_views.py``. A stored value of any other form
+is replaced by the rendered value.
+
 The administrative refresh adapter is provided by biomero-scripts in
 ``admin/SLURM_Init_environment.py`` as an optional metadata refresh operation.
 The `administrator guide
@@ -127,6 +134,10 @@ migration runs during initialization. New result scripts continue to write
 
 Versioning and compatibility
 ----------------------------
+
+The module was named ``biomero.provenance`` in the 2.9 prereleases. That name is
+a deprecated alias of ``biomero.metadata_views`` and will be removed in the next
+release.
 
 ``Metadata_View_Version`` identifies the rendering policy; ``Aggregate_Version``
 identifies the exact event-sourced snapshot. Neither changes the existing

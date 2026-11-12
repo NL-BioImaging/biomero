@@ -5,7 +5,7 @@ import uuid
 import pytest
 import unittest.mock
 from biomero.eventsourcing import Task, WorkflowTracker
-from biomero.zarr_contracts import CanonicalInput, CanonicalZarrSource, PixelIdentity
+from biomero_schema.zarr import CanonicalInput, CanonicalZarrSource, PixelIdentity
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import (
     EngineManager,
@@ -2463,3 +2463,111 @@ class TestDatabaseRetryMechanism:
             
             # Reset for next test case
             mock_function.reset_mock()
+
+
+
+# ---------------- Projections resolve from the tracker ---------------- #
+
+def test_analytics_owner_does_not_depend_on_the_progress_projection(
+        workflow_tracker_and_workflow_analytics):
+    """User and group come from the tracker, not from another projection's table."""
+    tracker, analytics = workflow_tracker_and_workflow_analytics
+    workflow_id = tracker.initiate_workflow('wf', '', user=7, group=8)
+    task_id = tracker.add_task_to_workflow(workflow_id, 'task', 'v1', {}, {})
+    with EngineManager.get_session() as session:
+        session.query(TaskExecution).filter_by(task_id=task_id).delete()
+        session.commit()
+        assert session.query(WorkflowProgressView).count() == 0
+    analytics.workflows.clear()
+    analytics.tasks.clear()
+    with patch('biomero.views.tracker_repository',
+               return_value=tracker.repository):
+        analytics.update_view_table(task_id)
+    with EngineManager.get_session() as session:
+        row = session.query(TaskExecution).filter_by(task_id=task_id).one()
+        assert (row.user_id, row.group_id) == (7, 8)
+
+
+def test_analytics_warns_when_the_workflow_owner_is_unknown(
+        workflow_tracker_and_workflow_analytics, caplog):
+    tracker, analytics = workflow_tracker_and_workflow_analytics
+    unknown_workflow = uuid.uuid4()
+    task_id = uuid.uuid4()
+    analytics.tasks[task_id] = {
+        'wf_id': unknown_workflow, 'task_name': 'task', 'task_version': 'v1',
+        'start_time': datetime.now(timezone.utc), 'status': 'CREATED'}
+    with patch('biomero.views.tracker_repository',
+               return_value=tracker.repository):
+        with caplog.at_level('WARNING', logger='biomero.views'):
+            analytics.update_view_table(task_id)
+    assert (f'Owner of workflow {unknown_workflow} unknown; task {task_id} '
+            f'is stored without user/group') in caplog.text
+
+
+@pytest.mark.parametrize('projection_class', [
+    JobAccounting, WorkflowProgress, WorkflowAnalytics])
+def test_missing_aggregate_is_a_warning_not_an_exception(
+        workflow_tracker, projection_class, caplog):
+    projection = projection_class()
+    missing = uuid.uuid4()
+    with patch('biomero.views.tracker_repository',
+               return_value=workflow_tracker.repository):
+        with caplog.at_level('WARNING', logger='biomero.views'):
+            assert projection.resolve_task(missing) is None
+    assert f'Task {missing} not found in the workflow tracker' in caplog.text
+
+
+@pytest.mark.parametrize('projection_class', [
+    JobAccounting, WorkflowProgress, WorkflowAnalytics])
+def test_failing_tracker_lookup_is_not_swallowed(projection_class):
+    projection = projection_class()
+    broken = SimpleNamespace(get=unittest.mock.Mock(
+        side_effect=RuntimeError('database down')))
+    with patch('biomero.views.tracker_repository', return_value=broken):
+        with pytest.raises(RuntimeError, match='database down'):
+            projection.resolve_task(uuid.uuid4())
+
+
+# ---------------- Workflow phase of a started/updated task ---------------- #
+
+@pytest.mark.parametrize('task_name, status, expected', [
+    ('_SLURM_Image_Transfer.py', None, (wfs.TRANSFERRING, '5%')),
+    ('_SLURM_Image_Transfer.py', 'RUNNING', (wfs.TRANSFERRING, '5%')),
+    ('convert_x', None, (wfs.CONVERTING, '25%')),
+    ('SLURM_Remote_Conversion.py', None, (wfs.CONVERTING, '25%')),
+    ('SLURM_Remote_Conversion.py', 'RUNNING', (wfs.CONVERTING, '25%')),
+    ('SLURM_Get_Results.py', None, (wfs.RETRIEVING, '90%')),
+    ('SLURM_Get_Results.py', wfs.POSTPROCESSING, (wfs.POSTPROCESSING, '95%')),
+    ('SLURM_Import_Results.py', None, (wfs.IMPORTING, '90%')),
+    ('SLURM_Import_Results.py', wfs.IMPORTED, (wfs.IMPORTED, '90%')),
+    ('SLURM_Import_Results.py', wfs.POSTPROCESSING, (wfs.POSTPROCESSING, '95%')),
+    ('SLURM_Run_Workflow.py', 'ANYTHING', (wfs.RUNNING, '50%')),
+    ('SLURM_Run_Workflow_Batched.py', None, (wfs.RUNNING, '50%')),
+    ('cellpose', None, (wfs.JOB_STATUS + wfs.RUNNING, '50%')),
+    ('cellpose', 'PENDING', (wfs.JOB_STATUS + 'PENDING', '50%')),
+])
+def test_workflow_phase_for_task(task_name, status, expected):
+    from biomero.views import workflow_phase_for
+    assert workflow_phase_for(task_name, status) == expected
+
+
+def test_workflow_phase_interpolates_task_progress_for_user_tasks_only():
+    from biomero.views import workflow_phase_for
+    assert workflow_phase_for('cellpose', 'RUNNING', '50%') == (
+        wfs.JOB_STATUS + 'RUNNING', '70.0%')
+    assert workflow_phase_for('SLURM_Get_Results.py', None, '50%')[1] == '90%'
+
+
+def test_task_started_and_status_update_agree_on_the_phase(
+        workflow_tracker_and_workflow_progress):
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow('wf', '', user=1, group=2)
+    task_id = tracker.add_task_to_workflow(
+        workflow_id, 'SLURM_Remote_Conversion.py', 'v1', {}, {})
+    tracker.start_task(task_id)
+    after_start = (progress.workflows[workflow_id]['status'],
+                   progress.workflows[workflow_id]['progress'])
+    tracker.update_task_status(task_id, 'RUNNING')
+    after_status = (progress.workflows[workflow_id]['status'],
+                    progress.workflows[workflow_id]['progress'])
+    assert after_start == after_status == (wfs.CONVERTING, '25%')

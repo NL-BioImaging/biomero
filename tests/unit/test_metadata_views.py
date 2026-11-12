@@ -1,4 +1,4 @@
-"""Indexed provenance is a versioned view, not the event store."""
+"""Metadata views are a versioned rendering of the event store, not the store."""
 from copy import deepcopy
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -6,9 +6,10 @@ from uuid import uuid4
 
 import pytest
 
-from biomero.provenance import (
-    MetadataAnnotation, plan_metadata_refresh, render_workflow_metadata,
-    resolve_metadata_versions,
+from biomero.metadata_views import (
+    MetadataAnnotation, format_large_field_reference, is_large_field_reference,
+    plan_metadata_refresh, render_workflow_metadata, resolve_metadata_versions,
+    storage_metadata_view,
 )
 
 
@@ -36,9 +37,18 @@ def source():
                          description='BIOMERO 2.9.0', tasks=[t._id for t in tasks],
                          _created_on=now, _modified_on=now)
     aggregates = {a._id: a for a in [wf, *tasks]}
-    tracker = SimpleNamespace(repository=SimpleNamespace(
-        get=lambda key, **kwargs: aggregates[key]))
+    tracker = SimpleNamespace(
+        repository=SimpleNamespace(get=lambda key, **kwargs: aggregates[key]),
+        events=SimpleNamespace(get=lambda key: events_of(aggregates[key])))
     return tracker, wf, tasks
+
+
+def events_of(aggregate):
+    """Fake event stream: every version of the aggregate has its timestamp."""
+    return [SimpleNamespace(originator_version=version,
+                            timestamp=aggregate._modified_on)
+            for version in range(aggregate.INITIAL_VERSION,
+                                 aggregate.version + 1)]
 
 
 def test_default_preserves_legacy_fields_and_excludes_coordination(source):
@@ -255,6 +265,9 @@ def test_legacy_timestamp_selects_version_zero_not_latest(source):
     latest._modified_on = datetime(2026, 1, 2, tzinfo=timezone.utc)
     tracker.repository.get = lambda ident, version=None: (
         zero if version == 0 else latest)
+    tracker.events.get = lambda ident: [
+        SimpleNamespace(originator_version=0, timestamp=zero._modified_on),
+        SimpleNamespace(originator_version=1, timestamp=latest._modified_on)]
     rows = [MetadataAnnotation('biomero/workflow', {
         'Workflow_ID': str(wf._id), 'Modified_On': zero._modified_on.isoformat()})]
     assert resolve_metadata_versions(tracker, wf._id, rows) == {str(wf._id): 0}
@@ -281,3 +294,225 @@ def test_batched_selection_excludes_other_workflow_parameters(source):
     assert 'Param_other_Version' not in values
     assert 'Param_other' not in values
     assert 'Param_wf_params_other' not in values
+
+
+# ------------------------------------------------------------------ #
+# Contract with the scripts: how a reduced (large) field looks
+# ------------------------------------------------------------------ #
+
+# Written by SLURM_Get_Results.py / SLURM_Import_Results.py when OMERO rejects
+# a key/value pair as too large for its index. Do not change this text without
+# changing the scripts: refresh would then re-inflate such fields.
+SCRIPT_REDUCED_VALUE = (
+    'Large field; full value in metadata_8a1f.csv '
+    '(utf8_bytes=2048; sha256=' + 'ab' * 32 + ')')
+
+
+def test_reduced_value_text_written_by_scripts_is_recognised():
+    assert is_large_field_reference(SCRIPT_REDUCED_VALUE)
+    assert format_large_field_reference(
+        'metadata_8a1f.csv', 2048, 'ab' * 32) == SCRIPT_REDUCED_VALUE
+
+
+@pytest.mark.parametrize('value', [
+    'metadata_1.csv sha256', 'see metadata_1.csv (sha256=ab)', '',
+    'Large field; full value in other.csv (utf8_bytes=1; sha256=ab)',
+    SCRIPT_REDUCED_VALUE + ' and more'])
+def test_other_values_are_not_reduced_references(value):
+    assert not is_large_field_reference(value)
+
+
+def test_refresh_keeps_reduced_values_but_reinflates_look_alikes(source):
+    tracker, wf, tasks = source
+    rows = render_workflow_metadata(tracker, wf._id)
+    rows[1].values['Param_diameter'] = SCRIPT_REDUCED_VALUE
+    rows[1].values['Status'] = 'metadata_1.csv sha256'
+    plan = plan_metadata_refresh(tracker, wf._id, rows)
+    assert plan[1].after.values['Param_diameter'] == SCRIPT_REDUCED_VALUE
+    assert plan[1].after.values['Status'] == 'IMPORTING'
+
+
+# ------------------------------------------------------------------ #
+# Contract with the scripts: namespaces, keys and limits
+# ------------------------------------------------------------------ #
+
+def test_namespaces_the_scripts_discover_results_by(source):
+    tracker, wf, tasks = source
+    namespaces = [row.namespace
+                  for row in render_workflow_metadata(tracker, wf._id)]
+    assert namespaces == [
+        'biomero/workflow',
+        'biomero/workflow/task/cisegmentation',
+        'biomero/workflow/task/cisegmentation/job',
+        'biomero/workflow/task/SLURM_Get_Results.py']
+
+
+def test_workflow_row_keys(source):
+    tracker, wf, _ = source
+    values = render_workflow_metadata(tracker, wf._id)[0].values
+    assert set(values) == {
+        'Workflow_ID', 'Name', 'Version', 'Created_On', 'Modified_On',
+        'Task_IDs', 'Metadata_View_Version', 'Aggregate_Version'}
+    assert values['Version'] == '2.9.0'
+
+
+def test_software_version_falls_back_to_unknown_and_logs(source, caplog):
+    tracker, wf, _ = source
+    wf.description = 'no number here'
+    with caplog.at_level('DEBUG', logger='biomero.metadata_views'):
+        values = render_workflow_metadata(tracker, wf._id)[0].values
+    assert values['Version'] == 'Unknown'
+    assert 'No software version in description' in caplog.text
+
+
+@pytest.mark.parametrize('biocode_bytes, inline', [(800, True), (801, False)])
+def test_canonical_biocodes_inline_limit_is_800_utf8_bytes(
+        biocode_bytes, inline):
+    code = 'x' * biocode_bytes
+    values = storage_metadata_view(
+        {'storage': 'shallow-zarr', 'source_biocodes': [code]}, 'Plate:1')
+    assert (values['Canonical_Biocodes'] == code) is inline
+    if not inline:
+        assert values['Canonical_Biocodes'] == '1 codes; see Shallow_Manifest'
+
+
+def test_storage_view_ignores_unknown_storage_formats():
+    assert storage_metadata_view({'storage': 'tiff'}, 'Plate:1') == {}
+
+
+def test_job_rows_repeat_the_first_result_of_their_task(source):
+    """Legacy v0: all jobs of a task share its command, env and message."""
+    tracker, wf, tasks = source
+    tasks[1].job_ids = [42, 43]
+    jobs = [row.values for row in render_workflow_metadata(tracker, wf._id)
+            if row.namespace.endswith('/job')]
+    assert [job['Job_ID'] for job in jobs] == ['42', '43']
+    assert {job['Command'] for job in jobs} == {'run'}
+    assert {job['Env_VALUE'] for job in jobs} == {'1'}
+
+
+def test_workflow_qualified_parameters_with_spaced_separator(source):
+    tracker, wf, tasks = source
+    tasks[1].task_name = 'SLURM_Run_Workflow.py'
+    tasks[1].params = {'chosen': True, 'other': False,
+                       'chosen | diameter': 0, 'other | diameter': 3}
+    values = render_workflow_metadata(tracker, wf._id)[1].values
+    assert values['Param_chosen | diameter'] == '0'
+    assert 'Param_other | diameter' not in values
+
+
+# ------------------------------------------------------------------ #
+# Refresh planning
+# ------------------------------------------------------------------ #
+
+def test_refresh_keeps_user_added_param_keys_and_drops_omitted_ones(source):
+    tracker, wf, tasks = source
+    # With a known selection the view omits workflow descriptor parameters.
+    tasks[1].params = {'workflows': ['a'], 'wf_params_x': 'descriptor'}
+    rows = render_workflow_metadata(tracker, wf._id)
+    rows[0].values['Param_note'] = 'user key on the workflow row'
+    rows[1].values['Param_my_note'] = 'user key'
+    rows[1].values['Param_output_settings'] = 'duplicated'
+    rows[1].values['Param_wf_params_x'] = 'descriptor'
+    plan = plan_metadata_refresh(tracker, wf._id, rows)
+    assert plan[0].after.values['Param_note'] == 'user key on the workflow row'
+    assert plan[1].after.values['Param_my_note'] == 'user key'
+    assert 'Param_output_settings' not in plan[1].after.values
+    assert 'Param_wf_params_x' not in plan[1].after.values
+
+
+def test_missing_annotation_error_names_workflow_and_identity(source):
+    tracker, wf, _ = source
+    rows = render_workflow_metadata(tracker, wf._id)
+    missing_job = rows.pop(2)
+    with pytest.raises(ValueError, match=str(wf._id)) as error:
+        plan_metadata_refresh(tracker, wf._id, rows)
+    assert missing_job.namespace in str(error.value)
+
+
+def test_unrecognised_annotation_identity_fails_closed(source):
+    tracker, wf, tasks = source
+    rows = render_workflow_metadata(tracker, wf._id)
+    # A job row of a visible task that the view does not render any more.
+    rows.append(MetadataAnnotation(
+        'biomero/workflow/task/cisegmentation/job',
+        {'Workflow_ID': str(wf._id), 'Task_ID': str(tasks[1]._id),
+         'Job_ID': '99'}))
+    with pytest.raises(ValueError, match='Unrecognized annotation identity'):
+        plan_metadata_refresh(tracker, wf._id, rows)
+
+
+def test_duplicate_identities_fail_closed(source):
+    tracker, wf, _ = source
+    rows = render_workflow_metadata(tracker, wf._id)
+    with pytest.raises(ValueError, match='Duplicate annotation identity'):
+        plan_metadata_refresh(tracker, wf._id, rows + [rows[1]])
+
+
+def test_unlinking_an_internal_task_row_is_logged(source, caplog):
+    tracker, wf, tasks = source
+    rows = render_workflow_metadata(tracker, wf._id)
+    rows.append(MetadataAnnotation(
+        'biomero/workflow/task/SLURM_Run_Workflow.py', {
+            'Workflow_ID': str(wf._id), 'Task_ID': str(tasks[0]._id),
+            'Modified_On': tasks[0]._modified_on.isoformat(),
+            'Aggregate_Version': '3'}))
+    with caplog.at_level('INFO', logger='biomero.metadata_views'):
+        plan_metadata_refresh(tracker, wf._id, rows)
+    assert (f'Unlinking annotation of internal task {tasks[0]._id}'
+            in caplog.text)
+
+
+def test_storage_repair_advance_is_logged(backfilled_source, caplog):
+    tracker, wf, tasks, rows, _, latest = backfilled_source
+    with caplog.at_level('INFO', logger='biomero.metadata_views'):
+        plan_metadata_refresh(tracker, wf._id, rows, target_key='Plate:10',
+                              refresh_storage=True)
+    assert (f'Advancing import task {tasks[2]._id} to version '
+            f'{latest[tasks[2]._id].version}') in caplog.text
+
+
+# ------------------------------------------------------------------ #
+# Against the real event store
+# ------------------------------------------------------------------ #
+
+@pytest.fixture
+def real_tracker(monkeypatch):
+    from biomero.database import EngineManager
+    from biomero.eventsourcing import WorkflowTracker
+    monkeypatch.setenv('PERSISTENCE_MODULE', 'eventsourcing_sqlalchemy')
+    monkeypatch.setenv('SQLALCHEMY_URL', 'sqlite:///:memory:')
+    EngineManager.create_scoped_session()
+    yield WorkflowTracker()
+    EngineManager.close_engine()
+
+
+def test_legacy_rows_resolve_to_the_version_with_their_timestamp(real_tracker):
+    tracker = real_tracker
+    workflow_id = tracker.initiate_workflow('wf', 'BIOMERO 2.9.0', 1, 1)
+    task_id = tracker.add_task_to_workflow(
+        workflow_id, 'cisegmentation', '1.0', {'diameter': 5}, {})
+    legacy_rows = render_workflow_metadata(
+        tracker, workflow_id, revision_fields=False)
+    tracker.update_task_status(task_id, 'DONE')
+    tracker.update_task_status(task_id, 'RETRIEVING')
+    task_version = tracker.repository.get(task_id).version
+    versions = resolve_metadata_versions(tracker, workflow_id, legacy_rows)
+    assert versions[str(task_id)] < task_version
+    pinned = render_workflow_metadata(
+        tracker, workflow_id, aggregate_versions=versions)
+    assert pinned[1].values['Status'] == legacy_rows[1].values['Status']
+    changes = plan_metadata_refresh(tracker, workflow_id, legacy_rows)
+    assert changes[1].after.values['Status'] == legacy_rows[1].values['Status']
+
+
+def test_deprecated_provenance_module_still_exports_the_api():
+    import importlib
+    import sys
+    sys.modules.pop('biomero.provenance', None)
+    with pytest.warns(DeprecationWarning, match='biomero.metadata_views'):
+        provenance = importlib.import_module('biomero.provenance')
+    from biomero import metadata_views
+    assert (provenance.plan_metadata_refresh
+            is metadata_views.plan_metadata_refresh)
+    assert provenance.NAMESPACE == metadata_views.NAMESPACE

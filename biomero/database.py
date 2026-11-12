@@ -21,10 +21,12 @@ from sqlalchemy import (
     String,
     DateTime,
     event,
+    inspect,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import DBAPIError, OperationalError, IntegrityError
+from biomero.constants import slurm_env
 import os
 import time
 import random
@@ -331,6 +333,25 @@ class EngineManager:
     _session = None
         
     @classmethod
+    def _create_tables(cls):
+        """Create the view tables that do not exist yet, and detect fresh installs.
+
+        Concurrent starts can race here, and the loser's DDL may fail although
+        the tables exist afterwards. That is the only failure tolerated: after
+        a database error, every table must exist, otherwise the original error
+        (wrong URL, bad credentials, missing privileges, failed DDL) is raised.
+        """
+        try:
+            Base.metadata.create_all(cls._engine)
+        except DBAPIError:
+            existing = inspect(cls._engine)
+            missing = [name for name in Base.metadata.tables
+                       if not existing.has_table(name)]
+            if missing:
+                raise
+            logger.debug("Lost the race to create the tables; they exist now")
+
+    @classmethod
     def create_scoped_session(cls, sqlalchemy_url: str = None):
         """
         Creates and returns a scoped session for interacting with the
@@ -353,16 +374,16 @@ class EngineManager:
         if cls._engine is None:
             # Note, we only allow sqlalchemy eventsourcing module
             if not sqlalchemy_url:
-                sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
+                sqlalchemy_url = os.getenv(slurm_env.SQLALCHEMY_URL)
             cls._engine = create_engine(sqlalchemy_url)
-            # Setup tables if they don't exist yet, and detect fresh installs.
-            # Concurrent starts can race here, and losing that race is fine:
-            # the tables exist either way.
             try:
-                Base.metadata.create_all(cls._engine)
-            except Exception as e:
-                logger.warning(f"Could not create tables (they may already "
-                               f"exist): {e}")
+                cls._create_tables()
+            except Exception:
+                # Do not keep an engine whose tables are missing: the next
+                # call would skip creating them.
+                cls._engine.dispose()
+                cls._engine = None
+                raise
 
         if cls._session is None:
             # Create a scoped_session object.
@@ -389,9 +410,12 @@ class EngineManager:
         Retrieves the current scoped session, setting one up when needed.
 
         This is a borrowed, thread-scoped session, not a new owned session.
-        Listener reads must not use it as a context manager: Session.__exit__
-        closes it and rolls back any pending producer event transaction.
-        SlurmClient's outer context releases the session when work finishes.
+        Do not use it as a context manager for reads made while an event is
+        being processed: Session.__exit__ closes the session and rolls back
+        the pending producer event transaction. A block that commits before it
+        ends (the views' ``update_view_table``) is safe, because nothing is
+        pending when it closes. SlurmClient's outer context releases the
+        session when work finishes.
 
         Returns:
             Session: The SQLAlchemy session for interacting with the database.

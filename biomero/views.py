@@ -12,14 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Any, Dict, Iterable, Optional, Tuple
+from uuid import UUID
+
+from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.system import ProcessApplication
 from eventsourcing.dispatch import singledispatchmethod
 import logging
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.sql import func
-from biomero.eventsourcing import WorkflowRun, Task
+from biomero.eventsourcing import WorkflowRun, Task, WorkflowTracker
 from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
 from biomero.constants import (
+    CONVERSION_SCRIPT,
+    IMAGE_EXPORT_SCRIPT,
+    IMAGE_IMPORT_SCRIPT,
+    IMPORT_RESULTS_SCRIPT,
+    REMOTE_SHALLOWER_TASK_NAME,
     RUN_WF_BATCHED_SCRIPT,
     RUN_WF_SCRIPT,
     workflow_status as wfs,
@@ -27,6 +36,19 @@ from biomero.constants import (
 from biomero.detached import CLAIMED, LAUNCHER_MARKER
 
 logger = logging.getLogger(__name__)
+
+# Progress shown for each phase of a workflow in the progress view.
+PROGRESS_STARTED = "0%"
+PROGRESS_TRANSFERRING = "5%"
+PROGRESS_CONVERTING = "25%"
+PROGRESS_RUNNING = "50%"
+PROGRESS_RETRIEVING = "90%"
+PROGRESS_POSTPROCESSING = "95%"
+PROGRESS_DONE = "100%"
+
+# Prefixes of the tasks BIOMERO itself adds around the user's workflow task.
+INFRASTRUCTURE_TASK_PREFIXES = ("_slurm_", "slurm_", "convert_")
+CONVERT_TASK_PREFIX = "convert_"
 
 # A view application only has its own event store, so an aggregate the tracker
 # created is not in it. Since a workflow may now be run by a process that did
@@ -39,11 +61,130 @@ def tracker_repository():
     """Read-only access to the workflow tracker's aggregates."""
     global _tracker
     if _tracker is None:
-        from biomero.eventsourcing import WorkflowTracker
         _tracker = WorkflowTracker()
     return _tracker.repository
 
-    
+
+def get_tracker_aggregate(aggregate_id: UUID, kind: str) -> Optional[Any]:
+    """Look an aggregate up in the workflow tracker.
+
+    Only a missing aggregate is handled. Any other failure (a database outage,
+    a programming error) propagates, so that the notification is retried
+    instead of continuing with half state.
+
+    Args:
+        aggregate_id: ID of the workflow or task.
+        kind: What the aggregate is, for the log message.
+
+    Returns:
+        The aggregate, or None if the tracker has no such aggregate.
+    """
+    try:
+        return tracker_repository().get(aggregate_id)
+    except AggregateNotFoundError:
+        logger.warning(f"{kind} {aggregate_id} not found in the workflow "
+                       f"tracker")
+        return None
+
+
+def resolve_workflow_owner(workflows: Dict[UUID, dict],
+                           wf_id: UUID) -> Optional[dict]:
+    """Return a workflow's user and group, looked up in the tracker if unseen.
+
+    The tracker is the source for every projection, so the result does not
+    depend on whether another projection has processed the workflow yet.
+
+    Args:
+        workflows: The projection's cache of ``{"user": ..., "group": ...}``
+            per workflow ID; filled in when the workflow is looked up.
+        wf_id: ID of the workflow.
+
+    Returns:
+        The cached owner, or None if the workflow is unknown to the tracker.
+    """
+    if wf_id not in workflows:
+        try:
+            workflow = get_tracker_aggregate(wf_id, "Workflow")
+        except OperationalError:
+            # The name is cosmetic and the view write that follows fails and
+            # is retried on a real outage, so do not fail the event here.
+            logger.warning(f"[WFP] Could not reconstruct the tasks of "
+                           f"workflow {wf_id}; using its current task",
+                           exc_info=True)
+            workflow = None
+        if workflow is not None:
+            workflows[wf_id] = {"user": workflow.user,
+                                "group": workflow.group}
+    return workflows.get(wf_id)
+
+
+def is_launcher_task(task_name: str, params: Optional[dict]) -> bool:
+    """Whether a task is a detached launcher (queued by a workflow script)."""
+    return (task_name in (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
+            and LAUNCHER_MARKER in (params or {}))
+
+
+def workflow_phase_for(task_name: str, status: Optional[str] = None,
+                       task_progress: Optional[str] = None) -> Tuple[str, str]:
+    """Return the workflow status and progress that a running task implies.
+
+    One table for both TaskStarted (no task status yet) and StatusUpdated, so
+    the two cannot disagree about a phase.
+
+    Args:
+        task_name: Name of the task.
+        status: The task's reported status; None when the task just started.
+        task_progress: The workflow task's own progress (e.g. ``"43%"``), if
+            reported; it moves the progress within the running phase.
+
+    Returns:
+        Tuple of the workflow status and the progress string.
+    """
+    name = task_name.lower()
+    if name == IMAGE_EXPORT_SCRIPT.lower():
+        return wfs.TRANSFERRING, PROGRESS_TRANSFERRING
+    if name.startswith(CONVERT_TASK_PREFIX) or name == CONVERSION_SCRIPT.lower():
+        return wfs.CONVERTING, PROGRESS_CONVERTING
+    if name == IMAGE_IMPORT_SCRIPT.lower():
+        if status == wfs.POSTPROCESSING:
+            return wfs.POSTPROCESSING, PROGRESS_POSTPROCESSING
+        return wfs.RETRIEVING, PROGRESS_RETRIEVING
+    if name == IMPORT_RESULTS_SCRIPT.lower():
+        progress = (PROGRESS_POSTPROCESSING if status == wfs.POSTPROCESSING
+                    else PROGRESS_RETRIEVING)
+        return status or wfs.IMPORTING, progress
+    if name in (RUN_WF_SCRIPT.lower(), RUN_WF_BATCHED_SCRIPT.lower()):
+        return wfs.RUNNING, PROGRESS_RUNNING
+    # Unknown task types (the user's workflow): JOB_ prefix on the status.
+    progress = (interpolate_task_progress(task_progress) if task_progress
+                else PROGRESS_RUNNING)
+    return wfs.JOB_STATUS + (status or wfs.RUNNING), progress
+
+
+def interpolate_task_progress(task_progress: str) -> str:
+    """Map a workflow task's own progress onto the running-to-retrieving span.
+
+    Args:
+        task_progress: The task's progress, e.g. ``"43%"``.
+
+    Returns:
+        The progress of the whole workflow, e.g. ``"71.2%"`` for 43%.
+    """
+    baseline = int(PROGRESS_RUNNING.strip("%"))
+    upper_limit = int(PROGRESS_RETRIEVING.strip("%"))
+    task_value = int(task_progress.strip("%"))
+    return f"{baseline + (task_value / 100) * (upper_limit - baseline)}%"
+
+
+def first_user_task_name(task_infos: Iterable[dict]) -> Optional[str]:
+    """Return the first task that is not BIOMERO infrastructure, in order."""
+    for task_info in task_infos:
+        task_name = task_info.get("task_name", "")
+        if not task_name.lower().startswith(INFRASTRUCTURE_TASK_PREFIXES):
+            return task_name
+    return None
+
+
 # ------------------- View Listener Applications ------------------ #
 
 
@@ -58,28 +199,17 @@ class JobAccounting(ProcessApplication):
 
     def resolve_workflow(self, wf_id):
         """Look a workflow up when we did not see it started ourselves."""
-        if wf_id not in self.workflows:
-            try:
-                wf_agg = tracker_repository().get(wf_id)
-                self.workflows[wf_id] = {"user": wf_agg.user,
-                                         "group": wf_agg.group}
-            except Exception as e:
-                logger.warning(f"Could not resolve workflow {wf_id} in "
-                               f"JobAccounting: {e}")
-        return self.workflows.get(wf_id)
+        return resolve_workflow_owner(self.workflows, wf_id)
 
     def resolve_task(self, task_id):
         """Look a task up when we did not see it created ourselves."""
         if task_id not in self.tasks:
-            try:
-                task_agg = tracker_repository().get(task_id)
+            task_agg = get_tracker_aggregate(task_id, "Task")
+            if task_agg is not None:
                 self.tasks[task_id] = task_agg.workflow_id
                 self.resolve_workflow(task_agg.workflow_id)
-            except Exception as e:
-                logger.warning(f"Could not resolve task {task_id} in "
-                               f"JobAccounting: {e}")
         return self.tasks.get(task_id)
-                   
+
     @singledispatchmethod
     def policy(self, domain_event, process_event):
         """Default policy"""
@@ -230,49 +360,57 @@ class WorkflowProgress(ProcessApplication):
         self.tasks = {}  # {task_id: {"workflow_id": wf_id, "task_name": task_name}}
 
     def resolve_workflow(self, wf_id):
+        """Reload a workflow from this projection's own table after a restart."""
         if wf_id not in self.workflows:
-            try:
-                # Borrow the producer's scoped session. Closing it here would
-                # roll back the event currently notifying this cold listener.
-                session = EngineManager.get_session()
-                row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
-                if row:
-                    self.workflows[wf_id] = {
-                        "status": row.status,
-                        "progress": row.progress,
-                        "user": row.user,
-                        "group": row.group,
-                        "name": row.name,
-                        "task": row.task,
-                        "start_time": row.start_time
-                    }
-            except Exception as e:
-                logger.warning(f"Could not resolve workflow {wf_id} in WorkflowProgress: {e}")
+            # Borrow the producer's scoped session. Closing it here would
+            # roll back the event currently notifying this cold listener.
+            session = EngineManager.get_session()
+            row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
+            if row:
+                self.workflows[wf_id] = {
+                    "status": row.status,
+                    "progress": row.progress,
+                    "user": row.user,
+                    "group": row.group,
+                    "name": row.name,
+                    "task": row.task,
+                    "start_time": row.start_time
+                }
         return self.workflows.get(wf_id)
 
     def resolve_task(self, task_id):
         """Look a task up when we did not see it created ourselves."""
         if task_id not in self.tasks:
-            try:
-                task_agg = tracker_repository().get(task_id)
+            task_agg = get_tracker_aggregate(task_id, "Task")
+            if task_agg is not None:
                 self.tasks[task_id] = {
                     "task_name": task_agg.task_name,
                     "workflow_id": task_agg.workflow_id,
-                    "is_launcher": (
-                        task_agg.task_name in (
-                            RUN_WF_SCRIPT,
-                            RUN_WF_BATCHED_SCRIPT,
-                        )
-                        and LAUNCHER_MARKER in (task_agg.params or {})
-                    ),
+                    "is_launcher": is_launcher_task(
+                        task_agg.task_name, task_agg.params),
                     # Progress is reported by events, not kept on the task.
                     "progress": None
                 }
                 self.resolve_workflow(task_agg.workflow_id)
-            except Exception as e:
-                logger.warning(f"Could not resolve task {task_id} in "
-                               f"WorkflowProgress: {e}")
         return self.tasks.get(task_id)
+
+    def skip_remote_shallower(self, task_id, task_info, event_name):
+        """Leave the analysis progress alone for a remote shallower helper task.
+
+        Args:
+            task_id: ID of the task the event belongs to.
+            task_info: The projection's info for that task, or None.
+            event_name: Name of the event, for the log.
+
+        Returns:
+            True if the event was for a helper task and has been handled.
+        """
+        if not task_info or task_info["task_name"] != REMOTE_SHALLOWER_TASK_NAME:
+            return False
+        logger.debug(f"[WFP] Ignoring {event_name} of remote shallower task "
+                     f"{task_id}: it does not change the analysis progress")
+        EngineManager.commit()
+        return True
 
     @singledispatchmethod
     def policy(self, domain_event, process_event):
@@ -290,7 +428,7 @@ class WorkflowProgress(ProcessApplication):
 
         # Track workflow with user, group, and INITIATED status
         self.workflows[wf_id] = {"status": wfs.INITIALIZING, 
-                                       "progress": "0%", 
+                                       "progress": PROGRESS_STARTED, 
                                        "user": user, 
                                        "group": group,
                                        "name": name,
@@ -309,7 +447,7 @@ class WorkflowProgress(ProcessApplication):
             return
             
         self.workflows[wf_id]["status"] = wfs.DONE
-        self.workflows[wf_id]["progress"] = "100%"
+        self.workflows[wf_id]["progress"] = PROGRESS_DONE
         logger.debug(f"[WFP] Status updated: wf_id={wf_id}, status={wfs.DONE} -- {domain_event.__dict__}")
         self.update_view_table(wf_id)
         EngineManager.commit()
@@ -336,8 +474,7 @@ class WorkflowProgress(ProcessApplication):
 
         # Track task to workflow mapping
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
-            EngineManager.commit()
+        if self.skip_remote_shallower(task_id, task_info, "TaskAdded"):
             return
         if task_info:
             task_info["workflow_id"] = wf_id
@@ -358,10 +495,7 @@ class WorkflowProgress(ProcessApplication):
         self.tasks[task_id] = {
             "task_name": task_name,
             "workflow_id": None,
-            "is_launcher": (
-                task_name in (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
-                and LAUNCHER_MARKER in (domain_event.params or {})
-            ),
+            "is_launcher": is_launcher_task(task_name, domain_event.params),
             "progress": None
             }
         logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
@@ -372,8 +506,7 @@ class WorkflowProgress(ProcessApplication):
         """Persist the current task and its initial workflow phase."""
         task_id = domain_event.originator_id
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
-            EngineManager.commit()
+        if self.skip_remote_shallower(task_id, task_info, "TaskStarted"):
             return
         if task_info:
             wf_id = task_info["workflow_id"]
@@ -381,28 +514,8 @@ class WorkflowProgress(ProcessApplication):
             if workflow_info:
                 task_name = task_info["task_name"]
                 workflow_info["task"] = task_name
-                task_name_lower = task_name.lower()
-
-                if task_name_lower == '_slurm_image_transfer.py':
-                    workflow_info["status"] = wfs.TRANSFERRING
-                    workflow_info["progress"] = "5%"
-                elif (task_name_lower.startswith('convert_') or
-                      task_name_lower == 'slurm_remote_conversion.py'):
-                    workflow_info["status"] = wfs.CONVERTING
-                    workflow_info["progress"] = "25%"
-                elif task_name_lower == 'slurm_get_results.py':
-                    workflow_info["status"] = wfs.RETRIEVING
-                    workflow_info["progress"] = "90%"
-                elif task_name_lower == 'slurm_import_results.py':
-                    workflow_info["status"] = wfs.IMPORTING
-                    workflow_info["progress"] = "90%"
-                elif task_name_lower in ('slurm_run_workflow.py',
-                                          'slurm_run_workflow_batched.py'):
-                    workflow_info["status"] = wfs.RUNNING
-                    workflow_info["progress"] = "50%"
-                else:
-                    workflow_info["status"] = wfs.JOB_STATUS + wfs.RUNNING
-                    workflow_info["progress"] = "50%"
+                workflow_info["status"], workflow_info["progress"] = (
+                    workflow_phase_for(task_name))
 
                 logger.debug(
                     f"[WFP] Task started: wf_id={wf_id}, task_id={task_id}, "
@@ -420,12 +533,11 @@ class WorkflowProgress(ProcessApplication):
 
         # Get the workflow ID and task name associated with this task
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
-            EngineManager.commit()
+        if self.skip_remote_shallower(task_id, task_info, "StatusUpdated"):
             return
         if task_info:
             wf_id = task_info["workflow_id"]
-            task_name = task_info["task_name"].lower()
+            task_name = task_info["task_name"]
 
             # CLAIMED is supervisor bookkeeping, not workflow execution. The
             # first real task's TaskStarted event will set the visible phase.
@@ -439,49 +551,8 @@ class WorkflowProgress(ProcessApplication):
 
             workflow_info = self.resolve_workflow(wf_id)
             if workflow_info:
-                # Determine status based on task_name
-                if task_name == '_slurm_image_transfer.py':
-                    workflow_status = wfs.TRANSFERRING
-                    workflow_prog = "5%"
-                elif task_name.startswith('convert_'):
-                    workflow_status = wfs.CONVERTING
-                    workflow_prog = "25%"
-                elif task_name == 'slurm_get_results.py':
-                    if status == wfs.POSTPROCESSING:
-                        workflow_status = wfs.POSTPROCESSING
-                        workflow_prog = "95%"
-                    else:
-                        workflow_status = wfs.RETRIEVING
-                        workflow_prog = "90%"
-                elif task_name == 'slurm_import_results.py':
-                    # Map IMPORTING -> wfs.IMPORTING, IMPORTED -> wfs.IMPORTED, fallback to status
-                    workflow_status = getattr(wfs, status, status)
-                    workflow_prog = "95%" if status == wfs.POSTPROCESSING else "90%"
-                elif task_name in ('slurm_run_workflow.py',
-                                   'slurm_run_workflow_batched.py'):
-                    workflow_status = wfs.RUNNING
-                    workflow_prog = "50%"
-                else:
-                    # Default to JOB_STATUS prefix for unknown task types
-                    workflow_status = wfs.JOB_STATUS + status
-                    workflow_prog = "50%"
-                    if "task_progress" in workflow_info:
-                        task_prog = workflow_info["task_progress"]
-                        if task_prog:
-                            # Initial string and baseline
-                            upper_limit_str = "90%"  # Upper limit string
-                            # Step 1: Extract integers from the strings
-                            current_val = int(task_prog.strip('%'))
-                            baseline_val = int(workflow_prog.strip('%'))
-                            upper_limit_val = int(upper_limit_str.strip('%'))
-
-                            # Step 2: Interpolation logic
-                            # Map the current_val (43) between the range 50 and 90
-                            # Formula for linear interpolation: new_val = baseline + (current_val / 100) * (upper_limit - baseline)
-                            interpolated_val = baseline_val + ((current_val / 100) * (upper_limit_val - baseline_val))
-                            workflow_prog = f"{interpolated_val}%"
-                    
-
+                workflow_status, workflow_prog = workflow_phase_for(
+                    task_name, status, workflow_info.get("task_progress"))
                 # Update the workflow status
                 workflow_info["status"] = workflow_status
                 workflow_info["progress"] = workflow_prog
@@ -499,8 +570,7 @@ class WorkflowProgress(ProcessApplication):
         progress = domain_event.progress
         
         task_info = self.resolve_task(task_id)
-        if task_info and task_info["task_name"] == "_SLURM_Remote_Shallower":
-            EngineManager.commit()
+        if self.skip_remote_shallower(task_id, task_info, "ProgressUpdated"):
             return
         if task_info:
             task_info["progress"] = progress
@@ -550,22 +620,10 @@ class WorkflowProgress(ProcessApplication):
                 
     def _determine_main_task_name(self, wf_id):
         """Determine the main user-facing task name for a workflow."""
-        def find_main_task(tasks):
-            """Return the first non-infrastructure task in task order."""
-            for task_info in tasks:
-                task_name = task_info.get("task_name", "").lower()
-                if not (task_name.startswith("_slurm_") or
-                        task_name.startswith("slurm_") or
-                        task_name.startswith("convert_")):
-                    return task_info.get("task_name", "")
-            return None
-
         # Fast path for a listener that has observed the whole workflow.
-        in_memory_tasks = []
-        for task_info in self.tasks.values():
-            if task_info.get("workflow_id") == wf_id:
-                in_memory_tasks.append(task_info)
-        main_task = find_main_task(in_memory_tasks)
+        in_memory_tasks = [task_info for task_info in self.tasks.values()
+                           if task_info.get("workflow_id") == wf_id]
+        main_task = first_user_task_name(in_memory_tasks)
         if main_task:
             return main_task
 
@@ -573,21 +631,26 @@ class WorkflowProgress(ProcessApplication):
         # Rehydrate them from the persisted WorkflowRun task list so an import
         # or completion event cannot erase main_task_name from the view.
         try:
-            workflow = tracker_repository().get(wf_id)
-            persisted_tasks = []
-            for task_id in getattr(workflow, "tasks", []):
-                task_info = self.resolve_task(task_id)
-                if task_info:
-                    persisted_tasks.append(task_info)
-            main_task = find_main_task(persisted_tasks)
+            workflow = get_tracker_aggregate(wf_id, "Workflow")
+        except OperationalError:
+            # The name is cosmetic and the view write that follows fails and
+            # is retried on a real outage, so do not fail the event here.
+            logger.warning(f"[WFP] Could not reconstruct the tasks of "
+                           f"workflow {wf_id}; using its current task",
+                           exc_info=True)
+            workflow = None
+        if workflow is not None:
+            persisted_tasks = [
+                task_info for task_info in (
+                    self.resolve_task(task_id) for task_id in workflow.tasks)
+                if task_info]
+            main_task = first_user_task_name(persisted_tasks)
             if main_task:
                 return main_task
-        except Exception as e:
-            logger.warning(
-                f"[WFP] Could not reconstruct tasks for workflow {wf_id}: {e}"
-            )
-        
+
         # Fallback to current task if no main task found
+        logger.debug(f"[WFP] No user task found for workflow {wf_id}; "
+                     f"using its current task")
         return self.workflows[wf_id].get("task", "unknown")
 
 
@@ -687,22 +750,14 @@ class WorkflowAnalytics(ProcessApplication):
         self.tasks = {}      # {task_id: {"wf_id": wf_id, "task_name": task_name, "task_version": task_version, "start_time": timestamp, "status": status, "end_time": timestamp, "error_type": error_type}}
 
     def resolve_workflow(self, wf_id):
-        if wf_id not in self.workflows:
-            try:
-                # The notifying producer owns this shared session's lifetime.
-                session = EngineManager.get_session()
-                row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
-                if row:
-                    self.workflows[wf_id] = {"user": row.user, "group": row.group}
-            except Exception as e:
-                logger.warning(f"Could not resolve workflow {wf_id} in WorkflowAnalytics: {e}")
-        return self.workflows.get(wf_id)
+        """Look a workflow's user and group up in the tracker when unseen."""
+        return resolve_workflow_owner(self.workflows, wf_id)
 
     def resolve_task(self, task_id):
         """Look a task up when we did not see it created ourselves."""
         if task_id not in self.tasks:
-            try:
-                task_agg = tracker_repository().get(task_id)
+            task_agg = get_tracker_aggregate(task_id, "Task")
+            if task_agg is not None:
                 start_time = None
                 # Do not close or roll back the producer's event transaction.
                 session = EngineManager.get_session()
@@ -722,9 +777,6 @@ class WorkflowAnalytics(ProcessApplication):
                 }
                 if task_agg.workflow_id:
                     self.resolve_workflow(task_agg.workflow_id)
-            except Exception as e:
-                logger.warning(f"Could not resolve task {task_id} in "
-                               f"WorkflowAnalytics: {e}")
         return self.tasks.get(task_id)
 
     @singledispatchmethod
@@ -857,6 +909,9 @@ class WorkflowAnalytics(ProcessApplication):
             if workflow_info:
                 user_id = workflow_info["user"]
                 group_id = workflow_info["group"]
+            else:
+                logger.warning(f"[WFA] Owner of workflow {wf_id} unknown; "
+                               f"task {task_id} is stored without user/group")
 
         with EngineManager.get_session() as session:
             try:

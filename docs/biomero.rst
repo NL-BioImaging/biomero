@@ -28,10 +28,10 @@ biomero.views module
    :undoc-members:
    :show-inheritance:
 
-biomero.provenance module
--------------------------
+biomero.metadata_views module
+-----------------------------
 
-.. automodule:: biomero.provenance
+.. automodule:: biomero.metadata_views
    :members:
    :show-inheritance:
 

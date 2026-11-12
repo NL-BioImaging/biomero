@@ -21,7 +21,10 @@ from uuid import UUID, uuid4
 
 from packaging.version import InvalidVersion, Version
 
-from .constants import REMOTE_SHALLOWER_TASK_NAME
+from . import remote_scripts
+from .constants import (
+    MANIFEST_LOCK_WAIT_SECONDS, REMOTE_SHALLOWER_TASK_NAME,
+    SUBMISSION_REJECTED_EXIT_CODE)
 from .slurm_client import SlurmClient, SlurmJob
 
 if TYPE_CHECKING:
@@ -64,10 +67,11 @@ MANIFEST_FILENAME = "canonical.json"
 # Submission state files per operation, in the task state directory.
 SHALLOW_STATE_NAME = "shallow"
 RECOVERY_STATE_NAME = "recovery"
-SUBMISSION_STATE_SUFFIXES = (".intent", ".job")
+SUBMISSION_MARKER_SUFFIXES = (
+    remote_scripts.SUBMISSION_STATE_FILES["intent_file"],
+    remote_scripts.SUBMISSION_STATE_FILES["job_file"])
 
 POLLING_INTERVAL_SECONDS = 15
-MANIFEST_LOCK_WAIT_SECONDS = 30
 COMPLETED_STATE = "COMPLETED"
 
 # Image acquisition specification and file naming.
@@ -601,10 +605,11 @@ def _publish_manifest(slurm_client: SlurmClient, manifest_path: str,
                       ) -> None:
     """Upload the manifest to a staging file and publish it atomically.
 
-    ``flock`` takes an exclusive lock on the manifest's lock file, so
-    concurrent processes publish one at a time; ``ln`` hard-links the staging
-    file to the final name, which fails instead of overwriting. SlurmClient
-    checks that ``flock`` exists during Slurm setup (``check_flock_available``).
+    The configured lock command (``slurm_lock_cmd``, ``flock`` by default)
+    takes an exclusive lock on the manifest's lock file, so concurrent
+    processes publish one at a time; ``ln`` hard-links the staging file to the
+    final name, which fails instead of overwriting. SlurmClient checks that the
+    lock command exists during Slurm setup (``check_remote_commands_available``).
 
     Args:
         slurm_client (SlurmClient): The Slurm client used to run commands.
@@ -624,16 +629,16 @@ def _publish_manifest(slurm_client: SlurmClient, manifest_path: str,
     submission_state_exists_cmd = " || ".join(
         f"test -e {quote(posixpath.join(state_dir, operation + suffix))}"
         for operation in (SHALLOW_STATE_NAME, RECOVERY_STATE_NAME)
-        for suffix in SUBMISSION_STATE_SUFFIXES)
+        for suffix in SUBMISSION_MARKER_SUFFIXES)
     publish_script = (
         f"set -eu; if test -L {target}; then exit 1; fi; "
         f"if test -e {target}; then cat {target}; "
         f"elif {submission_state_exists_cmd}; then "
         'echo "Missing manifest after submission intent" >&2; exit 1; '
         f"else ln {quote(staging_path)} {target}; cat {target}; fi")
-    publish_manifest_cmd = (
-        f"flock -w {lock_wait_seconds} {quote(f'{manifest_path}.lock')} "
-        f"sh -c {quote(publish_script)}")
+    publish_manifest_cmd = remote_scripts.locked_script(
+        slurm_client.slurm_lock_cmd, f"{manifest_path}.lock", publish_script,
+        wait_seconds=lock_wait_seconds)
     try:
         slurm_client.put(io.StringIO(json.dumps(payload)), staging_path)
         published = slurm_client.run_commands(
@@ -1002,6 +1007,40 @@ def _prepare_remote_state(slurm_client: SlurmClient, helper: HelperJob,
         lock_wait_seconds=settings.lock_wait_seconds)
 
 
+def _submit_helper_job(slurm_client: SlurmClient, sbatch_command: str,
+                       state_prefix: str, job_name: str) -> Optional[int]:
+    """Submit a helper job once, or adopt the one an earlier call submitted.
+
+    A rejected submission is forgotten, so that the caller falls back to full
+    results. Ambiguous submission state raises instead of risking a duplicate
+    job.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to submit the job.
+        sbatch_command (str): The ``sbatch`` command of the helper job.
+        state_prefix (str): Remote path prefix of the submission receipts.
+        job_name (str): Slurm job name of the submission.
+
+    Returns:
+        Optional[int]: The Slurm job ID, or None if sbatch rejected the job.
+
+    Raises:
+        RuntimeError: If the submission state cannot be resolved.
+    """
+    result = slurm_client.submit_job_once(
+        sbatch_command, state_prefix, job_name=job_name,
+        raise_on_rejection=False, verify_command_unchanged=False)
+    if result.exited == SUBMISSION_REJECTED_EXIT_CODE:
+        logger.warning(f"sbatch rejected helper job {job_name}")
+        return None
+    job_id = slurm_client.extract_job_id(result)
+    if job_id < 0:
+        raise RuntimeError(
+            f"Submission of {job_name} is unresolved; preserve results and "
+            "resume after reconciliation")
+    return job_id
+
+
 def _submit_or_adopt_helper_job(slurm_client: SlurmClient, helper: HelperJob,
                                 settings: HelperSettings) -> Optional[int]:
     """Adopt the recorded helper job, or submit it exactly once.
@@ -1023,9 +1062,10 @@ def _submit_or_adopt_helper_job(slurm_client: SlurmClient, helper: HelperJob,
         logger.debug(f"Adopting recorded shallower job {task.job_ids[0]}; "
                      "no new submission")
         return int(task.job_ids[0])
-    return slurm_client.submit_job_once(
-        sbatch_command, posixpath.join(helper.state_dir, SHALLOW_STATE_NAME),
-        job_name=helper_job_name(task.id))
+    return _submit_helper_job(
+        slurm_client, sbatch_command,
+        posixpath.join(helper.state_dir, SHALLOW_STATE_NAME),
+        helper_job_name(task.id))
 
 
 def _complete_with_full_results(
@@ -1080,20 +1120,22 @@ def _recover_after_failed_job(slurm_client: SlurmClient, helper: HelperJob,
         slurm_client, helper.output_path, helper.sif_path,
         helper.manifest_path, str(task_id), recovery=True, image=helper.image,
         contract_version=settings.contract_version)
+    recovery_state_prefix = posixpath.join(
+        helper.state_dir, RECOVERY_STATE_NAME)
     # Recorded IDs remain authoritative on resume.
     if len(recorded_job_ids) > 1:
         recovery_job_id = int(recorded_job_ids[1])
     else:
-        recovery_job_id = slurm_client.submit_job_once(
-            recovery_command,
-            posixpath.join(helper.state_dir, RECOVERY_STATE_NAME),
-            job_name=helper_job_name(task_id, recovery=True))
+        recovery_job_id = _submit_helper_job(
+            slurm_client, recovery_command, recovery_state_prefix,
+            helper_job_name(task_id, recovery=True))
     if recovery_job_id is None:
         raise RuntimeError(
             f"Shallower recovery submission rejected for task {task_id}; "
             "output preserved")
     if recovery_job_id not in recorded_job_ids:
         slurm_client.workflowTracker.add_job_id(task_id, recovery_job_id)
+        slurm_client.remove_submission_receipts(recovery_state_prefix)
     recovery_state = wait_for_helper_job(
         slurm_client, recovery_job_id, heartbeat, settings.polling_interval)
     if recovery_state != COMPLETED_STATE:
@@ -1195,6 +1237,8 @@ def shallow_workflow_results(
         slurm_client.workflowTracker.add_job_id(helper.task_id, job_id)
         logger.debug(f"Recorded shallower job {job_id} on task "
                      f"{helper.task_id}")
+        slurm_client.remove_submission_receipts(
+            posixpath.join(helper.state_dir, SHALLOW_STATE_NAME))
     status = wait_for_helper_job(
         slurm_client, job_id, heartbeat, polling_interval)
     if status != COMPLETED_STATE:

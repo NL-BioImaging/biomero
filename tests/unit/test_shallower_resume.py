@@ -55,7 +55,7 @@ def client_fixture(*, jobs=(123,), terminal=False):
         SlurmClient.get_workflow_tasks(client, *args, **kwargs))
     client.build_sbatch_wrap_command = lambda *args, **kwargs: (
         SlurmClient.build_sbatch_wrap_command(client, *args, **kwargs))
-    client.submit_job_once = MagicMock(return_value=123)
+    client.remove_submission_receipts = MagicMock()
     return client, workflow_id, canonical, batch
 
 
@@ -92,10 +92,10 @@ def test_resume_recovery_uses_recorded_image_after_configuration_change():
     client.remote_shallower_image = 'new-helper:2.0.0'
     client.remote_shallower_version = '2.0.0'
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=124) as submit, \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=124) as submit, \
          patch('biomero.remote_shallower.wait_for_helper_job', side_effect=['FAILED', 'COMPLETED']):
         run(client, '/data', workflow_id, canonical)
-    command = submit.call_args.args[0]
+    command = submit.call_args.args[1]
     assert '--image helper:0.1.0' in command
     assert 'new-helper' not in command
     assert client.remote_shallower_image == 'new-helper:2.0.0'
@@ -103,7 +103,7 @@ def test_resume_recovery_uses_recorded_image_after_configuration_change():
 
 def test_resume_adopts_existing_job_without_submission():
     client, workflow_id, canonical, batch = client_fixture()
-    with patch.object(client, 'submit_job_once', side_effect=AssertionError('duplicate')), \
+    with patch('biomero.remote_shallower._submit_helper_job', side_effect=AssertionError('duplicate')), \
          patch('biomero.remote_shallower.wait_for_helper_job', return_value='COMPLETED') as wait, \
          patch('biomero.remote_shallower.parse_batch_report', return_value=batch):
         assert run(client, '/data', workflow_id, canonical) is batch
@@ -128,7 +128,7 @@ def test_submission_id_is_persisted_before_polling():
         assert job == 123
         return 'COMPLETED'
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=123), \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=123), \
          patch('biomero.remote_shallower.wait_for_helper_job', side_effect=wait):
         run(client, '/data', workflow_id, canonical)
 
@@ -136,18 +136,18 @@ def test_submission_id_is_persisted_before_polling():
 def test_failed_helper_runs_recovery_before_receipt_publication():
     client, workflow_id, canonical, batch = client_fixture()
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=124) as submit, \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=124) as submit, \
          patch('biomero.remote_shallower.wait_for_helper_job', side_effect=['FAILED', 'COMPLETED']):
         run(client, '/data', workflow_id, canonical)
-    assert '--recover-only' in submit.call_args.args[0]
-    assert submit.call_args.kwargs['job_name'].startswith('biomero-recovery-')
+    assert '--recover-only' in submit.call_args.args[1]
+    assert submit.call_args.args[3].startswith('biomero-recovery-')
     client.workflowTracker.complete_task.assert_called_once()
 
 
 def test_recorded_recovery_id_is_adopted_without_submission():
     client, workflow_id, canonical, batch = client_fixture(jobs=(123, 124))
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
-         patch.object(client, 'submit_job_once') as submit, \
+         patch('biomero.remote_shallower._submit_helper_job') as submit, \
          patch('biomero.remote_shallower.wait_for_helper_job',
                side_effect=['FAILED', 'COMPLETED']) as wait:
         run(client, '/data', workflow_id, canonical)
@@ -165,7 +165,7 @@ def test_shared_monitor_keeps_connection_through_shallowing_and_recovery():
         ({124: 'COMPLETED+'}, SimpleNamespace(ok=True)),
     ])
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=124), \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=124), \
          patch('biomero.slurm_client.timesleep.sleep') as sleep:
         assert run(client, '/data', workflow_id, canonical, conn.keepAlive) is batch
     assert conn.keepAlive.call_count == 4
@@ -177,7 +177,7 @@ def test_shared_monitor_keeps_connection_through_shallowing_and_recovery():
 def test_unknown_job_status_preserves_job_without_recovery_or_completion():
     client, workflow_id, canonical, _ = client_fixture()
     client.check_job_status = MagicMock(return_value=({}, SimpleNamespace(ok=True)))
-    with patch.object(client, 'submit_job_once') as submit:
+    with patch('biomero.remote_shallower._submit_helper_job') as submit:
         with pytest.raises(RuntimeError, match='unavailable'):
             run(client, '/data', workflow_id, canonical, MagicMock())
     submit.assert_not_called()
@@ -195,7 +195,7 @@ def test_runtime_uses_ready_image_without_pulling():
     ])
     conn = MagicMock()
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=123), \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=123), \
          patch('biomero.slurm_client.timesleep.sleep'):
         assert run(client, '/data', workflow_id, canonical, conn.keepAlive) is batch
     assert conn.keepAlive.call_count == 1
@@ -226,7 +226,7 @@ def test_incompatible_installed_tool_stops_before_task_or_submission():
     with patch(
         'biomero.remote_shallower._installed_labels',
         return_value=incompatible_labels,
-    ), patch.object(client, 'submit_job_once') as submit:
+    ), patch('biomero.remote_shallower._submit_helper_job') as submit:
         with pytest.raises(RuntimeError, match='does not match configured'):
             run(client, '/data', workflow_id, canonical)
 
@@ -242,7 +242,7 @@ def test_new_task_records_discovered_receipt_version_before_submission():
     client.remote_shallower_version = None
     with patch('biomero.remote_shallower.validate_installed_tool', return_value='9.2.1'), \
          patch('biomero.remote_shallower.publish_or_verify_manifest'), \
-         patch.object(client, 'submit_job_once', side_effect=RuntimeError('stop before submit')):
+         patch('biomero.remote_shallower._submit_helper_job', side_effect=RuntimeError('stop before submit')):
         with pytest.raises(RuntimeError, match='stop before submit'):
             run(client, '/data', workflow_id, canonical)
     assert client.workflowTracker.add_task_to_workflow.call_args.args[2] == '9.2.1'
@@ -277,7 +277,7 @@ def test_heartbeat_failure_preserves_shallowing_or_recovery_job(during_recovery)
         {123: 'FAILED'}, SimpleNamespace(ok=True)))
     failure = RuntimeError('caller heartbeat failed')
     heartbeat = MagicMock(side_effect=([None, failure] if during_recovery else [failure]))
-    with patch.object(client, 'submit_job_once', return_value=124) as submit:
+    with patch('biomero.remote_shallower._submit_helper_job', return_value=124) as submit:
         with pytest.raises(RuntimeError) as error:
             run(client, '/data', workflow_id, canonical, heartbeat=heartbeat)
     assert error.value is failure
@@ -307,7 +307,7 @@ def test_non_completed_helper_job_warns_before_recovery(caplog):
     client, workflow_id, canonical, batch = client_fixture()
     with patch('biomero.remote_shallower.parse_batch_report',
                return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=124), \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=124), \
          patch('biomero.remote_shallower.wait_for_helper_job',
                side_effect=['FAILED', 'COMPLETED']), \
          caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
@@ -330,7 +330,7 @@ def test_rejected_submission_completes_task_with_empty_report(caplog):
         def to_dict(self):
             return {'result': self.fields['result']}
 
-    with patch.object(client, 'submit_job_once', return_value=None), \
+    with patch('biomero.remote_shallower._submit_helper_job', return_value=None), \
          patch('biomero_schema.shallower.ShallowBatchReport', FakeReport), \
          caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
         returned = run(client, '/data', workflow_id, canonical)
@@ -363,7 +363,7 @@ def test_resumed_task_and_completion_are_logged_at_info(caplog):
     client, workflow_id, canonical, batch = client_fixture(jobs=())
     with patch('biomero.remote_shallower.parse_batch_report',
                return_value=batch), \
-         patch.object(client, 'submit_job_once', return_value=123), \
+         patch('biomero.remote_shallower._submit_helper_job', return_value=123), \
          patch('biomero.remote_shallower.wait_for_helper_job',
                return_value='COMPLETED'), \
          caplog.at_level('INFO', logger='biomero.remote_shallower'):

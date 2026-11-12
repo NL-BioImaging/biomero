@@ -347,3 +347,13 @@ def test_interruptions_are_not_os_errors():
     assert issubclass(WorkflowCancelled, WorkflowInterrupted)
     assert not issubclass(WorkflowInterrupted, OSError)
     assert not issubclass(WorkflowCancelled, OSError)
+
+
+def test_workflow_is_finished_once_it_completed_or_failed(tracker):
+    running = tracker.initiate_workflow("wf", "", user=1, group=2)
+    completed = tracker.initiate_workflow("wf", "", user=1, group=2)
+    failed = tracker.initiate_workflow("wf", "", user=1, group=2)
+    tracker.complete_workflow(completed)
+    tracker.fail_workflow(failed, "broke")
+    assert [tracker.is_workflow_finished(w) for w in (running, completed, failed)] == [
+        False, True, True]

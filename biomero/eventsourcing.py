@@ -961,6 +961,20 @@ class WorkflowTracker(Application):
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return workflow.cancel_requested
 
+    def is_workflow_finished(self, workflow_id: UUID) -> bool:
+        """
+        Whether the workflow already completed or failed.
+
+        Args:
+            workflow_id (UUID): The workflow to check.
+
+        Returns:
+            bool: True once a WorkflowCompleted or WorkflowFailed event exists.
+        """
+        final_events = (WorkflowRun.WorkflowCompleted, WorkflowRun.WorkflowFailed)
+        return any(isinstance(domain_event, final_events)
+                   for domain_event in self.events.get(workflow_id))
+
     def raise_if_cancel_requested(self, workflow_id: UUID) -> None:
         """
         Stops the caller when a cancel was requested for the workflow. Call it

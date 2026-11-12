@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Iterable, List, Optional, Tuple, Any
 from uuid import UUID, uuid4
 from fabric import Connection, Result
 from fabric.transfer import Result as TransferResult
@@ -36,6 +36,7 @@ import shlex
 import socket
 import threading
 import warnings
+import weakref
 from biomero.constants import slurm_env, LOCK_FILE_PATTERN
 from biomero import ssh_recovery
 from biomero.eventsourcing import WorkflowTracker, NoOpWorkflowTracker
@@ -65,8 +66,8 @@ JOB_STATUS_RETRY_SECONDS = 3
 # on, a ``max-age`` sent by GitHub wins over these. Expired responses are
 # revalidated by ETag, which costs no rate-limit quota, and with
 # ``stale_if_error`` an expired one is served when GitHub fails (e.g. 429).
-GITHUB_CACHE_VERSIONED_SECONDS = 24 * 60 * 60
-GITHUB_CACHE_UNVERSIONED_SECONDS = 60 * 60
+GITHUB_CACHE_VERSIONED_FALLBACK_SECONDS = 24 * 60 * 60
+GITHUB_CACHE_UNVERSIONED_FALLBACK_SECONDS = 60 * 60
 # Image pulls keep one status folder per submission below this folder of the
 # Slurm script path, plus a ``latest`` pointer to the newest one.
 IMAGE_PULL_STATUS_DIR = "image-pulls"
@@ -123,7 +124,7 @@ class SlurmJob:
     SLURM_POLLING_INTERVAL = 10  # seconds
 
     def __init__(self,
-                 submit_result: Result,
+                 submit_result: Optional[Result],
                  job_id: int,
                  wf_id: UUID,
                  task_id: UUID,
@@ -133,7 +134,9 @@ class SlurmJob:
         Initialize a SlurmJob instance.
 
         Args:
-            submit_result (Result): The result of submitting the job.
+            submit_result (Optional[Result]): The result of submitting the
+                job; None for a job this process did not submit (see
+                ``from_job_id``), which is then not ``ok``.
             job_id (int): The Slurm job ID.
             wf_id (UUID): The workflow ID associated with this job.
             task_id (UUID): The task ID within the workflow.
@@ -152,21 +155,20 @@ class SlurmJob:
         self.slurm_polling_interval = slurm_polling_interval
         self.submit_result = submit_result
         self.log_file = log_file
-        self.ok = self.submit_result.ok
+        self.ok = self.submit_result is not None and self.submit_result.ok
         self.job_state = None
         self.progress = None
-        self.error_message = self.submit_result.stderr if hasattr(
-            self.submit_result, 'stderr') else ''
+        self.error_message = getattr(self.submit_result, 'stderr', '')
 
     @classmethod
     def from_job_id(cls, job_id, wf_id=None, task_id=None, **kwargs):
         """Monitor an already submitted job without submitting it again.
 
-        The successful synthetic Result denotes adoption, not job completion.
+        This process did not verify the submission, so the job is not ``ok``:
+        monitoring it with ``wait_for_completion`` is the way to find out.
         Submission reconciliation remains the caller's responsibility.
         """
-        return cls(Result(connection=None, exited=0), int(job_id),
-                   wf_id, task_id, **kwargs)
+        return cls(None, int(job_id), wf_id, task_id, **kwargs)
 
     @staticmethod
     def is_terminal(state):
@@ -200,53 +202,80 @@ class SlurmJob:
         Returns:
             str: The final state of the Slurm job.
         """
-        if omeroConn is not None:
-            warnings.warn(
-                "wait_for_completion(slurmClient, omeroConn) is deprecated; "
-                "pass heartbeat=omeroConn.keepAlive instead",
-                DeprecationWarning, stacklevel=2)
-            if heartbeat is None:
-                heartbeat = omeroConn.keepAlive
-        if heartbeat is not None and not callable(heartbeat):
-            raise TypeError('heartbeat must be callable')
+        heartbeat = self._resolve_heartbeat(omeroConn, heartbeat)
         with ssh_recovery.scope(slurmClient, heartbeat) as recovery:
             while not self.is_terminal(self.job_state):
                 if recovery is not None:
                     recovery.pulse()
                 elif heartbeat is not None:
                     heartbeat()
-                job_status_dict, poll_result = slurmClient.check_job_status(
-                    [self.job_id])
-                state = job_status_dict.get(self.job_id, 'UNKNOWN')
-                if strict_status and (
-                        poll_result is None or not poll_result.ok
-                        or state == 'UNKNOWN'):
-                    raise RuntimeError(
-                        f'Slurm job {self.job_id} state unavailable; '
-                        'retry monitoring to adopt the existing job')
-                if poll_result is None or not poll_result.ok:
-                    self.job_state = "FAILED"
-                    self.error_message = getattr(poll_result, 'stderr', '')
-                    logger.warning(f'Error checking job status: {self.error_message}')
-                else:
-                    self.job_state = state
-                if track_progress:
-                    self.progress = slurmClient.get_active_job_progress(self.job_id)
-                if update_task:
-                    slurmClient.workflowTracker.update_task_status(
-                        self.task_id, self.job_state)
-                    if track_progress:
-                        slurmClient.workflowTracker.update_task_progress(
-                            self.task_id, self.progress)
+                self._poll_state(slurmClient, strict_status)
+                self._publish_progress(
+                    slurmClient, track_progress, update_task)
                 if not self.is_terminal(self.job_state):
                     timesleep.sleep(self.slurm_polling_interval)
+        self._log_finished(track_progress)
+        return self.job_state
+
+    @staticmethod
+    def _resolve_heartbeat(omeroConn, heartbeat):
+        """Return the heartbeat to use, adapting the deprecated connection.
+
+        Raises:
+            TypeError: If the heartbeat is not callable.
+        """
+        if omeroConn is not None:
+            warnings.warn(
+                "wait_for_completion(slurmClient, omeroConn) is deprecated; "
+                "pass heartbeat=omeroConn.keepAlive instead",
+                DeprecationWarning, stacklevel=3)
+            if heartbeat is None:
+                heartbeat = omeroConn.keepAlive
+        if heartbeat is not None and not callable(heartbeat):
+            raise TypeError('heartbeat must be callable')
+        return heartbeat
+
+    def _poll_state(self, slurmClient, strict_status: bool):
+        """Ask Slurm for the job state and record it as ``job_state``.
+
+        Raises:
+            RuntimeError: If ``strict_status`` and the state is unavailable.
+        """
+        job_status_dict, poll_result = slurmClient.check_job_status(
+            [self.job_id])
+        state = job_status_dict.get(self.job_id, 'UNKNOWN')
+        status_unavailable = (poll_result is None or not poll_result.ok)
+        if strict_status and (status_unavailable or state == 'UNKNOWN'):
+            raise RuntimeError(
+                f'Slurm job {self.job_id} state unavailable; '
+                'retry monitoring to adopt the existing job')
+        if status_unavailable:
+            self.job_state = "FAILED"
+            self.error_message = getattr(poll_result, 'stderr', '')
+            logger.warning(f'Error checking job status: {self.error_message}')
+        else:
+            self.job_state = state
+
+    def _publish_progress(self, slurmClient, track_progress: bool,
+                          update_task: bool):
+        """Read the analysis progress and publish state and progress."""
+        if track_progress:
+            self.progress = slurmClient.get_active_job_progress(self.job_id)
+        if update_task:
+            slurmClient.workflowTracker.update_task_status(
+                self.task_id, self.job_state)
+            if track_progress:
+                slurmClient.workflowTracker.update_task_progress(
+                    self.task_id, self.progress)
+
+    def _log_finished(self, track_progress: bool):
+        """Log how the job ended and where to find its log."""
         logger.info(f"Job {self.job_id} finished: {self.job_state}")
         if self.log_file:
             logger.info(f'Slurm output: {self.log_file}')
         elif track_progress:
             logger.info(
                 f"You can get the logfile using `Slurm Get Update` on job {self.job_id}")
-        return self.job_state
 
     def cleanup(self, slurmClient) -> Result:
         """
@@ -417,10 +446,12 @@ class SlurmClient(Connection):
         ("SLURM", "remote_shallower_time"): [
             slurm_env.BIOMERO_REMOTE_SHALLOWER_TIME],
     }
-    # Number of clients inside a ``with`` block, to dispose the database
-    # engine only when the last one exits.
-    _active_contexts = 0
-    _active_contexts_lock = threading.Lock()
+    # The clients that acquired the database engine, by ``id`` (Connection
+    # equality is by host, so equal-looking clients must stay distinct). The
+    # engine is disposed when the last one exits; a client that is garbage
+    # collected without exiting drops out by itself.
+    _engine_holders = weakref.WeakValueDictionary()
+    _engine_holders_lock = threading.Lock()
     _OUT_SEP = "--split--"
     _VERSION_CMD = "ls -h \"{slurm_images_path}/{image_path}\" | grep -oP '(?<=\\-|\\_)(v.+|latest)(?=.simg|.sif)'"
     _CONVERTER_VERSION_CMD = "ls -h \"{converter_path}\" | grep -oP '(convert_.+)(?=.simg|.sif)' | awk '{{n=split($0, a, \"_\"); last=a[n]; sub(\"_\"last\"$\", \"\", $0); print $0, last}}'"
@@ -480,6 +511,9 @@ class SlurmClient(Connection):
         return (cls.get_authoritative_config_path()
                 or os.path.expanduser(cls._DEFAULT_CONFIG_PATH_3))
 
+    # The file sets whose reading was already logged at INFO.
+    _logged_config_sources = set()
+
     @classmethod
     def load_config(cls, configfile: str = '') -> configparser.ConfigParser:
         """Load BIOMERO configuration using the effective path policy.
@@ -489,8 +523,14 @@ class SlurmClient(Connection):
         """
         configs = configparser.ConfigParser(allow_no_value=True)
         paths_read = configs.read(cls.get_config_paths(configfile))
-        logger.info(f"Read BIOMERO configuration from "
-                    f"{', '.join(paths_read) or 'no file'}")
+        # Every client creation loads the configuration: log the files at INFO
+        # the first time only.
+        sources = tuple(paths_read)
+        level = (logging.DEBUG if sources in cls._logged_config_sources
+                 else logging.INFO)
+        cls._logged_config_sources.add(sources)
+        logger.log(level, f"Read BIOMERO configuration from "
+                          f"{', '.join(paths_read) or 'no file'}")
         authoritative_path = cls.get_authoritative_config_path()
         if authoritative_path:
             if configfile:
@@ -981,7 +1021,10 @@ class SlurmClient(Connection):
             self.enable_workflow_analytics = enable_workflow_analytics
 
             # Initialize the analytics system
-            self.sqlalchemy_url = sqlalchemy_url
+            # from_config resolved ini and environment; a directly constructed
+            # client without a URL falls back to the environment variable.
+            self.sqlalchemy_url = (
+                sqlalchemy_url or os.getenv(slurm_env.SQLALCHEMY_URL))
             self.initialize_analytics_system(reset_tables=init_slurm)
         else:
             logger.warning("Setup SlurmClient for config only")
@@ -1001,46 +1044,57 @@ class SlurmClient(Connection):
             return ""
         return " ".join(env_parts) + " "
 
-    def get_job_params(self, overrides=None, *, excluded=(),
-                       base_params=()) -> List[str]:
+    def get_job_params(self,
+                       overrides: Optional[Dict[str, Any]] = None, *,
+                       excluded: Iterable[str] = (),
+                       base_params: Iterable[str] = ()) -> List[str]:
         """Merge job resources, the default partition and global sbatch flags.
 
         The one place that combines these sources, for workflow, conversion,
-        image-pull and helper jobs. A flag is taken from the first source
-        that sets it: ``base_params``, nonempty ``overrides``, the
-        ``slurm_default_partition`` (partition only), then the global
-        ``sbatch_*`` settings.
+        image-pull and helper jobs. For each flag the first source that sets
+        it wins: ``base_params``, ``overrides``, then the default partition
+        (``--partition`` only, when ``overrides`` has no partition), then the
+        global ``sbatch_*`` settings. The source of every flag is logged at
+        DEBUG.
 
         Args:
             overrides (Optional[Dict[str, Any]]): Job-specific resources by
                 sbatch flag name without the dashes, e.g.
-                ``{'cpus-per-task': 4}``. Empty values are skipped.
+                ``{'cpus-per-task': 4}``. None and empty values are skipped.
             excluded (Iterable[str]): Flag names (without ``--``) that global
-                settings must not add, because the caller owns them.
+                ``sbatch_*`` settings must not add, because the caller owns
+                them.
             base_params (Iterable[str]): ``--flag=value`` parameters already
                 chosen by a more specific source, such as per-workflow ones.
-                Kept first and unchanged.
+                Surrounding whitespace is stripped; they come first.
 
         Returns:
             List[str]: ``--flag=value`` parameters, in the shell syntax the
                 administrator configured.
         """
         overrides = dict(overrides or {})
+        partition_source = "overrides"
         if not overrides.get('partition'):
             overrides['partition'] = self.slurm_default_partition
+            partition_source = "slurm_default_partition"
         params = [param.strip() for param in base_params]
         present = {param.split('=', 1)[0] for param in params}
+        for param in params:
+            logger.debug(f"Job param {param} from base_params")
         for flag, value in overrides.items():
             if value in (None, '') or f'--{flag}' in present:
                 continue
             params.append(f'--{flag}={value}')
             present.add(f'--{flag}')
+            source = partition_source if flag == 'partition' else "overrides"
+            logger.debug(f"Job param --{flag}={value} from {source}")
         for raw in self.slurm_global_job_params:
             param = raw.strip()
             flag = param.split('=', 1)[0]
             if flag not in present and flag.removeprefix('--') not in excluded:
                 params.append(param)
                 present.add(flag)
+                logger.debug(f"Job param {param} from global sbatch settings")
         return params
 
     @staticmethod
@@ -1169,10 +1223,7 @@ class SlurmClient(Connection):
             raise NotImplementedError(
                 f"Can't handle {persistence_module}. Currently only supports 'eventsourcing_sqlalchemy' as PERSISTENCE_MODULE")
 
-        # Constructed directly (not via from_config), the environment variable
-        # is the fallback for a missing URL.
-        sqlalchemy_url = (self.sqlalchemy_url
-                          or os.getenv(slurm_env.SQLALCHEMY_URL))
+        sqlalchemy_url = self.sqlalchemy_url
         if not sqlalchemy_url:
             raise ValueError(
                 "SQLALCHEMY_URL must be set either in init, config ('sqlalchemy_url') or as an environment variable.")
@@ -1201,6 +1252,7 @@ class SlurmClient(Connection):
             system = System(pipes=pipes)
             scoped_session_topic = EngineManager.create_scoped_session(
                 sqlalchemy_url=sqlalchemy_url)
+            self._hold_engine()
             runner = SingleThreadedRunner(system, env={
                 'SQLALCHEMY_SCOPED_SESSION_TOPIC': scoped_session_topic,
                 'PERSISTENCE_MODULE': persistence_module})
@@ -1356,29 +1408,35 @@ class SlurmClient(Connection):
                     logger.warning(
                         f"Database conflict in bring_listener_uptodate (non-unique): {e}")
 
-    def __enter__(self):
-        with SlurmClient._active_contexts_lock:
-            SlurmClient._active_contexts += 1
-        return super().__enter__()
+    def _hold_engine(self):
+        """Register this client as a user of the database engine."""
+        with SlurmClient._engine_holders_lock:
+            SlurmClient._engine_holders[id(self)] = self
+
+    def _release_engine(self):
+        """Release the database engine of this client.
+
+        The engine is disposed with the last client that holds it; while
+        others hold it (the workflow supervisor runs several), only this
+        thread's session is removed. Deciding and disposing happen under one
+        lock, so a client created meanwhile is never left without an engine.
+        """
+        with SlurmClient._engine_holders_lock:
+            SlurmClient._engine_holders.pop(id(self), None)
+            if SlurmClient._engine_holders:
+                logger.debug("Other SlurmClients hold the database engine; "
+                             "releasing only this thread's session")
+                EngineManager.remove_session()
+            else:
+                EngineManager.close_engine()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Ensure to call the parent class's __exit__
-        # to clean up Connection resources
-        super().__exit__(exc_type, exc_val, exc_tb)
-        # Cleanup resources specific to SlurmClient: dispose the database
-        # engine with the last client that is still open. A long-lived process
-        # (the workflow supervisor) runs several clients alongside each other;
-        # while others are open, only this thread's session is released.
-        with SlurmClient._active_contexts_lock:
-            SlurmClient._active_contexts -= 1
-            other_clients_open = SlurmClient._active_contexts > 0
-        if other_clients_open:
-            logger.debug("Other SlurmClients are open; keeping the database "
-                         "engine, releasing this thread's session")
-            EngineManager.remove_session()
-        else:
-            EngineManager.close_engine()
-        # If we have any other resources to close or cleanup, do it here
+        # Clean up the Connection resources, then release the database
+        # engine even when that fails.
+        try:
+            super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self._release_engine()
 
     def init_workflows(self, force_update: bool = False):
         """
@@ -1513,10 +1571,6 @@ class SlurmClient(Connection):
             (ready if result.strip() == "READY" else pending).append(spec)
         return ready, pending
 
-    def _put_text(self, text: str, remote_path: str):
-        """Write ``text`` to ``remote_path`` on the cluster."""
-        self.put(io.StringIO(text), remote_path)
-
     def _publish_ready_images(self, ready: List[Dict[str, str]],
                               status_dir: str):
         """Record the images that already exist as READY in the status folder."""
@@ -1526,8 +1580,8 @@ class SlurmClient(Connection):
             self._image_status_record(
                 spec, "READY", "0", "existing SIF validated")
             for spec in ready)
-        self._put_text(ready_status,
-                       posixpath.join(status_dir, "existing.status"))
+        self.put(io.StringIO(ready_status),
+                 posixpath.join(status_dir, "existing.status"))
 
     def _stage_image_pull_files(self, pending: List[Dict[str, str]],
                                 status_dir: str) -> Tuple[str, str]:
@@ -1537,15 +1591,15 @@ class SlurmClient(Connection):
             Tuple[str, str]: The remote script path and manifest path.
         """
         manifest_path = posixpath.join(status_dir, "manifest.tsv")
-        self._put_text(self._render_image_manifest(pending), manifest_path)
+        self.put(io.StringIO(self._render_image_manifest(pending)),
+                 manifest_path)
         script_path = posixpath.join(self.slurm_script_path, "pull_images.sh")
         template_script = files("resources").joinpath("pull_images.sh")
         with template_script.open("r") as source_file:
-            self._put_text(source_file.read(), script_path)
+            self.put(io.StringIO(source_file.read()), script_path)
         for index, spec in enumerate(pending):
-            self._put_text(
-                self._image_status_record(
-                    spec, "RUNNING", "", "submitted; waiting for array task"),
+            self.put(io.StringIO(self._image_status_record(
+                spec, "RUNNING", "", "submitted; waiting for array task")),
                 posixpath.join(status_dir, f"status-{index}.status"))
         return script_path, manifest_path
 
@@ -1601,9 +1655,10 @@ class SlurmClient(Connection):
         Raises:
             SSHException: If the pointer cannot be replaced.
         """
-        self._put_text(metadata, posixpath.join(status_dir, "submission.meta"))
+        self.put(io.StringIO(metadata),
+                 posixpath.join(status_dir, "submission.meta"))
         latest_tmp = posixpath.join(status_root, f"latest.tmp.{submission_id}")
-        self._put_text(status_dir + "\n", latest_tmp)
+        self.put(io.StringIO(status_dir + "\n"), latest_tmp)
         result = self.run_commands([
             f"mv {shlex.quote(latest_tmp)} "
             f"{shlex.quote(posixpath.join(status_root, 'latest'))}"])
@@ -1613,19 +1668,24 @@ class SlurmClient(Connection):
     def _prune_image_pull_status(self, status_root: str, status_dir: str):
         """Remove the status folders of submissions older than the retention.
 
-        The folder of the current submission is never removed. A failure to
-        clean up is logged and does not fail the submission.
+        The folder of the current submission is never removed. This is best
+        effort after a successful submission: a failure, including a lost
+        connection, is logged as a warning and does not fail it.
         """
         logger.info(f"Removing image pull status folders in {status_root} "
                     f"older than {IMAGE_PULL_STATUS_RETENTION_DAYS} days")
-        result = self.run_commands([
-            f"find {shlex.quote(status_root)} -mindepth 1 -maxdepth 1 "
-            f"-type d -mtime +{IMAGE_PULL_STATUS_RETENTION_DAYS} "
-            f"! -path {shlex.quote(status_dir)} -exec rm -rf {{}} +"],
-            warn=True)
-        if not result.ok:
+        try:
+            result = self.run_commands([
+                f"find {shlex.quote(status_root)} -mindepth 1 -maxdepth 1 "
+                f"-type d -mtime +{IMAGE_PULL_STATUS_RETENTION_DAYS} "
+                f"! -path {shlex.quote(status_dir)} -exec rm -rf {{}} +"],
+                warn=True)
+            failure = None if result.ok else result.stderr
+        except Exception as error:
+            failure = error
+        if failure is not None:
             logger.warning(f"Could not remove old image pull status folders "
-                           f"in {status_root}: {result.stderr}")
+                           f"in {status_root}: {failure}")
 
     def _submit_image_pull_array(
             self, specs: List[Dict[str, str]]) -> Optional[int]:
@@ -2321,22 +2381,17 @@ class SlurmClient(Connection):
         except configparser.NoSectionError:
             converter_images = None  # Section does not exist
 
-        # Read the analytics section, if available
-        try:
-            track_workflows = configs.getboolean(
-                'ANALYTICS', 'track_workflows', fallback=True)
-            enable_job_accounting = configs.getboolean(
-                'ANALYTICS', 'enable_job_accounting', fallback=True)
-            enable_job_progress = configs.getboolean(
-                'ANALYTICS', 'enable_job_progress', fallback=True)
-            enable_workflow_analytics = configs.getboolean(
-                'ANALYTICS', 'enable_workflow_analytics', fallback=True)
-        except configparser.NoSectionError:
-            # If the ANALYTICS section is missing, fallback to default values
-            track_workflows = True
-            enable_job_accounting = True
-            enable_job_progress = True
-            enable_workflow_analytics = True
+        # Analytics settings: a missing section or option leaves them on.
+        analytics_flags = {
+            option: cls._get_config_value(
+                configs, section="ANALYTICS", option=option, default=True,
+                value_type=bool)
+            for option in ("track_workflows", "enable_job_accounting",
+                           "enable_job_progress", "enable_workflow_analytics")}
+        track_workflows = analytics_flags["track_workflows"]
+        enable_job_accounting = analytics_flags["enable_job_accounting"]
+        enable_job_progress = analytics_flags["enable_job_progress"]
+        enable_workflow_analytics = analytics_flags["enable_workflow_analytics"]
         # The only place that reads sqlalchemy_url: ini value, then the
         # SQLALCHEMY_URL environment variable. The environment variable also
         # works without an ANALYTICS section.
@@ -2571,8 +2626,8 @@ class SlurmClient(Connection):
                         try:
                             sock.setsockopt(socket.IPPROTO_TCP, option, value)
                         except OSError:
-                            logger.debug('TCP keepalive option unavailable: %s',
-                                         name)
+                            logger.debug(
+                                f'TCP keepalive option unavailable: {name}')
         return result
 
     @ssh_recovery.read_only
@@ -3145,7 +3200,7 @@ class SlurmClient(Connection):
                     raise RuntimeError(
                         'Recorded submission is ambiguous or failed; reconcile first')
                 job_id = job_ids.pop()
-                logger.info('Adopting recorded Slurm job %s', job_id)
+                logger.info(f'Adopting recorded Slurm job {job_id}')
                 return Result(connection=self, exited=0,
                               stdout=f'Submitted batch job {job_id}\n')
             return ssh_recovery.submit(self, command, env, task_id)
@@ -3493,9 +3548,10 @@ class SlurmClient(Connection):
                     result_dict[job_id] = job_status_dict.get(
                         job_id, 'PENDING')
                 return result_dict, result
-            logger.debug(f"Retry {retry_status} getting status of "
+            logger.debug(f"Attempt {retry_status} getting status of "
                          f"{valid_job_ids}: sacct returned no job rows")
-            timesleep.sleep(JOB_STATUS_RETRY_SECONDS)
+            if retry_status < JOB_STATUS_EMPTY_RETRIES:
+                timesleep.sleep(JOB_STATUS_RETRY_SECONDS)
 
         # No rows at all is not a state: a job that left the accounting (or a
         # wrong ID) would otherwise be polled forever.
@@ -3832,9 +3888,9 @@ class SlurmClient(Connection):
         s = requests_cache.CachedSession(backend=self.cache,
                                          urls_expire_after={
                                              # Versioned tree URLs are immutable.
-                                             '*/tree/v*': GITHUB_CACHE_VERSIONED_SECONDS,
+                                             '*/tree/v*': GITHUB_CACHE_VERSIONED_FALLBACK_SECONDS,
                                              # Everything else (unversioned, master, etc.).
-                                             '*': GITHUB_CACHE_UNVERSIONED_SECONDS,
+                                             '*': GITHUB_CACHE_UNVERSIONED_FALLBACK_SECONDS,
                                          },
                                          cache_control=True,
                                          stale_if_error=True,
@@ -4236,6 +4292,33 @@ class SlurmClient(Connection):
             return False
         return posixpath.basename(executable) == "zip"
 
+    @staticmethod
+    def _guard_partial_match(unzip_args: str, extract_dir: str) -> str:
+        """Wrap an Info-ZIP extraction that filters, so only a real one succeeds.
+
+        Info-ZIP exits with 11 when any one filter matched nothing, also when
+        the others extracted files (a result without Zarr but with TIFF).
+        Exit 11 counts as success only if this run created or changed files in
+        ``extract_dir``: a marker file taken before extraction is compared
+        with the change time (``-cnewer``) of what is there, so a re-run into
+        a non-empty directory cannot pass on the files of an earlier run.
+        Any other non-zero exit is a failure.
+
+        Args:
+            unzip_args (str): The complete ``unzip`` command.
+            extract_dir (str): The directory it extracts into.
+
+        Returns:
+            str: A command whose exit status is the extraction's outcome.
+        """
+        return (
+            f"marker=$(mktemp) && ({unzip_args}; unzip_status=$?; "
+            "[ $unzip_status -eq 0 ] || { [ $unzip_status -eq 11 ] && "
+            f"[ -n \"$(find \"{extract_dir}\" -mindepth 1 -cnewer "
+            "\"$marker\" -print -quit)\" ]; }; "
+            "extraction_status=$?; rm -f \"$marker\"; "
+            "exit $extraction_status)")
+
     def _get_infozip_unzip_command(self) -> str:
         """Resolve unzip next to an explicitly pathed Info-ZIP executable."""
         executable = shlex.split(self.slurm_zip_cmd)[0]
@@ -4372,24 +4455,18 @@ class SlurmClient(Connection):
             unzip_cmd = self._get_infozip_unzip_command()
             filter_args = self._get_infozip_filter_args(filter_filetypes)
             extract_dir = f"{self.slurm_data_path}/{zipfile}/data/in"
-            # Info-ZIP exits with 11 when any one filter matched nothing,
-            # also when the others extracted files (a result without Zarr
-            # but with TIFF). Accept 11 only if something was extracted.
-            accept_partial_match = (
-                f" || {{ [ $? -eq 11 ] && "
-                f"[ -n \"$(ls -A \"{extract_dir}\")\" ]; }}"
-                if filter_args else "")
+            unzip_args = (
+                f"{unzip_cmd} -o"
+                f" \"{self.slurm_data_path}/{zipfile}.zip\""
+                f"{filter_args}"
+                f" -d \"{extract_dir}\"")
             return (
                 f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""
                 f" \"{self.slurm_data_path}/{zipfile}/data\""
                 f" \"{extract_dir}\""
                 f" \"{self.slurm_data_path}/{zipfile}/data/out\""
                 f" \"{self.slurm_data_path}/{zipfile}/data/gt\";"
-                f" {unzip_cmd} -o"
-                f" \"{self.slurm_data_path}/{zipfile}.zip\""
-                f"{filter_args}"
-                f" -d \"{extract_dir}\""
-                f"{accept_partial_match}"
+                f" {self._guard_partial_match(unzip_args, extract_dir) if filter_args else unzip_args}"
             )
         unzip_cmd = (
             f"mkdir -p \"{self.slurm_data_path}/{zipfile}\""

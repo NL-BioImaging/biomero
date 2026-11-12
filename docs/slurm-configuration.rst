@@ -264,6 +264,10 @@ Impact:
   ``sbatch_cpus-per-task`` and ``sbatch_mem`` respectively. When neither level
   is configured, Slurm uses its scheduler defaults; SquashFS falls back to one
   worker if the allocation does not expose ``SLURM_CPUS_PER_TASK``.
+* Every submission writes its status files and job logs to its own folder under
+  ``<slurm_script_path>/image-pulls``. After submitting, BIOMERO removes the
+  folders of earlier submissions that are older than seven days (never the
+  current one); if that cleanup fails it only logs a warning.
 * The compatibility default concurrency is ``1``; ``2`` to ``4`` is recommended
   to limit metadata and I/O pressure on shared storage.
 * Each compute task auto-detects ``apptainer`` first and then ``singularity``.

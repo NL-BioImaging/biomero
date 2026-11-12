@@ -1,5 +1,9 @@
 import configparser
+import gc
+import io
+import weakref
 from inspect import signature
+from types import SimpleNamespace
 import logging
 import json
 import shutil
@@ -7,8 +11,13 @@ import subprocess
 from uuid import uuid4
 from uuid import UUID
 from biomero.slurm_client import (
-    SlurmClient, JOB_STATUS_EMPTY_RETRIES, IMAGE_PULL_STATUS_RETENTION_DAYS
+    SlurmClient, SlurmJob, JOB_STATUS_EMPTY_RETRIES,
+    IMAGE_PULL_STATUS_RETENTION_DAYS, GITHUB_CACHE_VERSIONED_FALLBACK_SECONDS,
+    GITHUB_CACHE_UNVERSIONED_FALLBACK_SECONDS
 )
+from requests import Response
+from requests.adapters import BaseAdapter
+from urllib3 import HTTPResponse
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
 from biomero.schema_parsers import DescriptorParserFactory
@@ -391,17 +400,18 @@ def test_get_unzip_command_infozip(slurm_client, zip_cmd, unzip_cmd):
 
     cmd = slurm_client.get_unzip_command("batch1", "*.tif *.zarr")
 
-    assert cmd == (
+    assert cmd.startswith(
         'mkdir -p "/data/batch1"'
         ' "/data/batch1/data"'
         ' "/data/batch1/data/in"'
         ' "/data/batch1/data/out"'
         ' "/data/batch1/data/gt";'
-        f' {unzip_cmd} -o "/data/batch1.zip"'
+        ' marker=$(mktemp) && ('
+        f'{unzip_cmd} -o "/data/batch1.zip"'
         " '*.tif' '*.zarr/*'"
-        ' -d "/data/batch1/data/in"'
-        ' || { [ $? -eq 11 ] && [ -n "$(ls -A "/data/batch1/data/in")" ]; }'
-    )
+        ' -d "/data/batch1/data/in"; unzip_status=$?;')
+    assert '-cnewer "$marker"' in cmd
+    assert cmd.endswith('exit $extraction_status)')
 
 
 def test_get_unzip_command_infozip_without_filter(slurm_client):
@@ -414,6 +424,7 @@ def test_get_unzip_command_infozip_without_filter(slurm_client):
     assert cmd.endswith(
         'unzip -o "/data/batch1.zip" -d "/data/batch1/data/in"'
     )
+    assert "marker" not in cmd
 
 
 def test_get_unzip_command_infozip_default_filters(slurm_client):
@@ -426,8 +437,7 @@ def test_get_unzip_command_infozip_default_filters(slurm_client):
     assert "'*.zarr/*'" in cmd
     assert "'*.zarr'" not in cmd
     assert "*.ome.zarr" not in cmd
-    assert cmd.endswith(
-        ' || { [ $? -eq 11 ] && [ -n "$(ls -A "/data/batch1/data/in")" ]; }')
+    assert '-cnewer "$marker"' in cmd
 
 
 @patch.object(SlurmClient, 'get')
@@ -5482,10 +5492,15 @@ def test_check_job_status_without_valid_job_ids_runs_nothing(slurm_client):
 # Info-ZIP extraction must not report an empty extraction as success
 # ---------------------------------------------------------------------------
 
-def _run_unzip_command(tmp_path, unzip_exit, extracted_file):
+def _run_unzip_command(tmp_path, unzip_exit, extracted_file,
+                       existing_file=None):
     """Run the real extraction command with a stand-in ``unzip``."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    if existing_file:
+        extract_dir = tmp_path / "data" / "batch" / "data" / "in"
+        extract_dir.mkdir(parents=True)
+        (extract_dir / existing_file).write_text("from an earlier run")
     fake_unzip = bin_dir / "unzip"
     touch_extracted = (
         f'touch "$dest/{extracted_file}"\n' if extracted_file else "")
@@ -5493,6 +5508,7 @@ def _run_unzip_command(tmp_path, unzip_exit, extracted_file):
         "#!/bin/bash\n"
         "dest=''\n"
         'while [ $# -gt 0 ]; do [ "$1" = -d ] && dest=$2; shift; done\n'
+        "sleep 0.1\n"
         f"{touch_extracted}"
         f"exit {unzip_exit}\n")
     fake_unzip.chmod(0o755)
@@ -5507,17 +5523,22 @@ def _run_unzip_command(tmp_path, unzip_exit, extracted_file):
 
 @pytest.mark.skipif(os.name != 'posix' or not shutil.which('bash'),
                     reason='requires POSIX Bash')
-@pytest.mark.parametrize("unzip_exit,extracted_file,succeeds", [
-    (0, "image.tiff", True),
+@pytest.mark.parametrize("unzip_exit,extracted_file,existing_file,succeeds", [
+    (0, "image.tiff", None, True),
     # One filter (no Zarr in this result) matched nothing: still extracted.
-    (11, "image.tiff", True),
+    (11, "image.tiff", None, True),
     # Nothing matched at all: that is not a successful extraction.
-    (11, None, False),
-    (1, "image.tiff", False),
+    (11, None, None, False),
+    (1, "image.tiff", None, False),
+    # A re-run into a directory that holds files of an earlier run: only
+    # what this run extracted counts.
+    (11, None, "earlier.tiff", False),
+    (11, "image.tiff", "earlier.tiff", True),
 ])
 def test_infozip_extraction_succeeds_only_when_files_were_extracted(
-        tmp_path, unzip_exit, extracted_file, succeeds):
-    result = _run_unzip_command(tmp_path, unzip_exit, extracted_file)
+        tmp_path, unzip_exit, extracted_file, existing_file, succeeds):
+    result = _run_unzip_command(tmp_path, unzip_exit, extracted_file,
+                                existing_file)
 
     assert (result.returncode == 0) is succeeds, result.stderr
 
@@ -5652,26 +5673,239 @@ def test_config_load_logs_the_files_it_read(monkeypatch, tmp_path, caplog):
 
 
 # ---------------------------------------------------------------------------
-# Teardown disposes the database engine, unless other clients still use it
+# Teardown disposes the database engine with the last client that holds it
 # ---------------------------------------------------------------------------
 
-def test_exit_disposes_the_database_engine_of_the_last_client(slurm_client):
+@pytest.fixture
+def engine_holders(monkeypatch):
+    """An empty registry of engine holders, and spies on the teardown."""
+    monkeypatch.setattr(SlurmClient, "_engine_holders",
+                        weakref.WeakValueDictionary())
     with patch.object(EngineManager, "close_engine") as close_engine, \
             patch.object(EngineManager, "remove_session") as remove_session:
-        with slurm_client:
+        yield SimpleNamespace(close_engine=close_engine,
+                              remove_session=remove_session)
+
+
+def _client_holding_the_engine():
+    client = SlurmClient(config_only=True)
+    client._hold_engine()
+    return client
+
+
+def test_exit_disposes_the_database_engine_of_the_last_client(engine_holders):
+    client = _client_holding_the_engine()
+
+    with client:
+        pass
+
+    engine_holders.close_engine.assert_called_once_with()
+    engine_holders.remove_session.assert_not_called()
+
+
+def test_exit_keeps_the_engine_of_a_client_that_is_not_entered_yet(
+        engine_holders):
+    """B is constructed but not entered while A exits: B keeps its engine."""
+    client_a = _client_holding_the_engine()
+    client_b = _client_holding_the_engine()  # same host: equal to client_a
+
+    with client_a:
+        pass
+
+    engine_holders.close_engine.assert_not_called()
+    engine_holders.remove_session.assert_called_once_with()
+    with client_b:
+        pass
+    engine_holders.close_engine.assert_called_once_with()
+
+
+def test_nested_clients_dispose_the_engine_once_at_the_outermost_exit(
+        engine_holders):
+    outer, inner = _client_holding_the_engine(), _client_holding_the_engine()
+
+    with outer:
+        with inner:
             pass
+        engine_holders.close_engine.assert_not_called()
 
-    close_engine.assert_called_once_with()
-    remove_session.assert_not_called()
+    engine_holders.close_engine.assert_called_once_with()
 
 
-def test_exit_keeps_the_engine_while_another_client_is_open(slurm_client):
-    other_client = SlurmClient(config_only=True)
-    with patch.object(EngineManager, "close_engine") as close_engine, \
-            patch.object(EngineManager, "remove_session") as remove_session:
-        with other_client:
-            with slurm_client:
-                pass
-            close_engine.assert_not_called()
-            remove_session.assert_called_once_with()
-        close_engine.assert_called_once_with()
+def test_engine_is_released_when_the_parent_exit_raises(engine_holders):
+    client = _client_holding_the_engine()
+
+    with patch("biomero.slurm_client.Connection.__exit__",
+               side_effect=OSError("close failed")):
+        with pytest.raises(OSError, match="close failed"):
+            client.__exit__(None, None, None)
+
+    engine_holders.close_engine.assert_called_once_with()
+
+
+def test_exiting_twice_never_counts_below_zero(engine_holders):
+    client = _client_holding_the_engine()
+    other = _client_holding_the_engine()
+
+    client.__exit__(None, None, None)
+    client.__exit__(None, None, None)
+
+    engine_holders.close_engine.assert_not_called()
+    other.__exit__(None, None, None)
+    engine_holders.close_engine.assert_called_once_with()
+
+
+def test_a_client_that_never_exits_does_not_keep_the_engine_forever(
+        engine_holders):
+    forgotten = _client_holding_the_engine()
+    del forgotten
+    gc.collect()
+    client = _client_holding_the_engine()
+
+    client.__exit__(None, None, None)
+
+    engine_holders.close_engine.assert_called_once_with()
+
+
+def test_initializing_analytics_registers_the_client_as_engine_holder(
+        slurm_client, engine_holders):
+    slurm_client.sqlalchemy_url = "sqlite:///test.db"
+    slurm_client.track_workflows = True
+    slurm_client.setup_listeners = MagicMock()
+
+    with patch.object(EngineManager, "create_scoped_session",
+                      return_value="topic"), \
+            patch("biomero.slurm_client.SingleThreadedRunner"):
+        slurm_client.initialize_analytics_system()
+
+    assert SlurmClient._engine_holders[id(slurm_client)] is slurm_client
+
+
+# ---------------------------------------------------------------------------
+# Config readers, job object, cache and other follow-ups of the review
+# ---------------------------------------------------------------------------
+
+def test_analytics_flags_use_the_one_boolean_parser(
+        monkeypatch, tmp_path):
+    """Missing section, option or an empty value leave the flags on."""
+    config_file = tmp_path / "analytics.ini"
+    config_file.write_text(
+        "[ANALYTICS]\ntrack_workflows = false\nenable_job_progress =\n")
+    monkeypatch.setenv("BIOMERO_SLURM_CONFIG_FILE", str(config_file))
+    monkeypatch.setenv("SQLALCHEMY_URL", "sqlite:///test.db")
+
+    with patch.object(SlurmClient, "__init__", return_value=None) as init:
+        SlurmClient.from_config(config_only=True)
+
+    kwargs = init.call_args.kwargs
+    assert kwargs["track_workflows"] is False
+    assert kwargs["enable_job_progress"] is True
+    assert kwargs["enable_job_accounting"] is True
+    assert kwargs["enable_workflow_analytics"] is True
+
+
+def test_directly_constructed_client_falls_back_to_the_environment_url(
+        monkeypatch):
+    monkeypatch.setenv("SQLALCHEMY_URL", "sqlite:///from-env.db")
+    with patch.object(SlurmClient, "initialize_analytics_system"),             patch.object(SlurmClient, "validate"):
+        client = SlurmClient("localhost", 8022, "slurm")
+
+    assert client.sqlalchemy_url == "sqlite:///from-env.db"
+
+
+def test_adopted_job_is_not_ok_until_monitored():
+    job = SlurmJob.from_job_id(7)
+
+    assert job.ok is False
+    assert job.get_error() == ""
+
+
+@patch('biomero.slurm_client.timesleep')
+def test_check_job_status_does_not_sleep_after_the_last_attempt(
+        mock_sleep, slurm_client):
+    slurm_client.run_commands_read_only = MagicMock(
+        return_value=MagicMock(ok=True, stdout=""))
+
+    with pytest.raises(SSHException):
+        slurm_client.check_job_status([42])
+
+    assert mock_sleep.sleep.call_count == JOB_STATUS_EMPTY_RETRIES - 1
+
+
+def test_image_pull_prune_connection_error_only_warns(slurm_client, caplog):
+    slurm_client.run_commands = MagicMock(
+        side_effect=SSHException("connection lost"))
+
+    slurm_client._prune_image_pull_status("/root", "/root/current")
+
+    assert any("connection lost" in r.getMessage()
+               and r.levelno == logging.WARNING for r in caplog.records)
+
+
+def test_get_job_params_logs_the_source_of_each_flag(slurm_client, caplog):
+    slurm_client.slurm_default_partition = "fallback"
+    slurm_client.slurm_global_job_params = [" --account=project"]
+    caplog.set_level(logging.DEBUG, logger="biomero.slurm_client")
+
+    slurm_client.get_job_params({"mem": "1G"}, base_params=[" --qos=low"])
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert "Job param --qos=low from base_params" in messages
+    assert "Job param --mem=1G from overrides" in messages
+    assert "Job param --partition=fallback from slurm_default_partition" \
+        in messages
+    assert "Job param --account=project from global sbatch settings" \
+        in messages
+
+
+def test_config_files_are_logged_at_info_only_the_first_time(
+        monkeypatch, tmp_path, caplog):
+    config_file = tmp_path / "once.ini"
+    config_file.write_text("[SLURM]\n")
+    monkeypatch.setenv("BIOMERO_SLURM_CONFIG_FILE", str(config_file))
+    caplog.set_level(logging.DEBUG, logger="biomero.slurm_client")
+
+    SlurmClient.load_config()
+    SlurmClient.load_config()
+
+    read_logs = [r for r in caplog.records
+                 if "Read BIOMERO configuration" in r.getMessage()]
+    assert [r.levelno for r in read_logs] == [logging.INFO, logging.DEBUG]
+
+
+class _FakeGitHubAdapter(BaseAdapter):
+    """Answers every request with the given headers, without a network."""
+
+    def __init__(self, headers):
+        super().__init__()
+        self.headers = headers
+
+    def send(self, request, **kwargs):
+        response = Response()
+        response.status_code = 200
+        response.url = request.url
+        response.request = request
+        response.headers.update(self.headers)
+        response.raw = HTTPResponse(
+            body=io.BytesIO(b"{}"), status=200, headers=self.headers,
+            preload_content=False)
+        return response
+
+    def close(self):
+        pass
+
+
+@pytest.mark.parametrize("path,headers,expected_seconds", [
+    ("o/r/tree/v1.0", {}, GITHUB_CACHE_VERSIONED_FALLBACK_SECONDS),
+    ("o/r/tree/master", {}, GITHUB_CACHE_UNVERSIONED_FALLBACK_SECONDS),
+    # A max-age sent by GitHub wins over the fallback.
+    ("o/r/tree/v1.0", {"Cache-Control": "max-age=300"}, 300),
+])
+def test_github_cache_expiry_uses_the_fallback_unless_github_says_otherwise(
+        slurm_client, path, headers, expected_seconds):
+    session = slurm_client.get_or_create_github_session()
+    session.mount("https://github.com/", _FakeGitHubAdapter(headers))
+
+    response = session.get(f"https://github.com/{path}/{uuid4().hex}")
+
+    lifetime = response.expires - response.created_at
+    assert lifetime.total_seconds() == pytest.approx(expected_seconds, abs=5)

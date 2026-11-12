@@ -135,9 +135,10 @@ not change ``Task.status``. Launchers claimed by 2.9 betas carry the status
 and such a launcher is free to claim.
 
 ``WorkflowTracker.request_workflow_cancel(workflow_id, reason)`` records a
-``WorkflowRun.CancelRequested`` event. Whoever executes the workflow reads it
-with ``is_workflow_cancel_requested``, cancels its Slurm jobs with
-``SlurmClient.cancel_slurm_jobs`` and fails the workflow.
+``WorkflowRun.CancelRequested`` event. Whoever executes the workflow calls
+``raise_if_cancel_requested`` between its steps; that raises
+``WorkflowCancelled``, upon which the executor cancels the workflow's Slurm jobs
+with ``SlurmClient.cancel_slurm_jobs`` and fails the workflow.
 
 Inspecting aggregate history
 ----------------------------

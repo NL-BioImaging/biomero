@@ -54,6 +54,10 @@ class ResultDict(dict):
         self['stderr'] = result.stderr
 
 
+class WorkflowCancelled(InterruptedError):
+    """A workflow was asked to cancel, so whoever runs it must stop."""
+
+
 # When updating Aggregate classes, take care of versioning for compatibility:
 # Bump class_version and define @staticmethod upcast_vX_vY(state)
 # for Aggregate (and Event(s)!)
@@ -943,6 +947,23 @@ class WorkflowTracker(Application):
         """
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return workflow.cancel_requested
+
+    def raise_if_cancel_requested(self, workflow_id: UUID) -> None:
+        """
+        Stops the caller when a cancel was requested for the workflow. Call it
+        between the steps of a workflow run.
+
+        Args:
+            workflow_id (UUID): The workflow that is being run.
+
+        Raises:
+            WorkflowCancelled: When request_workflow_cancel() was called.
+        """
+        if self.is_workflow_cancel_requested(workflow_id):
+            workflow: WorkflowRun = self.repository.get(workflow_id)
+            raise WorkflowCancelled(
+                f"Workflow {workflow_id} was cancelled: "
+                f"{workflow.cancel_reason}")
 
     @staticmethod
     def _discard_failed_transaction() -> None:

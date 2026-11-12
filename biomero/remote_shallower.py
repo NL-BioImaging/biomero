@@ -17,9 +17,11 @@ from uuid import UUID, uuid4
 from packaging.version import InvalidVersion, Version
 
 from .slurm_client import SlurmJob
+from . import remote_scripts
 from .constants import SUBMISSION_REJECTED_EXIT_CODE
 
 TASK_NAME = "_SLURM_Remote_Shallower"
+MANIFEST_LOCK_WAIT_SECONDS = 30
 CAPABILITY_SCHEMA = 1
 REQUIRED_RUNTIME_CONTRACT = 1
 REQUIRED_MANIFEST_SCHEMA = 2
@@ -279,7 +281,9 @@ def _prepare_manifest(client, manifest, canonical, *, submitted):
     try:
         client.put(io.StringIO(json.dumps(payload)), temporary)
         published = client.run_commands([
-            f'flock -w 30 {quote(manifest + ".lock")} sh -c {quote(script)}'],
+            remote_scripts.locked_script(
+                client.slurm_lock_cmd, manifest + '.lock', script,
+                wait_seconds=MANIFEST_LOCK_WAIT_SECONDS)],
             log_stdout=False)
         if not published.ok:
             raise RuntimeError('Cannot publish canonical manifest; output preserved')

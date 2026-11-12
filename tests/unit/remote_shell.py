@@ -37,21 +37,26 @@ done
 case " $* " in *" --reject "*) echo "sbatch: error: invalid partition" >&2
   exit 1;; esac
 echo submitted >> {counter}
-printf "42|%s\\n" "$name" >> {jobs}
+printf "42|%s|%s\\n" "$name" "$(date +%Y-%m-%dT%H:%M:%S)" >> {jobs}
 case " $* " in
   *" --parsable "*) echo "42;cluster";;
   *) echo "Submitted batch job 42";;
 esac
 """
 # Both accounting commands print "JobID|JobName" rows. sacct honours --name.
+# squeue lists only the queue file; sacct (accounting) only the jobs file.
 FAKE_SQUEUE = """#!/bin/sh
-cat {jobs} 2>/dev/null || true
+cat {queue} 2>/dev/null || true
 """
 FAKE_SACCT = """#!/bin/sh
-for arg in "$@"; do
-  case "$arg" in --name=*) wanted=${{arg#--name=}};; esac
+# --name filters by job name; -S hides jobs submitted before that time.
+while [ $# -gt 0 ]; do
+  case "$1" in --name=*) wanted=${{1#--name=}};; -S) shift; since=$1;; esac
+  shift
 done
-awk -F'|' -v wanted="$wanted" '$2 == wanted' {jobs} 2>/dev/null || true
+awk -F'|' -v wanted="$wanted" -v since="$since" \
+  '$2 == wanted && ($3 == "" || $3 >= since) {{print $1 "|" $2}}' \
+  {jobs} 2>/dev/null || true
 """
 
 
@@ -60,9 +65,11 @@ def make_remote(tmp_path, ssh_recovery_timeout=35):
     binaries = tmp_path / 'bin'
     binaries.mkdir()
     jobs = tmp_path / 'jobs'
+    queue = tmp_path / 'queue'
     counter = tmp_path / 'submissions'
     attempts = tmp_path / 'sbatch-calls'
     quoted = {'jobs': shlex.quote(str(jobs)),
+              'queue': shlex.quote(str(queue)),
               'counter': shlex.quote(str(counter)),
               'attempts': shlex.quote(str(attempts))}
     for name, template in (('sbatch', FAKE_SBATCH), ('squeue', FAKE_SQUEUE),
@@ -97,7 +104,8 @@ def make_remote(tmp_path, ssh_recovery_timeout=35):
 
     client.run_commands = run_commands
     return SimpleNamespace(
-        client=client, root=tmp_path, jobs=jobs, counter=counter,
+        client=client, root=tmp_path, jobs=jobs, queue=queue,
+        counter=counter,
         commands=commands, environment=environment,
         sbatch_calls=lambda: (attempts.read_text().splitlines()
                               if attempts.exists() else []),

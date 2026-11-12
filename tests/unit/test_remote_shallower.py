@@ -199,3 +199,31 @@ def test_internal_locks_are_excluded_only_when_enabled(executable, expected):
     assert 'biomero-lock' not in client.get_zip_command('/data', 'results')
     client.remote_shallow_zarr = True
     assert expected in client.get_zip_command('/data', 'results')
+
+
+def test_a_rejected_helper_submission_returns_none_and_skips_the_digest():
+    from biomero.constants import SUBMISSION_REJECTED_EXIT_CODE
+    from biomero.remote_shallower import _submit_once
+    client = SlurmClient(config_only=True, slurm_data_path='/data')
+    client.submit_job_once = MagicMock(return_value=SimpleNamespace(
+        ok=False, exited=SUBMISSION_REJECTED_EXIT_CODE, stdout=''))
+    assert _submit_once(client, 'sbatch w.sh', '/state/x', job_name='n') is None
+    options = client.submit_job_once.call_args.kwargs
+    assert options['raise_on_rejection'] is False
+    assert options['verify_command_unchanged'] is False
+
+
+def test_the_manifest_lock_uses_the_configured_lock_command():
+    from biomero.remote_shallower import _prepare_manifest
+    client = SlurmClient(config_only=True)
+    client.slurm_lock_cmd = 'mylock {busy_exit_code} {lock_file}'
+    client.put = MagicMock()
+    absent = SimpleNamespace(ok=True, stdout='', exited=0)
+    present = SimpleNamespace(ok=True, stdout='{"inputs": [1]}', exited=0)
+    client.run_commands = MagicMock(side_effect=[absent, present, absent])
+    _prepare_manifest(client, '/state/canonical.json',
+                      SimpleNamespace(to_dict=lambda: {'inputs': [1]}),
+                      submitted=False)
+    published = next(call.args[0][0] for call in client.run_commands.call_args_list
+                     if 'sh -c' in call.args[0][0])
+    assert published.startswith("mylock 200 /state/canonical.json.lock sh -c")

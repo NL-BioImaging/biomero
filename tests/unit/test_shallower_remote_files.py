@@ -22,6 +22,8 @@ pytestmark = pytest.mark.skipif(
 
 
 class LocalRemoteClient:
+    slurm_lock_cmd = SlurmClient._DEFAULT_SLURM_LOCK_CMD
+
     def __init__(self, environment=None):
         self.environment = dict(os.environ, **(environment or {}))
         self.uploads = []
@@ -151,7 +153,7 @@ def test_old_unresolved_recovery_intent_is_not_resubmitted(tmp_path):
     client = slurm_client_running_locally(
         {'PATH': str(fake_bin) + ':' + os.environ['PATH']})
     marker = tmp_path / 'should-not-submit'
-    with pytest.raises(ssh_recovery.RecoveryPending):
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending):
         _submit_once(client, f'touch {marker}', state,
                      job_name='biomero-recovery-task')
     assert not Path(state + '.job').exists()

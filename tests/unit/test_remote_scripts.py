@@ -410,20 +410,98 @@ def test_lock_template_placeholders_are_filled_and_the_script_quoted():
 
 @pytest.mark.parametrize('template', [
     'flock -w {wait_seconds} -E {busy_exit_code} {lock_file}',
-    'lockf -t {wait_seconds} {lock_file}',
-    'lock-only {lock_file}',
+    'lockf {busy_exit_code} {lock_file}',
 ])
 def test_valid_lock_templates_are_accepted(template):
-    remote_scripts.validate_lock_template(template)
+    SlurmClient._validate_lock_template(template)
 
 
-@pytest.mark.parametrize('template', ['', '   ', 'flock {unknown}',
-                                      'flock {0}', 'flock {lock_file'])
+@pytest.mark.parametrize('template', [
+    '', '   ', 'flock {unknown}', 'flock {0}', 'flock {lock_file',
+    'lock-only {lock_file}',
+    'flock -E {busy_exit_code}',
+    'lockf -t {wait_seconds} {lock_file}',
+])
 def test_invalid_lock_templates_are_rejected(template):
     with pytest.raises(ValueError, match='slurm_lock_cmd'):
-        remote_scripts.validate_lock_template(template)
+        SlurmClient._validate_lock_template(template)
 
 
 def test_the_lock_executable_is_the_first_word():
-    assert remote_scripts.lock_executable(
+    assert SlurmClient._lock_executable(
         '/opt/bin/flock -w {wait_seconds} {lock_file}') == '/opt/bin/flock'
+
+
+def test_a_lock_command_that_does_not_exist_names_the_setting(remote):
+    remote.client.slurm_lock_cmd = (
+        'no-such-lock {wait_seconds} {busy_exit_code} {lock_file}')
+    extractions, _ = unpack_client(remote)
+    with pytest.raises(RuntimeError) as missing:
+        remote.client.unpack_data('inputs')
+    assert 'slurm_lock_cmd' in str(missing.value)
+    assert 'no-such-lock' in str(missing.value)
+    assert not extractions.exists()
+
+
+def test_a_busy_lock_without_a_recovery_window_is_the_pending_error(remote):
+    require_flock()
+    import fcntl
+    remote.client.ssh_recovery_timeout = 0
+    unpack_client(remote)
+    lock = open(remote.root / 'inputs.biomero-unpacked.lock', 'w')
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    original = remote.client.run_commands
+    remote.client.run_commands = lambda commands, **kwargs: original(
+        [c.replace('flock -w 5 ', 'flock -w 0.05 ') for c in commands],
+        **kwargs)
+    try:
+        with pytest.raises(ssh_recovery.RemoteOperationStillPending):
+            remote.client.unpack_data('inputs')
+    finally:
+        lock.close()
+
+
+def test_an_unresolved_intent_tells_how_to_resolve_it(remote, recovery_clock):
+    task_id = uuid4()
+    prefix = Path(remote.client.get_submission_state_prefix(task_id))
+    prefix.parent.mkdir()
+    Path(str(prefix) + '.intent').write_text('2026-10-30T00:00:00')
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending) as pending:
+        submit(remote, task_id)
+    message = str(pending.value.__cause__)
+    assert str(prefix) + '.intent' in message
+    assert '2026-10-30T00:00:00' in message
+    assert 'sacct' in message and 'delete the receipt files' in message
+
+
+def test_a_job_visible_only_in_the_queue_is_found(remote, recovery_clock):
+    """Accounting can lag behind the queue."""
+    task_id = uuid4()
+    prefix = Path(remote.client.get_submission_state_prefix(task_id))
+    prefix.parent.mkdir()
+    Path(str(prefix) + '.intent').write_text('2026-10-30T00:00:00')
+    remote.queue.write_text(f'88|{name(task_id)}\n')
+    result = submit(remote, task_id)
+    assert result.stdout == 'Submitted batch job 88\n'
+
+
+def test_a_job_older_than_the_intent_is_not_adopted(remote, recovery_clock):
+    task_id = uuid4()
+    prefix = Path(remote.client.get_submission_state_prefix(task_id))
+    prefix.parent.mkdir()
+    Path(str(prefix) + '.intent').write_text('2026-10-30T00:00:00')
+    remote.jobs.write_text(f'55|{name(task_id)}|2020-01-01T00:00:00\n')
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending):
+        submit(remote, task_id)
+    remote.jobs.write_text(f'56|{name(task_id)}|2026-10-30T00:00:01\n')
+    assert submit(remote, task_id).stdout == 'Submitted batch job 56\n'
+
+
+def test_a_rejection_replay_says_how_to_submit_again(remote, recovery_clock):
+    task_id = uuid4()
+    command = f'sbatch --reject --job-name={name(task_id)} job.sh'
+    with pytest.raises(UnexpectedExit):
+        submit(remote, task_id, command)
+    with pytest.raises(UnexpectedExit) as replay:
+        submit(remote, task_id, command)
+    assert 'delete the receipt files' in replay.value.result.stderr

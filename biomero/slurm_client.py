@@ -36,8 +36,9 @@ import shlex
 import socket
 import hashlib
 import json
+import string
 from biomero.constants import (
-    slurm_env, DEFAULT_SLURM_LOCK_CMD, DEFAULT_SSH_RECOVERY_TIMEOUT,
+    slurm_env, COMMAND_NOT_FOUND_EXIT_CODE, DEFAULT_SLURM_LOCK_CMD, DEFAULT_SSH_RECOVERY_TIMEOUT,
     LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SSH_AUTH_TIMEOUT_SECONDS,
     SSH_BANNER_TIMEOUT_SECONDS, SSH_CONNECT_TIMEOUT_SECONDS,
     SSH_KEEPALIVE_SECONDS, SUBMISSION_JOB_NAME_PREFIX,
@@ -825,11 +826,15 @@ class SlurmClient(Connection):
                                           inline_ssh_env)
         if ssh_recovery_timeout < 0:
             raise ValueError("ssh_recovery_timeout must be nonnegative")
-        remote_scripts.validate_lock_template(slurm_lock_cmd)
+        self._validate_lock_template(slurm_lock_cmd)
         self.ssh_recovery_timeout = ssh_recovery_timeout
         self.ssh_recovery_cancel = None
         self.slurm_lock_cmd = slurm_lock_cmd
-        self._set_connection_stage_timeouts()
+        if ssh_recovery_timeout:
+            self._set_connection_stage_timeouts()
+        else:
+            logger.debug("SSH recovery window is 0: no native connection "
+                         "timeouts or keepalive are set")
         self.slurm_data_path = slurm_data_path
         self.slurm_images_path = slurm_images_path
         self.slurm_converters_path = slurm_converters_path
@@ -1314,7 +1319,7 @@ class SlurmClient(Connection):
         """
         required_commands = {
             "lock command (slurm_lock_cmd)":
-                remote_scripts.lock_executable(self.slurm_lock_cmd),
+                self._lock_executable(self.slurm_lock_cmd),
             "Slurm accounting (sacct)": "sacct",
         }
         missing = []
@@ -2324,6 +2329,40 @@ class SlurmClient(Connection):
 
         return latest_progress
 
+    @staticmethod
+    def _validate_lock_template(lock_template: str) -> None:
+        """Check that a lock command template can be filled in.
+
+        Args:
+            lock_template (str): The template, for example
+                ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``.
+
+        Raises:
+            ValueError: If the template is empty, uses an unknown
+                placeholder, or lacks ``{lock_file}`` or ``{busy_exit_code}``.
+        """
+        if not lock_template or not lock_template.strip():
+            raise ValueError("slurm_lock_cmd must not be empty")
+        allowed = {"wait_seconds", "busy_exit_code", "lock_file"}
+        required = {"busy_exit_code", "lock_file"}
+        try:
+            used = {field for _, field, _, _ in
+                    string.Formatter().parse(lock_template) if field}
+        except ValueError as error:
+            raise ValueError(
+                f"slurm_lock_cmd {lock_template!r} is not a valid "
+                f"template: {error}") from error
+        if not used <= allowed or not required <= used:
+            raise ValueError(
+                f"slurm_lock_cmd {lock_template!r} must use {{lock_file}} "
+                "and {busy_exit_code} and may use {wait_seconds}; no other "
+                "placeholders are known")
+
+    @staticmethod
+    def _lock_executable(lock_template: str) -> str:
+        """Return the program a lock command template starts with."""
+        return shlex.split(lock_template)[0]
+
     def _set_connection_stage_timeouts(self) -> None:
         """Bound the connection stages so that a silent stall is detected.
 
@@ -2371,7 +2410,7 @@ class SlurmClient(Connection):
         """Open the SSH connection and make a quiet link detectable."""
         result = super().open()
         ssh_recovery.limit_channel_open(self)
-        if self.transport is not None:
+        if self.ssh_recovery_timeout and self.transport is not None:
             self._enable_tcp_keepalive()
         return result
 
@@ -2389,6 +2428,7 @@ class SlurmClient(Connection):
                      env: Optional[Dict[str, str]] = None,
                      sep: str = ' && ',
                      log_stdout: bool = True,
+                     log_level: int = logging.INFO,
                      **kwargs) -> Result:
         """
         Run a list of shell commands consecutively on the Slurm cluster,
@@ -2406,6 +2446,8 @@ class SlurmClient(Connection):
                 commands. Defaults to ' && '.
             log_stdout (bool, optional): Whether to log the stdout output.
                 Defaults to True.
+            log_level (int, optional): Log level of the command line, for
+                long generated scripts. Defaults to INFO.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -2414,7 +2456,8 @@ class SlurmClient(Connection):
         if env is None:
             env = {}
         cmd = sep.join(cmdlist)
-        logger.info(
+        logger.log(
+            log_level,
             f"Running commands, with env {env} and sep {sep} \
                 and {kwargs}: {cmd}")
         result = self.run(cmd, env=env, **kwargs)  # out_stream=out_stream,
@@ -2986,13 +3029,20 @@ class SlurmClient(Connection):
     def _task_is_finished(task: Task) -> bool:
         """Tell whether a task is over, so that it cannot be resumed.
 
-        A task is over when it was completed or failed, when its job reached
-        a terminal Slurm state, or when its submission failed (job id -1).
+        A task is over when it was completed or failed (its outputs were
+        processed), when its job ended without success (failed, cancelled,
+        timed out ...), or when its submission failed (job id -1). A job that
+        COMPLETED but whose task is not completed yet is not over: after a
+        crash the workflow adopts that job and processes its outputs, instead
+        of running the analysis a second time.
         """
         submission_failed = bool(task.job_ids) and all(
             int(job_id) <= 0 for job_id in task.job_ids)
+        job_ended_without_success = (
+            SlurmJob.is_terminal(task.status)
+            and task.status.split()[0].rstrip("+") != "COMPLETED")
         return (task.result_message is not None
-                or SlurmJob.is_terminal(task.status)
+                or job_ended_without_success
                 or submission_failed)
 
     def _find_resumable_task(self, wf_id: Any, name: str,
@@ -3096,7 +3146,10 @@ class SlurmClient(Connection):
         Raises:
             UnexpectedExit: If the script failed on the cluster.
             ssh_recovery.RemoteOperationStillPending: If the operation was
-                still busy when the waiting time ended.
+                still busy when the waiting time ended (also with a window
+                of 0).
+            RuntimeError: If a command was not found (exit 127), which most
+                often is the lock command.
         """
         locked_script = remote_scripts.locked_script(
             self.slurm_lock_cmd, lock_file, script, LOCK_WAIT_SECONDS)
@@ -3104,13 +3157,22 @@ class SlurmClient(Connection):
         command = f"mkdir -p {lock_directory} && {locked_script}"
 
         def attempt() -> Result:
-            result = self.run_commands([command], env=env, warn=True)
+            result = self.run_commands(
+                [command], env=env, warn=True, log_level=logging.DEBUG)
             if result.exited == REMOTE_BUSY_EXIT_CODE:
                 logger.info(f"{description} is busy or not yet visible on "
                             "Slurm; asking again")
                 raise ssh_recovery.RecoveryPending(
                     f"{description} is locked by another operation or not "
-                    "yet visible in Slurm")
+                    f"yet visible in Slurm. {result.stderr.strip()}")
+            if result.exited == COMMAND_NOT_FOUND_EXIT_CODE:
+                raise RuntimeError(
+                    f"{description}: a command was not found on the cluster "
+                    f"(exit 127). The lock command is "
+                    f"{self.slurm_lock_cmd!r} (setting slurm_lock_cmd, "
+                    "BIOMERO_SLURM_LOCK_CMD); Slurm setup checks that it "
+                    f"exists. Output: {result.stderr.strip()}") from (
+                        UnexpectedExit(result))
             if not result.ok and result.exited not in accepted_exit_codes:
                 raise UnexpectedExit(result)
             return result
@@ -3236,10 +3298,10 @@ class SlurmClient(Connection):
         if slurm_job_id in self.get_task(task_id).job_ids:
             logger.debug(f"Job {slurm_job_id} is already recorded on task "
                          f"{task_id}")
-            return
-        self.workflowTracker.start_task(task_id)
-        self.workflowTracker.add_job_id(task_id, slurm_job_id)
-        self.workflowTracker.add_result(task_id, result)
+        else:
+            self.workflowTracker.start_task(task_id)
+            self.workflowTracker.add_job_id(task_id, slurm_job_id)
+            self.workflowTracker.add_result(task_id, result)
         self.remove_submission_receipts(
             self.get_submission_state_prefix(task_id))
 
@@ -3321,7 +3383,7 @@ class SlurmClient(Connection):
             workflow_version,
             input_data,
             recorded_params)
-        logger.debug(f"Added new task {task_id} to workflow {wf_id}")
+        logger.debug(f"Using task {task_id} of workflow {wf_id}")
 
         submission_job_name = (
             self.get_submission_job_name(task_id) if task_id else None)

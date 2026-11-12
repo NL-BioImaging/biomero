@@ -598,7 +598,12 @@ def retry(client: Any, operation: Callable[[], Any], description: str, *,
         SSHRecoveryCancelled: If the caller cancelled during a wait.
     """
     with scope(client, heartbeat) as state:
-        window = OutageWindow(state.timeout)
+        # A nested call never outlasts the outage of the call around it.
+        seconds_left = state.seconds_left_in_outage()
+        window = OutageWindow(
+            state.timeout if seconds_left is None
+            else min(state.timeout, max(MINIMUM_TIMEOUT_SECONDS,
+                                        seconds_left)))
         state.windows.append(window)
         try:
             return _attempt_until_done(
@@ -624,6 +629,9 @@ def _attempt_until_done(client: Any, state: RecoveryState,
             result = _run_attempt(client, operation)
         except Exception as error:
             if not _should_retry(state, error):
+                if isinstance(error, RecoveryPending):
+                    # No retries (window 0): still the documented error.
+                    _raise_window_expired(error, description)
                 raise
             last_error = error
             now = time.monotonic()

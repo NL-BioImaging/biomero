@@ -504,7 +504,8 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     partial_zip = f"{data_location}/{filename}.biomero-partial.zip"
     mock_run_commands.assert_called_once()
     (command,), run_kwargs = mock_run_commands.call_args
-    assert run_kwargs == {"env": None, "warn": True}
+    assert run_kwargs == {"env": None, "warn": True,
+                          "log_level": logging.DEBUG}
     assert (f'cd "{data_location}/data/out" && {auto} a -y '
             f'"{partial_zip}" -tzip .') in command[0]
     assert f"mv -f -- {partial_zip} {data_location}/{filename}.zip" in command[0]
@@ -3742,7 +3743,8 @@ def test_unpack_data_extracts_once_under_a_lock(slurm_client):
     slurm_client.unpack_data("file")
 
     (commands,), run_kwargs = slurm_client.run_commands.call_args
-    assert run_kwargs == {"env": None, "warn": True}
+    assert run_kwargs == {"env": None, "warn": True,
+                          "log_level": logging.DEBUG}
     assert commands[0].startswith("mkdir -p /remote/data && flock -w 5 -E 200 "
                                   "/remote/data/file.biomero-unpacked.lock")
     assert "unzip file.zip" in commands[0]

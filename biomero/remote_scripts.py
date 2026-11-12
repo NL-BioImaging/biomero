@@ -43,9 +43,7 @@ from typing import Iterable, Optional
 
 from biomero.constants import (
     LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SUBMISSION_REJECTED_EXIT_CODE,
-    SUBMISSION_STATE_SUFFIXES)
-
-quote = shlex.quote
+    SUBMISSION_STATE_FILES, SUBMISSION_STATE_SUFFIXES)
 
 TIMESTAMP_COMMAND = "date +%Y-%m-%dT%H:%M:%S"
 # Matches both "Submitted batch job 42" and the ``sbatch --parsable`` output
@@ -53,39 +51,6 @@ TIMESTAMP_COMMAND = "date +%Y-%m-%dT%H:%M:%S"
 EXTRACT_JOB_ID_COMMAND = (
     "sed -n -e 's/^Submitted batch job \\([0-9][0-9]*\\).*$/\\1/p' "
     "-e 's/^\\([0-9][0-9]*\\)\\(;.*\\)\\{0,1\\}$/\\1/p'")
-
-
-def validate_lock_template(lock_template: str) -> None:
-    """Check that a lock command template can be filled in.
-
-    Args:
-        lock_template (str): The template, for example
-            ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``.
-
-    Raises:
-        ValueError: If the template is empty or uses an unknown placeholder.
-    """
-    if not lock_template or not lock_template.strip():
-        raise ValueError("slurm_lock_cmd must not be empty")
-    try:
-        lock_template.format(
-            wait_seconds=0, busy_exit_code=0, lock_file="lock")
-    except (KeyError, IndexError, ValueError) as error:
-        raise ValueError(
-            f"slurm_lock_cmd {lock_template!r} may only use the placeholders "
-            "{wait_seconds}, {busy_exit_code} and {lock_file}") from error
-
-
-def lock_executable(lock_template: str) -> str:
-    """Return the program the lock command template starts with.
-
-    Args:
-        lock_template (str): The lock command template.
-
-    Returns:
-        str: The first word of the template, for example ``flock``.
-    """
-    return shlex.split(lock_template)[0]
 
 
 def locked_script(lock_template: str, lock_file: str, script: str,
@@ -108,8 +73,8 @@ def locked_script(lock_template: str, lock_file: str, script: str,
     """
     lock_prefix = lock_template.format(
         wait_seconds=wait_seconds, busy_exit_code=REMOTE_BUSY_EXIT_CODE,
-        lock_file=quote(lock_file))
-    return f"{lock_prefix} sh -c {quote(script)}"
+        lock_file=shlex.quote(lock_file))
+    return f"{lock_prefix} sh -c {shlex.quote(script)}"
 
 
 def create_then_publish_script(create_command: str, partial_file: str,
@@ -124,9 +89,9 @@ def create_then_publish_script(create_command: str, partial_file: str,
     Returns:
         str: A script that never shows ``final_file`` half written.
     """
-    return (f"rm -f -- {quote(partial_file)}\n"
+    return (f"rm -f -- {shlex.quote(partial_file)}\n"
             f"({create_command}) || exit 1\n"
-            f"mv -f -- {quote(partial_file)} {quote(final_file)} || exit 1")
+            f"mv -f -- {shlex.quote(partial_file)} {shlex.quote(final_file)} || exit 1")
 
 
 def run_once_script(work_command: str, done_marker: str, *,
@@ -155,25 +120,25 @@ def run_once_script(work_command: str, done_marker: str, *,
     Returns:
         str: The shell script.
     """
-    marker = quote(done_marker)
+    marker = shlex.quote(done_marker)
     marker_content = "complete"
     marker_is_current = f"test -f {marker}"
     if published_file:
-        published = quote(published_file)
+        published = shlex.quote(published_file)
         marker_content = f'"$(wc -c < {published})"'
         marker_is_current += (
             f" && test -f {published}"
             f' && test "$(cat {marker})" = "$(wc -c < {published})"')
-    newer_inputs = " ".join(quote(path) for path in stale_if_newer)
+    newer_inputs = " ".join(shlex.quote(path) for path in stale_if_newer)
     if newer_inputs:
         marker_is_current += (
             f' && test -z "$(find {newer_inputs} -newer {marker} '
             '2>/dev/null | head -n 1)"')
     write_marker = (
-        f"printf '%s\\n' {marker_content} > {quote(done_marker + '.tmp')}"
-        f" && mv -f {quote(done_marker + '.tmp')} {marker} || exit 1")
+        f"printf '%s\\n' {marker_content} > {shlex.quote(done_marker + '.tmp')}"
+        f" && mv -f {shlex.quote(done_marker + '.tmp')} {marker} || exit 1")
     return (f"if {marker_is_current}; then\n"
-            f"  echo {quote(reuse_message)}\n"
+            f"  echo {shlex.quote(reuse_message)}\n"
             "else\n"
             f"  ({work_command}) || exit 1\n"
             f"  {write_marker}\n"
@@ -189,23 +154,17 @@ def remove_state_files_command(state_prefix: str) -> str:
     Returns:
         str: The ``rm -f`` command.
     """
-    files = " ".join(quote(state_prefix + suffix)
+    files = " ".join(shlex.quote(state_prefix + suffix)
                      for suffix in SUBMISSION_STATE_SUFFIXES)
     return f"rm -f {files}"
 
 
 def _define_state_files(state_prefix: str, command_digest: str) -> str:
     """Name the receipt files as shell variables for the other parts."""
-    return "\n".join([
-        f"digest_file={quote(state_prefix + '.digest')}",
-        f"intent_file={quote(state_prefix + '.intent')}",
-        f"job_file={quote(state_prefix + '.job')}",
-        f"job_tmp_file={quote(state_prefix + '.job.tmp')}",
-        f"failed_file={quote(state_prefix + '.failed')}",
-        f"stdout_file={quote(state_prefix + '.stdout')}",
-        f"stderr_file={quote(state_prefix + '.stderr')}",
-        f"new_digest={quote(command_digest)}",
-    ])
+    lines = [f"{variable}={shlex.quote(state_prefix + suffix)}"
+             for variable, suffix in SUBMISSION_STATE_FILES.items()]
+    lines.append(f"new_digest={shlex.quote(command_digest)}")
+    return "\n".join(lines)
 
 
 def _handle_changed_command() -> str:
@@ -234,26 +193,41 @@ def _replay_recorded_rejection() -> str:
     """Repeat the output of an earlier sbatch rejection instead of asking again."""
     return (
         'if test -f "$failed_file"; then\n'
+        '  echo "sbatch refused this job earlier (receipt $failed_file); '
+        'delete the receipt files to submit again" >&2\n'
         '  cat "$stdout_file"; cat "$stderr_file" >&2\n'
         f'  exit {SUBMISSION_REJECTED_EXIT_CODE}\n'
         'fi')
 
 
-def _publish_job_id(job_name: str) -> str:
-    """Validate ``$job`` and publish it to the ``.job`` file atomically.
+def _define_publish_job(job_name: str) -> str:
+    """Define the shell function ``publish_job``, used after a job id is known.
 
-    An empty ``$job`` means Slurm accounting does not show the job yet, and
-    several ids mean the name is not unique. Both ask the caller to wait.
+    It validates ``$job`` and publishes it to the ``.job`` file atomically.
+    An empty ``$job`` means Slurm does not show the job yet, and several ids
+    mean the name is not unique. Both ask the caller to wait, and the message
+    tells an administrator how to resolve a submission that never resolves.
     """
+    way_out = ('The submission started at $(cat "$intent_file") '
+               '(intent file $intent_file). Check sacct and squeue for a job '
+               'with this name; delete the receipt files with the same '
+               'prefix only if no such job exists.')
     return (
-        'case "$job" in\n'
-        f'  "") echo "Waiting for Slurm to show job {job_name}" >&2; '
-        f'exit {REMOTE_BUSY_EXIT_CODE};;\n'
-        f'  *[!0-9]*) echo "Several Slurm jobs are named {job_name}: $job" '
+        'publish_job() {\n'
+        '  case "$job" in\n'
+        f'    "") echo "Waiting for Slurm to show job {job_name}. {way_out}" '
         f'>&2; exit {REMOTE_BUSY_EXIT_CODE};;\n'
-        'esac\n'
-        'printf "%s\\n" "$job" > "$job_tmp_file" && '
-        'mv -f "$job_tmp_file" "$job_file" || exit 1')
+        f'    *[!0-9]*) echo "Several Slurm jobs are named {job_name}: $job. '
+        f'{way_out}" >&2; exit {REMOTE_BUSY_EXIT_CODE};;\n'
+        '  esac\n'
+        '  printf "%s\\n" "$job" > "$job_tmp_file" && '
+        'mv -f "$job_tmp_file" "$job_file" || exit 1\n'
+        '}')
+
+
+def _indent(script: str) -> str:
+    """Indent every line of a script by two spaces."""
+    return "\n".join(f"  {line}" for line in script.splitlines())
 
 
 def _find_job_by_name(job_name: str) -> str:
@@ -262,7 +236,7 @@ def _find_job_by_name(job_name: str) -> str:
     Looks in the queue (``squeue``) and in the accounting (``sacct``, which
     must be enabled on the cluster). Array jobs ``42_7`` count as job 42.
     """
-    name = quote(job_name)
+    name = shlex.quote(job_name)
     return (
         'live=$(squeue -h -u "$(id -un)" -o "%A|%j") || exit 1\n'
         f'recorded=$(sacct -n -X -u "$(id -un)" --name={name} '
@@ -294,7 +268,7 @@ def _submit_and_record(sbatch_command: str, job_name: str, *,
         f'  exit {SUBMISSION_REJECTED_EXIT_CODE}\n'
         'fi\n'
         f'job=$({EXTRACT_JOB_ID_COMMAND} "$stdout_file" | tail -n 1)\n'
-        f'{_publish_job_id(job_name)}')
+        'publish_job')
 
 
 def submit_once_script(sbatch_command: str, state_prefix: str, job_name: str,
@@ -324,7 +298,8 @@ def submit_once_script(sbatch_command: str, state_prefix: str, job_name: str,
     Returns:
         str: The shell script. It prints ``Submitted batch job <id>``.
     """
-    parts = [_define_state_files(state_prefix, command_digest)]
+    parts = [_define_state_files(state_prefix, command_digest),
+             _define_publish_job(job_name)]
     if verify_command_unchanged:
         parts.append(_handle_changed_command())
     if remember_rejection:
@@ -337,8 +312,8 @@ def submit_once_script(sbatch_command: str, state_prefix: str, job_name: str,
         'if test -s "$job_file"; then\n'
         '  job=$(cat "$job_file")\n'
         'elif test -e "$intent_file"; then\n'
-        f'{_find_job_by_name(job_name)}\n'
-        f'{_publish_job_id(job_name)}\n'
+        f'{_indent(_find_job_by_name(job_name))}\n'
+        '  publish_job\n'
         'else\n'
         f'{submit_step}\n'
         'fi')

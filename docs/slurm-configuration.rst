@@ -386,7 +386,9 @@ scripts. It can also be overridden by ``BIOMERO_SLURM_LOCK_CMD``. See
 It is a template. BIOMERO fills in ``{wait_seconds}`` (how long to wait for
 the lock), ``{busy_exit_code}`` (the exit code that means "locked by someone
 else") and ``{lock_file}`` (the quoted path of the lock file) and appends the
-script. Use the placeholders your tool needs; unused ones are ignored.
+script. ``{lock_file}`` and ``{busy_exit_code}`` are required, because the
+exit code is how BIOMERO knows the lock was busy; ``{wait_seconds}`` is optional,
+for tools without a wait option.
 
 Impact:
 
@@ -400,7 +402,10 @@ Impact:
 * BIOMERO checks during Slurm setup (``SlurmClient.setup_slurm``) that the
   lock command and ``sacct`` exist on the cluster, and logs a WARNING for each
   that is missing. The setup continues.
-* A template with an unknown placeholder is rejected when the client is created.
+* A template with an unknown placeholder, or without ``{lock_file}`` or
+  ``{busy_exit_code}``, is rejected when the client is created.
+* If the lock command is missing when an operation runs (shell exit code 127),
+  the operation stops with an error that names ``slurm_lock_cmd``.
 
 Analytics and Provenance Settings
 ----------------------------------
@@ -880,8 +885,9 @@ Paramiko's exec/subsystem acknowledgement waits are not covered by these native
 settings. They require a lower-layer fix; this is not a universal SSH deadline.
 Healthy long durable commands and complete transfers have no new runtime cap;
 SFTP bounds individual reads instead. Arbitrary commands retain their original
-timeout and single-attempt behavior. With ``0``, no native timeouts are
-applied temporarily and nothing is retried.
+timeout and single-attempt behavior. With ``0``, no native timeouts or
+keepalive are set and nothing is retried; a busy lock or an unresolved
+submission still stops with the pending error.
 
 With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity
@@ -921,6 +927,22 @@ unfinished (not completed, failed, cancelled, timed out, and its submission did
 not fail). Running the same workflow on the same input again after a finished
 run creates a new task with its own job name and receipt files, and never adopts
 the old job.
+A task is continued after a crash while its job is running, or while its job
+COMPLETED but the outputs were not processed yet, so the analysis does not run a
+second time. A job that failed, was cancelled or timed out is not adopted: the
+next run of that workflow step gets a new task and job. A new workflow run
+always has new tasks.
+
+If a submission never resolves, the error names the intent file
+(``<slurm_data_path>/.biomero-recovery/<task id>.intent``), the time the
+submission started, and says what to do: look in ``sacct`` and ``squeue`` for a
+job named ``biomero-<task id>``. If one exists, wait for accounting to show it (or
+write its ID into ``<task id>.job``). Only if no such job exists, delete the
+files ``<task id>.*`` in that directory to allow a fresh submission. If sbatch
+refused a job, the answer is replayed with a note; delete ``<task id>.failed``
+(and the other ``<task id>.*`` files) to submit that task again, or correct the
+command, which replaces the recorded refusal. Receipts do not expire by age.
+
 Tracking must remain enabled for resumable submission; arbitrary ``run`` and
 ``run_commands`` calls are deliberately not retried. Untracked submissions are
 attempted once because they lack a durable task identity.
@@ -937,6 +959,10 @@ The first healthy copy does not consume a recovery window. Once interrupted,
 whole-file retries share the window until the complete copy succeeds; repeated
 interruptions during lengthy retries can exhaust it. There is no ranged or
 progress-aware transfer resume.
+
+Native connection timeouts and keepalive are set only when the window is above 0,
+so installs that set ``ssh_recovery_timeout=0`` keep their own timeouts for slow
+login or jump hosts.
 
 Recovery requires the lock command (``slurm_lock_cmd``, ``flock`` by default),
 Slurm accounting (``sacct``) and job-name lookup, writable shared HPC storage for

@@ -590,12 +590,12 @@ DEFAULT_LOCK = 'flock -w {wait_seconds} -E {busy_exit_code} {lock_file}'
 @pytest.mark.parametrize('ini,environment,expected', [
     ('', {}, DEFAULT_LOCK),
     ('', {'BIOMERO_SLURM_LOCK_CMD': ''}, DEFAULT_LOCK),
-    ('lockf {lock_file}', {}, 'lockf {lock_file}'),
-    ('lockf {lock_file}', {'BIOMERO_SLURM_LOCK_CMD': ''}, 'lockf {lock_file}'),
-    ('lockf {lock_file}', {'BIOMERO_SLURM_LOCK_CMD': 'mylock {lock_file}'},
-     'mylock {lock_file}'),
-    ('', {'BIOMERO_SLURM_LOCK_CMD': 'mylock {lock_file}'},
-     'mylock {lock_file}'),
+    ('lockf {busy_exit_code} {lock_file}', {}, 'lockf {busy_exit_code} {lock_file}'),
+    ('lockf {busy_exit_code} {lock_file}', {'BIOMERO_SLURM_LOCK_CMD': ''}, 'lockf {busy_exit_code} {lock_file}'),
+    ('lockf {busy_exit_code} {lock_file}', {'BIOMERO_SLURM_LOCK_CMD': 'mylock {busy_exit_code} {lock_file}'},
+     'mylock {busy_exit_code} {lock_file}'),
+    ('', {'BIOMERO_SLURM_LOCK_CMD': 'mylock {busy_exit_code} {lock_file}'},
+     'mylock {busy_exit_code} {lock_file}'),
 ])
 def test_lock_command_precedence(slurm_client_from_config_factory, ini,
                                  environment, expected):
@@ -615,3 +615,70 @@ def test_a_lock_command_with_an_unknown_placeholder_is_rejected(
     with pytest.raises(ValueError, match='slurm_lock_cmd'):
         slurm_client_from_config_factory(
             {'slurm_lock_cmd': 'flock {file}'})
+
+
+def test_a_busy_operation_with_window_zero_raises_the_pending_error(
+        slurm_client):
+    slurm_client.ssh_recovery_timeout = 0
+    slurm_client.run_commands = Mock(return_value=Result(
+        connection=None, exited=200, stderr='locked'))
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending):
+        slurm_client._run_locked('work', '/data/work.lock', 'zip results')
+    slurm_client.run_commands.assert_called_once()
+
+
+def test_exit_127_names_the_lock_command_setting(slurm_client):
+    slurm_client.run_commands = Mock(return_value=Result(
+        connection=None, exited=127, stderr='flock: not found'))
+    with pytest.raises(RuntimeError, match='slurm_lock_cmd'):
+        slurm_client._run_locked('work', '/data/work.lock', 'zip results')
+
+
+def test_an_inner_window_never_outlasts_the_outer_outage(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=100, close=Mock())
+    inner_failures = []
+
+    def outer():
+        recovery_clock.now += 0  # the outer outage starts at its failure
+
+        def inner():
+            inner_failures.append(recovery_clock.now)
+            raise EOFError()
+        ssh_recovery.retry(client, inner, 'inner')
+
+    with ssh_recovery.scope(client) as state:
+        state.windows.append(ssh_recovery.OutageWindow(
+            100, outage_deadline=10))
+        with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
+            outer()
+    assert recovery_clock.now == 10
+
+
+def test_recovery_window_sets_native_timeouts_and_keepalive(monkeypatch):
+    from fabric import Connection
+    from biomero.slurm_client import SlurmClient
+    on = SlurmClient(config_only=True, ssh_recovery_timeout=900)
+    assert on.connect_timeout == 10
+    assert on.connect_kwargs['banner_timeout'] == 30
+    assert on.connect_kwargs['auth_timeout'] == 30
+    transport = Mock()
+    monkeypatch.setattr(Connection, 'open', lambda self: None)
+    monkeypatch.setattr(SlurmClient, 'transport',
+                        property(lambda self: transport), raising=False)
+    on.open()
+    transport.set_keepalive.assert_called_once_with(15)
+
+
+def test_window_zero_sets_no_native_timeouts_and_no_keepalive(monkeypatch):
+    from fabric import Connection
+    from biomero.slurm_client import SlurmClient
+    off = SlurmClient(config_only=True, ssh_recovery_timeout=0)
+    assert off.connect_timeout is None
+    assert 'banner_timeout' not in off.connect_kwargs
+    assert 'auth_timeout' not in off.connect_kwargs
+    transport = Mock()
+    monkeypatch.setattr(Connection, 'open', lambda self: None)
+    monkeypatch.setattr(SlurmClient, 'transport',
+                        property(lambda self: transport), raising=False)
+    off.open()
+    transport.set_keepalive.assert_not_called()

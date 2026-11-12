@@ -103,13 +103,24 @@ LOCK_WAIT_SECONDS = 5
 # outside the ranges that sbatch, flock, zip and 7z use for their own errors.
 REMOTE_BUSY_EXIT_CODE = 200
 SUBMISSION_REJECTED_EXIT_CODE = 201
+# The shell's answer when a command, such as the lock command, is not found.
+COMMAND_NOT_FOUND_EXIT_CODE = 127
 
 # Remote marker and receipt files, all next to the data they describe.
 SUBMISSION_STATE_DIRECTORY = ".biomero-recovery"
 SUBMISSION_JOB_NAME_PREFIX = "biomero-"
-SUBMISSION_STATE_SUFFIXES = (
-    ".lock", ".digest", ".intent", ".job", ".job.tmp", ".failed", ".stdout",
-    ".stderr")
+# Receipt files of one submission: the shell variable that names each one in
+# the generated script, and its suffix. This is the only place they are listed.
+SUBMISSION_STATE_FILES = {
+    "digest_file": ".digest",
+    "intent_file": ".intent",
+    "job_file": ".job",
+    "job_tmp_file": ".job.tmp",
+    "failed_file": ".failed",
+    "stdout_file": ".stdout",
+    "stderr_file": ".stderr",
+}
+SUBMISSION_STATE_SUFFIXES = (".lock", *SUBMISSION_STATE_FILES.values())
 UNPACKED_MARKER_SUFFIX = ".biomero-unpacked"
 ARCHIVE_READY_SUFFIX = ".biomero-ready"
 ARCHIVE_PARTIAL_SUFFIX = ".biomero-partial"

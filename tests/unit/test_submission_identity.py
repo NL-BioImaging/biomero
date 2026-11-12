@@ -53,12 +53,12 @@ def test_a_task_without_a_recorded_job_is_continued_too(tracked):
 
 
 @pytest.mark.parametrize('finish', [
-    lambda tracker, task_id: tracker.update_task_status(task_id, 'COMPLETED'),
+    lambda tracker, task_id: tracker.update_task_status(task_id, 'FAILED'),
     lambda tracker, task_id: tracker.update_task_status(task_id, 'CANCELLED by 1000'),
     lambda tracker, task_id: tracker.update_task_status(task_id, 'TIMEOUT'),
     lambda tracker, task_id: tracker.complete_task(task_id, 'done'),
     lambda tracker, task_id: tracker.fail_task(task_id, 'failed'),
-], ids=['completed', 'cancelled', 'timeout', 'task-completed', 'task-failed'])
+], ids=['job-failed', 'cancelled', 'timeout', 'task-completed', 'task-failed'])
 def test_a_second_run_on_the_same_input_never_adopts_a_finished_task(
         tracked, finish):
     client, workflow_id = tracked
@@ -75,6 +75,28 @@ def test_a_second_run_on_the_same_input_never_adopts_a_finished_task(
         client.get_submission_job_name(first)
 
 
+def test_a_crash_after_job_completion_adopts_the_completed_job(tracked):
+    """No second analysis: the job COMPLETED but its outputs were not
+    processed yet (the task is not completed), so resuming adopts it."""
+    client, workflow_id = tracked
+    task_id = new_task(client, workflow_id)
+    client.workflowTracker.add_job_id(task_id, 42)
+    client.workflowTracker.update_task_status(task_id, 'COMPLETED')
+    assert new_task(client, workflow_id) == task_id
+    result = client._submit_tracked('sbatch job.sh', {}, task_id)
+    assert client.extract_job_id(result) == 42
+    client.run_commands.assert_not_called()
+
+
+def test_once_the_outputs_are_processed_the_next_run_is_a_new_task(tracked):
+    client, workflow_id = tracked
+    task_id = new_task(client, workflow_id)
+    client.workflowTracker.add_job_id(task_id, 42)
+    client.workflowTracker.update_task_status(task_id, 'COMPLETED')
+    client.workflowTracker.complete_task(task_id, 'imported')
+    assert new_task(client, workflow_id) != task_id
+
+
 def test_a_run_whose_submission_failed_starts_a_new_task_when_asked_again(
         tracked):
     client, workflow_id = tracked
@@ -86,7 +108,7 @@ def test_a_run_whose_submission_failed_starts_a_new_task_when_asked_again(
 def test_the_unfinished_task_is_chosen_among_finished_ones(tracked):
     client, workflow_id = tracked
     finished = new_task(client, workflow_id)
-    client.workflowTracker.update_task_status(finished, 'COMPLETED')
+    client.workflowTracker.update_task_status(finished, 'FAILED')
     current = new_task(client, workflow_id)
     assert current != finished
     assert new_task(client, workflow_id) == current
@@ -147,7 +169,8 @@ def test_the_outcome_is_recorded_once_and_the_receipts_are_removed(tracked):
     client._record_submission(task_id, 42, result)
     client._record_submission(task_id, 42, result)
     assert client.get_task(task_id).job_ids == [42]
-    client.run_commands.assert_called_once()
+    # Receipts are removed on every call, also when already recorded.
+    assert client.run_commands.call_count == 2
     removal = client.run_commands.call_args.args[0][0]
     assert removal.startswith('rm -f ')
     assert f'/shared/data/.biomero-recovery/{task_id}.job' in removal

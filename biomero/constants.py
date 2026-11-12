@@ -17,6 +17,9 @@
 import re
 from uuid import UUID
 
+# Files that helper jobs create next to results for locking; never archived.
+LOCK_FILE_PATTERN = "*.biomero-lock"
+
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"

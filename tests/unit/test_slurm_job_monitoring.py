@@ -19,10 +19,36 @@ def test_heartbeat_runs_each_poll_and_failure_propagates_unchanged():
     assert job.job_state == 'PENDING'
 
 
-def test_core_monitor_has_no_connection_argument():
-    with pytest.raises(TypeError, match='omeroConn'):
-        SlurmJob.from_job_id(7).wait_for_completion(
-            MagicMock(), omeroConn=MagicMock())
+@pytest.mark.parametrize('call_style', ['positional', 'keyword'])
+def test_deprecated_connection_argument_becomes_keep_alive_heartbeat(
+        call_style):
+    """2.8.0 callers pass the OMERO connection; its keepAlive stays called."""
+    client, connection = MagicMock(), MagicMock()
+    client.check_job_status.side_effect = [
+        ({7: 'RUNNING'}, MagicMock(ok=True)),
+        ({7: 'COMPLETED'}, MagicMock(ok=True))]
+    client.get_active_job_progress.return_value = 'progress'
+    job = SlurmJob.from_job_id(7, slurm_polling_interval=0)
+    args = (client, connection) if call_style == 'positional' else (client,)
+    kwargs = {} if call_style == 'positional' else {'omeroConn': connection}
+
+    with pytest.warns(DeprecationWarning, match='heartbeat'):
+        state = job.wait_for_completion(*args, **kwargs)
+
+    assert state == 'COMPLETED'
+    assert connection.keepAlive.call_count == 2
+
+
+def test_heartbeat_takes_precedence_over_deprecated_connection():
+    client, connection, heartbeat = MagicMock(), MagicMock(), MagicMock()
+    client.check_job_status.return_value = ({7: 'COMPLETED'}, MagicMock(ok=True))
+    job = SlurmJob.from_job_id(7, slurm_polling_interval=0)
+
+    with pytest.warns(DeprecationWarning):
+        job.wait_for_completion(client, connection, heartbeat=heartbeat)
+
+    heartbeat.assert_called_once_with()
+    connection.keepAlive.assert_not_called()
 
 
 def test_public_shallower_has_no_connection_argument():

@@ -1,9 +1,13 @@
+import configparser
+from inspect import signature
 import logging
 import json
+import shutil
+import subprocess
 from uuid import uuid4
 from uuid import UUID
 from biomero.slurm_client import (
-    SlurmClient
+    SlurmClient, JOB_STATUS_EMPTY_RETRIES, IMAGE_PULL_STATUS_RETENTION_DAYS
 )
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
@@ -372,7 +376,7 @@ def test_get_zip_command_infozip(slurm_client, zip_cmd):
 
     assert cmd == (
         f'cd "/data/loc/data/out" && {zip_cmd} -r '
-        f'"/data/loc/result.zip" .'
+        f'"/data/loc/result.zip" . -x \'*.biomero-lock\''
     )
 
 
@@ -396,7 +400,7 @@ def test_get_unzip_command_infozip(slurm_client, zip_cmd, unzip_cmd):
         f' {unzip_cmd} -o "/data/batch1.zip"'
         " '*.tif' '*.zarr/*'"
         ' -d "/data/batch1/data/in"'
-        ' || [ $? -eq 11 ]'
+        ' || { [ $? -eq 11 ] && [ -n "$(ls -A "/data/batch1/data/in")" ]; }'
     )
 
 
@@ -422,7 +426,8 @@ def test_get_unzip_command_infozip_default_filters(slurm_client):
     assert "'*.zarr/*'" in cmd
     assert "'*.zarr'" not in cmd
     assert "*.ome.zarr" not in cmd
-    assert cmd.endswith(" || [ $? -eq 11 ]")
+    assert cmd.endswith(
+        ' || { [ $? -eq 11 ] && [ -n "$(ls -A "/data/batch1/data/in")" ]; }')
 
 
 @patch.object(SlurmClient, 'get')
@@ -499,7 +504,7 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # THEN - auto-detect expression used; cd into data/out so entries are relative
     auto = "$(command -v 7z || command -v 7za)"
     mock_run_commands.assert_called_once_with(
-        [f'cd "{data_location}/data/out" && {auto} a -y "{data_location}/{filename}.zip" -tzip .'], env=None)
+        [f'cd "{data_location}/data/out" && {auto} a -y "{data_location}/{filename}.zip" -tzip . ' + "'-xr!*.biomero-lock'"], env=None)
     assert result.ok is True
     assert result.stdout == ""
     mock_logger.info.assert_called_with(
@@ -1476,13 +1481,13 @@ def test_check_job_status_exc2(mock_run_commands, _mock_timesleep,
     mock_run_commands.return_value = SerializableMagicMock(
         ok=True, stdout=None)
 
-    # WHEN
-    job_status_dict, _ = slurm_client.check_job_status([12345, 67890])
+    # WHEN sacct keeps returning nothing
+    with pytest.raises(SSHException, match="no job rows"):
+        slurm_client.check_job_status([12345, 67890])
 
-    # THEN
-    # Empty sacct output is not evidence that the jobs failed: callers treat
-    # an unrecognized state as terminal, so they keep polling instead.
-    assert job_status_dict == {12345: 'PENDING', 67890: 'PENDING'}
+    # THEN it asks a bounded number of times, instead of reporting PENDING
+    # forever
+    assert mock_run_commands.call_count == JOB_STATUS_EMPTY_RETRIES
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
 
@@ -2234,7 +2239,7 @@ def test_workflow_tracker_and_listeners_no_op(
 def slurm_client_from_config_factory():
     def make_client(config_values=None, env_values=None):
         configparser_instance = MagicMock()
-        configparser_instance.read.return_value = None
+        configparser_instance.read.return_value = []
 
         config_values = config_values or {}
         env_values = env_values or {}
@@ -2313,7 +2318,7 @@ def slurm_configparser_factory():
         default_value="configvalue",
     ):
         configparser_instance = MagicMock()
-        configparser_instance.read.return_value = None
+        configparser_instance.read.return_value = []
         get_values = get_values or {}
         boolean_values = boolean_values or {}
         model_items = model_items or {}
@@ -2576,7 +2581,7 @@ def test_from_config(mock_ConfigParser,
         sqlalchemy_url="sqlite:///:memory:",
         config_only=config_only,
         slurm_data_bind_path=mv,
-        remote_shallow_zarr=True,
+        remote_shallow_zarr=False,
         remote_shallower_image=mv,
         remote_shallower_version=mv,
         remote_shallower_workers=1,
@@ -2846,6 +2851,7 @@ def test_setup_converters_env_file_template(
 
     mock_run.return_value = MagicMock(ok=True)
     mock_run2.return_value.ok = True
+    mock_run2.return_value.stdout = "PENDING\n"
     mock_put.return_value = MagicMock(ok=True)
 
     client.setup_converters()
@@ -4250,14 +4256,26 @@ def test_default_partition_defaults_to_none(slurm_client_from_config_factory):
     assert client.slurm_default_partition is None
 
 
-def test_remote_shallow_defaults_to_enabled(slurm_client_from_config_factory):
-    assert SlurmClient(config_only=True).remote_shallow_zarr is True
-    assert slurm_client_from_config_factory().remote_shallow_zarr is True
-
-
-def test_remote_shallow_can_opt_out(slurm_client_from_config_factory):
+def test_remote_shallow_defaults_to_disabled(slurm_client_from_config_factory):
+    """A feature is off in code: absent, empty or false leaves it off."""
+    assert SlurmClient(config_only=True).remote_shallow_zarr is False
+    assert slurm_client_from_config_factory().remote_shallow_zarr is False
     assert slurm_client_from_config_factory(
-        config_values={'remote_shallow_zarr': 'false'}).remote_shallow_zarr is False
+        config_values={'remote_shallow_zarr': ''}).remote_shallow_zarr is False
+    assert slurm_client_from_config_factory(
+        config_values={'remote_shallow_zarr': 'false'}
+    ).remote_shallow_zarr is False
+    assert slurm_client_from_config_factory(
+        env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': ''}
+    ).remote_shallow_zarr is False
+
+
+def test_remote_shallow_can_opt_in(slurm_client_from_config_factory):
+    assert slurm_client_from_config_factory(
+        config_values={'remote_shallow_zarr': 'true'}).remote_shallow_zarr is True
+    assert slurm_client_from_config_factory(
+        env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': 'true'}
+    ).remote_shallow_zarr is True
     assert slurm_client_from_config_factory(
         config_values={'remote_shallow_zarr': 'true'},
         env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': 'false'}).remote_shallow_zarr is False
@@ -5197,6 +5215,7 @@ def test_submit_image_pull_array_returns_array_id_and_stages_status(
         MagicMock(ok=True, stdout=""),
         MagicMock(ok=True, stdout="24680;cluster\n"),
         MagicMock(ok=True, stdout=""),
+        MagicMock(ok=True, stdout=""),
     ])
     slurm_client.put = MagicMock()
     spec = {
@@ -5237,6 +5256,7 @@ def test_rerun_excludes_existing_valid_images_from_array(
         MagicMock(ok=True, stdout=""),
         MagicMock(ok=True, stdout="13579\n"),
         MagicMock(ok=True, stdout=""),
+        MagicMock(ok=True, stdout=""),
     ])
     slurm_client.put = MagicMock()
     specs = [{
@@ -5259,3 +5279,399 @@ def test_rerun_excludes_existing_valid_images_from_array(
     manifest_text = manifest_upload.args[0].getvalue()
     assert "workflow-15" in manifest_text
     assert "workflow-14" not in manifest_text
+
+
+# ---------------------------------------------------------------------------
+# One merge of default partition and global sbatch settings (get_job_params)
+# ---------------------------------------------------------------------------
+
+def test_image_pull_sbatch_command_applies_default_partition(slurm_client):
+    """Clusters without a system default partition need it for image pulls."""
+    slurm_client.slurm_default_partition = "fallback"
+    slurm_client.slurm_global_job_params = [
+        " --partition=generic", " --account=project"]
+    slurm_client.image_pull_partition = None
+
+    cmd = slurm_client._build_image_pull_sbatch_command(
+        "pull_images.sh", "manifest.tsv", "status", 1)
+
+    assert "--partition=fallback" in cmd
+    assert "--partition=generic" not in cmd
+    assert "--account=project" in cmd
+
+
+def test_image_pull_partition_overrides_default_partition(slurm_client):
+    slurm_client.slurm_default_partition = "fallback"
+    slurm_client.image_pull_partition = "image-pull"
+
+    cmd = slurm_client._build_image_pull_sbatch_command(
+        "pull_images.sh", "manifest.tsv", "status", 1)
+
+    assert "--partition=image-pull" in cmd
+    assert "--partition=fallback" not in cmd
+
+
+def test_image_pull_sbatch_command_ignores_global_array_flags(slurm_client):
+    slurm_client.slurm_global_job_params = [
+        " --array=0-99", " --job-name=other", " --export=NONE"]
+
+    cmd = slurm_client._build_image_pull_sbatch_command(
+        "pull_images.sh", "manifest.tsv", "status", 2)
+
+    assert "--array=0-1%" in cmd
+    assert "--array=0-99" not in cmd
+    assert "--job-name=biomero-pull-images" in cmd
+    assert "--job-name=other" not in cmd
+    assert "--export=NONE" not in cmd
+
+
+def test_get_job_params_merges_every_source_once(slurm_client):
+    slurm_client.slurm_default_partition = "fallback"
+    slurm_client.slurm_global_job_params = [
+        " --partition=generic", " --account=project", " --time=01:00:00",
+        " --nice=1"]
+
+    params = slurm_client.get_job_params(
+        {"time": "02:00:00", "mem": "", "cpus-per-task": 4},
+        excluded={"nice"},
+        base_params=[" --account=workflow"])
+
+    assert params == [
+        "--account=workflow", "--time=02:00:00", "--cpus-per-task=4",
+        "--partition=fallback"]
+
+
+def test_get_job_params_base_partition_beats_default_partition(slurm_client):
+    slurm_client.slurm_default_partition = "fallback"
+
+    params = slurm_client.get_job_params(base_params=[" --partition=gpu"])
+
+    assert params == ["--partition=gpu"]
+
+
+def test_workflow_command_uses_the_shared_merge(slurm_client):
+    """Workflow jobs merge default partition and globals via get_job_params."""
+    slurm_client.slurm_model_paths = {"wf": "path"}
+    slurm_client.slurm_model_jobs = {"wf": "job.sh"}
+    slurm_client.slurm_model_jobs_params = {"wf": [" --mem=1G"]}
+    slurm_client.slurm_model_images = {"wf": "org/image"}
+    slurm_client.slurm_default_partition = "fallback"
+    slurm_client.slurm_global_job_params = [" --mem=9G", " --qos=normal"]
+
+    with patch.object(slurm_client, "get_job_params",
+                      wraps=slurm_client.get_job_params) as merge:
+        cmd, _ = slurm_client.get_workflow_command("wf", "v1", "data")
+
+    merge.assert_called_once_with(base_params=[" --mem=1G"])
+    assert "--mem=1G" in cmd and "--mem=9G" not in cmd
+    assert "--partition=fallback" in cmd
+    assert "--qos=normal" in cmd
+
+
+def test_partition_existing_images_raises_when_answers_are_missing(
+        slurm_client):
+    """An image must never be dropped because the cluster answered short."""
+    specs = [{"destination": f"/images/{index}.sif"} for index in range(3)]
+    slurm_client.run_commands_split_out = MagicMock(
+        return_value=["READY\n", "PENDING\n"])
+
+    with pytest.raises(SSHException, match="dropped"):
+        slurm_client._partition_existing_images(specs)
+
+
+def test_image_pull_prunes_old_status_folders_but_not_the_current_one(
+        slurm_client):
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(ok=True))
+
+    slurm_client._prune_image_pull_status(
+        "/scripts/image-pulls", "/scripts/image-pulls/current")
+
+    command = slurm_client.run_commands.call_args.args[0][0]
+    assert command == (
+        "find /scripts/image-pulls -mindepth 1 -maxdepth 1 -type d "
+        f"-mtime +{IMAGE_PULL_STATUS_RETENTION_DAYS} "
+        "! -path /scripts/image-pulls/current -exec rm -rf {} +")
+
+
+def test_image_pull_prune_failure_does_not_fail_the_submission(slurm_client):
+    slurm_client.run_commands = MagicMock(
+        return_value=MagicMock(ok=False, stderr="denied"))
+
+    slurm_client._prune_image_pull_status("/root", "/root/current")
+
+
+@patch('biomero.slurm_client.uuid4')
+def test_submit_image_pull_array_prunes_after_publishing_latest(
+        mock_uuid4, slurm_client):
+    mock_uuid4.return_value.hex = "submission"
+    slurm_client.slurm_script_path = "/shared/scripts"
+    slurm_client.run_commands_split_out = MagicMock(return_value=["READY\n"])
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(ok=True))
+    slurm_client.put = MagicMock()
+
+    assert slurm_client._submit_image_pull_array(
+        [{"kind": "workflow", "name": "wf", "version": "v1",
+          "source_type": "registry", "source": "org/wf",
+          "destination": "/images/wf.sif"}]) is None
+
+    commands = [call.args[0][0]
+                for call in slurm_client.run_commands.call_args_list]
+    assert commands[-2].startswith("mv ")
+    assert commands[-1].startswith("find /shared/scripts/image-pulls ")
+
+
+# ---------------------------------------------------------------------------
+# check_job_status
+# ---------------------------------------------------------------------------
+
+@patch('biomero.slurm_client.timesleep')
+def test_check_job_status_fails_after_bounded_empty_sacct_output(
+        _mock_sleep, slurm_client):
+    """A job that left the accounting must not be polled forever."""
+    slurm_client.run_commands_read_only = MagicMock(
+        return_value=MagicMock(ok=True, stdout="  \n"))
+
+    with pytest.raises(SSHException, match="no job rows"):
+        slurm_client.check_job_status([42])
+
+    assert (slurm_client.run_commands_read_only.call_count
+            == JOB_STATUS_EMPTY_RETRIES)
+
+
+@patch('biomero.slurm_client.timesleep')
+def test_check_job_status_treats_unparsable_output_as_no_rows(
+        _mock_sleep, slurm_client):
+    slurm_client.run_commands_read_only = MagicMock(
+        return_value=MagicMock(ok=True, stdout="sacct: error: garbage\n"))
+
+    with pytest.raises(SSHException, match="no job rows"):
+        slurm_client.check_job_status([42])
+
+
+@patch('biomero.slurm_client.timesleep')
+def test_check_job_status_recovers_when_rows_appear_on_retry(
+        _mock_sleep, slurm_client):
+    slurm_client.run_commands_read_only = MagicMock(side_effect=[
+        MagicMock(ok=True, stdout=""),
+        MagicMock(ok=True, stdout="42 RUNNING Unknown\n")])
+
+    statuses, result = slurm_client.check_job_status([42])
+
+    assert statuses == {42: "RUNNING"}
+    assert result.ok
+
+
+def test_check_job_status_reports_array_row_race_as_pending(slurm_client):
+    """sacct answered with another job's row: ours is not there yet."""
+    slurm_client.run_commands_read_only = MagicMock(
+        return_value=MagicMock(ok=True, stdout="11_2 COMPLETED 2025-01-01\n"))
+
+    statuses, _ = slurm_client.check_job_status([13])
+
+    assert statuses == {13: "PENDING"}
+
+
+def test_check_job_status_without_valid_job_ids_runs_nothing(slurm_client):
+    slurm_client.run_commands_read_only = MagicMock()
+
+    assert slurm_client.check_job_status([None, 0, "x"]) == ({}, None)
+    slurm_client.run_commands_read_only.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Info-ZIP extraction must not report an empty extraction as success
+# ---------------------------------------------------------------------------
+
+def _run_unzip_command(tmp_path, unzip_exit, extracted_file):
+    """Run the real extraction command with a stand-in ``unzip``."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_unzip = bin_dir / "unzip"
+    touch_extracted = (
+        f'touch "$dest/{extracted_file}"\n' if extracted_file else "")
+    fake_unzip.write_text(
+        "#!/bin/bash\n"
+        "dest=''\n"
+        'while [ $# -gt 0 ]; do [ "$1" = -d ] && dest=$2; shift; done\n'
+        f"{touch_extracted}"
+        f"exit {unzip_exit}\n")
+    fake_unzip.chmod(0o755)
+    client = SlurmClient(config_only=True, slurm_zip_cmd="zip",
+                         slurm_data_path=str(tmp_path / "data"))
+    command = client.get_unzip_command("batch", "*.zarr *.tiff")
+    return subprocess.run(
+        ["bash", "-c", command],
+        env={**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"},
+        capture_output=True, text=True)
+
+
+@pytest.mark.skipif(os.name != 'posix' or not shutil.which('bash'),
+                    reason='requires POSIX Bash')
+@pytest.mark.parametrize("unzip_exit,extracted_file,succeeds", [
+    (0, "image.tiff", True),
+    # One filter (no Zarr in this result) matched nothing: still extracted.
+    (11, "image.tiff", True),
+    # Nothing matched at all: that is not a successful extraction.
+    (11, None, False),
+    (1, "image.tiff", False),
+])
+def test_infozip_extraction_succeeds_only_when_files_were_extracted(
+        tmp_path, unzip_exit, extracted_file, succeeds):
+    result = _run_unzip_command(tmp_path, unzip_exit, extracted_file)
+
+    assert (result.returncode == 0) is succeeds, result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Configuration: one reader and one parser per setting
+# ---------------------------------------------------------------------------
+
+def test_from_config_reads_sqlalchemy_url_env_without_analytics_section(
+        monkeypatch, tmp_path):
+    """The environment variable works without an [ANALYTICS] section."""
+    config_file = tmp_path / "authoritative.ini"
+    config_file.write_text("[SLURM]\nslurm_data_path=data\n")
+    monkeypatch.setenv("BIOMERO_SLURM_CONFIG_FILE", str(config_file))
+    monkeypatch.setenv("SQLALCHEMY_URL", "sqlite:///from-env.db")
+
+    with patch.object(SlurmClient, "__init__", return_value=None) as init:
+        SlurmClient.from_config(config_only=True)
+
+    assert init.call_args.kwargs["sqlalchemy_url"] == "sqlite:///from-env.db"
+
+
+def test_analytics_system_uses_the_resolved_sqlalchemy_url(
+        slurm_client, monkeypatch):
+    """The client does not read the ini or the environment a second time."""
+    slurm_client.sqlalchemy_url = "sqlite:///resolved.db"
+    slurm_client.track_workflows = True
+    slurm_client.setup_listeners = MagicMock()
+    monkeypatch.setenv("SQLALCHEMY_URL", "sqlite:///ignored.db")
+
+    with patch.object(EngineManager, "create_scoped_session",
+                      return_value="topic") as session, \
+            patch("biomero.slurm_client.SingleThreadedRunner"):
+        slurm_client.initialize_analytics_system()
+
+    session.assert_called_once_with(sqlalchemy_url="sqlite:///resolved.db")
+
+
+def test_analytics_system_requires_a_sqlalchemy_url(slurm_client, monkeypatch):
+    slurm_client.sqlalchemy_url = None
+    monkeypatch.delenv("SQLALCHEMY_URL", raising=False)
+
+    with pytest.raises(ValueError, match="SQLALCHEMY_URL"):
+        slurm_client.initialize_analytics_system()
+
+
+@pytest.mark.parametrize("ini_content", ["flag =\n", "flag\n", "flag = maybe\n"])
+def test_empty_or_invalid_boolean_setting_keeps_the_default(ini_content):
+    configs = configparser.ConfigParser(allow_no_value=True)
+    configs.read_string("[SLURM]\n" + ini_content)
+
+    assert SlurmClient._get_config_value(
+        configs, "SLURM", "flag", default=False, value_type=bool) is False
+
+
+@pytest.mark.parametrize("option", ["image_pull_concurrency",
+                                    "remote_shallower_workers"])
+@pytest.mark.parametrize("value", [0, -2, None])
+def test_counts_below_one_are_raised_to_one_in_the_constructor(option, value):
+    client = SlurmClient(config_only=True, **{option: value})
+
+    assert getattr(client, option) == 1
+
+
+def test_remote_shallower_partition_empty_means_unset(
+        slurm_client_from_config_factory):
+    client = slurm_client_from_config_factory(
+        config_values={"remote_shallower_partition": ""})
+
+    assert client.remote_shallower_partition is None
+
+
+def test_every_config_env_var_is_registered_in_one_place():
+    """The 2.9 settings use the same registry as the older ones."""
+    for option in ("ssh_recovery_timeout", "remote_shallow_zarr",
+                   "remote_shallower_image", "remote_shallower_version",
+                   "remote_shallower_workers", "remote_shallower_partition",
+                   "remote_shallower_mem", "remote_shallower_time"):
+        assert ("SLURM", option) in SlurmClient._CONFIG_ENV_VARS
+
+
+def test_constructor_keeps_the_positional_order_of_2_8_0():
+    """New parameters are appended, so positional 2.8.0 callers keep working."""
+    parameters = list(signature(SlurmClient.__init__).parameters)
+    release_2_8_order = [
+        "self", "host", "user", "port", "config", "gateway", "forward_agent",
+        "connect_timeout", "connect_kwargs", "inline_ssh_env",
+        "slurm_data_path", "slurm_images_path", "slurm_converters_path",
+        "slurm_model_paths", "slurm_model_repos", "slurm_model_images",
+        "converter_images", "slurm_model_jobs", "slurm_model_jobs_params",
+        "slurm_model_use_gpu", "slurm_script_path", "slurm_script_repo",
+        "init_slurm", "track_workflows", "enable_job_accounting",
+        "enable_job_progress", "enable_workflow_analytics", "sqlalchemy_url",
+        "config_only", "slurm_data_bind_path", "slurm_conversion_partition",
+        "slurm_default_partition", "sacct_start_time", "sacct_days_ago",
+        "env_file_submission", "inject_gpu_flag", "gpu_partition", "gpu_gres",
+        "gpu_gpus", "slurm_global_job_params", "slurm_image_pull_via_sbatch",
+        "image_pull_cpus", "image_pull_mem", "apptainer_tmpdir",
+        "apptainer_cachedir", "slurm_zip_cmd", "analytics_rebuild_start_time",
+        "analytics_rebuild_days_ago"]
+
+    assert parameters[:len(release_2_8_order)] == release_2_8_order
+
+
+def test_authoritative_config_logs_ignored_file_and_missing_file(
+        monkeypatch, tmp_path, caplog):
+    monkeypatch.setenv("BIOMERO_SLURM_CONFIG_FILE",
+                       str(tmp_path / "missing.ini"))
+    caplog.set_level(logging.INFO, logger="biomero.slurm_client")
+
+    SlurmClient.load_config("explicit.ini")
+
+    warnings_logged = [r.getMessage() for r in caplog.records
+                       if r.levelno == logging.WARNING]
+    assert any("Ignoring config file explicit.ini" in m
+               for m in warnings_logged)
+    assert any("missing.ini" in m and "not found" in m
+               for m in warnings_logged)
+
+
+def test_config_load_logs_the_files_it_read(monkeypatch, tmp_path, caplog):
+    config_file = tmp_path / "authoritative.ini"
+    config_file.write_text("[SLURM]\n")
+    monkeypatch.setenv("BIOMERO_SLURM_CONFIG_FILE", str(config_file))
+    caplog.set_level(logging.INFO, logger="biomero.slurm_client")
+
+    SlurmClient.load_config()
+
+    assert any(str(config_file) in r.getMessage()
+               and r.levelno == logging.INFO for r in caplog.records)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+# ---------------------------------------------------------------------------
+# Teardown disposes the database engine, unless other clients still use it
+# ---------------------------------------------------------------------------
+
+def test_exit_disposes_the_database_engine_of_the_last_client(slurm_client):
+    with patch.object(EngineManager, "close_engine") as close_engine, \
+            patch.object(EngineManager, "remove_session") as remove_session:
+        with slurm_client:
+            pass
+
+    close_engine.assert_called_once_with()
+    remove_session.assert_not_called()
+
+
+def test_exit_keeps_the_engine_while_another_client_is_open(slurm_client):
+    other_client = SlurmClient(config_only=True)
+    with patch.object(EngineManager, "close_engine") as close_engine, \
+            patch.object(EngineManager, "remove_session") as remove_session:
+        with other_client:
+            with slurm_client:
+                pass
+            close_engine.assert_not_called()
+            remove_session.assert_called_once_with()
+        close_engine.assert_called_once_with()

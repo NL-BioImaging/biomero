@@ -26,8 +26,9 @@ inputs remains available when new shallowing is disabled; retain their sources
 and reconstruction dependencies.
 
 ``remote_shallow_zarr`` selects where eligible results are normalized. Its
-default is true, so enabling shallow storage prefers the remote CPU helper.
-Set it to false to normalize locally in the importer. It does not itself
+default is false (a missing or empty value too), so shallow storage normalizes
+locally in the importer. Set it to true to prefer the remote CPU helper; the
+demo deployment does so. It does not itself
 enable shallow storage or detached execution. The scripts enforce importer
 and shallow-storage eligibility; core additionally requires workflow tracking
 and a nonempty canonical-input manifest before submitting the helper.

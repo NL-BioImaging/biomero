@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 import shlex
 
@@ -22,8 +22,9 @@ def test_shallower_is_cpu_only_and_quotes_paths():
                          remote_shallower_partition='cpu',
                          slurm_global_job_params=[' --gres=gpu:1', ' --gpus=1', ' --mem=4G'])
     from biomero.remote_shallower import build_helper_command
-    command = build_helper_command(client, '/scratch/path with spaces', '/sif/helper.sif',
-                            '/state/input.json', str(uuid4()))
+    command = build_helper_command(
+        client, '/scratch/path with spaces', '/sif/helper.sif',
+        '/state/input.json', str(uuid4()))
     assert '--gres' not in command
     assert '--gpus' not in command
     assert '--partition=cpu' in command
@@ -172,8 +173,9 @@ def test_shallowing_and_recovery_have_distinct_job_names():
     task_id = str(uuid4())
     names = []
     for recovery in (False, True):
-        command = build_helper_command(client, '/out', '/helper.sif', '/manifest',
-                                task_id, recovery=recovery)
+        command = build_helper_command(
+            client, '/out', '/helper.sif', '/manifest', task_id,
+            recovery=recovery)
         names.append(next(arg for arg in shlex.split(command)
                           if arg.startswith('--job-name=')))
     assert names[0] == '--job-name=biomero-shallower-' + task_id
@@ -184,8 +186,9 @@ def test_submission_uses_explicit_reconciliation_identity():
     from biomero.slurm_client import SlurmClient
     client = SimpleNamespace(run_commands=MagicMock(
         return_value=SimpleNamespace(ok=True, stdout='123')))
-    assert SlurmClient.submit_job_once(client, 'sbatch --parsable worker.sh', '/state/recovery',
-                        job_name='biomero-recovery-task') == 123
+    assert SlurmClient.submit_job_once(
+        client, 'sbatch --parsable worker.sh', '/state/recovery',
+        job_name='biomero-recovery-task') == 123
     script = shlex.split(client.run_commands.call_args.args[0][0])[-1]
     assert '--name=biomero-recovery-task' in script
 
@@ -220,15 +223,22 @@ def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, level,
     client.check_flock_available = MagicMock()
     with caplog.at_level('DEBUG', logger='biomero.slurm_client'):
         client.setup_slurm()
-    assert [r.levelname for r in caplog.records if expected in r.getMessage()]         == [level]
+    levels = [record.levelname for record in caplog.records
+              if expected in record.getMessage()]
+    assert levels == [level]
 
 
-def test_zip_exclusion_decision_is_logged(caplog):
+@pytest.mark.parametrize('enabled,expected', [
+    (True, 'applied'), (False, 'not applied (remote_shallow_zarr disabled)')])
+def test_zip_exclusion_decision_is_logged_at_debug(caplog, enabled, expected):
     client = SlurmClient(config_only=True, slurm_zip_cmd='zip',
-                         remote_shallow_zarr=False)
+                         remote_shallow_zarr=enabled)
     with caplog.at_level('DEBUG', logger='biomero.slurm_client'):
         client.get_zip_command('/data', 'results')
-    assert 'not applied' in caplog.text
+    records = [record for record in caplog.records
+               if 'ZIP exclusion' in record.getMessage()]
+    assert [record.levelname for record in records] == ['DEBUG']
+    assert records[0].getMessage().endswith(f'shallowing: {expected}')
 
 
 def test_flock_check_warns_only_when_flock_is_missing(caplog):
@@ -294,8 +304,8 @@ def test_workflow_tasks_are_read_once_and_filtered():
         workflow_id, task_name='b', input_data='/x') == [second]
 
 
-@pytest.mark.parametrize('stdout,expected', [('NOT_SUBMITTED', None),
-                                           ('77', 77)])
+@pytest.mark.parametrize('stdout,expected', [
+    ('NOT_SUBMITTED', None), ('77', 77)])
 def test_submit_job_once_returns_job_id_or_none_when_rejected(stdout, expected):
     client = SimpleNamespace(run_commands=MagicMock(
         return_value=SimpleNamespace(ok=True, stdout=stdout)))
@@ -311,3 +321,189 @@ def test_submit_job_once_names_the_unresolved_job_and_exit_code():
         SlurmClient.submit_job_once(
             client, 'sbatch --parsable job.sh', '/state/job',
             job_name='any-job')
+
+
+HELPER_CLIENT_SETTINGS = dict(
+    config_only=True, remote_shallow_zarr=True,
+    remote_shallower_image='registry/helper:0.1.0',
+    remote_shallower_workers=2, remote_shallower_partition='cpu',
+    slurm_default_partition='gpu', slurm_global_job_params=[' --account=lab'])
+GOLDEN_HELPER_COMMAND = (
+    'runtime=$(command -v apptainer || command -v singularity); '
+    'test -n "$runtime"; exec "$runtime" exec --containall --cleanenv '
+    '--env SLURM_JOB_ID="$SLURM_JOB_ID" '
+    '--bind /scratch/out:/results:rw '
+    '--bind /state/canonical.json:/canonical.json:ro /sif/helper.sif '
+    'biomero-shallower normalize-tree --returned-zarr /results '
+    '--canonical-inputs /canonical.json --contract-version 1 '
+    '--failure-policy keep-full '
+    '--report /results/.biomero-shallow-batch.json --identity-workers 2 '
+    '--image registry/helper:0.1.0 --task-id tid')
+
+
+@pytest.mark.parametrize('recovery,job_name,suffix', [
+    (False, 'biomero-shallower-tid', ''),
+    (True, 'biomero-recovery-tid', ' --recover-only')])
+def test_helper_command_golden(recovery, job_name, suffix):
+    from biomero.remote_shallower import build_helper_command
+    client = SlurmClient(**HELPER_CLIENT_SETTINGS)
+    command = build_helper_command(
+        client, '/scratch/out', '/sif/helper.sif', '/state/canonical.json',
+        'tid', recovery=recovery, image='registry/helper:0.1.0')
+    assert shlex.split(command) == [
+        'sbatch', '--parsable', '--export=NONE', '--cpus-per-task=2',
+        '--partition=cpu', '--account=lab', f'--job-name={job_name}',
+        '--output=/state/canonical.json.%j.log',
+        '--wrap=' + GOLDEN_HELPER_COMMAND + suffix]
+
+
+def test_helper_command_uses_the_requested_contract_version():
+    from biomero.remote_shallower import build_helper_command
+    client = SlurmClient(**HELPER_CLIENT_SETTINGS)
+    command = build_helper_command(
+        client, '/scratch/out', '/sif/helper.sif', '/state/canonical.json',
+        'tid', image='registry/helper:0.1.0', contract_version=7)
+    assert '--contract-version 7 ' in command
+    assert '--contract-version 1 ' not in command
+
+
+@pytest.mark.parametrize('polling_interval,expected', [(None, 15), (7, 7)])
+def test_wait_passes_the_polling_interval_to_the_job(
+        caplog, polling_interval, expected):
+    from biomero import remote_shallower
+    job = MagicMock()
+    job.wait_for_completion.return_value = 'COMPLETED'
+    job.completed.return_value = True
+    arguments = {} if polling_interval is None else {
+        'polling_interval': polling_interval}
+    with patch.object(remote_shallower.SlurmJob, 'from_job_id',
+                      return_value=job) as from_job_id, \
+         caplog.at_level('INFO', logger='biomero.remote_shallower'):
+        state = remote_shallower.wait_for_helper_job(
+            MagicMock(), 55, **arguments)
+    assert state == 'COMPLETED'
+    from_job_id.assert_called_once_with(55, slurm_polling_interval=expected)
+    messages = [record.getMessage() for record in caplog.records
+                if record.levelname == 'INFO']
+    assert 'Waiting for remote shallower Slurm job 55' in messages
+    assert ('Remote shallower Slurm job 55 finished with state COMPLETED'
+            in messages)
+
+
+class RecordingClient:
+    """Fake remote that records the commands of the manifest publication."""
+
+    def __init__(self, manifest_json):
+        self.manifest_json = manifest_json
+        self.commands = []
+
+    def run_commands(self, commands, **kwargs):
+        self.commands.append(commands[0])
+        stdout = '' if len(self.commands) == 1 else self.manifest_json
+        return SimpleNamespace(ok=True, stdout=stdout)
+
+    def put(self, stream, path):
+        pass
+
+
+@pytest.mark.parametrize('arguments,expected_wait', [
+    ({}, 30), ({'lock_wait_seconds': 9}, 9)])
+def test_manifest_publication_waits_for_the_lock(arguments, expected_wait):
+    from biomero.remote_shallower import publish_or_verify_manifest
+    client = RecordingClient('{"a": 1}')
+    canonical = SimpleNamespace(to_dict=lambda: {'a': 1})
+    publish_or_verify_manifest(client, '/state/canonical.json', canonical,
+                               submitted=False, **arguments)
+    publish_command = next(command for command in client.commands
+                           if command.startswith('flock '))
+    assert publish_command.startswith(
+        f"flock -w {expected_wait} /state/canonical.json.lock sh -c ")
+
+
+def _fabric_result(exited):
+    from invoke.runners import Result
+    return Result(stdout='', stderr='', exited=exited, command='sbatch')
+
+
+@pytest.mark.parametrize('exited,error', [
+    (200, 'RecoveryPending'), (-1, 'UnexpectedExit')])
+def test_submit_job_once_while_recovering_distinguishes_lock_and_lost_ssh(
+        exited, error):
+    from invoke.exceptions import UnexpectedExit
+    from biomero import ssh_recovery
+    client = SimpleNamespace(
+        ssh_recovery_timeout=900,
+        run_commands=MagicMock(return_value=_fabric_result(exited)))
+    expected = {'RecoveryPending': ssh_recovery.RecoveryPending,
+                'UnexpectedExit': UnexpectedExit}[error]
+    with pytest.raises(expected):
+        SlurmClient.submit_job_once(client, 'sbatch --parsable job.sh',
+                                    '/state/job', job_name='any-job')
+    assert client.run_commands.call_args.kwargs == {'warn': True}
+
+
+@pytest.mark.parametrize('recovering,expected_wait', [(True, 5), (False, 30)])
+def test_submit_job_once_waits_for_the_lock_by_mode(recovering, expected_wait):
+    client = SimpleNamespace(
+        ssh_recovery_timeout=900 if recovering else 0,
+        run_commands=MagicMock(return_value=SimpleNamespace(
+            ok=True, stdout='12', exited=0)))
+    SlurmClient.submit_job_once(client, 'sbatch --parsable job.sh',
+                                '/state/job', job_name='any-job')
+    command = client.run_commands.call_args.args[0][0]
+    assert command.startswith(f'flock -w {expected_wait} -E 200 ')
+
+
+def test_workflow_and_task_reads_go_through_the_tracker():
+    client = SlurmClient(config_only=True)
+    client.workflowTracker = MagicMock()
+    workflow_id = uuid4()
+    assert client.get_workflow(str(workflow_id)) is (
+        client.workflowTracker.repository.get.return_value)
+    client.workflowTracker.repository.get.assert_called_with(workflow_id)
+    task_id = uuid4()
+    client.get_task(task_id)
+    client.workflowTracker.repository.get.assert_called_with(task_id)
+
+
+def _submission_client(tasks):
+    client = SlurmClient(config_only=True, ssh_recovery_timeout=900)
+    client.workflowTracker = MagicMock()
+    workflow = SimpleNamespace(tasks=[task.id for task in tasks])
+    records = {task.id: task for task in tasks}
+    client.workflowTracker.repository.get.side_effect = (
+        lambda key: records.get(key, workflow))
+    return client
+
+
+def _recorded_task(**changes):
+    fields = dict(id=uuid4(), task_name='job', input_data='/data',
+                  task_version='1', params={'p': 1})
+    fields.update(changes)
+    return SimpleNamespace(**fields)
+
+
+def test_submission_task_adopts_the_recorded_task():
+    task = _recorded_task()
+    client = _submission_client([task])
+    assert client._submission_task(
+        uuid4(), 'job', '1', '/data', {'p': 1}) == task.id
+    client.workflowTracker.add_task_to_workflow.assert_not_called()
+
+
+def test_submission_task_rejects_changed_parameters_and_duplicates():
+    task = _recorded_task()
+    with pytest.raises(RuntimeError, match='parameters changed'):
+        _submission_client([task])._submission_task(
+            uuid4(), 'job', '1', '/data', {'p': 2})
+    with pytest.raises(RuntimeError, match='Ambiguous'):
+        _submission_client([task, _recorded_task()])._submission_task(
+            uuid4(), 'job', '1', '/data', {'p': 1})
+
+
+def test_submission_task_creates_a_task_when_none_is_recorded():
+    client = _submission_client([_recorded_task(task_name='other')])
+    workflow_id = uuid4()
+    client._submission_task(workflow_id, 'job', '1', '/data', {'p': 1})
+    client.workflowTracker.add_task_to_workflow.assert_called_once_with(
+        workflow_id, 'job', '1', '/data', {'p': 1})

@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -70,6 +70,8 @@ def test_persisted_receipts_remain_readable_after_config_change():
         remote_shallow_zarr=True, track_workflows=True, workflowTracker=tracker,
         remote_shallower_image='helper:2.0', remote_shallower_version='2.0')
     client.get_task = tracker.repository.get
+    client.get_workflow = lambda workflow: tracker.repository.get(
+        UUID(str(workflow)))
     client.get_workflow_tasks = lambda *args, **kwargs: (
         SlurmClient.get_workflow_tasks(client, *args, **kwargs))
     assert shallower.completed_receipts(

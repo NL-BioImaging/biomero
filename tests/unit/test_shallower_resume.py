@@ -1,14 +1,16 @@
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from biomero.slurm_client import SlurmClient
 from biomero_schema.zarr import CanonicalInputManifest
 from biomero.constants import REMOTE_SHALLOWER_TASK_NAME as TASK_NAME
-from biomero.remote_shallower import shallow_workflow_results as run, completed_receipts
+from biomero.remote_shallower import (
+    POLLING_INTERVAL_SECONDS, shallow_workflow_results as run,
+    completed_receipts)
 
 
 def client_fixture(*, jobs=(123,), terminal=False):
@@ -47,6 +49,8 @@ def client_fixture(*, jobs=(123,), terminal=False):
                                      '' if commands[0].startswith('if test') else '{}'))))
     # Delegate the generic SlurmClient helpers to their real implementations.
     client.get_task = tracker.repository.get
+    client.get_workflow = lambda workflow: tracker.repository.get(
+        UUID(str(workflow)))
     client.get_workflow_tasks = lambda *args, **kwargs: (
         SlurmClient.get_workflow_tasks(client, *args, **kwargs))
     client.build_sbatch_wrap_command = lambda *args, **kwargs: (
@@ -103,7 +107,8 @@ def test_resume_adopts_existing_job_without_submission():
          patch('biomero.remote_shallower.wait_for_helper_job', return_value='COMPLETED') as wait, \
          patch('biomero.remote_shallower.parse_batch_report', return_value=batch):
         assert run(client, '/data', workflow_id, canonical) is batch
-    wait.assert_called_once_with(client, 123, None)
+    wait.assert_called_once_with(
+        client, 123, None, POLLING_INTERVAL_SECONDS)
     client.workflowTracker.complete_task.assert_called_once()
 
 
@@ -118,7 +123,7 @@ def test_terminal_task_skips_all_remote_work():
 
 def test_submission_id_is_persisted_before_polling():
     client, workflow_id, canonical, batch = client_fixture(jobs=())
-    def wait(_client, job, conn=None):
+    def wait(_client, job, heartbeat=None, polling_interval=None):
         client.workflowTracker.add_job_id.assert_called_once()
         assert job == 123
         return 'COMPLETED'
@@ -300,32 +305,87 @@ def test_untracked_workflows_warn_that_shallowing_is_skipped(caplog):
 
 def test_non_completed_helper_job_warns_before_recovery(caplog):
     client, workflow_id, canonical, batch = client_fixture()
-    with patch('biomero.remote_shallower.parse_batch_report', return_value=batch),          patch.object(client, 'submit_job_once', return_value=124),          patch('biomero.remote_shallower.wait_for_helper_job',
-               side_effect=['FAILED', 'COMPLETED']),          caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
-        run(client, '/data', workflow_id, canonical)
-    assert [r.levelname for r in caplog.records
-            if 'ended as FAILED; running recovery' in r.getMessage()]         == ['WARNING']
-
-
-def test_rejected_submission_warns_about_full_results_fallback(caplog):
-    client, workflow_id, canonical, _ = client_fixture(jobs=())
-    batch_cls = MagicMock()
-    batch_cls.return_value.to_dict.return_value = {}
-    with patch.object(client, 'submit_job_once', return_value=None), \
-         patch('biomero_schema.shallower.ShallowBatchReport', batch_cls), \
+    with patch('biomero.remote_shallower.parse_batch_report',
+               return_value=batch), \
+         patch.object(client, 'submit_job_once', return_value=124), \
+         patch('biomero.remote_shallower.wait_for_helper_job',
+               side_effect=['FAILED', 'COMPLETED']), \
          caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
         run(client, '/data', workflow_id, canonical)
-    warnings = [r for r in caplog.records if r.levelname == 'WARNING']
-    assert any('retaining full results' in r.getMessage() for r in warnings)
+    recovery_warnings = [
+        record.levelname for record in caplog.records
+        if 'ended as FAILED; running recovery' in record.getMessage()]
+    assert recovery_warnings == ['WARNING']
+
+
+def test_rejected_submission_completes_task_with_empty_report(caplog):
+    client, workflow_id, canonical, _ = client_fixture(jobs=())
+    reports = []
+
+    class FakeReport:
+        def __init__(self, **fields):
+            self.fields = fields
+            reports.append(self)
+
+        def to_dict(self):
+            return {'result': self.fields['result']}
+
+    with patch.object(client, 'submit_job_once', return_value=None), \
+         patch('biomero_schema.shallower.ShallowBatchReport', FakeReport), \
+         caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        returned = run(client, '/data', workflow_id, canonical)
+    assert returned is reports[0]
+    assert reports[0].fields['receipts'] == ()
+    assert reports[0].fields['result'] == 'complete'
+    assert reports[0].fields['canonicalInputs'] is canonical
+    task_id = client.get_workflow(workflow_id).tasks[0]
+    client.workflowTracker.complete_task.assert_called_once_with(
+        task_id, json.dumps({'result': 'complete'}))
+    client.workflowTracker.add_job_id.assert_not_called()
+    warnings = [record.getMessage() for record in caplog.records
+                if record.levelname == 'WARNING']
+    assert any('retaining full results' in message for message in warnings)
+
+
+def test_empty_canonical_inputs_skip_at_debug(caplog):
+    client, workflow_id, _, _ = client_fixture()
+    canonical = SimpleNamespace(inputs=(), to_dict=lambda: {'inputs': []})
+    with caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        assert run(client, '/data', workflow_id, canonical) is None
+    skips = [(record.levelname, record.getMessage())
+             for record in caplog.records if 'no canonical inputs'
+             in record.getMessage()]
+    assert [level for level, _ in skips] == ['DEBUG']
+    client.run_commands.assert_not_called()
 
 
 def test_resumed_task_and_completion_are_logged_at_info(caplog):
     client, workflow_id, canonical, batch = client_fixture(jobs=())
-    with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
+    with patch('biomero.remote_shallower.parse_batch_report',
+               return_value=batch), \
          patch.object(client, 'submit_job_once', return_value=123), \
-         patch('biomero.remote_shallower.wait_for_helper_job', return_value='COMPLETED'), \
+         patch('biomero.remote_shallower.wait_for_helper_job',
+               return_value='COMPLETED'), \
          caplog.at_level('INFO', logger='biomero.remote_shallower'):
         run(client, '/data', workflow_id, canonical)
-    info = [r.getMessage() for r in caplog.records if r.levelname == 'INFO']
+    info = [record.getMessage() for record in caplog.records
+            if record.levelname == 'INFO']
     assert any('Resuming remote shallower task' in m for m in info)
     assert any('completed with 0 receipts' in m for m in info)
+
+
+def test_rejected_existing_report_warns_and_polls_the_recorded_job(caplog):
+    client, workflow_id, canonical, _ = client_fixture()
+    client.run_commands = MagicMock(return_value=SimpleNamespace(
+        ok=True, stdout='{"stale": true}'))
+    with patch('biomero.remote_shallower.parse_batch_report',
+               side_effect=ValueError('stale')), \
+         caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        from biomero.remote_shallower import _adopt_report_of_finished_job
+        task = client.get_task(client.get_workflow(workflow_id).tasks[0])
+        assert _adopt_report_of_finished_job(
+            client, task, '/data', canonical) is None
+    levels = [record.levelname for record in caplog.records
+              if 'rejected as partial or stale' in record.getMessage()]
+    assert levels == ['WARNING']
+    client.workflowTracker.complete_task.assert_not_called()

@@ -55,6 +55,19 @@ biomero.remote_shallower module
 .. automodule:: biomero.remote_shallower
    :members:
 
+biomero.ssh\_recovery module
+----------------------------
+
+.. automodule:: biomero.ssh_recovery
+   :members:
+   :show-inheritance:
+
+biomero.remote\_scripts module
+------------------------------
+
+.. automodule:: biomero.remote_scripts
+   :members:
+
 .. Module contents
 .. ---------------
 

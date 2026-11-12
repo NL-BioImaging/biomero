@@ -1,21 +1,22 @@
 """Transport recovery must never replay arbitrary remote side effects."""
 import errno
+import inspect
+import logging
+import socket
 from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
-from pathlib import Path
-from uuid import uuid4
-import os
-import shlex
-import shutil
-import subprocess
 
 import pytest
 from fabric import Result
-from invoke.exceptions import UnexpectedExit
+from invoke.exceptions import CommandTimedOut, UnexpectedExit
 from paramiko import AuthenticationException, SSHException
+from paramiko.ssh_exception import NoValidConnectionsError
 
 from biomero import ssh_recovery
+from biomero.constants import (
+    SSH_RETRY_INITIAL_DELAY_SECONDS, SSH_RETRY_JITTER_FRACTION,
+    SSH_RETRY_MAX_DELAY_SECONDS)
 from .test_slurm_client import (  # noqa: F401
     slurm_client, set_env_vars, slurm_client_from_config_factory)
 
@@ -25,6 +26,8 @@ from .test_slurm_client import (  # noqa: F401
     (ConnectionResetError(), True),
     (TimeoutError(), True),
     (OSError(errno.EHOSTUNREACH, 'host unreachable'), True),
+    (OSError(errno.ECONNRESET, 'reset'), True),
+    (OSError(errno.ENETDOWN, 'network down'), True),
     (OSError('Socket is closed'), True),
     (OSError('Permission denied'), False),
     (OSError(errno.EACCES, 'Socket is closed'), False),
@@ -32,19 +35,35 @@ from .test_slurm_client import (  # noqa: F401
     (OSError('remote file Socket is closed not found'), False),
     (SSHException('SSH session not active'), True),
     (SSHException('Error reading SSH protocol banner'), True),
+    (SSHException('Timeout opening channel.'), True),
     (AuthenticationException('bad credentials'), False),
     (PermissionError('denied'), False),
     (FileNotFoundError('missing file'), False),
     (SSHException('remote command failed'), False),
     (ValueError('bad configuration'), False),
-    (UnexpectedExit(Result(connection=None, exited=1, stderr='permission denied')), False),
+    (socket.gaierror(socket.EAI_AGAIN, 'temporary failure'), True),
+    (socket.gaierror(socket.EAI_NONAME, 'unknown host'), False),
+    (NoValidConnectionsError({('h', 22): ConnectionRefusedError()}), True),
+    (NoValidConnectionsError({('h', 22): PermissionError()}), False),
+    (ssh_recovery.SSHRecoveryTimeout('window ended'), False),
+    (ssh_recovery.SSHRecoveryCancelled('cancelled'), False),
+    (UnexpectedExit(Result(connection=None, exited=-1)), True),
+    (UnexpectedExit(Result(connection=None, exited=1, stderr='denied')), False),
 ])
 def test_transient_classifier(error, expected):
     assert ssh_recovery.is_transient(error) is expected
 
 
+def test_classifier_names_the_reason_for_the_log():
+    reason = ssh_recovery.transient_reason(
+        OSError(errno.ENETDOWN, 'network down'))
+    assert 'ENETDOWN' in reason
+    assert ssh_recovery.transient_reason(ValueError('bad')) is None
+
+
 @pytest.fixture
 def recovery_clock(monkeypatch):
+    """A fake clock; the retry jitter is removed so waits are exact."""
     clock = SimpleNamespace(now=0, waits=[])
 
     def sleep(seconds):
@@ -53,6 +72,7 @@ def recovery_clock(monkeypatch):
 
     monkeypatch.setattr(ssh_recovery.time, 'monotonic', lambda: clock.now)
     monkeypatch.setattr(ssh_recovery.time, 'sleep', sleep)
+    monkeypatch.setattr(ssh_recovery.random, 'uniform', lambda low, high: 0)
     return clock
 
 
@@ -66,9 +86,10 @@ def test_ten_minute_outage_resumes_same_operation(recovery_clock):
             raise ConnectionResetError('HPC unavailable')
         return 'existing job 42'
 
-    assert ssh_recovery.retry(client, operation, 'monitor job 42') == 'existing job 42'
+    assert ssh_recovery.retry(
+        client, operation, 'monitor job 42') == 'existing job 42'
     assert 600 <= recovery_clock.now < 630
-    assert max(recovery_clock.waits) <= 30
+    assert max(recovery_clock.waits) <= SSH_RETRY_MAX_DELAY_SECONDS
     assert client.close.call_count == len(calls) - 1
 
 
@@ -92,15 +113,88 @@ def test_expired_budget_never_starts_a_successful_late_attempt(recovery_clock):
     assert operation.call_count == 1
 
 
+def test_inner_success_does_not_extend_a_failing_outer_operation(
+        recovery_clock):
+    """The window of a call is never moved by successful nested work."""
+    client = SimpleNamespace(ssh_recovery_timeout=35, close=Mock())
+    outer_attempts = []
+
+    def outer():
+        outer_attempts.append(recovery_clock.now)
+        assert len(outer_attempts) < 50, 'retried past the window'
+        ssh_recovery.retry(client, lambda: 'inner step ok', 'inner step')
+        raise EOFError('outer step lost')
+
+    with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
+        ssh_recovery.retry(client, outer, 'outer operation')
+    assert recovery_clock.now == 35
+    assert len(outer_attempts) < 10
+
+
+def test_flapping_link_cannot_retry_past_the_window(recovery_clock):
+    """Alternating success and failure inside one call stays bounded."""
+    client = SimpleNamespace(ssh_recovery_timeout=20, close=Mock())
+    attempts = []
+
+    def operation():
+        attempts.append(True)
+        assert len(attempts) < 50, 'retried past the window'
+        ssh_recovery.retry(client, lambda: 'works', 'poll')
+        raise EOFError('link dropped again')
+
+    with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
+        ssh_recovery.retry(client, operation, 'long operation')
+    assert recovery_clock.now == 20
+
+
+def test_busy_remote_operation_is_not_reported_as_an_ssh_outage(
+        recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=35, close=Mock())
+    pending = ssh_recovery.RecoveryPending('zip is running')
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending) as caught:
+        ssh_recovery.retry(client, Mock(side_effect=pending), 'zip results')
+    assert not isinstance(caught.value, ssh_recovery.SSHRecoveryTimeout)
+    assert caught.value.__cause__ is pending
+    assert 'nothing was repeated' in str(caught.value)
+    assert recovery_clock.now == 35
+    # The connection works: it is not closed and reopened.
+    client.close.assert_not_called()
+
+
+def test_pending_operation_that_finishes_returns_its_result(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock())
+    operation = Mock(side_effect=[
+        ssh_recovery.RecoveryPending('busy'),
+        ssh_recovery.RecoveryPending('busy'), 'done'])
+    assert ssh_recovery.retry(client, operation, 'unpack') == 'done'
+    client.close.assert_not_called()
+
+
+def test_backoff_doubles_up_to_its_cap_with_bounded_jitter(monkeypatch):
+    window = ssh_recovery.OutageWindow(timeout=900)
+    monkeypatch.setattr(ssh_recovery.random, 'uniform',
+                        lambda low, high: high)
+    pauses = [window.next_pause(900) for _ in range(8)]
+    delays = [SSH_RETRY_INITIAL_DELAY_SECONDS * 2 ** step
+              for step in range(8)]
+    for pause, delay in zip(pauses, delays):
+        capped = min(delay, SSH_RETRY_MAX_DELAY_SECONDS)
+        assert pause == pytest.approx(
+            capped * (1 + SSH_RETRY_JITTER_FRACTION))
+    # A pause never runs past the end of the window.
+    assert ssh_recovery.OutageWindow(900).next_pause(0.5) == 0.5
+
+
 def test_command_timeout_is_recoverable_only_through_safe_read(recovery_clock):
-    from invoke.exceptions import CommandTimedOut
     error = CommandTimedOut(Result(connection=None), timeout=1)
     client = SimpleNamespace(ssh_recovery_timeout=20, close=Mock())
     assert not ssh_recovery.is_transient(error)
     operation = Mock(side_effect=[error, 'same job observed'])
+
     @ssh_recovery.read_only
     def read(client, **kwargs):
         return operation(**kwargs)
+
     assert read(client) == 'same job observed'
     operation = Mock(side_effect=error)
     with pytest.raises(CommandTimedOut):
@@ -108,29 +202,46 @@ def test_command_timeout_is_recoverable_only_through_safe_read(recovery_clock):
     assert operation.call_count == 1
 
 
-def test_explicit_longer_read_timeout_is_preserved_until_outage(recovery_clock):
+def test_read_timeout_keeps_its_type_when_recovery_is_off():
+    error = CommandTimedOut(Result(connection=None), timeout=1)
+    client = SimpleNamespace(ssh_recovery_timeout=0, close=Mock())
+
+    @ssh_recovery.read_only
+    def read(client, **kwargs):
+        raise error
+
+    with pytest.raises(CommandTimedOut):
+        read(client)
+
+
+def test_explicit_longer_read_timeout_is_preserved_until_outage(
+        recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock())
     operation = Mock(side_effect=[EOFError(), 'observed'])
+
     @ssh_recovery.read_only
     def read(client, **kwargs):
         return operation(**kwargs)
+
     assert read(client, timeout=120) == 'observed'
-    assert [call.kwargs['timeout'] for call in operation.call_args_list] == [120, 120]
+    assert [call.kwargs['timeout']
+            for call in operation.call_args_list] == [120, 120]
     operation = Mock(return_value='observed')
     with ssh_recovery.scope(client) as state:
-        state.deadline = recovery_clock.now + 2
+        state.windows.append(ssh_recovery.OutageWindow(
+            900, outage_deadline=recovery_clock.now + 2))
         assert read(client, timeout=120) == 'observed'
     assert operation.call_args.kwargs['timeout'] == 2
 
 
 def test_read_decorator_preserves_metadata_and_calling_contract():
-    import inspect
     from biomero.slurm_client import SlurmClient
     for name in ('run_read_only', 'run_commands_read_only'):
         method = getattr(SlurmClient, name)
         assert method.__name__ == name
         assert method.__doc__ == method.__wrapped__.__doc__
-        assert inspect.signature(method) == inspect.signature(method.__wrapped__)
+        assert inspect.signature(method) == inspect.signature(
+            method.__wrapped__)
 
 
 def test_nested_native_bounds_use_remaining_outage_budget(recovery_clock):
@@ -138,7 +249,8 @@ def test_nested_native_bounds_use_remaining_outage_budget(recovery_clock):
     client = SlurmClient(config_only=True, ssh_recovery_timeout=20)
     original = dict(client.connect_kwargs)
     with ssh_recovery.scope(client) as state:
-        state.deadline = 1.5
+        state.windows.append(ssh_recovery.OutageWindow(
+            20, outage_deadline=1.5))
         with ssh_recovery.native_timeouts(client):
             assert client.connect_kwargs['auth_timeout'] == 1.5
             assert client.connect_timeout == 1.5
@@ -147,7 +259,7 @@ def test_nested_native_bounds_use_remaining_outage_budget(recovery_clock):
         assert dict(client.connect_kwargs) == original
 
 
-def test_disabled_keeps_single_attempt(recovery_clock):
+def test_zero_window_runs_once_and_raises_the_original_error(recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=0, close=Mock())
     operation = Mock(side_effect=EOFError())
     with pytest.raises(EOFError):
@@ -157,7 +269,22 @@ def test_disabled_keeps_single_attempt(recovery_clock):
     assert not recovery_clock.waits
 
 
-def test_nested_retries_share_the_original_deadline(recovery_clock):
+def test_zero_window_leaves_native_timeouts_alone(recovery_clock):
+    from biomero.slurm_client import SlurmClient
+    client = SlurmClient(config_only=True, ssh_recovery_timeout=0)
+    before = (dict(client.connect_kwargs), client.connect_timeout)
+    seen = []
+
+    def operation():
+        with ssh_recovery.native_timeouts(client):
+            seen.append((dict(client.connect_kwargs), client.connect_timeout))
+        return 'ok'
+
+    assert ssh_recovery.retry(client, operation, 'read') == 'ok'
+    assert seen == [before]
+
+
+def test_inner_timeout_is_final_for_the_outer_operation(recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=35, close=Mock())
     operation = Mock(side_effect=EOFError())
     with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
@@ -175,7 +302,8 @@ def test_nested_retries_share_the_original_deadline(recovery_clock):
     ({'ssh_recovery_timeout': '0'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': ''}, 0),
     ({'ssh_recovery_timeout': '900'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': '0'}, 0),
     ({'ssh_recovery_timeout': '900'}, {}, 900),
-    ({'ssh_recovery_timeout': '900'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': '1200'}, 1200),
+    ({'ssh_recovery_timeout': '900'},
+     {'BIOMERO_SSH_RECOVERY_TIMEOUT': '1200'}, 1200),
     ({'ssh_recovery_timeout': '900'}, {'BIOMERO_SSH_RECOVERY_TIMEOUT': ''}, 900),
 ])
 def test_config_precedence(slurm_client_from_config_factory, ini,
@@ -197,8 +325,22 @@ def test_constructor_recovers_without_new_configuration(recovery_clock):
     assert recovery_clock.now == 1
 
 
-def test_older_client_without_recovery_capability_remains_compatible():
-    assert not ssh_recovery.enabled(SimpleNamespace())
+def test_connection_stage_timeouts_do_not_change_a_shared_config_dict():
+    from biomero.slurm_client import SlurmClient
+    shared = {'password': 'x'}
+    client = SlurmClient(config_only=True, connect_kwargs=shared)
+    assert 'banner_timeout' not in shared
+    assert 'auth_timeout' not in shared
+    assert client.connect_kwargs['banner_timeout'] == 30
+    assert client.connect_kwargs['auth_timeout'] == 30
+    assert client.connect_timeout == 10
+
+
+def test_a_client_without_the_setting_runs_once_and_keeps_its_error():
+    client = SimpleNamespace()
+    assert ssh_recovery.retry(client, lambda: 'ok', 'read') == 'ok'
+    with pytest.raises(EOFError):
+        ssh_recovery.retry(client, Mock(side_effect=EOFError()), 'read')
 
 
 @pytest.mark.parametrize('error', [
@@ -217,7 +359,8 @@ def test_progress_propagates_recovery_stopping_conditions(error):
 def test_progress_retains_best_effort_for_ordinary_log_errors():
     from biomero.slurm_client import SlurmClient
     client = SlurmClient(config_only=True)
-    client.run_commands_read_only = Mock(side_effect=FileNotFoundError('no log'))
+    client.run_commands_read_only = Mock(
+        side_effect=FileNotFoundError('no log'))
     assert client.get_active_job_progress(42) is None
 
 
@@ -252,7 +395,8 @@ def test_fabric_client_cancellation_is_honoured(slurm_client, recovery_clock):
     operation.assert_not_called()
 
 
-def test_status_recovers_without_publishing_failed(slurm_client, recovery_clock):
+def test_status_recovers_without_publishing_failed(slurm_client,
+                                                   recovery_clock):
     slurm_client.ssh_recovery_timeout = 900
     slurm_client.close = Mock()
     slurm_client.run = Mock()
@@ -281,7 +425,8 @@ def test_download_retries_partial_file_and_publishes_atomically(
     target.write_bytes(b'previous-complete-result')
     remote_stat = SimpleNamespace(st_size=8, st_mtime=100)
     slurm_client.sftp = Mock(return_value=SimpleNamespace(
-        stat=Mock(return_value=remote_stat), get_channel=Mock(return_value=Mock())))
+        stat=Mock(return_value=remote_stat),
+        get_channel=Mock(return_value=Mock())))
     attempts = []
 
     def get(*, remote, local):
@@ -302,6 +447,27 @@ def test_download_retries_partial_file_and_publishes_atomically(
     assert not list(tmp_path.glob('*.part'))
 
 
+def test_download_that_ends_short_is_retried(slurm_client, recovery_clock,
+                                             tmp_path):
+    """A short download is a lost connection, not a permanent failure."""
+    slurm_client.ssh_recovery_timeout = 900
+    slurm_client.close = Mock()
+    slurm_client.sftp = Mock(return_value=SimpleNamespace(
+        stat=Mock(return_value=SimpleNamespace(st_size=8, st_mtime=100)),
+        get_channel=Mock(return_value=Mock())))
+    writes = [b'short', b'complete']
+
+    def get(*, remote, local):
+        with open(local, 'wb') as partial:
+            partial.write(writes.pop(0))
+        return SimpleNamespace(local=local, remote=remote)
+
+    slurm_client.get = get
+    slurm_client.copy_zip_locally(str(tmp_path), '/remote/42_out')
+    assert (tmp_path / '42_out.zip').read_bytes() == b'complete'
+    assert not writes
+
+
 def test_download_local_permission_error_is_not_retried(
         slurm_client, recovery_clock, tmp_path):
     slurm_client.ssh_recovery_timeout = 900
@@ -312,245 +478,6 @@ def test_download_local_permission_error_is_not_retried(
     with pytest.raises(PermissionError):
         slurm_client.copy_zip_locally(str(tmp_path), '/remote/42_out')
     slurm_client.get.assert_called_once()
-
-
-@pytest.fixture
-def shell_client(tmp_path):
-    """Execute receipt scripts against fake scheduler commands, not an HPC."""
-    if not shutil.which('sh') or not shutil.which('flock'):
-        pytest.skip('Receipt execution requires POSIX sh and flock')
-    binary = tmp_path / 'bin'
-    binary.mkdir()
-    jobs = tmp_path / 'jobs'
-    counter = tmp_path / 'submissions'
-    (binary / 'sbatch').write_text(
-        '#!/bin/sh\n'
-        f'echo submitted >> {shlex.quote(str(counter))}\n'
-        'for arg in "$@"; do case "$arg" in --job-name=*) '
-        'token=${arg#--job-name=};; esac; done\n'
-        f'printf "42|%s\\n" "$token" >> {shlex.quote(str(jobs))}\n'
-        'case " $* " in *" --parsable "*) echo 42;; '
-        '*) echo "Submitted batch job 42";; esac\n')
-    for name in ('squeue', 'sacct'):
-        (binary / name).write_text(
-            f'#!/bin/sh\ncat {shlex.quote(str(jobs))} 2>/dev/null || true\n')
-    for script in binary.iterdir():
-        script.chmod(0o755)
-    environment = {**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH']}
-    client = SimpleNamespace(
-        slurm_data_path=str(tmp_path), ssh_recovery_timeout=35, close=Mock(),
-        counter=counter, jobs=jobs)
-
-    def run(commands, env=None, warn=False):
-        result = subprocess.run(' && '.join(commands), shell=True,
-                                capture_output=True, text=True, env=environment)
-        return Result(connection=None, exited=result.returncode,
-                      stdout=result.stdout, stderr=result.stderr)
-
-    client.run_commands = run
-    return client
-
-
-@pytest.mark.parametrize('lose_receipt', [False, True])
-def test_lost_submission_acknowledgement_never_submits_twice(
-        shell_client, recovery_clock, lose_receipt):
-    task_id = uuid4()
-    command = 'sbatch --job-name=biomero-' + str(task_id) + ' job.sh'
-    original = shell_client.run_commands
-    calls = []
-
-    def lose_response(*args, **kwargs):
-        result = original(*args, **kwargs)
-        assert result.ok, result.stderr
-        calls.append(result)
-        if len(calls) == 1:
-            if lose_receipt:
-                (Path(shell_client.slurm_data_path) / '.biomero-recovery' /
-                 (str(task_id) + '.job')).unlink()
-            raise EOFError('accepted but SSH response lost')
-        return result
-
-    shell_client.run_commands = lose_response
-    result = ssh_recovery.submit(shell_client, command, {}, task_id)
-    assert result.stdout == 'Submitted batch job 42\n'
-    assert shell_client.counter.read_text().splitlines() == ['submitted']
-    assert len(calls) == 2
-
-
-def test_unknown_submission_waits_without_resubmission(
-        shell_client, recovery_clock):
-    task_id = uuid4()
-    state = Path(shell_client.slurm_data_path) / '.biomero-recovery'
-    state.mkdir()
-    (state / (str(task_id) + '.intent')).write_text('2026-10-30T00:00:00')
-    with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
-        ssh_recovery.submit(shell_client, 'sbatch job.sh', {}, task_id)
-    assert not shell_client.counter.exists()
-
-
-@pytest.mark.parametrize('lose_receipt', [False, True])
-def test_shallower_lost_acknowledgement_adopts_one_job(
-        shell_client, recovery_clock, lose_receipt):
-    from biomero.remote_shallower import _submit_once
-    state = str(Path(shell_client.slurm_data_path) / 'shallow')
-    original = shell_client.run_commands
-    calls = []
-
-    def lose_response(*args, **kwargs):
-        result = original(*args, **kwargs)
-        calls.append(result)
-        if len(calls) == 1:
-            assert result.ok, result.stderr
-            if lose_receipt:
-                Path(state + '.job').unlink()
-            # The actual Fabric result after a lost channel, not a synthetic
-            # EOFError after a successful acknowledgement.
-            return Result(connection=None, exited=-1)
-        return result
-
-    shell_client.run_commands = lose_response
-    assert ssh_recovery.retry(shell_client, lambda: _submit_once(
-        shell_client, 'sbatch --parsable --job-name=helper job.sh', state,
-        job_name='helper'), 'helper submission') == 42
-    assert shell_client.counter.read_text().splitlines() == ['submitted']
-
-
-def test_shallower_ambiguous_intent_never_resubmits(shell_client, recovery_clock):
-    from biomero.remote_shallower import _submit_once
-    state = str(Path(shell_client.slurm_data_path) / 'shallow')
-    Path(state + '.intent').write_text('2026-11-03T00:00:00')
-    shell_client.jobs.write_text('41|helper\n42|helper\n99|other\n')
-    with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
-        ssh_recovery.retry(shell_client, lambda: _submit_once(
-            shell_client, 'sbatch --parsable job.sh', state, job_name='helper'),
-            'helper submission')
-    assert not shell_client.counter.exists()
-
-
-def test_submission_receipt_survives_a_new_client(shell_client, recovery_clock):
-    task_id = uuid4()
-    command = 'sbatch --job-name=biomero-' + str(task_id) + ' job.sh'
-    ssh_recovery.submit(shell_client, command, {}, task_id)
-    replacement = SimpleNamespace(**shell_client.__dict__)
-    ssh_recovery.submit(replacement, command, {}, task_id)
-    assert shell_client.counter.read_text().splitlines() == ['submitted']
-
-
-def test_changed_submission_is_rejected_without_new_job(
-        shell_client, recovery_clock):
-    task_id = uuid4()
-    ssh_recovery.submit(shell_client, 'sbatch job.sh', {}, task_id)
-    with pytest.raises(UnexpectedExit) as rejected:
-        ssh_recovery.submit(shell_client, 'sbatch different.sh', {}, task_id)
-    assert 'Submission settings changed' in rejected.value.result.stderr
-    assert shell_client.counter.read_text().splitlines() == ['submitted']
-
-
-def test_archive_response_loss_reuses_complete_archive(
-        shell_client, recovery_clock):
-    root = Path(shell_client.slurm_data_path)
-    count = root / 'archives'
-    shell_client.get_zip_command = lambda location, name: (
-        f'echo created >> {shlex.quote(str(count))}; '
-        f'printf "archive" > {shlex.quote(str(root / (name + ".zip")))}')
-    original = shell_client.run_commands
-    calls = []
-
-    def lose_response(*args, **kwargs):
-        result = original(*args, **kwargs)
-        calls.append(result)
-        if len(calls) == 1:
-            raise EOFError()
-        return result
-
-    shell_client.run_commands = lose_response
-    ssh_recovery.archive(shell_client, str(root), '42_out', {})
-    assert count.read_text().splitlines() == ['created']
-    assert (root / '42_out.zip').read_text() == 'archive'
-
-
-def test_input_extraction_response_loss_is_not_repeated(
-        shell_client, recovery_clock):
-    root = Path(shell_client.slurm_data_path)
-    count = root / 'extractions'
-    shell_client.get_unzip_command = lambda name: (
-        f'echo extracted >> {shlex.quote(str(count))}')
-    original = shell_client.run_commands
-    calls = []
-
-    def lose_response(*args, **kwargs):
-        result = original(*args, **kwargs)
-        calls.append(result)
-        if len(calls) == 1:
-            raise EOFError()
-        return result
-
-    shell_client.run_commands = lose_response
-    ssh_recovery.unpack(shell_client, 'inputs', {})
-    assert count.read_text().splitlines() == ['extracted']
-
-
-def test_restart_reuses_task_with_missing_job_acknowledgement(slurm_client):
-    wf_id, task_id = uuid4(), uuid4()
-    task = SimpleNamespace(id=task_id, task_name='segment',
-                           task_version='v1', input_data='inputs', params={'x': 1})
-    tracker = Mock()
-    tracker.repository.get.side_effect = lambda key: (
-        SimpleNamespace(tasks=[task_id]) if key == wf_id else task)
-    slurm_client.workflowTracker = tracker
-    slurm_client.ssh_recovery_timeout = 900
-    assert slurm_client._submission_task(
-        wf_id, 'segment', 'v1', 'inputs', {'x': 1}) == task_id
-    tracker.add_task_to_workflow.assert_not_called()
-
-
-def test_changed_resume_parameters_do_not_submit(slurm_client):
-    wf_id, task_id = uuid4(), uuid4()
-    task = SimpleNamespace(id=task_id, task_name='segment',
-                           task_version='v1', input_data='inputs', params={'x': 1})
-    tracker = Mock()
-    tracker.repository.get.side_effect = lambda key: (
-        SimpleNamespace(tasks=[task_id]) if key == wf_id else task)
-    slurm_client.workflowTracker = tracker
-    slurm_client.ssh_recovery_timeout = 900
-    with pytest.raises(RuntimeError, match='parameters changed'):
-        slurm_client._submission_task(
-            wf_id, 'segment', 'v1', 'inputs', {'x': 2})
-    tracker.add_task_to_workflow.assert_not_called()
-
-
-def test_conversion_uses_reconcilable_job_name(slurm_client):
-    token = 'biomero-' + str(uuid4())
-    command, _, _, _ = slurm_client.get_conversion_command(
-        '/data/inputs', 'config.txt', submission_token=token)
-    assert '--job-name=' + token in command
-    assert '--job-name=conversion' not in command
-
-
-def test_workflow_token_is_not_a_workflow_parameter(slurm_client):
-    token = 'biomero-' + str(uuid4())
-    slurm_client.slurm_model_paths = {'wf': 'workflow'}
-    slurm_client.slurm_model_jobs = {'wf': 'wf.sh'}
-    slurm_client.slurm_model_jobs_params = {'wf': []}
-    slurm_client.slurm_model_images = {'wf': 'registry/image'}
-    command, environment = slurm_client.get_workflow_command(
-        'wf', '1.0', 'input', _submission_token=token)
-    assert '--job-name=' + token in command
-    assert not any('SUBMISSION_TOKEN' in key for key in environment)
-
-
-def test_recorded_job_is_authoritative_even_if_remote_receipt_is_missing(
-        slurm_client, monkeypatch):
-    task_id = uuid4()
-    slurm_client.ssh_recovery_timeout = 900
-    slurm_client.workflowTracker = Mock()
-    slurm_client.workflowTracker.repository.get.return_value = (
-        SimpleNamespace(job_ids=[42]))
-    submit = Mock(side_effect=AssertionError('Must not submit a known job'))
-    monkeypatch.setattr(ssh_recovery, 'submit', submit)
-    result = slurm_client._submit_tracked('sbatch job.sh', {}, task_id)
-    assert slurm_client.extract_job_id(result) == 42
-    submit.assert_not_called()
 
 
 @pytest.mark.parametrize('warn', [False, True])
@@ -572,8 +499,8 @@ def test_durable_command_recovers_missing_exit_status(
     complete = Result(connection=None, exited=0, stdout='complete')
     slurm_client.run_commands = Mock(side_effect=[
         Result(connection=None, exited=-1), complete])
-    assert ssh_recovery.run_durable(slurm_client, 'locked command', {},
-                                    'durable operation') is complete
+    assert slurm_client._run_locked(
+        'work', '/data/work.lock', 'durable operation') is complete
 
 
 def test_long_healthy_attempt_does_not_consume_recovery_window(recovery_clock):
@@ -601,7 +528,8 @@ def test_new_outage_gets_full_budget_after_healthy_work(recovery_clock):
         second = Mock(side_effect=[EOFError(), 'second'])
         return ssh_recovery.retry(client, second, 'second outage')
 
-    assert ssh_recovery.retry(client, operation, 'helper lifecycle') == 'second'
+    assert ssh_recovery.retry(
+        client, operation, 'helper lifecycle') == 'second'
     assert recovery_clock.now == 102
 
 
@@ -620,21 +548,26 @@ def test_job_wait_keeps_heartbeat_during_nested_poll_recovery(
 
     slurm_client.run_commands = poll
     job = SlurmJob.from_job_id(42)
-    heartbeat = lambda: heartbeat_times.append(recovery_clock.now)
+
+    def heartbeat():
+        heartbeat_times.append(recovery_clock.now)
 
     def wait():
         return job.wait_for_completion(
             slurm_client, heartbeat=heartbeat, track_progress=False,
             update_task=False, strict_status=True)
 
-    assert (ssh_recovery.retry(slurm_client, wait, 'helper', heartbeat=heartbeat)
-            if outer_retry else wait()) == 'COMPLETED'
+    outcome = (ssh_recovery.retry(slurm_client, wait, 'helper',
+                                  heartbeat=heartbeat)
+               if outer_retry else wait())
+    assert outcome == 'COMPLETED'
     assert max(b - a for a, b in zip(
         heartbeat_times, heartbeat_times[1:])) <= 10
     assert job.job_state == 'COMPLETED'
 
 
-def test_nested_heartbeat_transport_shaped_error_is_not_retried(recovery_clock):
+def test_nested_heartbeat_transport_shaped_error_is_not_retried(
+        recovery_clock):
     client = SimpleNamespace(ssh_recovery_timeout=20, close=Mock())
     failure = EOFError('caller-owned heartbeat failed')
     heartbeat = Mock(side_effect=failure)
@@ -646,30 +579,153 @@ def test_nested_heartbeat_transport_shaped_error_is_not_retried(recovery_clock):
     assert not recovery_clock.waits
 
 
-def test_shallower_contention_recovers_after_lock_release(
-        shell_client, recovery_clock):
-    import fcntl
-    from threading import Timer
-    from biomero.remote_shallower import _submit_once
-    state = str(Path(shell_client.slurm_data_path) / 'shallow')
-    lock = open(state + '.lock', 'w')
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    original = shell_client.run_commands
+def test_scope_rejects_a_heartbeat_that_is_not_callable():
+    with pytest.raises(TypeError):
+        with ssh_recovery.scope(SimpleNamespace(), heartbeat='not callable'):
+            pass
 
-    def short_lock_wait(commands, **kwargs):
-        commands = [c.replace('flock -w 30 ', 'flock -w 0.05 ').replace(
-            'flock -w 5 ', 'flock -w 0.05 ') for c in commands]
-        return original(commands, **kwargs)
 
-    shell_client.run_commands = short_lock_wait
-    shell_client.ssh_recovery_timeout = 900
-    release = Timer(0.25, lambda: fcntl.flock(lock, fcntl.LOCK_UN))
-    release.start()
-    try:
-        assert ssh_recovery.retry(shell_client, lambda: _submit_once(
-            shell_client, 'sbatch --parsable --job-name=helper job.sh', state,
-            job_name='helper'), 'helper submission') == 42
-    finally:
-        release.join()
-        lock.close()
-    assert shell_client.counter.read_text().splitlines() == ['submitted']
+DEFAULT_LOCK = 'flock -w {wait_seconds} -E {busy_exit_code} {lock_file}'
+
+
+@pytest.mark.parametrize('ini,environment,expected', [
+    ('', {}, DEFAULT_LOCK),
+    ('', {'BIOMERO_SLURM_LOCK_CMD': ''}, DEFAULT_LOCK),
+    ('lockf {busy_exit_code} {lock_file}', {}, 'lockf {busy_exit_code} {lock_file}'),
+    ('lockf {busy_exit_code} {lock_file}', {'BIOMERO_SLURM_LOCK_CMD': ''}, 'lockf {busy_exit_code} {lock_file}'),
+    ('lockf {busy_exit_code} {lock_file}', {'BIOMERO_SLURM_LOCK_CMD': 'mylock {busy_exit_code} {lock_file}'},
+     'mylock {busy_exit_code} {lock_file}'),
+    ('', {'BIOMERO_SLURM_LOCK_CMD': 'mylock {busy_exit_code} {lock_file}'},
+     'mylock {busy_exit_code} {lock_file}'),
+])
+def test_lock_command_precedence(slurm_client_from_config_factory, ini,
+                                 environment, expected):
+    """Default, then ini, then environment; blank values keep the default."""
+    client = slurm_client_from_config_factory(
+        {'slurm_lock_cmd': ini}, environment)
+    assert client.slurm_lock_cmd == expected
+
+
+def test_lock_command_defaults_to_flock_without_configuration():
+    from biomero.slurm_client import SlurmClient
+    assert SlurmClient(config_only=True).slurm_lock_cmd == DEFAULT_LOCK
+
+
+def test_a_lock_command_with_an_unknown_placeholder_is_rejected(
+        slurm_client_from_config_factory):
+    with pytest.raises(ValueError, match='slurm_lock_cmd'):
+        slurm_client_from_config_factory(
+            {'slurm_lock_cmd': 'flock {file}'})
+
+
+def test_a_busy_operation_with_window_zero_raises_the_pending_error(
+        slurm_client):
+    slurm_client.ssh_recovery_timeout = 0
+    slurm_client.run_commands = Mock(return_value=Result(
+        connection=None, exited=200, stderr='locked'))
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending):
+        slurm_client._run_locked('work', '/data/work.lock', 'zip results')
+    slurm_client.run_commands.assert_called_once()
+
+
+def test_exit_127_names_the_lock_command_setting(slurm_client):
+    slurm_client.run_commands = Mock(return_value=Result(
+        connection=None, exited=127, stderr='flock: not found'))
+    with pytest.raises(RuntimeError, match='slurm_lock_cmd'):
+        slurm_client._run_locked('work', '/data/work.lock', 'zip results')
+
+
+def test_an_inner_window_never_outlasts_the_outer_outage(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=100, close=Mock())
+    with ssh_recovery.scope(client) as state:
+        # The outer call is 10 seconds into an outage window.
+        state.windows.append(ssh_recovery.OutageWindow(
+            100, outage_deadline=10))
+        with pytest.raises(ssh_recovery.SSHRecoveryTimeout):
+            ssh_recovery.retry(client, Mock(side_effect=EOFError()), 'inner')
+    assert recovery_clock.now == 10
+
+
+def test_recovery_window_sets_native_timeouts_and_keepalive(monkeypatch):
+    from fabric import Connection
+    from biomero.slurm_client import SlurmClient
+    on = SlurmClient(config_only=True, ssh_recovery_timeout=900)
+    assert on.connect_timeout == 10
+    assert on.connect_kwargs['banner_timeout'] == 30
+    assert on.connect_kwargs['auth_timeout'] == 30
+    transport = Mock()
+    monkeypatch.setattr(Connection, 'open', lambda self: None)
+    monkeypatch.setattr(SlurmClient, 'transport',
+                        property(lambda self: transport), raising=False)
+    on.open()
+    transport.set_keepalive.assert_called_once_with(15)
+
+
+def test_window_zero_sets_no_native_timeouts_and_no_keepalive(monkeypatch):
+    from fabric import Connection
+    from biomero.slurm_client import SlurmClient
+    off = SlurmClient(config_only=True, ssh_recovery_timeout=0)
+    assert off.connect_timeout is None
+    assert 'banner_timeout' not in off.connect_kwargs
+    assert 'auth_timeout' not in off.connect_kwargs
+    transport = Mock()
+    monkeypatch.setattr(Connection, 'open', lambda self: None)
+    monkeypatch.setattr(SlurmClient, 'transport',
+                        property(lambda self: transport), raising=False)
+    off.open()
+    transport.set_keepalive.assert_not_called()
+
+
+def test_the_final_pending_error_carries_the_manual_step(recovery_clock):
+    client = SimpleNamespace(ssh_recovery_timeout=5, close=Mock())
+    pending = ssh_recovery.RecoveryPending(
+        'submit biomero-x never resolved. intent file /d/x.intent; delete '
+        'the receipt files only if no such job exists')
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending) as caught:
+        ssh_recovery.retry(client, Mock(side_effect=pending), 'submit')
+    assert '/d/x.intent' in str(caught.value)
+    assert 'ask again later' not in str(caught.value)
+
+
+@pytest.mark.parametrize('state,name,terminal,unsuccessful', [
+    (None, '', False, False),
+    ('', '', False, False),
+    ('RUNNING', 'RUNNING', False, False),
+    ('COMPLETED', 'COMPLETED', True, False),
+    ('COMPLETED+', 'COMPLETED', True, False),
+    ('FAILED', 'FAILED', True, True),
+    ('CANCELLED+', 'CANCELLED', True, True),
+    ('CANCELLED by 1000', 'CANCELLED', True, True),
+    ('TIMEOUT', 'TIMEOUT', True, True),
+])
+def test_slurm_state_helpers_parse_sacct_suffixes(state, name, terminal,
+                                                  unsuccessful):
+    from biomero.slurm_client import SlurmJob
+    assert SlurmJob.state_name(state) == name
+    assert SlurmJob.is_terminal(state) is terminal
+    assert SlurmJob.ended_without_success(state) is unsuccessful
+
+
+def test_run_commands_logs_the_command_at_the_requested_level(
+        slurm_client, caplog):
+    slurm_client.run = Mock(return_value=Result(
+        connection=None, exited=0, stdout=''))
+    with caplog.at_level(logging.DEBUG, logger='biomero.slurm_client'):
+        slurm_client.run_commands(['echo quiet'], log_level=logging.DEBUG)
+        slurm_client.run_commands(['echo loud'])
+    levels = {record.getMessage().split(': ')[-1]: record.levelno
+              for record in caplog.records
+              if 'Running commands' in record.getMessage()}
+    assert levels['echo quiet'] == logging.DEBUG
+    assert levels['echo loud'] == logging.INFO
+    slurm_client.run.assert_called_with('echo loud', env={})
+
+
+def test_a_finished_task_with_a_plus_suffixed_state_is_not_resumed(
+        slurm_client):
+    from biomero.slurm_client import SlurmClient
+    task = SimpleNamespace(job_ids=[42], status='CANCELLED+',
+                           result_message=None)
+    assert SlurmClient._task_is_finished(task)
+    task.status = 'COMPLETED+'
+    assert not SlurmClient._task_is_finished(task)

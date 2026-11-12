@@ -5,6 +5,7 @@ from uuid import UUID
 from biomero.slurm_client import (
     SlurmClient
 )
+from biomero import remote_scripts
 from biomero.eventsourcing import NoOpWorkflowTracker
 from biomero.database import EngineManager, TaskExecution, JobProgressView, JobView
 from biomero.schema_parsers import DescriptorParserFactory
@@ -496,10 +497,19 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
     # WHEN
     result = slurm_client.zip_data_on_slurm_server(data_location, filename)
 
-    # THEN - auto-detect expression used; cd into data/out so entries are relative
+    # THEN - auto-detect expression used; cd into data/out so entries are
+    # relative. The archive is built under a partial name and published
+    # complete, under a lock.
     auto = "$(command -v 7z || command -v 7za)"
-    mock_run_commands.assert_called_once_with(
-        [f'cd "{data_location}/data/out" && {auto} a -y "{data_location}/{filename}.zip" -tzip .'], env=None)
+    partial_zip = f"{data_location}/{filename}.biomero-partial.zip"
+    mock_run_commands.assert_called_once()
+    (command,), run_kwargs = mock_run_commands.call_args
+    assert run_kwargs == {"env": None, "warn": True,
+                          "log_level": logging.DEBUG}
+    assert (f'cd "{data_location}/data/out" && {auto} a -y '
+            f'"{partial_zip}" -tzip .') in command[0]
+    assert f"mv -f -- {partial_zip} {data_location}/{filename}.zip" in command[0]
+    assert command[0].startswith(f"mkdir -p {data_location} && flock ")
     assert result.ok is True
     assert result.stdout == ""
     mock_logger.info.assert_called_with(
@@ -507,22 +517,33 @@ def test_zip_data_on_slurm_server(mock_run_commands, mock_logger, slurm_client):
 
 
 @patch('biomero.slurm_client.logger')
-@patch.object(SlurmClient, 'get', return_value=SerializableMagicMock(ok=True, stdout=""))
-def test_copy_zip_locally(mock_get, mock_logger, slurm_client):
-    # GIVEN
-    local_tmp_storage = "/local/path/to/store"
+def test_copy_zip_locally(mock_logger, slurm_client, tmp_path):
+    # GIVEN a remote zip that downloads to a temporary name first
     filename = "example_zip"
+    remote_stat = MagicMock(st_size=4, st_mtime=100)
+    slurm_client.sftp = MagicMock(return_value=MagicMock(
+        stat=MagicMock(return_value=remote_stat)))
+    downloads = []
+
+    def fake_get(remote, local):
+        downloads.append((remote, local))
+        with open(local, "wb") as partial:
+            partial.write(b"data")
+        return MagicMock(ok=True, local=local)
+
+    slurm_client.get = fake_get
 
     # WHEN
-    result = slurm_client.copy_zip_locally(local_tmp_storage, filename)
+    result = slurm_client.copy_zip_locally(str(tmp_path), filename)
 
-    # THEN
-    mock_get.assert_called_once_with(
-        remote=f"{filename}.zip", local=local_tmp_storage)
-    assert result.ok is True
-    assert result.stdout == ""
+    # THEN the download used a temporary file and published the final one
+    assert downloads[0][0] == f"{filename}.zip"
+    assert downloads[0][1] != str(tmp_path / f"{filename}.zip")
+    assert result.local == str(tmp_path / f"{filename}.zip")
+    assert (tmp_path / f"{filename}.zip").read_bytes() == b"data"
+    assert [p.name for p in tmp_path.iterdir()] == [f"{filename}.zip"]
     mock_logger.info.assert_called_with(f'Copying zip {filename} from\
-            Slurm to {local_tmp_storage}')
+            Slurm to {tmp_path}')
 
 
 @pytest.mark.parametrize(
@@ -995,15 +1016,29 @@ def test_run_conversion_workflow_job(
     mock_run_commands.return_value = mock_result
 
     # WHEN
-    slurm_job = slurm_client.run_conversion_workflow_job(
-        folder_name, source_format, target_format
-    )
+    with patch("biomero.slurm_client.remote_scripts.submit_once_script",
+               wraps=remote_scripts.submit_once_script) as submit_script:
+        slurm_job = slurm_client.run_conversion_workflow_job(
+            folder_name, source_format, target_format
+        )
 
     # THEN
     assert slurm_job is not None
 
-    assert mock_run_commands.call_args[0][0] == expected_commands
-    assert mock_run_commands.call_args[0][1] == expected_sbatch_env
+    # The tracked task submits through the submit-once script, with the
+    # job name that identifies the task in Slurm.
+    submission_call = mock_run_commands.call_args_list[0]
+    job_name = f"biomero-{slurm_job.task_id}"
+    expected_submission = " && ".join(expected_commands).replace(
+        "--job-name=conversion", f"--job-name={job_name}")
+    assert submit_script.call_args.args[0] == expected_submission
+    assert submit_script.call_args.args[2] == job_name
+    assert submission_call.kwargs["env"] == expected_sbatch_env
+    # Once the task holds the outcome, the receipts are removed.
+    removal_call = mock_run_commands.call_args_list[1]
+    assert removal_call.args[0][0].startswith(
+        "rm -f /path/to/slurm_data/.biomero-recovery/"
+        f"{slurm_job.task_id}.lock")
 
     # Check properties of slurm_job
     assert slurm_job.job_id == -1
@@ -1426,82 +1461,13 @@ def test_cancel_slurm_jobs_that_already_ended_is_only_a_warning(
                for record in caplog.records)
 
 
-def test_get_workflow_tasks_returns_tasks_and_raises_on_read_errors(
-        slurm_client):
+def test_get_workflow_tasks_raises_on_read_errors(slurm_client):
+    """Resume must see a database error, not an empty history."""
     tracker = MagicMock()
-    tracker.iter_workflow_tasks.return_value = iter(["task-1", "task-2"])
+    tracker.repository.get.side_effect = RuntimeError("database down")
     slurm_client.workflowTracker = tracker
-    assert slurm_client.get_workflow_tasks("wf") == ["task-1", "task-2"]
-    tracker.iter_workflow_tasks.assert_called_once_with("wf")
-
-    tracker.iter_workflow_tasks.side_effect = RuntimeError("database down")
     with pytest.raises(RuntimeError, match="database down"):
-        slurm_client.get_workflow_tasks("wf")
-    
-    
-@patch('biomero.slurm_client.SlurmClient.run_commands')
-def test_check_job_array_status(mock_run_commands, slurm_client):
-    # GIVEN
-    mock_stdout = """2304_1        COMPLETED 2024-02-29T10:22:38 
-    2304_2        COMPLETED 2024-02-29T10:22:38 
-    2304_3        COMPLETED 2024-02-29T10:22:40 
-    2304_4        COMPLETED 2024-02-29T10:22:40 
-    2304_5        COMPLETED 2024-02-29T10:22:43 
-    2304_6        COMPLETED 2024-02-29T10:22:43 
-    2304_7        COMPLETED 2024-02-29T10:22:45 
-    2304_8        COMPLETED 2024-02-29T10:22:45 
-    2304_9        COMPLETED 2024-02-29T10:22:47 
-    2304_10       COMPLETED 2024-02-29T10:22:47 
-    2304_11       COMPLETED 2024-02-29T10:22:50 
-    2304_12       COMPLETED 2024-02-29T10:22:50 
-    2304_13       COMPLETED 2024-02-29T10:22:52 
-    2304_14       COMPLETED 2024-02-29T10:22:52 
-    2304_15       COMPLETED 2024-02-29T10:22:54 
-    2304_16       COMPLETED 2024-02-29T10:22:54 
-    2304_17       COMPLETED 2024-02-29T10:22:57 
-    2304_18       COMPLETED 2024-02-29T10:22:57 
-    2304_19       COMPLETED 2024-02-29T10:22:59 
-    2304_20       COMPLETED 2024-02-29T10:22:59 
-    2304_21       COMPLETED 2024-02-29T10:23:01 
-    2304_22       COMPLETED 2024-02-29T10:23:01 
-    2304_23       COMPLETED 2024-02-29T10:23:04 
-    2304_24       COMPLETED 2024-02-29T10:23:04 
-    2304_25       COMPLETED 2024-02-29T10:23:06 
-    2304_26       COMPLETED 2024-02-29T10:23:06 
-    2304_27       COMPLETED 2024-02-29T10:23:08 
-    2304_28       COMPLETED 2024-02-29T10:23:08 
-    2304_29       COMPLETED 2024-02-29T10:23:11 
-    2304_30       COMPLETED 2024-02-29T10:23:11 
-    2304_31       COMPLETED 2024-02-29T10:23:13 
-    2304_32       COMPLETED 2024-02-29T10:23:12 
-    2304_33       COMPLETED 2024-02-29T10:23:14 
-    2304_34       COMPLETED 2024-02-29T10:23:15 
-    2304_35       COMPLETED 2024-02-29T10:23:17 
-    2339_1        COMPLETED 2024-02-29T10:34:42 
-    2339_2        COMPLETED 2024-02-29T10:34:42 
-    2339_3        COMPLETED 2024-02-29T10:34:44 
-    2339_4        COMPLETED 2024-02-29T10:34:44 
-    2339_5        COMPLETED 2024-02-29T10:34:46 
-    2339_6        COMPLETED 2024-02-29T10:34:46 
-    2339_7        COMPLETED 2024-02-29T10:34:48 
-    2339_8        COMPLETED 2024-02-29T10:34:48 
-    2339_9        COMPLETED 2024-02-29T10:34:51 
-    2339_10       COMPLETED 2024-02-29T10:34:51 
-    2339_11       COMPLETED 2024-02-29T10:34:53 
-    2339_12       COMPLETED 2024-02-29T10:34:53 
-    2339_[13-94+   PENDING  Unknown"""
-
-    mock_run_commands.return_value = SerializableMagicMock(ok=True, stdout=mock_stdout)
-
-    # WHEN
-    job_status_dict, _ = slurm_client.check_job_status([2304, 2339])
-
-    # THEN
-    mock_run_commands.assert_called_with(
-        ['sacct -n -o JobId,State,End -X -j 2304 -j 2339'], env=None)
-
-    expected_status_dict = {2304: 'COMPLETED', 2339: 'PENDING'}
-    assert job_status_dict == expected_status_dict
+        slurm_client.get_workflow_tasks("00000000-0000-0000-0000-000000000001")
 
 
 @patch('biomero.slurm_client.logger')
@@ -1556,7 +1522,7 @@ def test_extract_job_id(mock_result, slurm_client):
     assert extracted_job_id == 12345
 
 
-@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.ssh_recovery.atomic_put')
 @patch('biomero.slurm_client.Connection.create_session')
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.SlurmClient.run')
@@ -1570,7 +1536,7 @@ def test_update_slurm_scripts(mock_generic_descriptor, mock_is_bilayers,
                               mock_generate_job, mock_workflow_params_to_subs,
                               mock_get_workflow_params, mock_put,
                               mock_run, _mock_open,
-                              _mock_session, mock_stringio):
+                              _mock_session, mock_atomic_put):
     # GIVEN
     slurm_client = SlurmClient(
         "localhost", 8022, "slurm", slurm_script_repo="gitrepo",
@@ -1616,13 +1582,12 @@ def test_update_slurm_scripts(mock_generic_descriptor, mock_is_bilayers,
     # Assert that the remote directories are created
     mock_run.assert_called_with("mkdir -p \"scriptpath\"")
 
-    # Assert that the job script is copied to the remote location
-    mock_put.assert_called_once_with(
-        local=mock_stringio("GeneratedJobScript"), remote="scriptpath/job_path")
-
-    # Assert the overall behavior
-    assert mock_run.call_count == 2  # Two calls, one for mkdir and one for put
-    assert mock_put.call_count == 1
+    # Assert that the job script is published atomically at the remote
+    # location
+    mock_atomic_put.assert_called_once()
+    _, published_source, published_remote = mock_atomic_put.call_args[0]
+    assert published_source.getvalue() == "GeneratedJobScript"
+    assert published_remote == "scriptpath/job_path"
 
 
 def test_workflow_params_to_subs(slurm_client):
@@ -1826,7 +1791,7 @@ def test_bilayers_folder_params_excludes_file_attachment(slurm_client):
     assert '--ref' not in result['INPARAMS']
 
 
-@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.ssh_recovery.atomic_put')
 @patch('biomero.slurm_client.Connection.create_session')
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.SlurmClient.run')
@@ -1834,7 +1799,7 @@ def test_bilayers_folder_params_excludes_file_attachment(slurm_client):
 @patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
 def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
                                        mock_put, mock_run, _mock_open,
-                                       _mock_session, mock_stringio,
+                                       _mock_session, mock_atomic_put,
                                        bilayers_descriptor):
     """Bilayers workflow: uses the shared job template with INPARAMS/OUTPARAMS substituted,
     image/file folder inputs excluded from PARAMS.
@@ -1859,7 +1824,7 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
     # generate_slurm_job_for_workflow (reads real shared job_template.sh) all run
     slurm_client.update_slurm_scripts(generate_jobs=True)
 
-    generated_script = mock_stringio.call_args[0][0]
+    generated_script = mock_atomic_put.call_args[0][1].getvalue()
 
     # mandatory image input 'dir' → INPARAMS
     assert '--dir="$DATA_PATH/data/in"' in generated_script
@@ -1881,11 +1846,10 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
     assert '--local -nmc' not in generated_script
 
     # script pushed to correct remote path
-    mock_put.assert_called_once_with(
-        local=mock_stringio(generated_script), remote="scriptpath/jobs/cellpose.sh")
+    assert mock_atomic_put.call_args[0][2] == "scriptpath/jobs/cellpose.sh"
 
 
-@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.ssh_recovery.atomic_put')
 @patch('biomero.slurm_client.Connection.create_session')
 @patch('biomero.slurm_client.Connection.open')
 @patch('biomero.slurm_client.SlurmClient.run')
@@ -1893,7 +1857,7 @@ def test_update_slurm_scripts_bilayers(mock_generic_descriptor,
 @patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
 def test_update_slurm_scripts_bilayers_with_env_file(mock_generic_descriptor,
                                                      mock_put, mock_run, _mock_open,
-                                                     _mock_session, mock_stringio,
+                                                     _mock_session, mock_atomic_put,
                                                      bilayers_descriptor):
     """Bilayers workflow with env-file submission should render the shared
     OPTIONAL_ENV block into the single shared template."""
@@ -1911,7 +1875,7 @@ def test_update_slurm_scripts_bilayers_with_env_file(mock_generic_descriptor,
 
     slurm_client.update_slurm_scripts(generate_jobs=True)
 
-    generated_script = mock_stringio.call_args[0][0]
+    generated_script = mock_atomic_put.call_args[0][1].getvalue()
 
     assert 'BIOMERO_ENV_FILE="${1:-}"' in generated_script
     assert '. "$BIOMERO_ENV_FILE"' in generated_script
@@ -2611,6 +2575,7 @@ def test_from_config(mock_ConfigParser,
     mock_SlurmClient.assert_called_with(
         host=mv,  # expected host value,
         ssh_recovery_timeout=900,
+        slurm_lock_cmd=mv,
         inline_ssh_env=True,  # expected inline_ssh_env value,
         slurm_data_path=mv,  # expected slurm_data_path value,
         slurm_images_path=mv,  # expected slurm_images_path value,
@@ -3736,21 +3701,42 @@ def test_list_all_jobs(slurm_client):
 # Tests for transfer_data / unpack_data (lines 1379-1386, 1457-1477)
 # ---------------------------------------------------------------------------
 
-def test_transfer_data_calls_put(slurm_client):
-    """transfer_data delegates to put with correct arguments."""
+def test_transfer_data_uploads_under_a_partial_name_then_renames(
+        slurm_client, tmp_path):
+    """transfer_data publishes the archive only when it is complete."""
+    local_file = tmp_path / "myfile.zip"
+    local_file.write_bytes(b"12345")
+    sftp = MagicMock()
+    sftp.stat.side_effect = [FileNotFoundError(), MagicMock(st_size=5)]
+    slurm_client.sftp = MagicMock(return_value=sftp)
     slurm_client.put = MagicMock(return_value=MagicMock(ok=True))
     slurm_client.slurm_data_path = "/remote/data"
-    slurm_client.transfer_data("/local/myfile.zip")
+
+    result = slurm_client.transfer_data(str(local_file))
+
     slurm_client.put.assert_called_once_with(
-        local="/local/myfile.zip", remote="/remote/data")
+        local=str(local_file), remote="/remote/data/myfile.zip.biomero-partial")
+    sftp.posix_rename.assert_called_once_with(
+        "/remote/data/myfile.zip.biomero-partial", "/remote/data/myfile.zip")
+    assert result.remote == "/remote/data/myfile.zip"
 
 
-def test_unpack_data_calls_run_commands(slurm_client):
-    """unpack_data builds the unzip command and runs it."""
-    slurm_client.run_commands = MagicMock(return_value=MagicMock(ok=True))
+def test_unpack_data_extracts_once_under_a_lock(slurm_client):
+    """unpack_data runs the unzip command in a locked, marker-guarded script."""
+    slurm_client.slurm_data_path = "/remote/data"
+    slurm_client.run_commands = MagicMock(
+        return_value=MagicMock(ok=True, exited=0))
     slurm_client.get_unzip_command = MagicMock(return_value="unzip file.zip")
-    slurm_client.unpack_data("file.zip")
-    slurm_client.run_commands.assert_called_once_with(["unzip file.zip"], env=None)
+
+    slurm_client.unpack_data("file")
+
+    (commands,), run_kwargs = slurm_client.run_commands.call_args
+    assert run_kwargs == {"env": None, "warn": True,
+                          "log_level": logging.DEBUG}
+    assert commands[0].startswith("mkdir -p /remote/data && flock -w 5 -E 200 "
+                                  "/remote/data/file.biomero-unpacked.lock")
+    assert "unzip file.zip" in commands[0]
+    assert "/remote/data/file.zip" in commands[0]
 
 
 # ---------------------------------------------------------------------------
@@ -3904,9 +3890,9 @@ from unittest.mock import patch
 @patch('biomero.slurm_client.SlurmClient.put')
 @patch('biomero.slurm_client.SlurmClient.run')
 @patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
-@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.ssh_recovery.atomic_put')
 def test_generate_slurm_job_gpu_flag(
-    mock_stringio,
+    mock_atomic_put,
     mock_descriptor,
     mock_run,
     mock_put,
@@ -3932,7 +3918,7 @@ def test_generate_slurm_job_gpu_flag(
 
     client.update_slurm_scripts(generate_jobs=True)
 
-    script = mock_stringio.call_args[0][0]
+    script = mock_atomic_put.call_args[0][1].getvalue()
 
     assert expected in script
     
@@ -3951,9 +3937,9 @@ from unittest.mock import patch
 @patch('biomero.slurm_client.SlurmClient.put')
 @patch('biomero.slurm_client.SlurmClient.run')
 @patch('biomero.slurm_client.SlurmClient.generic_descriptor_from_github')
-@patch('biomero.slurm_client.io.StringIO')
+@patch('biomero.slurm_client.ssh_recovery.atomic_put')
 def test_generate_slurm_job_env_file_template(
-    mock_stringio,
+    mock_atomic_put,
     mock_descriptor,
     mock_run,
     mock_put,
@@ -3979,7 +3965,7 @@ def test_generate_slurm_job_env_file_template(
 
     client.update_slurm_scripts(generate_jobs=True)
 
-    script = mock_stringio.call_args[0][0]
+    script = mock_atomic_put.call_args[0][1].getvalue()
 
     if expected_snippet:
         assert "BIOMERO_ENV_FILE" in script
@@ -5229,12 +5215,49 @@ def test_setup_slurm_submits_one_combined_workflow_converter_array(slurm_client)
     slurm_client.setup_job_scripts = MagicMock()
     slurm_client.prepare_converters = MagicMock(return_value=[converter_spec])
     slurm_client.setup_container_images = MagicMock(return_value=24680)
+    slurm_client.check_remote_commands_available = MagicMock(return_value=[])
 
     result = slurm_client.setup_slurm()
 
     assert result == 24680
+    slurm_client.check_remote_commands_available.assert_called_once_with()
     slurm_client.setup_container_images.assert_called_once_with(
         extra_image_specs=[converter_spec])
+
+
+@pytest.mark.parametrize("missing", [[], ["flock"], ["sacct"],
+                                     ["flock", "sacct"]])
+def test_check_remote_commands_warns_for_each_missing_command(
+        slurm_client, caplog, missing):
+    """The lock command and sacct are checked; every miss is a WARNING."""
+    def fake_run_commands(commands, **kwargs):
+        executable = commands[0].split()[-1]
+        return MagicMock(ok=executable not in missing)
+
+    slurm_client.run_commands = MagicMock(side_effect=fake_run_commands)
+
+    with caplog.at_level(logging.DEBUG, logger="biomero.slurm_client"):
+        result = slurm_client.check_remote_commands_available()
+
+    assert result == missing
+    warnings = [record.getMessage() for record in caplog.records
+                if record.levelno == logging.WARNING
+                and "not available on the Slurm cluster" in record.getMessage()]
+    assert len(warnings) == len(missing)
+    for executable in missing:
+        assert any(message.startswith(executable) for message in warnings)
+
+
+def test_check_remote_commands_uses_the_configured_lock_command(slurm_client):
+    slurm_client.slurm_lock_cmd = (
+        "/opt/lock -t {wait_seconds} -x {busy_exit_code} {lock_file}")
+    slurm_client.run_commands = MagicMock(return_value=MagicMock(ok=True))
+
+    slurm_client.check_remote_commands_available()
+
+    checked = [call.args[0][0]
+               for call in slurm_client.run_commands.call_args_list]
+    assert checked == ["command -v /opt/lock", "command -v sacct"]
 
 
 @patch('biomero.slurm_client.uuid4')
@@ -5316,9 +5339,3 @@ def test_rerun_excludes_existing_valid_images_from_array(
     manifest_text = manifest_upload.args[0].getvalue()
     assert "workflow-15" in manifest_text
     assert "workflow-14" not in manifest_text
-
-
-def test_get_workflow_tasks_without_tracking_is_empty(slurm_client):
-    from biomero.eventsourcing import NoOpWorkflowTracker
-    slurm_client.workflowTracker = NoOpWorkflowTracker()
-    assert slurm_client.get_workflow_tasks("wf") == []

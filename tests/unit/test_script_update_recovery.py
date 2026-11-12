@@ -1,4 +1,5 @@
 """Script preparation must recover without publishing a partial executable."""
+import io
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -9,18 +10,22 @@ from biomero import ssh_recovery
 from .test_ssh_recovery import recovery_clock  # noqa: F401
 from .test_slurm_client import slurm_client, set_env_vars  # noqa: F401
 
+PARTIAL = '/jobs/work.sh.biomero-partial'
+SCRIPT = 'echo complete\n'
+
 
 def test_script_publication_retries_with_complete_content(recovery_clock):
     files = {'/jobs/work.sh': b'previous'}
     attempts = []
     sftp = Mock()
-    sftp.stat.side_effect = lambda path: SimpleNamespace(st_size=len(files[path]), st_mode=0o100750)
-    sftp.posix_rename.side_effect = lambda src, dst: files.update({dst: files.pop(src)})
-    sftp.remove.side_effect = lambda path: files.pop(path, None)
+    sftp.stat.side_effect = lambda path: SimpleNamespace(
+        st_size=len(files[path]), st_mode=0o100750)
+    sftp.posix_rename.side_effect = lambda src, dst: files.update(
+        {dst: files.pop(src)})
 
     def put(*, local, remote):
         assert files['/jobs/work.sh'] == b'previous'
-        content = local.read()
+        content = local.read().encode()
         assert content == b'echo complete\n'
         attempts.append(remote)
         files[remote] = content
@@ -31,16 +36,19 @@ def test_script_publication_retries_with_complete_content(recovery_clock):
 
     client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock(),
                              sftp=Mock(return_value=sftp), put=put)
-    result = ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+    result = ssh_recovery.atomic_put(
+        client, io.StringIO(SCRIPT), '/jobs/work.sh')
     assert result.remote == '/jobs/work.sh'
+    # The interrupted partial file is overwritten by the retry, never
+    # published, and no partial file is left behind.
     assert files == {'/jobs/work.sh': b'echo complete\n'}
-    assert len(set(attempts)) == 2
-    sftp.chmod.assert_called_once_with(attempts[-1], 0o750)
+    assert attempts == [PARTIAL, PARTIAL]
+    sftp.chmod.assert_called_once_with(PARTIAL, 0o750)
 
 
-@pytest.mark.parametrize('window', [0, 900])
-def test_generated_script_update_recovery_is_opt_in(slurm_client, recovery_clock,
-                                                   monkeypatch, window):
+@pytest.mark.parametrize('window,retried', [(0, False), (900, True)])
+def test_generated_script_update_retries_only_within_the_window(
+        slurm_client, recovery_clock, monkeypatch, window, retried):
     client = slurm_client
     client.ssh_recovery_timeout = window
     client.close = Mock()
@@ -50,10 +58,11 @@ def test_generated_script_update_recovery_is_opt_in(slurm_client, recovery_clock
     client.workflow_params_to_subs = Mock(return_value={})
     client.workflow_template_subs = Mock(return_value={})
     client.generate_slurm_job_for_workflow = Mock(return_value='echo done\n')
-    client.run = Mock(side_effect=[EOFError('lost mkdir response'), Result(connection=None, exited=0)])
+    client.run = Mock(side_effect=[EOFError('lost mkdir response'),
+                                   Result(connection=None, exited=0)])
     publish = Mock(return_value='published')
-    monkeypatch.setattr(ssh_recovery, 'publish_script', publish, raising=False)
-    if window:
+    monkeypatch.setattr(ssh_recovery, 'atomic_put', publish)
+    if retried:
         assert client.update_slurm_scripts(generate_jobs=True) == 'published'
         assert client.run.call_count == 2
         publish.assert_called_once()
@@ -81,26 +90,28 @@ def test_git_update_serializes_surviving_command(slurm_client, recovery_clock):
     assert 'flock -w 5 -E 200 /jobs.biomero-update.lock' in commands[0]
 
 
-def test_publication_rejects_truncation_without_replacing_script(recovery_clock):
+def test_truncated_upload_is_never_published_and_is_retried(recovery_clock):
     sftp = Mock()
     sftp.stat.return_value.st_size = 2
     sftp.stat.return_value.st_mode = 0o100750
     client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock(),
                              sftp=Mock(return_value=sftp), put=Mock())
-    with pytest.raises(RuntimeError, match='Incomplete'):
-        ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+    with pytest.raises(ssh_recovery.SSHRecoveryTimeout) as expired:
+        ssh_recovery.atomic_put(client, io.StringIO(SCRIPT), '/jobs/work.sh')
+    assert isinstance(expired.value.__cause__, ssh_recovery.IncompleteTransfer)
     sftp.posix_rename.assert_not_called()
-    client.put.assert_called_once()
+    assert client.put.call_count > 1
 
 
 def test_lost_rename_ack_recovers_complete_script_and_mode(recovery_clock):
     sftp = Mock()
     sftp.stat.return_value = SimpleNamespace(st_size=14, st_mode=0o100750)
-    sftp.posix_rename.side_effect = [EOFError('rename committed but ack lost'), None]
-    sftp.remove.side_effect = EOFError('cleanup disconnected')
+    sftp.posix_rename.side_effect = [
+        EOFError('rename committed but ack lost'), None]
     client = SimpleNamespace(ssh_recovery_timeout=900, close=Mock(),
                              sftp=Mock(return_value=sftp), put=Mock())
-    result = ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+    result = ssh_recovery.atomic_put(
+        client, io.StringIO(SCRIPT), '/jobs/work.sh')
     assert result.remote == '/jobs/work.sh'
     assert sftp.posix_rename.call_count == 2
     assert sftp.chmod.call_count == 2
@@ -129,34 +140,29 @@ def test_closed_sftp_after_upload_preserves_script_and_recovers(
     def put(*, local, remote):
         nonlocal connected
         assert files['/jobs/work.sh'] == b'previous'
-        files[remote] = local.read()
+        files[remote] = local.read().encode()
         attempts.append(remote)
         if len(attempts) == 1:
             connected = False
         return SimpleNamespace(remote=remote)
 
-    def remove(path):
-        if not connected:
-            raise OSError('Socket is closed')
-        files.pop(path, None)
-
     sftp.stat.side_effect = check_stat
-    sftp.remove.side_effect = remove
     sftp.posix_rename.side_effect = lambda src, dst: files.update(
         {dst: files.pop(src)})
     client = SimpleNamespace(ssh_recovery_timeout=window, close=Mock(),
                              sftp=reconnect, put=put)
     if not window:
         with pytest.raises(OSError, match='Socket is closed'):
-            ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+            ssh_recovery.atomic_put(
+                client, io.StringIO(SCRIPT), '/jobs/work.sh')
         assert files['/jobs/work.sh'] == b'previous'
         assert len(attempts) == 1
         client.close.assert_not_called()
         return
-    result = ssh_recovery.publish_script(client, 'echo complete\n', '/jobs/work.sh')
+    result = ssh_recovery.atomic_put(
+        client, io.StringIO(SCRIPT), '/jobs/work.sh')
     assert result.remote == '/jobs/work.sh'
     assert files['/jobs/work.sh'] == b'echo complete\n'
-    assert len(set(attempts)) == 2
-    assert files[attempts[0]] == b'echo complete\n'
+    assert attempts == [PARTIAL, PARTIAL]
     client.close.assert_called_once()
-    sftp.chmod.assert_called_once_with(attempts[-1], 0o750)
+    sftp.chmod.assert_called_once_with(PARTIAL, 0o750)

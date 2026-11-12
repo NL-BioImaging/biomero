@@ -42,7 +42,7 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SSH_RECOVERY_TIMEOUT``
      - ``[SLURM] ssh_recovery_timeout``
      - nonnegative integer seconds
-     - Recovery window for replay-safe SSH operations; default ``900`` allows 15 minutes, including absent/empty configuration. Explicit ``0`` disables recovery. Runtime; no Slurm Init required. Submission/archive recovery requires flock and durable writable HPC storage.
+     - Recovery window for replay-safe SSH operations; default ``900`` allows 15 minutes, including absent/empty configuration. The same code runs for every value: ``0`` means no retries. Runtime; no Slurm Init required. Submission/archive recovery requires the lock command (``slurm_lock_cmd``), ``sacct`` and durable writable HPC storage.
    * - ``BIOMERO_DETACHED_WORKFLOWS``
      - not applicable
      - boolean
@@ -140,6 +140,10 @@ Environment Variable Lookup Table
      - string
      - Overrides the ZIP command used on the cluster; ``zip`` selects Info-ZIP
        and its matching ``unzip`` command, while other values use 7-Zip syntax
+   * - ``BIOMERO_SLURM_LOCK_CMD``
+     - ``slurm_lock_cmd``
+     - string template
+     - Overrides the lock command used on the cluster for submissions, extraction and archive creation; placeholders ``{wait_seconds}``, ``{busy_exit_code}``, ``{lock_file}``
    * - ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
      - ``analytics_rebuild_start_time``
      - string date
@@ -272,6 +276,10 @@ Environment Variable Lookup Table
      - ``$(command -v 7z || command -v 7za)``
      - Command used for ZIP creation and extraction on the HPC. Set to ``zip``
        to use the Info-ZIP ``zip``/``unzip`` pair.
+   * - ``slurm_lock_cmd``
+     - string template or empty
+     - ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``
+     - Command that locks a file on the HPC before a script that must not run twice at once; checked during Slurm setup (WARNING if missing). See :ref:`ssh-recovery`.
    * - ``analytics_rebuild_start_time``
      - string date or empty
      - unset
@@ -422,6 +430,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_APPTAINER_TMPDIR``
 * ``BIOMERO_APPTAINER_CACHEDIR``
 * ``BIOMERO_SLURM_ZIP_CMD``
+* ``BIOMERO_SLURM_LOCK_CMD``
 * ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
 * ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``
 * ``GPU_PARTITION``
@@ -536,9 +545,11 @@ SSH Recovery
 ``[SLURM] ssh_recovery_timeout`` (environment
 ``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds per
 interruption, starting at the first failure rather than operation start. Default:
-``900`` (15 minutes), also for absent or empty configuration. Explicit ``0``
-disables recovery. This applies to inline and detached workflows; expiry remains
-a terminal failure. For dependencies, submission reconciliation and limits, see
+``900`` (15 minutes), also for absent or empty configuration. The same code runs
+for every value: ``0`` means no retries. This applies to inline and detached
+workflows; expiry remains a terminal failure. The setting lives in ``[SLURM]``
+because it also governs the submission, extraction and archive operations on the
+cluster. For dependencies, submission reconciliation and limits, see
 :ref:`the SSH recovery section <ssh-recovery>` in :doc:`slurm-configuration`.
 
 Native connection/channel and short-read detection normally uses at most 30

@@ -461,7 +461,9 @@ its request ID connects the initial activity to subsequent progress.</p>
 <p>Use <strong>Slurm Check Setup</strong> for configuration, image acquisition and metadata
 maintenance status. <strong>Slurm Get Update</strong> monitors analysis jobs and retrieves
 <code class="docutils literal notranslate"><span class="pre">omero-&lt;job-id&gt;.log</span></code>. Image acquisition has separate per-task logs under
-<code class="docutils literal notranslate"><span class="pre">&lt;slurm_script_path&gt;/image-pulls</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">&lt;slurm_script_path&gt;/image-pulls</span></code>, one folder per Slurm Init submission. Each
+submission removes the folders of earlier submissions that are older than seven
+days; a failed cleanup only logs a warning.</p>
 </section>
 <section id="running-a-workflow">
 <h2>Running a workflow<a class="headerlink" href="#running-a-workflow" title="Permalink to this heading"></a></h2>

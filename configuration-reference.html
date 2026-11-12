@@ -174,7 +174,7 @@ explains when and why you would choose each setting.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_CONFIG_FILE</span></code></p></td>
 <td><p>—</p></td>
 <td><p>filesystem path</p></td>
-<td><p>Enables authoritative-file mode; only this ini file is read instead of merging the default config paths</p></td>
+<td><p>Enables authoritative-file mode; only this ini file is read instead of merging the default config paths (an ignored explicit config file or a missing authoritative file is logged as a warning)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SSH_RECOVERY_TIMEOUT</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">[SLURM]</span> <span class="pre">ssh_recovery_timeout</span></code></p></td>
@@ -396,6 +396,16 @@ and its matching <code class="docutils literal notranslate"><span class="pre">un
 <td><p>integer or empty</p></td>
 <td><p>unset</p></td>
 <td><p>Relative history window; takes precedence over <code class="docutils literal notranslate"><span class="pre">sacct_start_time</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">job_status_attempts</span></code></p></td>
+<td><p>integer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">5</span></code></p></td>
+<td><p>How many times the job status check asks <code class="docutils literal notranslate"><span class="pre">sacct</span></code> while it returns no rows (a new job can take a while to appear) before failing</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">job_status_retry_seconds</span></code></p></td>
+<td><p>integer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<td><p>Seconds to wait between those attempts</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">env_file_submission</span></code></p></td>
 <td><p>boolean</p></td>
@@ -633,10 +643,10 @@ This is relevant for values such as <code class="docutils literal notranslate"><
 <section id="optional-result-shallower">
 <h2>Optional result shallower<a class="headerlink" href="#optional-result-shallower" title="Permalink to this heading"></a></h2>
 <p>The administrator-only CPU helper runs before result ZIP creation. All options
-are in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code>; environment values override ini values. Shallow Zarr remains
-opt-in; when enabled, remote shallowing is the default. Set
-<code class="docutils literal notranslate"><span class="pre">remote_shallow_zarr=false</span></code> or <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=false</span></code> to use
-local importer shallowing instead, for example to avoid extra Slurm costs.
+are in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code>; environment values override ini values. Remote shallowing
+is off unless you set <code class="docutils literal notranslate"><span class="pre">remote_shallow_zarr=true</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=true</span></code>); a missing or empty value keeps the local
+importer shallowing. Shallow Zarr itself must be enabled separately.
 The helper requests no GPU; workers
 set CPUs per task. Shallowing and recovery share conversion’s resource
 merging: the helper partition overrides <code class="docutils literal notranslate"><span class="pre">slurm_default_partition</span></code>, which
@@ -682,7 +692,7 @@ available until those tasks finish. Resource settings remain configurable.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallow_zarr</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> (shallow Zarr must be enabled separately)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code> (shallow Zarr must be enabled separately)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code></p></td>

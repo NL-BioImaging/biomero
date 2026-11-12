@@ -38,7 +38,7 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SLURM_CONFIG_FILE``
      - —
      - filesystem path
-     - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+     - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths (an ignored explicit config file or a missing authoritative file is logged as a warning)
    * - ``BIOMERO_SSH_RECOVERY_TIMEOUT``
      - ``[SLURM] ssh_recovery_timeout``
      - nonnegative integer seconds
@@ -215,6 +215,14 @@ Environment Variable Lookup Table
      - integer or empty
      - unset
      - Relative history window; takes precedence over ``sacct_start_time``
+   * - ``job_status_attempts``
+     - integer
+     - ``5``
+     - How many times the job status check asks ``sacct`` while it returns no rows (a new job can take a while to appear) before failing
+   * - ``job_status_retry_seconds``
+     - integer
+     - ``3``
+     - Seconds to wait between those attempts
    * - ``env_file_submission``
      - boolean
      - ``false``
@@ -441,10 +449,10 @@ Optional result shallower
 --------------------------
 
 The administrator-only CPU helper runs before result ZIP creation. All options
-are in ``[SLURM]``; environment values override ini values. Shallow Zarr remains
-opt-in; when enabled, remote shallowing is the default. Set
-``remote_shallow_zarr=false`` or ``BIOMERO_REMOTE_SHALLOW_ZARR=false`` to use
-local importer shallowing instead, for example to avoid extra Slurm costs.
+are in ``[SLURM]``; environment values override ini values. Remote shallowing
+is off unless you set ``remote_shallow_zarr=true`` (or
+``BIOMERO_REMOTE_SHALLOW_ZARR=true``); a missing or empty value keeps the local
+importer shallowing. Shallow Zarr itself must be enabled separately.
 The helper requests no GPU; workers
 set CPUs per task. Shallowing and recovery share conversion's resource
 merging: the helper partition overrides ``slurm_default_partition``, which
@@ -488,7 +496,7 @@ available until those tasks finish. Resource settings remain configurable.
      - Default
      - Environment variable
    * - ``remote_shallow_zarr``
-     - ``true`` (shallow Zarr must be enabled separately)
+     - ``false`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
    * - ``remote_shallower_image``
      - ``cellularimagingcf/biomero-shallower:latest``; prefer an ini pin

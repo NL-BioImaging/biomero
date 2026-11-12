@@ -350,8 +350,8 @@ python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </s
 For a deployment using shallow Zarr:</p>
 <ol class="arabic simple">
 <li><p>Enable the importer integration and <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR=true</span></code>. Remote
-shallowing is preferred when enabled; <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=false</span></code>
-selects local importer shallowing instead.</p></li>
+shallowing is enabled with <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=true</span></code>; without it,
+shallowing runs locally in the importer.</p></li>
 <li><p>Prefer a pinned <code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code> in the <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> section of
 <code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>; the fallback is <code class="docutils literal notranslate"><span class="pre">cellularimagingcf/biomero-shallower:latest</span></code>.
 Core reads the installed image’s tool version unless <code class="docutils literal notranslate"><span class="pre">remote_shallower_version</span></code>

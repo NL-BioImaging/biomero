@@ -96,6 +96,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#default-gpu-fallback-settings">Default GPU fallback settings</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#global-sbatch-parameters">Global sbatch parameters</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#zip-command">ZIP command</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lock-command">Lock command</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#analytics-and-provenance-settings">Analytics and Provenance Settings</a><ul>
@@ -514,6 +515,37 @@ compatibility.</p></li>
 <li><p>auto-detection is not reliable in your environment</p></li>
 </ul>
 </section>
+<section id="lock-command">
+<h3>Lock command<a class="headerlink" href="#lock-command" title="Permalink to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">slurm_lock_cmd</span></code> is the command BIOMERO uses to lock a file on the cluster
+before it runs a script that must not run twice at once: submitting a job,
+extracting an input archive, creating a result archive and updating the job
+scripts. It can also be overridden by <code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_LOCK_CMD</span></code>. See
+<a class="reference internal" href="#ssh-recovery"><span class="std std-ref">Recovering Interrupted SSH Operations</span></a> for why these operations are locked.</p>
+<p>It is a template. BIOMERO fills in <code class="docutils literal notranslate"><span class="pre">{wait_seconds}</span></code> (how long to wait for
+the lock), <code class="docutils literal notranslate"><span class="pre">{busy_exit_code}</span></code> (the exit code that means “locked by someone
+else”) and <code class="docutils literal notranslate"><span class="pre">{lock_file}</span></code> (the quoted path of the lock file) and appends the
+script. <code class="docutils literal notranslate"><span class="pre">{lock_file}</span></code> and <code class="docutils literal notranslate"><span class="pre">{busy_exit_code}</span></code> are required, because the
+exit code is how BIOMERO knows the lock was busy; <code class="docutils literal notranslate"><span class="pre">{wait_seconds}</span></code> is optional,
+for tools without a wait option.</p>
+<p>Impact:</p>
+<ul class="simple">
+<li><p>If unset or empty, BIOMERO uses
+<code class="docutils literal notranslate"><span class="pre">flock</span> <span class="pre">-w</span> <span class="pre">{wait_seconds}</span> <span class="pre">-E</span> <span class="pre">{busy_exit_code}</span> <span class="pre">{lock_file}</span></code>, which needs
+<code class="docutils literal notranslate"><span class="pre">flock</span></code> from util-linux 2.25 or newer.</p></li>
+<li><p>Any command that takes the lock, runs the script given as its remaining
+arguments, and exits with the busy exit code when the lock is not obtained
+in time can replace <code class="docutils literal notranslate"><span class="pre">flock</span></code> (for example a small wrapper script around the
+locking tool of your cluster).</p></li>
+<li><p>BIOMERO checks during Slurm setup (<code class="docutils literal notranslate"><span class="pre">SlurmClient.setup_slurm</span></code>) that the
+lock command and <code class="docutils literal notranslate"><span class="pre">sacct</span></code> exist on the cluster, and logs a WARNING for each
+that is missing. The setup continues.</p></li>
+<li><p>A template with an unknown placeholder, or without <code class="docutils literal notranslate"><span class="pre">{lock_file}</span></code> or
+<code class="docutils literal notranslate"><span class="pre">{busy_exit_code}</span></code>, is rejected when the client is created.</p></li>
+<li><p>If the lock command is missing when an operation runs (shell exit code 127),
+the operation stops with an error that names <code class="docutils literal notranslate"><span class="pre">slurm_lock_cmd</span></code>.</p></li>
+</ul>
+</section>
 </section>
 <section id="analytics-and-provenance-settings">
 <h2>Analytics and Provenance Settings<a class="headerlink" href="#analytics-and-provenance-settings" title="Permalink to this heading"></a></h2>
@@ -913,15 +945,22 @@ actual tool version.</p>
 <span id="ssh-recovery"></span><h2>Recovering Interrupted SSH Operations<a class="headerlink" href="#recovering-interrupted-ssh-operations" title="Permalink to this heading"></a></h2>
 <p>Set <code class="docutils literal notranslate"><span class="pre">ssh_recovery_timeout</span></code> in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> to a nonnegative recovery window
 in seconds. The default is <code class="docutils literal notranslate"><span class="pre">900</span></code> (15 minutes), including when the setting is
-absent or empty. Recovery applies to inline and detached workflows. Explicit
-<code class="docutils literal notranslate"><span class="pre">0</span></code> disables recovery. The environment override is
-<code class="docutils literal notranslate"><span class="pre">BIOMERO_SSH_RECOVERY_TIMEOUT</span></code>. This runtime setting applies to new clients;
-Slurm Init is not needed just to change the window.</p>
-<p>The window starts at the first failed attempt in each interruption. Healthy
-queueing, computation and helper runtime do not consume it. Nested
-operations share the active interruption’s deadline instead of multiplying
-retry budgets. Caller-supplied heartbeat callbacks remain active during nested
-recovery and backoff, including shallower polling.</p>
+absent or empty. Recovery applies to inline and detached workflows. The window
+only sets how long an interrupted operation is retried: the same code runs for
+every value, and <code class="docutils literal notranslate"><span class="pre">0</span></code> means no retries, so an interrupted operation fails with
+its own error. The environment override is <code class="docutils literal notranslate"><span class="pre">BIOMERO_SSH_RECOVERY_TIMEOUT</span></code>.
+This runtime setting applies to new clients; Slurm Init is not needed just to
+change the window. (It lives in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> because it also governs the job
+submission, extraction and archive operations on the cluster, not only the
+connection.)</p>
+<p>The window starts at the first failed attempt of an operation and nothing else
+moves it: not a successful nested step, and not a later retry by an outer
+operation. A repeating failure therefore ends at the window instead of retrying
+forever. Healthy queueing, computation and helper runtime do not consume it, and
+each new operation (the next status poll, the next transfer) gets a new window.
+Caller-supplied heartbeat callbacks remain active during nested recovery and
+backoff, including shallower polling. Retries wait 1, 2, 4 … up to 30 seconds,
+with a little random jitter so that clients do not retry in lock step.</p>
 <p>Detection precedes that window. Within a recovery operation, native connection
 stages and channel opening use at most 30 seconds, or the configured recovery
 window when smaller; stricter caller settings remain effective. Short read-only
@@ -942,8 +981,9 @@ Paramiko’s exec/subsystem acknowledgement waits are not covered by these nativ
 settings. They require a lower-layer fix; this is not a universal SSH deadline.
 Healthy long durable commands and complete transfers have no new runtime cap;
 SFTP bounds individual reads instead. Arbitrary commands retain their original
-timeout and single-attempt behavior. Explicit <code class="docutils literal notranslate"><span class="pre">0</span></code> disables these recovery
-changes as well as retries.</p>
+timeout and single-attempt behavior. With <code class="docutils literal notranslate"><span class="pre">0</span></code>, no native timeouts or
+keepalive are set and nothing is retried; a busy lock or an unresolved
+submission still stops with the pending error.</p>
 <p>With recovery enabled, BIOMERO closes a stale SSH transport and retries explicit
 read-only operations with exponential backoff, capped at 30 seconds. The activity
 log reports <strong>Waiting for SSH connection</strong> while the last known Slurm job state
@@ -956,17 +996,50 @@ and detached execution; retaining records does not queue automatic recovery late
 transport failure, including when Fabric is configured with <code class="docutils literal notranslate"><span class="pre">warn=True</span></code>.
 Real remote nonzero exit codes retain their usual failure behavior. Temporary
 lock contention waits for the existing durable operation; it does not authorize
-another submission or classify a rejected Slurm job as a connection problem.</p>
-<p>Workflow and conversion submissions use the tracked task identity, a remote
-<code class="docutils literal notranslate"><span class="pre">.biomero-recovery</span></code> record and the Slurm job name. After a lost response,
-BIOMERO adopts the recorded job or reconciles its exact identity through squeue
-and sacct. Unresolved submission intent never authorizes a second sbatch.
-Tracking must remain enabled for resumable submission; arbitrary <code class="docutils literal notranslate"><span class="pre">run</span></code> and
+another submission or classify a rejected Slurm job as a connection problem.
+While the cluster still runs the operation (a long extraction or archive) or a
+submitted job is not yet visible in Slurm, the connection is healthy: BIOMERO
+waits within its own window and then stops with a message that says the remote
+operation is still pending and that nothing was repeated, rather than reporting
+an SSH outage. Ask again later; the operation continues on the cluster.</p>
+<p>Workflow, conversion and shallower-helper submissions all use one
+submit-exactly-once routine, <code class="docutils literal notranslate"><span class="pre">SlurmClient.submit_job_once</span></code>. It works with the
+tracked task identity, receipt files in <code class="docutils literal notranslate"><span class="pre">&lt;slurm_data_path&gt;/.biomero-recovery</span></code>
+and the Slurm job name <code class="docutils literal notranslate"><span class="pre">biomero-&lt;task</span> <span class="pre">id&gt;</span></code>. The receipt files are a lock file,
+a hash of the command, the intent (written before <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> runs), the job ID
+and, if <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> refuses the job, the refusal. After a lost response,
+BIOMERO adopts the recorded job or finds its job by exact name through squeue
+and sacct. Unresolved submission intent never authorizes a second sbatch. Once
+the job ID is stored on the task, the receipt files are removed. A refusal by
+<code class="docutils literal notranslate"><span class="pre">sbatch</span></code> is replayed to the caller; correcting the submission command
+replaces it. A command that differs from the one recorded for a possibly
+submitted job is rejected.</p>
+<p>A task identifies its own submission, and a run is continued only while its
+task is unfinished. After a crash, BIOMERO continues the task while its job is
+running, and also while its job COMPLETED but the outputs were not processed
+yet, so the analysis does not run a second time. It never re-attaches to a job
+that failed, was cancelled or timed out, nor to a task that was completed or
+whose submission failed: the next run of that workflow step gets a new task with
+its own job name and receipt files. A new workflow run always has new tasks.</p>
+<p>If a submission never resolves, the error names the intent file
+(<code class="docutils literal notranslate"><span class="pre">&lt;slurm_data_path&gt;/.biomero-recovery/&lt;task</span> <span class="pre">id&gt;.intent</span></code>), the time the
+submission started, and what to check. Look in <code class="docutils literal notranslate"><span class="pre">sacct</span></code> and <code class="docutils literal notranslate"><span class="pre">squeue</span></code> for a
+job named <code class="docutils literal notranslate"><span class="pre">biomero-&lt;task</span> <span class="pre">id&gt;</span></code> (for the shallower helper:
+<code class="docutils literal notranslate"><span class="pre">biomero-shallower-&lt;task</span> <span class="pre">id&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">biomero-recovery-&lt;task</span> <span class="pre">id&gt;</span></code>). If one
+exists, wait for accounting to show it. Only if no such job exists, delete all
+receipt files with that prefix (<code class="docutils literal notranslate"><span class="pre">&lt;task</span> <span class="pre">id&gt;.*</span></code>, or <code class="docutils literal notranslate"><span class="pre">shallow.*</span></code> / <code class="docutils literal notranslate"><span class="pre">recovery.*</span></code>
+in the helper’s <code class="docutils literal notranslate"><span class="pre">.biomero-shallower/&lt;task</span> <span class="pre">id&gt;</span></code> directory) to allow a fresh
+submission. If sbatch refused a job, the answer is replayed with a note;
+deleting the same receipt files submits that task again, and a corrected command
+replaces the recorded refusal by itself. Receipts do not expire by age.</p>
+<p>Tracking must remain enabled for resumable submission; arbitrary <code class="docutils literal notranslate"><span class="pre">run</span></code> and
 <code class="docutils literal notranslate"><span class="pre">run_commands</span></code> calls are deliberately not retried. Untracked submissions are
 attempted once because they lack a durable task identity.</p>
 <p>Result archive creation is serialized and published through a temporary path.
-Completed archives are reused on retry. Downloads and input archives are copied
-to partial paths, checked for completeness and published atomically. A retry
+Completed archives are reused on retry, unless a result file changed after the
+archive was made. An input archive that was already extracted is extracted
+again only when it was uploaded again after the extraction. Downloads and input
+archives are copied to partial paths, checked for completeness and published atomically. A retry
 restarts an interrupted copy from the beginning, rather than requiring rsync or
 SSHFS. Existing local final files remain available until replacement succeeds.
 Normal ZIP extraction still validates member CRCs before import.
@@ -974,11 +1047,18 @@ The first healthy copy does not consume a recovery window. Once interrupted,
 whole-file retries share the window until the complete copy succeeds; repeated
 interruptions during lengthy retries can exhaust it. There is no ranged or
 progress-aware transfer resume.</p>
-<p>Default recovery requires <code class="docutils literal notranslate"><span class="pre">flock</span></code> and writable shared HPC storage for submission
-and archive records, Slurm accounting/job-name lookup, and atomic SFTP rename
-support for input and generated-script publication. Keep these records and result
-files while recovery is pending. Do not delete an unresolved intent to force a retry; reconcile the job
-first. A processor restart can reuse the recorded task and job identity, but
+<p>Native connection timeouts and keepalive are set only when the window is above 0,
+so installs that set <code class="docutils literal notranslate"><span class="pre">ssh_recovery_timeout=0</span></code> keep their own timeouts for slow
+login or jump hosts.</p>
+<p>Recovery requires the lock command (<code class="docutils literal notranslate"><span class="pre">slurm_lock_cmd</span></code>, <code class="docutils literal notranslate"><span class="pre">flock</span></code> by default),
+Slurm accounting (<code class="docutils literal notranslate"><span class="pre">sacct</span></code>) and job-name lookup, writable shared HPC storage for
+submission and archive records, and atomic SFTP rename support for input and
+generated-script publication. <code class="docutils literal notranslate"><span class="pre">setup_slurm</span></code> checks that the lock command and
+<code class="docutils literal notranslate"><span class="pre">sacct</span></code> exist and logs a WARNING if not. Keep these records and result
+files while recovery is pending. Do not delete an unresolved intent to force a
+retry; reconcile the job first. Marker files of finished runs
+(<code class="docutils literal notranslate"><span class="pre">&lt;name&gt;.zip.biomero-*</span></code>) are removed with the run’s other files by the normal
+cleanup. A processor restart can reuse the recorded task and job identity, but
 recovery does not make arbitrary remote commands or OMERO postprocessing
 exactly-once. Use matching core and scripts for the complete pipeline.</p>
 </section>

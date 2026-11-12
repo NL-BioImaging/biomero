@@ -179,7 +179,7 @@ explains when and why you would choose each setting.</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SSH_RECOVERY_TIMEOUT</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">[SLURM]</span> <span class="pre">ssh_recovery_timeout</span></code></p></td>
 <td><p>nonnegative integer seconds</p></td>
-<td><p>Recovery window for replay-safe SSH operations; default <code class="docutils literal notranslate"><span class="pre">900</span></code> allows 15 minutes, including absent/empty configuration. Explicit <code class="docutils literal notranslate"><span class="pre">0</span></code> disables recovery. Runtime; no Slurm Init required. Submission/archive recovery requires flock and durable writable HPC storage.</p></td>
+<td><p>Recovery window for replay-safe SSH operations; default <code class="docutils literal notranslate"><span class="pre">900</span></code> allows 15 minutes, including absent/empty configuration. The same code runs for every value: <code class="docutils literal notranslate"><span class="pre">0</span></code> means no retries. Runtime; no Slurm Init required. Submission/archive recovery requires the lock command (<code class="docutils literal notranslate"><span class="pre">slurm_lock_cmd</span></code>), <code class="docutils literal notranslate"><span class="pre">sacct</span></code> and durable writable HPC storage.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code></p></td>
 <td><p>not applicable</p></td>
@@ -302,27 +302,32 @@ explains when and why you would choose each setting.</p>
 <td><p>Overrides the ZIP command used on the cluster; <code class="docutils literal notranslate"><span class="pre">zip</span></code> selects Info-ZIP
 and its matching <code class="docutils literal notranslate"><span class="pre">unzip</span></code> command, while other values use 7-Zip syntax</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_LOCK_CMD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">slurm_lock_cmd</span></code></p></td>
+<td><p>string template</p></td>
+<td><p>Overrides the lock command used on the cluster for submissions, extraction and archive creation; placeholders <code class="docutils literal notranslate"><span class="pre">{wait_seconds}</span></code>, <code class="docutils literal notranslate"><span class="pre">{busy_exit_code}</span></code>, <code class="docutils literal notranslate"><span class="pre">{lock_file}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
 <td><p>string date</p></td>
 <td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_partition</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU partition; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_PARTITION</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GRES</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gres</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU gres; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GRES</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GPU_GPUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">gpu_gpus</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Legacy fallback env var for GPU gpus; lower priority than <code class="docutils literal notranslate"><span class="pre">BIOMERO_GPU_GPUS</span></code></p></td>
@@ -468,22 +473,27 @@ and its matching <code class="docutils literal notranslate"><span class="pre">un
 <td><p>Command used for ZIP creation and extraction on the HPC. Set to <code class="docutils literal notranslate"><span class="pre">zip</span></code>
 to use the Info-ZIP <code class="docutils literal notranslate"><span class="pre">zip</span></code>/<code class="docutils literal notranslate"><span class="pre">unzip</span></code> pair.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slurm_lock_cmd</span></code></p></td>
+<td><p>string template or empty</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">flock</span> <span class="pre">-w</span> <span class="pre">{wait_seconds}</span> <span class="pre">-E</span> <span class="pre">{busy_exit_code}</span> <span class="pre">{lock_file}</span></code></p></td>
+<td><p>Command that locks a file on the HPC before a script that must not run twice at once; checked during Slurm setup (WARNING if missing). See <a class="reference internal" href="slurm-configuration.html#ssh-recovery"><span class="std std-ref">Recovering Interrupted SSH Operations</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_start_time</span></code></p></td>
 <td><p>string date or empty</p></td>
 <td><p>unset</p></td>
 <td><p>Absolute cutoff date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) from which events are replayed when resetting analytics view tables; leave unset to replay all events. Configured under <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">analytics_rebuild_days_ago</span></code></p></td>
 <td><p>integer or empty</p></td>
 <td><p>unset</p></td>
 <td><p>Rolling cutoff window in days for analytics view table rebuilds; overrides the absolute date when set. Configured under <code class="docutils literal notranslate"><span class="pre">[ANALYTICS]</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_use_gpu</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
 <td><p>Per-workflow GPU default in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code> for legacy configs); e.g. <code class="docutils literal notranslate"><span class="pre">cellpose_use_gpu=true</span></code> marks a workflow as GPU-enabled so BIOMERO activates GPU handling without requiring an explicit <code class="docutils literal notranslate"><span class="pre">use_gpu</span></code> argument at submission time</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_repo</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;name&gt;_repo</span></code></p></td>
 <td><p>string URL</p></td>
 <td><p>—</p></td>
 <td><p>GitHub URL for a workflow in <code class="docutils literal notranslate"><span class="pre">[WORKFLOWS]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[MODELS]</span></code>). Accepts either a repository tree URL (<code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z</span></code>) or a direct URL to a specific descriptor file (<code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z/descriptor.json</span></code>, <code class="docutils literal notranslate"><span class="pre">…/tree/vX.Y.Z/config.yaml</span></code>). With a plain tree URL, BIOMERO auto-discovers the descriptor (tries <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> → <code class="docutils literal notranslate"><span class="pre">descriptor.yaml</span></code> → <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> in order). With a direct URL, only that exact file is fetched — useful when a repository contains both a BIAflows <code class="docutils literal notranslate"><span class="pre">descriptor.json</span></code> and a bilayers <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> and you want to choose which interface to expose.</p></td>
@@ -612,6 +622,7 @@ This is relevant for values such as <code class="docutils literal notranslate"><
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_TMPDIR</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_APPTAINER_CACHEDIR</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_ZIP_CMD</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_SLURM_LOCK_CMD</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_START_TIME</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BIOMERO_ANALYTICS_REBUILD_DAYS_AGO</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">GPU_PARTITION</span></code></p></li>
@@ -730,9 +741,11 @@ actual tool version.</p>
 <p><code class="docutils literal notranslate"><span class="pre">[SLURM]</span> <span class="pre">ssh_recovery_timeout</span></code> (environment
 <code class="docutils literal notranslate"><span class="pre">BIOMERO_SSH_RECOVERY_TIMEOUT</span></code>) is the recovery window in seconds per
 interruption, starting at the first failure rather than operation start. Default:
-<code class="docutils literal notranslate"><span class="pre">900</span></code> (15 minutes), also for absent or empty configuration. Explicit <code class="docutils literal notranslate"><span class="pre">0</span></code>
-disables recovery. This applies to inline and detached workflows; expiry remains
-a terminal failure. For dependencies, submission reconciliation and limits, see
+<code class="docutils literal notranslate"><span class="pre">900</span></code> (15 minutes), also for absent or empty configuration. The same code runs
+for every value: <code class="docutils literal notranslate"><span class="pre">0</span></code> means no retries. This applies to inline and detached
+workflows; expiry remains a terminal failure. The setting lives in <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code>
+because it also governs the submission, extraction and archive operations on the
+cluster. For dependencies, submission reconciliation and limits, see
 <a class="reference internal" href="slurm-configuration.html#ssh-recovery"><span class="std std-ref">the SSH recovery section</span></a> in <a class="reference internal" href="slurm-configuration.html"><span class="doc">SLURM Configuration Guide</span></a>.</p>
 <p>Native connection/channel and short-read detection normally uses at most 30
 seconds (or the smaller recovery window), separately from the outage budget.

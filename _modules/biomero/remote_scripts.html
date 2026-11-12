@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.remote_scripts &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scripts.html">OMERO workflow scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.remote_scripts</li>
+  <li class="wy-breadcrumbs-aside">
+    <a href="https://github.com/NL-BioImaging/biomero" class="fa fa-github" title="Open the repository on GitHub">
+      NL-BioImaging/biomero
+    </a>
+  </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.remote_scripts</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2026 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">"""Shell scripts that BIOMERO runs durably on the cluster.</span>
+
+<span class="sd">After a lost SSH connection a caller cannot know whether its remote command</span>
+<span class="sd">ran. These builders make a command safe to ask again: it runs under a lock and</span>
+<span class="sd">leaves a marker or receipt file, so that a second request finds the first</span>
+<span class="sd">result instead of repeating the work (for example a second ``sbatch``).</span>
+
+<span class="sd">The builders only create strings and know nothing about connections; the</span>
+<span class="sd">caller (``SlurmClient``) runs them. Each script is built from small named</span>
+<span class="sd">parts, so you can read what it does without tracing nested quotes.</span>
+
+<span class="sd">Receipt protocol of ``submit_once_script``. All files share one prefix, the</span>
+<span class="sd">*state prefix* (``&lt;slurm_data_path&gt;/.biomero-recovery/&lt;task id&gt;``):</span>
+
+<span class="sd">* ``.lock``: the lock file; one submission per prefix runs at a time.</span>
+<span class="sd">* ``.digest``: hash of the command, to notice a changed command on resume.</span>
+<span class="sd">* ``.intent``: written BEFORE sbatch runs. It holds the submission time. An</span>
+<span class="sd">  intent without a ``.job`` means the outcome of sbatch is unknown.</span>
+<span class="sd">* ``.job``: the Slurm job id, published atomically once known.</span>
+<span class="sd">* ``.failed``: sbatch refused the job (no job exists); keeps the output.</span>
+<span class="sd">* ``.stdout`` / ``.stderr``: the output of the sbatch call.</span>
+
+<span class="sd">Exit codes with a meaning to the caller: ``REMOTE_BUSY_EXIT_CODE`` (the lock</span>
+<span class="sd">is held elsewhere, or the job is not visible in Slurm yet; ask again later)</span>
+<span class="sd">and ``SUBMISSION_REJECTED_EXIT_CODE`` (sbatch refused the job).</span>
+<span class="sd">"""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shlex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LOCK_WAIT_SECONDS</span><span class="p">,</span> <span class="n">REMOTE_BUSY_EXIT_CODE</span><span class="p">,</span> <span class="n">SUBMISSION_REJECTED_EXIT_CODE</span><span class="p">)</span>
+
+<span class="c1"># Receipt files of one submission: the shell variable that names each one in</span>
+<span class="c1"># the generated script, and its suffix. This is the only place they are listed.</span>
+<span class="n">SUBMISSION_STATE_FILES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"digest_file"</span><span class="p">:</span> <span class="s2">".digest"</span><span class="p">,</span>
+    <span class="s2">"intent_file"</span><span class="p">:</span> <span class="s2">".intent"</span><span class="p">,</span>
+    <span class="s2">"job_file"</span><span class="p">:</span> <span class="s2">".job"</span><span class="p">,</span>
+    <span class="s2">"job_tmp_file"</span><span class="p">:</span> <span class="s2">".job.tmp"</span><span class="p">,</span>
+    <span class="s2">"failed_file"</span><span class="p">:</span> <span class="s2">".failed"</span><span class="p">,</span>
+    <span class="s2">"stdout_file"</span><span class="p">:</span> <span class="s2">".stdout"</span><span class="p">,</span>
+    <span class="s2">"stderr_file"</span><span class="p">:</span> <span class="s2">".stderr"</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">SUBMISSION_STATE_SUFFIXES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">".lock"</span><span class="p">,</span> <span class="o">*</span><span class="n">SUBMISSION_STATE_FILES</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+<span class="n">TIMESTAMP_COMMAND</span> <span class="o">=</span> <span class="s2">"date +%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S"</span>
+<span class="c1"># Matches both "Submitted batch job 42" and the ``sbatch --parsable`` output</span>
+<span class="c1"># "42" or "42;cluster".</span>
+<span class="n">EXTRACT_JOB_ID_COMMAND</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"sed -n -e 's/^Submitted batch job </span><span class="se">\\</span><span class="s2">([0-9][0-9]*</span><span class="se">\\</span><span class="s2">).*$/</span><span class="se">\\</span><span class="s2">1/p' "</span>
+    <span class="s2">"-e 's/^</span><span class="se">\\</span><span class="s2">([0-9][0-9]*</span><span class="se">\\</span><span class="s2">)</span><span class="se">\\</span><span class="s2">(;.*</span><span class="se">\\</span><span class="s2">)</span><span class="se">\\</span><span class="s2">{0,1</span><span class="se">\\</span><span class="s2">}$/</span><span class="se">\\</span><span class="s2">1/p'"</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="locked_script"><a class="viewcode-back" href="../../biomero.html#biomero.remote_scripts.locked_script">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">locked_script</span><span class="p">(</span><span class="n">lock_template</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">lock_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">script</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                  <span class="n">wait_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">LOCK_WAIT_SECONDS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run a script while holding a lock on the cluster.</span>
+
+<span class="sd">    The lock command (``flock`` by default) takes an exclusive lock on the</span>
+<span class="sd">    lock file and then runs the script, so concurrent callers run one at a</span>
+<span class="sd">    time. A caller that waits longer than ``wait_seconds`` gets</span>
+<span class="sd">    ``REMOTE_BUSY_EXIT_CODE`` instead of the script's own result.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        lock_template (str): The lock command template.</span>
+<span class="sd">        lock_file (str): Remote path of the lock file.</span>
+<span class="sd">        script (str): The shell script to run under the lock.</span>
+<span class="sd">        wait_seconds (int): How long to wait for the lock.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The command that runs the script under the lock.</span>
+<span class="sd">    """</span>
+    <span class="n">lock_prefix</span> <span class="o">=</span> <span class="n">lock_template</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">wait_seconds</span><span class="o">=</span><span class="n">wait_seconds</span><span class="p">,</span> <span class="n">busy_exit_code</span><span class="o">=</span><span class="n">REMOTE_BUSY_EXIT_CODE</span><span class="p">,</span>
+        <span class="n">lock_file</span><span class="o">=</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">lock_file</span><span class="p">))</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lock_prefix</span><span class="si">}</span><span class="s2"> sh -c </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">script</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span></div>
+
+
+<div class="viewcode-block" id="create_then_publish_script"><a class="viewcode-back" href="../../biomero.html#biomero.remote_scripts.create_then_publish_script">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">create_then_publish_script</span><span class="p">(</span><span class="n">create_command</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">partial_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                               <span class="n">final_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Create a file under a temporary name and rename it when complete.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        create_command (str): The command that creates ``partial_file``.</span>
+<span class="sd">        partial_file (str): The temporary remote path.</span>
+<span class="sd">        final_file (str): The remote path to publish.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: A script that never shows ``final_file`` half written.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"rm -f -- </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">partial_file</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">create_command</span><span class="si">}</span><span class="s2">) || exit 1</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"mv -f -- </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">partial_file</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">final_file</span><span class="p">)</span><span class="si">}</span><span class="s2"> || exit 1"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run_once_script"><a class="viewcode-back" href="../../biomero.html#biomero.remote_scripts.run_once_script">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">run_once_script</span><span class="p">(</span><span class="n">work_command</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">done_marker</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+                    <span class="n">stale_if_newer</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+                    <span class="n">published_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">reuse_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Reusing the completed result"</span>
+                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run a command once and skip it when its marker shows it completed.</span>
+
+<span class="sd">    The marker records a finished run. A finished run is reused only while it</span>
+<span class="sd">    is still current: not when an input is newer than the marker (a zip that</span>
+<span class="sd">    was uploaded again, results that changed), nor when the published file no</span>
+<span class="sd">    longer has the recorded size.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        work_command (str): The command to run when there is no current</span>
+<span class="sd">            marker.</span>
+<span class="sd">        done_marker (str): Remote path of the marker file.</span>
+<span class="sd">        stale_if_newer (Iterable[str]): Remote paths; if any of them (or</span>
+<span class="sd">            anything below a directory) is newer than the marker, the work</span>
+<span class="sd">            runs again.</span>
+<span class="sd">        published_file (Optional[str]): A file the work produces. Its size is</span>
+<span class="sd">            stored in the marker and compared on reuse.</span>
+<span class="sd">        reuse_message (str): Printed when the marker is reused.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The shell script.</span>
+<span class="sd">    """</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">done_marker</span><span class="p">)</span>
+    <span class="n">marker_content</span> <span class="o">=</span> <span class="s2">"complete"</span>
+    <span class="n">marker_is_current</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"test -f </span><span class="si">{</span><span class="n">marker</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">if</span> <span class="n">published_file</span><span class="p">:</span>
+        <span class="n">published</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">published_file</span><span class="p">)</span>
+        <span class="n">marker_content</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'"$(wc -c &lt; </span><span class="si">{</span><span class="n">published</span><span class="si">}</span><span class="s1">)"'</span>
+        <span class="n">marker_is_current</span> <span class="o">+=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">" &amp;&amp; test -f </span><span class="si">{</span><span class="n">published</span><span class="si">}</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s1">' &amp;&amp; test "$(cat </span><span class="si">{</span><span class="n">marker</span><span class="si">}</span><span class="s1">)" = "$(wc -c &lt; </span><span class="si">{</span><span class="n">published</span><span class="si">}</span><span class="s1">)"'</span><span class="p">)</span>
+    <span class="n">newer_inputs</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">stale_if_newer</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">newer_inputs</span><span class="p">:</span>
+        <span class="n">marker_is_current</span> <span class="o">+=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">' &amp;&amp; test -z "$(find </span><span class="si">{</span><span class="n">newer_inputs</span><span class="si">}</span><span class="s1"> -newer </span><span class="si">{</span><span class="n">marker</span><span class="si">}</span><span class="s1"> '</span>
+            <span class="s1">'2&gt;/dev/null | head -n 1)"'</span><span class="p">)</span>
+    <span class="n">write_marker</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"printf '%s</span><span class="se">\\</span><span class="s2">n' </span><span class="si">{</span><span class="n">marker_content</span><span class="si">}</span><span class="s2"> &gt; </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">done_marker</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">'.tmp'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">" &amp;&amp; mv -f </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">done_marker</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">'.tmp'</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">marker</span><span class="si">}</span><span class="s2"> || exit 1"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"if </span><span class="si">{</span><span class="n">marker_is_current</span><span class="si">}</span><span class="s2">; then</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"  echo </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">reuse_message</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="s2">"else</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"  (</span><span class="si">{</span><span class="n">work_command</span><span class="si">}</span><span class="s2">) || exit 1</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">write_marker</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="s2">"fi"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="remove_state_files_command"><a class="viewcode-back" href="../../biomero.html#biomero.remote_scripts.remove_state_files_command">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">remove_state_files_command</span><span class="p">(</span><span class="n">state_prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build the command that removes the receipt files of one submission.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state_prefix (str): The state prefix of the submission.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The ``rm -f`` command.</span>
+<span class="sd">    """</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">state_prefix</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="n">SUBMISSION_STATE_SUFFIXES</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"rm -f </span><span class="si">{</span><span class="n">files</span><span class="si">}</span><span class="s2">"</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_define_state_files</span><span class="p">(</span><span class="n">state_prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">command_digest</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Name the receipt files as shell variables for the other parts."""</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">state_prefix</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">suffix</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+             <span class="k">for</span> <span class="n">variable</span><span class="p">,</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="n">SUBMISSION_STATE_FILES</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"new_digest=</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">command_digest</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_handle_changed_command</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Stop when the command differs from the recorded one.</span>
+
+<span class="sd">    A recorded rejection created no job, so it is discarded and the changed</span>
+<span class="sd">    command may submit. Otherwise a job may exist for the old command: stop.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="s1">'if test -e "$digest_file" &amp;&amp; '</span>
+        <span class="s1">'test "$(cat "$digest_file")" != "$new_digest"; then</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  if test -f "$failed_file"; then</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'    echo "Discarding the rejected submission of a different '</span>
+        <span class="s1">'command" &gt;&amp;2</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'    rm -f "$digest_file" "$intent_file" "$failed_file" '</span>
+        <span class="s1">'"$stdout_file" "$stderr_file"</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  else</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'    echo "Submission settings changed; manual reconciliation '</span>
+        <span class="s1">'required" &gt;&amp;2</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'    exit 1</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  fi</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'fi'</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_replay_recorded_rejection</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Repeat the output of an earlier sbatch rejection instead of asking again."""</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="s1">'if test -f "$failed_file"; then</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  echo "sbatch refused this job earlier (receipt $failed_file); '</span>
+        <span class="s1">'delete the receipt files to submit again" &gt;&amp;2</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  cat "$stdout_file"; cat "$stderr_file" &gt;&amp;2</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'  exit </span><span class="si">{</span><span class="n">SUBMISSION_REJECTED_EXIT_CODE</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'fi'</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_define_publish_job</span><span class="p">(</span><span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Define the shell function ``publish_job``, used after a job id is known.</span>
+
+<span class="sd">    It validates ``$job`` and publishes it to the ``.job`` file atomically.</span>
+<span class="sd">    An empty ``$job`` means Slurm does not show the job yet, and several ids</span>
+<span class="sd">    mean the name is not unique. Both ask the caller to wait, and the message</span>
+<span class="sd">    tells an administrator how to resolve a submission that never resolves.</span>
+<span class="sd">    """</span>
+    <span class="n">way_out</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'The submission started at $(cat "$intent_file") '</span>
+               <span class="s1">'(intent file $intent_file). Check sacct and squeue for a job '</span>
+               <span class="s1">'with this name; delete the receipt files with the same '</span>
+               <span class="s1">'prefix only if no such job exists.'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="s1">'publish_job() {</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  case "$job" in</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'    "") echo "Waiting for Slurm to show job </span><span class="si">{</span><span class="n">job_name</span><span class="si">}</span><span class="s1">. </span><span class="si">{</span><span class="n">way_out</span><span class="si">}</span><span class="s1">" '</span>
+        <span class="sa">f</span><span class="s1">'&gt;&amp;2; exit </span><span class="si">{</span><span class="n">REMOTE_BUSY_EXIT_CODE</span><span class="si">}</span><span class="s1">;;</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'    *[!0-9]*) echo "Several Slurm jobs are named </span><span class="si">{</span><span class="n">job_name</span><span class="si">}</span><span class="s1">: $job. '</span>
+        <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">way_out</span><span class="si">}</span><span class="s1">" &gt;&amp;2; exit </span><span class="si">{</span><span class="n">REMOTE_BUSY_EXIT_CODE</span><span class="si">}</span><span class="s1">;;</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  esac</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  printf "</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$job" &gt; "$job_tmp_file" &amp;&amp; '</span>
+        <span class="s1">'mv -f "$job_tmp_file" "$job_file" || exit 1</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'}'</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_indent</span><span class="p">(</span><span class="n">script</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Indent every line of a script by two spaces."""</span>
+    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">script</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_find_job_by_name</span><span class="p">(</span><span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Find the ids of the jobs with this name, since the intent was written.</span>
+
+<span class="sd">    Looks in the queue (``squeue``) and in the accounting (``sacct``, which</span>
+<span class="sd">    must be enabled on the cluster). Array jobs ``42_7`` count as job 42.</span>
+<span class="sd">    """</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">job_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="s1">'live=$(squeue -h -u "$(id -un)" -o "%A|%j") || exit 1</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'recorded=$(sacct -n -X -u "$(id -un)" --name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> '</span>
+        <span class="s1">'-S "$(cat "$intent_file")" --format=JobID,JobName%100 -P) '</span>
+        <span class="s1">'|| exit 1</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'job=$(printf "</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$live" "$recorded" | '</span>
+        <span class="sa">f</span><span class="s2">"awk -F'|' -v name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> "</span>
+        <span class="s2">"'$2 == name {split($1, a, </span><span class="se">\"</span><span class="s2">_</span><span class="se">\"</span><span class="s2">); "</span>
+        <span class="s2">"if (a[1] ~ /^[0-9]+$/) print a[1]}' | sort -u)"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_submit_and_record</span><span class="p">(</span><span class="n">sbatch_command</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+                       <span class="n">verify_command_unchanged</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                       <span class="n">remember_rejection</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Write the intent, run sbatch, and record the job id or the rejection."""</span>
+    <span class="n">write_digest</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'printf "</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$new_digest" &gt; "$digest_file" &amp;&amp; '</span>
+                    <span class="k">if</span> <span class="n">verify_command_unchanged</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">remember_rejection</span><span class="p">:</span>
+        <span class="n">on_rejection</span> <span class="o">=</span> <span class="s1">'printf "</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$rc" &gt; "$failed_file"'</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Forget the attempt, so that a later call may submit again.</span>
+        <span class="n">on_rejection</span> <span class="o">=</span> <span class="s1">'rm -f "$intent_file" "$digest_file"'</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">write_digest</span><span class="si">}{</span><span class="n">TIMESTAMP_COMMAND</span><span class="si">}</span><span class="s1"> &gt; "$intent_file" || exit 1</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'(</span><span class="se">\n</span><span class="si">{</span><span class="n">sbatch_command</span><span class="si">}</span><span class="se">\n</span><span class="s1">) &gt; "$stdout_file" 2&gt; "$stderr_file"; rc=$?</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'if test "$rc" != 0; then</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'  </span><span class="si">{</span><span class="n">on_rejection</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  cat "$stdout_file"; cat "$stderr_file" &gt;&amp;2</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'  exit </span><span class="si">{</span><span class="n">SUBMISSION_REJECTED_EXIT_CODE</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'fi</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'job=$(</span><span class="si">{</span><span class="n">EXTRACT_JOB_ID_COMMAND</span><span class="si">}</span><span class="s1"> "$stdout_file" | tail -n 1)</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'publish_job'</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="submit_once_script"><a class="viewcode-back" href="../../biomero.html#biomero.remote_scripts.submit_once_script">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">submit_once_script</span><span class="p">(</span><span class="n">sbatch_command</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">state_prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                       <span class="n">command_digest</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+                       <span class="n">verify_command_unchanged</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                       <span class="n">remember_rejection</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Submit a Slurm job exactly once, however often the script is run.</span>
+
+<span class="sd">    Run again after a lost connection, the script adopts the job recorded by</span>
+<span class="sd">    the first run; when the first run died between sbatch and the record, it</span>
+<span class="sd">    finds the job by its name in Slurm. It never runs sbatch a second time</span>
+<span class="sd">    while an earlier attempt may have created a job.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        sbatch_command (str): The submission command. Its job name must be</span>
+<span class="sd">            ``job_name``, because that name is how a lost job is found again.</span>
+<span class="sd">        state_prefix (str): Remote path prefix of the receipt files.</span>
+<span class="sd">        job_name (str): The Slurm job name of this submission.</span>
+<span class="sd">        command_digest (str): Hash of the command and its environment.</span>
+<span class="sd">        verify_command_unchanged (bool): Stop when a recorded submission used</span>
+<span class="sd">            a different command (default). Without it, no digest is kept.</span>
+<span class="sd">        remember_rejection (bool): Keep a ``.failed`` receipt when sbatch</span>
+<span class="sd">            refuses the job, and repeat that answer on later calls (default).</span>
+<span class="sd">            Without it the attempt is forgotten, so a later call submits</span>
+<span class="sd">            again.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The shell script. It prints ``Submitted batch job &lt;id&gt;``.</span>
+<span class="sd">    """</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">_define_state_files</span><span class="p">(</span><span class="n">state_prefix</span><span class="p">,</span> <span class="n">command_digest</span><span class="p">),</span>
+             <span class="n">_define_publish_job</span><span class="p">(</span><span class="n">job_name</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">verify_command_unchanged</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_handle_changed_command</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">remember_rejection</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_replay_recorded_rejection</span><span class="p">())</span>
+    <span class="n">submit_step</span> <span class="o">=</span> <span class="n">_submit_and_record</span><span class="p">(</span>
+        <span class="n">sbatch_command</span><span class="p">,</span> <span class="n">job_name</span><span class="p">,</span>
+        <span class="n">verify_command_unchanged</span><span class="o">=</span><span class="n">verify_command_unchanged</span><span class="p">,</span>
+        <span class="n">remember_rejection</span><span class="o">=</span><span class="n">remember_rejection</span><span class="p">)</span>
+    <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="s1">'if test -s "$job_file"; then</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  job=$(cat "$job_file")</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'elif test -e "$intent_file"; then</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">_indent</span><span class="p">(</span><span class="n">_find_job_by_name</span><span class="p">(</span><span class="n">job_name</span><span class="p">))</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'  publish_job</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'else</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">submit_step</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="s1">'fi'</span><span class="p">)</span>
+    <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'printf "Submitted batch job </span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$job"'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

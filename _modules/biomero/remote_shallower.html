@@ -135,11 +135,12 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">shlex</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid4</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">invoke.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnexpectedExit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">packaging.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidVersion</span><span class="p">,</span> <span class="n">Version</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.slurm_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">SlurmJob</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">ssh_recovery</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">remote_scripts</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">MANIFEST_LOCK_WAIT_SECONDS</span><span class="p">,</span> <span class="n">SUBMISSION_REJECTED_EXIT_CODE</span><span class="p">)</span>
 
 <span class="n">TASK_NAME</span> <span class="o">=</span> <span class="s2">"_SLURM_Remote_Shallower"</span>
 <span class="n">CAPABILITY_SCHEMA</span> <span class="o">=</span> <span class="mi">1</span>
@@ -401,7 +402,9 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="n">client</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">)),</span> <span class="n">temporary</span><span class="p">)</span>
         <span class="n">published</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
-            <span class="sa">f</span><span class="s1">'flock -w 30 </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">manifest</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".lock"</span><span class="p">)</span><span class="si">}</span><span class="s1"> sh -c </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">script</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">],</span>
+            <span class="n">remote_scripts</span><span class="o">.</span><span class="n">locked_script</span><span class="p">(</span>
+                <span class="n">client</span><span class="o">.</span><span class="n">slurm_lock_cmd</span><span class="p">,</span> <span class="n">manifest</span> <span class="o">+</span> <span class="s1">'.lock'</span><span class="p">,</span> <span class="n">script</span><span class="p">,</span>
+                <span class="n">wait_seconds</span><span class="o">=</span><span class="n">MANIFEST_LOCK_WAIT_SECONDS</span><span class="p">)],</span>
             <span class="n">log_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">published</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">'Cannot publish canonical manifest; output preserved'</span><span class="p">)</span>
@@ -432,47 +435,26 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_submit_once</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">job_name</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""Submit or adopt a job under a remote filesystem lock.</span>
+<span class="w">    </span><span class="sd">"""Submit or adopt a job once, through ``SlurmClient.submit_job_once``.</span>
 
 <span class="sd">    ``state`` is the remote filename prefix for the lock, submission intent</span>
-<span class="sd">    and recorded job ID. Return the job ID, or None for a rejected submission.</span>
-<span class="sd">    ``job_name`` is the operation-specific identity used for reconciliation,</span>
-<span class="sd">    not a value inferred by parsing shell commands. Ambiguous submission state</span>
-<span class="sd">    raises instead of risking a duplicate job.</span>
+<span class="sd">    and recorded job ID; ``job_name`` is the operation-specific identity used</span>
+<span class="sd">    to find a lost submission again. A rejected submission is forgotten, so</span>
+<span class="sd">    that the caller falls back to full results. Return the job ID, or None</span>
+<span class="sd">    for a rejected submission. Ambiguous submission state raises instead of</span>
+<span class="sd">    risking a duplicate job.</span>
 <span class="sd">    """</span>
-    <span class="c1"># Reuse the same reconciliation and receipt publication as analysis jobs.</span>
-    <span class="c1"># Keep the helper's existing rejected-submission fallback to full results.</span>
-    <span class="n">quote</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">quote</span>
-    <span class="n">recovering</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">enabled</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
-    <span class="n">find_job</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">reconcile_submission</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">job_name</span><span class="p">)</span>
-    <span class="n">publish</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">publish_job_id</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
-    <span class="n">script</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="sa">f</span><span class="s1">'if test -s </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job"</span><span class="p">)</span><span class="si">}</span><span class="s1">; then cat </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".job"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
-        <span class="sa">f</span><span class="s1">'elif test -e </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">; then '</span>
-        <span class="sa">f</span><span class="s1">'job=$(</span><span class="si">{</span><span class="n">find_job</span><span class="si">}</span><span class="s1">) || exit 1; </span><span class="si">{</span><span class="n">publish</span><span class="si">}</span><span class="s1">printf "%s</span><span class="se">\\</span><span class="s1">n" "$job"; '</span>
-        <span class="sa">f</span><span class="s1">'else date +%Y-%m-%dT%H:%M:%S &gt; </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
-        <span class="sa">f</span><span class="s1">'job=$(</span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s1">) || </span><span class="se">{{</span><span class="s1"> rm -f </span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">".intent"</span><span class="p">)</span><span class="si">}</span><span class="s1">; '</span>
-        <span class="s1">'printf "NOT_SUBMITTED</span><span class="se">\\</span><span class="s1">n"; exit 0; }; '</span>
-        <span class="s1">'job=${job</span><span class="si">%%</span><span class="s1">;*}; '</span>
-        <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">publish</span><span class="si">}</span><span class="s1">'</span>
-        <span class="s1">'printf "</span><span class="si">%s</span><span class="se">\\</span><span class="s1">n" "$job"; fi'</span>
-    <span class="p">)</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span>
-        <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">locked_command</span><span class="p">(</span>
-            <span class="n">state</span> <span class="o">+</span> <span class="s1">'.lock'</span><span class="p">,</span> <span class="n">script</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="mi">5</span> <span class="k">if</span> <span class="n">recovering</span> <span class="k">else</span> <span class="mi">30</span><span class="p">)],</span>
-        <span class="o">**</span><span class="p">({</span><span class="s1">'warn'</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span> <span class="k">if</span> <span class="n">recovering</span> <span class="k">else</span> <span class="p">{}))</span>
-    <span class="k">if</span> <span class="n">recovering</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">exited</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">200</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">exited</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">UnexpectedExit</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">RecoveryPending</span><span class="p">(</span>
-            <span class="s1">'Waiting for the existing shallower submission'</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s1">'NOT_SUBMITTED'</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">submit_job_once</span><span class="p">(</span>
+        <span class="n">command</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">job_name</span><span class="o">=</span><span class="n">job_name</span><span class="p">,</span> <span class="n">raise_on_rejection</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">verify_command_unchanged</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">exited</span> <span class="o">==</span> <span class="n">SUBMISSION_REJECTED_EXIT_CODE</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">extract_job_id</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">job_id</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
             <span class="s1">'Shallower submission is unresolved; preserve results and resume '</span>
             <span class="s1">'after reconciliation'</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">job_id</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_wait</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>

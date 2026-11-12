@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.ssh_recovery &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scripts.html">OMERO workflow scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.ssh_recovery</li>
+  <li class="wy-breadcrumbs-aside">
+    <a href="https://github.com/NL-BioImaging/biomero" class="fa fa-github" title="Open the repository on GitHub">
+      NL-BioImaging/biomero
+    </a>
+  </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.ssh_recovery</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2026 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">"""Bounded recovery from interrupted SSH connections.</span>
+
+<span class="sd">An SSH connection to the cluster can drop while a Slurm job keeps running.</span>
+<span class="sd">This module retries an operation that is safe to repeat, within a time window</span>
+<span class="sd">(``ssh_recovery_timeout``), and stops with a clear error when the window ends.</span>
+<span class="sd">A window of 0 means no retries: the same code runs once and raises the</span>
+<span class="sd">original error.</span>
+
+<span class="sd">Only transport loss is retried: never authentication, never a command that</span>
+<span class="sd">failed on the cluster, and never an arbitrary command. The caller decides</span>
+<span class="sd">which operations are safe to repeat and wraps them in ``retry``. The Slurm</span>
+<span class="sd">side (never submitting twice) lives in ``SlurmClient`` and ``remote_scripts``.</span>
+<span class="sd">"""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">errno</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">stat</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">fabric</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fabric.transfer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Result</span> <span class="k">as</span> <span class="n">TransferResult</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">invoke.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">CommandTimedOut</span><span class="p">,</span> <span class="n">UnexpectedExit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">invoke.runners</span><span class="w"> </span><span class="kn">import</span> <span class="n">Result</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">paramiko</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuthenticationException</span><span class="p">,</span> <span class="n">BadHostKeyException</span><span class="p">,</span> <span class="n">SSHException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">paramiko.ssh_exception</span><span class="w"> </span><span class="kn">import</span> <span class="n">NoValidConnectionsError</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_SSH_RECOVERY_TIMEOUT</span><span class="p">,</span> <span class="n">SSH_DETECTION_LIMIT_SECONDS</span><span class="p">,</span>
+    <span class="n">SSH_HEARTBEAT_INTERVAL_SECONDS</span><span class="p">,</span> <span class="n">SSH_RETRY_INITIAL_DELAY_SECONDS</span><span class="p">,</span>
+    <span class="n">SSH_RETRY_JITTER_FRACTION</span><span class="p">,</span> <span class="n">SSH_RETRY_MAX_DELAY_SECONDS</span><span class="p">,</span>
+    <span class="n">TRANSFER_PARTIAL_SUFFIX</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Recovery state of a client lives in its __dict__: Fabric redirects attribute</span>
+<span class="c1"># assignment into its configuration proxy, and this state is not configuration.</span>
+<span class="c1"># One client is assumed to be driven by one thread at a time.</span>
+<span class="n">STATE_KEY</span> <span class="o">=</span> <span class="s2">"_ssh_recovery_state"</span>
+<span class="n">NATIVE_CHANNELS_KEY</span> <span class="o">=</span> <span class="s2">"_ssh_native_channels"</span>
+<span class="c1"># The shortest native timeout we hand out when a window is nearly used up.</span>
+<span class="n">MINIMUM_TIMEOUT_SECONDS</span> <span class="o">=</span> <span class="mf">0.001</span>
+
+<span class="c1"># Errors that mean the connection was lost. On Windows the same names carry</span>
+<span class="c1"># the WSA codes (for example ``errno.ECONNRESET`` is 10054), so there is no</span>
+<span class="c1"># separate list per platform.</span>
+<span class="n">TRANSIENT_ERRNOS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+    <span class="n">errno</span><span class="o">.</span><span class="n">ECONNRESET</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">ECONNREFUSED</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">ECONNABORTED</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">EPIPE</span><span class="p">,</span>
+    <span class="n">errno</span><span class="o">.</span><span class="n">ETIMEDOUT</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">ENETUNREACH</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">EHOSTUNREACH</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">ENETDOWN</span><span class="p">,</span>
+<span class="p">})</span>
+<span class="c1"># Paramiko reports some lost connections only through its message text. They</span>
+<span class="c1"># are matched only on the exact exception class, so that a reworded or an</span>
+<span class="c1"># unrelated error is never mistaken for a lost connection.</span>
+<span class="n">PARAMIKO_SOCKET_CLOSED_MESSAGE</span> <span class="o">=</span> <span class="s2">"Socket is closed"</span>
+<span class="n">PARAMIKO_CHANNEL_TIMEOUT_MESSAGE</span> <span class="o">=</span> <span class="s2">"Timeout opening channel."</span>
+<span class="n">TRANSIENT_SSH_MESSAGES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"ssh session not active"</span><span class="p">,</span> <span class="s2">"no existing session"</span><span class="p">,</span>
+    <span class="s2">"error reading ssh protocol banner"</span><span class="p">,</span> <span class="s2">"socket is closed"</span><span class="p">,</span>
+    <span class="s2">"server connection dropped"</span><span class="p">,</span> <span class="s2">"connection reset"</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="SSHRecoveryTimeout"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.SSHRecoveryTimeout">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">SSHRecoveryTimeout</span><span class="p">(</span><span class="ne">ConnectionError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Connectivity did not recover within the configured time window."""</span></div>
+
+
+<div class="viewcode-block" id="SSHRecoveryCancelled"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.SSHRecoveryCancelled">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">SSHRecoveryCancelled</span><span class="p">(</span><span class="ne">InterruptedError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The caller cancelled while waiting for connectivity."""</span></div>
+
+
+<div class="viewcode-block" id="RecoveryPending"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RecoveryPending">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">RecoveryPending</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A durable remote operation is still locked or not yet visible.</span>
+
+<span class="sd">    The connection works; the operation may still be running remotely. It is</span>
+<span class="sd">    asked again after a pause, and never resubmitted.</span>
+<span class="sd">    """</span></div>
+
+
+<div class="viewcode-block" id="RemoteOperationStillPending"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RemoteOperationStillPending">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">RemoteOperationStillPending</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A remote operation was still running when its waiting time ended.</span>
+
+<span class="sd">    The SSH connection is healthy and nothing was repeated: the operation</span>
+<span class="sd">    continues on the cluster and can be asked again later.</span>
+<span class="sd">    """</span></div>
+
+
+<div class="viewcode-block" id="IncompleteTransfer"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.IncompleteTransfer">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">IncompleteTransfer</span><span class="p">(</span><span class="ne">ConnectionError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A file transfer ended with a different size than its source."""</span></div>
+
+
+<div class="viewcode-block" id="ReadOnlyCommandTimeout"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.ReadOnlyCommandTimeout">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">ReadOnlyCommandTimeout</span><span class="p">(</span><span class="ne">TimeoutError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A short read-only command did not answer within its bound."""</span></div>
+
+
+<span class="c1"># --- Which errors are a lost connection --------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_missing_exit_status</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Tell whether a command ended without a remote exit status.</span>
+
+<span class="sd">    Fabric uses -1 when the SSH channel closes before the command reports one.</span>
+<span class="sd">    This is only interpreted inside an explicitly repeatable operation.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">Result</span><span class="p">)</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">exited</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_transient_os_error_reason</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">OSError</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Classify a plain OS error: a lost connection, or a local problem."""</span>
+    <span class="c1"># Paramiko reports a closed SFTP channel as a bare OSError without errno.</span>
+    <span class="c1"># Do not widen this to filesystem errors or to messages that merely</span>
+    <span class="c1"># contain the same words.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="ow">is</span> <span class="ne">OSError</span> <span class="ow">and</span> <span class="n">error</span><span class="o">.</span><span class="n">errno</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="o">==</span> <span class="n">PARAMIKO_SOCKET_CLOSED_MESSAGE</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"SFTP channel closed"</span>
+    <span class="k">if</span> <span class="n">error</span><span class="o">.</span><span class="n">errno</span> <span class="ow">in</span> <span class="n">TRANSIENT_ERRNOS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"network error </span><span class="si">{</span><span class="n">errno</span><span class="o">.</span><span class="n">errorcode</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">errno</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="o">.</span><span class="n">errno</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_transient_ssh_error_reason</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="n">SSHException</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Classify a Paramiko error by its exact class and wording."""</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="ow">is</span> <span class="n">SSHException</span>
+            <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="o">==</span> <span class="n">PARAMIKO_CHANNEL_TIMEOUT_MESSAGE</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"channel open timed out"</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">TRANSIENT_SSH_MESSAGES</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">message</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"SSH message </span><span class="si">{</span><span class="n">text</span><span class="si">!r}</span><span class="s2">"</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="transient_reason"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.transient_reason">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">transient_reason</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Explain why an error counts as a lost connection, if it does.</span>
+
+<span class="sd">    Credentials, host keys and remote command failures never count.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        error (BaseException): The error raised by an SSH operation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[str]: A short reason when the error is transport loss, else</span>
+<span class="sd">            None.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="p">(</span><span class="n">AuthenticationException</span><span class="p">,</span> <span class="n">BadHostKeyException</span><span class="p">,</span>
+                          <span class="n">SSHRecoveryTimeout</span><span class="p">,</span> <span class="n">SSHRecoveryCancelled</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">UnexpectedExit</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">"channel closed without exit status"</span>
+                <span class="k">if</span> <span class="n">_missing_exit_status</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">result</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">NoValidConnectionsError</span><span class="p">):</span>
+        <span class="n">all_transient</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span>
+            <span class="n">transient_reason</span><span class="p">(</span><span class="n">cause</span><span class="p">)</span> <span class="k">for</span> <span class="n">cause</span> <span class="ow">in</span> <span class="n">error</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">return</span> <span class="s2">"no connection could be opened"</span> <span class="k">if</span> <span class="n">all_transient</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="p">(</span><span class="ne">EOFError</span><span class="p">,</span> <span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">"temporary name resolution failure"</span>
+                <span class="k">if</span> <span class="n">error</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">socket</span><span class="o">.</span><span class="n">EAI_AGAIN</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_transient_os_error_reason</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">SSHException</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_transient_ssh_error_reason</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+    <span class="c1"># Invoke may deliver a Paramiko error from its output-reading thread.</span>
+    <span class="n">wrapped</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="s2">"exceptions"</span><span class="p">,</span> <span class="p">())</span>
+    <span class="k">if</span> <span class="n">wrapped</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">transient_reason</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">wrapped</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"transport error in the output reader"</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="is_transient"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.is_transient">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_transient</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Tell whether an error is transport loss (see ``transient_reason``).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        error (BaseException): The error raised by an SSH operation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True if retrying may help.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">transient_reason</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># --- Time windows and shared state -------------------------------------------</span>
+
+<div class="viewcode-block" id="OutageWindow"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.OutageWindow">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OutageWindow</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The time budget of one ``retry`` call.</span>
+
+<span class="sd">    A deadline starts at the first failure of its kind and is never moved by</span>
+<span class="sd">    anything else, so that repeated failures cannot extend a call forever.</span>
+<span class="sd">    A new ``retry`` call (the next poll, the next transfer) gets a new window.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        timeout (float): Seconds a kind of failure may last.</span>
+<span class="sd">        outage_deadline (Optional[float]): End of the SSH outage window.</span>
+<span class="sd">        pending_deadline (Optional[float]): End of the window in which a</span>
+<span class="sd">            healthy remote operation is awaited.</span>
+<span class="sd">        delay (float): The next pause between attempts, in seconds.</span>
+<span class="sd">    """</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">outage_deadline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">pending_deadline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">delay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">SSH_RETRY_INITIAL_DELAY_SECONDS</span>
+
+<div class="viewcode-block" id="OutageWindow.start_if_new"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.OutageWindow.start_if_new">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">start_if_new</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">,</span> <span class="n">now</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Open the window of this kind of failure at its first occurrence."""</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_deadline</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pending_deadline</span> <span class="o">=</span> <span class="n">now</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">outage_deadline</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outage_deadline</span> <span class="o">=</span> <span class="n">now</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span></div>
+
+<div class="viewcode-block" id="OutageWindow.seconds_left"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.OutageWindow.seconds_left">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">seconds_left</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">,</span> <span class="n">now</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Seconds left in the window of this kind of failure."""</span>
+        <span class="n">deadline</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pending_deadline</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">)</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">outage_deadline</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">deadline</span> <span class="o">-</span> <span class="n">now</span></div>
+
+<div class="viewcode-block" id="OutageWindow.next_pause"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.OutageWindow.next_pause">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">next_pause</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seconds_left</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the pause before the next attempt and grow the delay."""</span>
+        <span class="n">jitter</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">SSH_RETRY_JITTER_FRACTION</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span>
+        <span class="n">pause</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">+</span> <span class="n">jitter</span><span class="p">,</span> <span class="n">seconds_left</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">SSH_RETRY_MAX_DELAY_SECONDS</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pause</span></div></div>
+
+
+<div class="viewcode-block" id="RecoveryState"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RecoveryState">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RecoveryState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""What nested operations of one client share while recovering.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        timeout (float): The recovery window in seconds; 0 means no retries.</span>
+<span class="sd">        windows (List[OutageWindow]): The windows of the active ``retry``</span>
+<span class="sd">            calls, outermost first.</span>
+<span class="sd">        heartbeats (List[Callable[[], None]]): Caller callbacks that run</span>
+<span class="sd">            during waits (for example an OMERO session keepalive).</span>
+<span class="sd">        heartbeat_error (Optional[Exception]): An error raised by a callback;</span>
+<span class="sd">            it is the caller's, so it is never retried.</span>
+<span class="sd">    """</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">windows</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">OutageWindow</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">heartbeats</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">heartbeat_error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="RecoveryState.seconds_left_in_outage"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RecoveryState.seconds_left_in_outage">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">seconds_left_in_outage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Seconds left in the tightest active outage window, if any."""</span>
+        <span class="n">deadlines</span> <span class="o">=</span> <span class="p">[</span><span class="n">window</span><span class="o">.</span><span class="n">outage_deadline</span> <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">windows</span>
+                     <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">outage_deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">deadlines</span><span class="p">)</span> <span class="o">-</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="k">if</span> <span class="n">deadlines</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="RecoveryState.pulse"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RecoveryState.pulse">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">pulse</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Run the caller callbacks once each.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception: Whatever a callback raised; it is remembered so that</span>
+<span class="sd">                it is not mistaken for an SSH error.</span>
+<span class="sd">        """</span>
+        <span class="k">for</span> <span class="n">callback</span> <span class="ow">in</span> <span class="p">{</span><span class="nb">id</span><span class="p">(</span><span class="n">item</span><span class="p">):</span> <span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">heartbeats</span><span class="p">}</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">heartbeat_error</span> <span class="o">=</span> <span class="n">error</span>
+                <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="RecoveryState.wait"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RecoveryState.wait">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">cancel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+             <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Sleep, staying responsive to cancellation and heartbeats."""</span>
+        <span class="n">remaining</span> <span class="o">=</span> <span class="n">seconds</span>
+        <span class="k">while</span> <span class="n">remaining</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">raise_if_cancelled</span><span class="p">(</span><span class="n">cancel</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+            <span class="n">interval</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">remaining</span><span class="p">,</span> <span class="n">SSH_HEARTBEAT_INTERVAL_SECONDS</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">heartbeats</span> <span class="k">else</span> <span class="n">remaining</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cancel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cancel</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+            <span class="n">remaining</span> <span class="o">-=</span> <span class="n">interval</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">raise_if_cancelled</span><span class="p">(</span><span class="n">cancel</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pulse</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="RecoveryState.raise_if_cancelled"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.RecoveryState.raise_if_cancelled">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">raise_if_cancelled</span><span class="p">(</span><span class="n">cancel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Raise ``SSHRecoveryCancelled`` when the caller's event is set."""</span>
+        <span class="k">if</span> <span class="n">cancel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cancel</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">SSHRecoveryCancelled</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Cancelled while waiting for SSH: </span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_state</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RecoveryState</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the active recovery state of a client, if inside a scope."""</span>
+    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">STATE_KEY</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="scope"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.scope">[docs]</a><span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">scope</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">RecoveryState</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Share recovery state and caller callbacks with nested operations.</span>
+
+<span class="sd">    The outermost scope creates the state from the client's</span>
+<span class="sd">    ``ssh_recovery_timeout``; nested scopes join it.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``.</span>
+<span class="sd">        heartbeat (Optional[Callable[[], None]]): A caller callback that runs</span>
+<span class="sd">            during waits, such as a session keepalive.</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        RecoveryState: The shared state.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If ``heartbeat`` is not callable.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">heartbeat</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"heartbeat must be callable"</span><span class="p">)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">_state</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="n">owner</span> <span class="o">=</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">owner</span><span class="p">:</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">RecoveryState</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">"ssh_recovery_timeout"</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">STATE_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+    <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">heartbeats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">heartbeat</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">state</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">heartbeats</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">heartbeat</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">owner</span><span class="p">:</span>
+            <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">STATE_KEY</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<span class="c1"># --- Native timeouts ---------------------------------------------------------</span>
+
+<div class="viewcode-block" id="io_timeout"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.io_timeout">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">configured</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the native limit for connection stages and short reads.</span>
+
+<span class="sd">    This is a detection limit, not a limit on healthy long commands. It is</span>
+<span class="sd">    never longer than the recovery window, and during an outage never longer</span>
+<span class="sd">    than what is left of it.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``, inside a ``scope``.</span>
+<span class="sd">        configured (Optional[float]): A stricter limit set by the caller,</span>
+<span class="sd">            which stays in force.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: The limit in seconds.</span>
+<span class="sd">    """</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">_state</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="n">seconds</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">SSH_DETECTION_LIMIT_SECONDS</span><span class="p">),</span> <span class="n">state</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span>
+    <span class="n">seconds_left</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">seconds_left_in_outage</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">seconds_left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">seconds</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">seconds</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">MINIMUM_TIMEOUT_SECONDS</span><span class="p">,</span> <span class="n">seconds_left</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">configured</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="n">configured</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">seconds</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">seconds</span><span class="p">,</span> <span class="n">configured</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">seconds</span></div>
+
+
+<div class="viewcode-block" id="bounded_read_timeout"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.bounded_read_timeout">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">bounded_read_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">requested</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the timeout for a short read-only command.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``, inside a ``scope``.</span>
+<span class="sd">        requested (Optional[float]): A longer timeout the caller asked for</span>
+<span class="sd">            because the read is legitimately slow.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[float]: The requested timeout (capped by what is left of an</span>
+<span class="sd">            outage), or the detection limit when none was requested. The</span>
+<span class="sd">            request is returned unchanged when recovery is off.</span>
+<span class="sd">    """</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">_state</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span><span class="o">.</span><span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">requested</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">requested</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="n">requested</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="n">seconds_left</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">seconds_left_in_outage</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">seconds_left</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">requested</span>
+    <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">requested</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">MINIMUM_TIMEOUT_SECONDS</span><span class="p">,</span> <span class="n">seconds_left</span><span class="p">))</span></div>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_RestorableSettings</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Set values temporarily and put the original values back afterwards."""</span>
+
+    <span class="n">_MISSING</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restorers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set ``mapping[key]``; restore (or remove) it on ``restore``."""</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_MISSING</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">restore</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">original</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_MISSING</span><span class="p">:</span>
+                <span class="n">mapping</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">original</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restorers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">restore</span><span class="p">)</span>
+        <span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_attribute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set ``target.name``; restore it on ``restore``."""</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restorers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">setattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">original</span><span class="p">))</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Put every original value back, last change first."""</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restorers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restorers</span><span class="o">.</span><span class="n">pop</span><span class="p">()()</span>
+
+
+<div class="viewcode-block" id="native_timeouts"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.native_timeouts">[docs]</a><span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">native_timeouts</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Bound connection stages with the supported Fabric/Paramiko settings.</span>
+
+<span class="sd">    Within an attempt the banner, authentication, connect and channel-open</span>
+<span class="sd">    timeouts are limited by ``io_timeout``; the previous values are restored</span>
+<span class="sd">    afterwards, also on a reconnected transport. Nothing happens when</span>
+<span class="sd">    recovery is off. Paramiko's exec/subsystem acknowledgement waits and name</span>
+<span class="sd">    resolution are not covered by these settings.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``, inside a ``scope``.</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        None: Control, while the temporary limits are in force.</span>
+<span class="sd">    """</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">_state</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="n">connect_kwargs</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">"connect_kwargs"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span><span class="o">.</span><span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">connect_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">yield</span>
+        <span class="k">return</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">_RestorableSettings</span><span class="p">()</span>
+    <span class="n">previous_channels</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">NATIVE_CHANNELS_KEY</span><span class="p">)</span>
+    <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">NATIVE_CHANNELS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"banner_timeout"</span><span class="p">,</span> <span class="s2">"auth_timeout"</span><span class="p">):</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">set_item</span><span class="p">(</span>
+                <span class="n">connect_kwargs</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span>
+                <span class="n">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">connect_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="s2">"timeout"</span> <span class="ow">in</span> <span class="n">connect_kwargs</span><span class="p">:</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">set_item</span><span class="p">(</span>
+                <span class="n">connect_kwargs</span><span class="p">,</span> <span class="s2">"timeout"</span><span class="p">,</span>
+                <span class="n">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">connect_kwargs</span><span class="p">[</span><span class="s2">"timeout"</span><span class="p">]))</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">"connect_timeout"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                <span class="n">client</span><span class="p">,</span> <span class="s2">"connect_timeout"</span><span class="p">,</span>
+                <span class="n">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">client</span><span class="o">.</span><span class="n">connect_timeout</span><span class="p">))</span>
+        <span class="n">limit_channel_open</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">restore</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">transport</span><span class="p">,</span> <span class="n">channel_timeout</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">NATIVE_CHANNELS_KEY</span><span class="p">]:</span>
+            <span class="n">transport</span><span class="o">.</span><span class="n">channel_timeout</span> <span class="o">=</span> <span class="n">channel_timeout</span>
+        <span class="k">if</span> <span class="n">previous_channels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">NATIVE_CHANNELS_KEY</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">NATIVE_CHANNELS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">previous_channels</span></div>
+
+
+<div class="viewcode-block" id="limit_channel_open"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.limit_channel_open">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">limit_channel_open</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Limit channel opening on the current transport, within native_timeouts.</span>
+
+<span class="sd">    Remembers the transport's own setting so that ``native_timeouts`` can put</span>
+<span class="sd">    it back. Does nothing outside ``native_timeouts``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``.</span>
+<span class="sd">    """</span>
+    <span class="n">channels</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">NATIVE_CHANNELS_KEY</span><span class="p">)</span>
+    <span class="n">transport</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">transport</span>
+    <span class="k">if</span> <span class="n">channels</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">transport</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">known</span> <span class="ow">is</span> <span class="n">transport</span> <span class="k">for</span> <span class="n">known</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">):</span>
+        <span class="n">channels</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">transport</span><span class="p">,</span> <span class="n">transport</span><span class="o">.</span><span class="n">channel_timeout</span><span class="p">))</span>
+    <span class="n">transport</span><span class="o">.</span><span class="n">channel_timeout</span> <span class="o">=</span> <span class="n">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">transport</span><span class="o">.</span><span class="n">channel_timeout</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="sftp_timeout"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.sftp_timeout">[docs]</a><span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">sftp_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Bound each SFTP read, not the whole transfer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``, inside a ``scope``.</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        paramiko.SFTPClient: The SFTP client.</span>
+<span class="sd">    """</span>
+    <span class="n">sftp</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">sftp</span><span class="p">()</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">_state</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span><span class="o">.</span><span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">sftp</span>
+        <span class="k">return</span>
+    <span class="n">channel</span> <span class="o">=</span> <span class="n">sftp</span><span class="o">.</span><span class="n">get_channel</span><span class="p">()</span>
+    <span class="n">previous</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">gettimeout</span><span class="p">()</span>
+    <span class="n">channel</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="n">io_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">previous</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">sftp</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">channel</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="n">previous</span><span class="p">)</span></div>
+
+
+<span class="c1"># --- Retrying an operation ---------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_attempt</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">operation</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run one attempt, treating a missing exit status as a lost connection."""</span>
+    <span class="k">with</span> <span class="n">native_timeouts</span><span class="p">(</span><span class="n">client</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">operation</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_missing_exit_status</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">UnexpectedExit</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_should_retry</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">RecoveryState</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Decide whether an attempt's error may be retried, and log why not."""</span>
+    <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="n">state</span><span class="o">.</span><span class="n">heartbeat_error</span><span class="p">:</span>
+        <span class="c1"># A caller-owned liveness failure must not become an SSH retry just</span>
+        <span class="c1"># because it looks like a connection error.</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="n">reason</span> <span class="o">=</span> <span class="n">transient_reason</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">reason</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Not retrying </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: not a lost "</span>
+                     <span class="sa">f</span><span class="s2">"connection (</span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">reason</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_close_stale_transport</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Close the broken transport so that the next attempt reconnects."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not close the stale SSH transport: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_raise_window_expired</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Raise the error that ends a window, naming what stays intact."""</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">RemoteOperationStillPending</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2"> is still running or unresolved on the cluster "</span>
+            <span class="s2">"after the waiting time. The SSH connection works and nothing "</span>
+            <span class="sa">f</span><span class="s2">"was repeated. </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+    <span class="k">raise</span> <span class="n">SSHRecoveryTimeout</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"SSH recovery deadline exceeded during </span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">; existing "</span>
+        <span class="s2">"jobs and recovery data are retained"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+
+<div class="viewcode-block" id="retry"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.retry">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">retry</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">operation</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">],</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+          <span class="n">heartbeat</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run an operation that is safe to repeat, recovering from SSH loss.</span>
+
+<span class="sd">    On a lost connection the stale transport is closed and the operation is</span>
+<span class="sd">    tried again with growing pauses, until the window set by</span>
+<span class="sd">    ``client.ssh_recovery_timeout`` ends. The window starts at the first</span>
+<span class="sd">    failure of this call and is not extended by anything else. With a window</span>
+<span class="sd">    of 0 the operation runs once and its own error is raised.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        client (Any): The ``SlurmClient``.</span>
+<span class="sd">        operation (Callable[[], Any]): The repeatable operation.</span>
+<span class="sd">        description (str): What the operation does, for logs and errors.</span>
+<span class="sd">        heartbeat (Optional[Callable[[], None]]): A callback that runs during</span>
+<span class="sd">            waits.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Any: The result of the first successful attempt.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        SSHRecoveryTimeout: If the connection did not come back in time.</span>
+<span class="sd">        RemoteOperationStillPending: If a healthy remote operation was still</span>
+<span class="sd">            pending when the window ended.</span>
+<span class="sd">        SSHRecoveryCancelled: If the caller cancelled during a wait.</span>
+<span class="sd">    """</span>
+    <span class="k">with</span> <span class="n">scope</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">)</span> <span class="k">as</span> <span class="n">state</span><span class="p">:</span>
+        <span class="c1"># A nested call never outlasts the outage of the call around it.</span>
+        <span class="n">seconds_left</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">seconds_left_in_outage</span><span class="p">()</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="n">OutageWindow</span><span class="p">(</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">timeout</span> <span class="k">if</span> <span class="n">seconds_left</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="nb">min</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">MINIMUM_TIMEOUT_SECONDS</span><span class="p">,</span>
+                                        <span class="n">seconds_left</span><span class="p">)))</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">windows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_attempt_until_done</span><span class="p">(</span>
+                <span class="n">client</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">windows</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_attempt_until_done</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RecoveryState</span><span class="p">,</span>
+                        <span class="n">window</span><span class="p">:</span> <span class="n">OutageWindow</span><span class="p">,</span> <span class="n">operation</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">],</span>
+                        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run the attempts of ``retry`` until one succeeds or a window ends."""</span>
+    <span class="n">cancel</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="s2">"ssh_recovery_cancel"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">last_error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">raise_if_cancelled</span><span class="p">(</span><span class="n">cancel</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">pulse</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">last_error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">window</span><span class="o">.</span><span class="n">seconds_left</span><span class="p">(</span><span class="n">last_error</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">())</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="c1"># The wait used up the window: never start a late attempt.</span>
+            <span class="n">_raise_window_expired</span><span class="p">(</span><span class="n">last_error</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">_run_attempt</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">operation</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_should_retry</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">):</span>
+                    <span class="c1"># No retries (window 0): still the documented error.</span>
+                    <span class="n">_raise_window_expired</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+                <span class="k">raise</span>
+            <span class="n">last_error</span> <span class="o">=</span> <span class="n">error</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">start_if_new</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">now</span><span class="p">)</span>
+            <span class="n">seconds_left</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">seconds_left</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">now</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">seconds_left</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">_raise_window_expired</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">):</span>
+                <span class="n">_close_stale_transport</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">pause</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">next_pause</span><span class="p">(</span><span class="n">seconds_left</span><span class="p">)</span>
+            <span class="n">waiting_for</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"the remote operation"</span>
+                           <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">RecoveryPending</span><span class="p">)</span>
+                           <span class="k">else</span> <span class="s2">"the SSH connection"</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Waiting for </span><span class="si">{</span><span class="n">waiting_for</span><span class="si">}</span><span class="s2"> during </span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2"> "</span>
+                <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">transient_reason</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">error</span><span class="si">}</span><span class="s2">); retry in "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pause</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s, </span><span class="si">{</span><span class="n">seconds_left</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s left. Existing job "</span>
+                <span class="s2">"state is unchanged."</span><span class="p">)</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">pause</span><span class="p">,</span> <span class="n">cancel</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">last_error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Operation resumed after an interruption: "</span>
+                        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="read_only"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.read_only">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">read_only</span><span class="p">(</span><span class="n">function</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Declare a short remote read that is safe to repeat.</span>
+
+<span class="sd">    The decorated method keeps its signature. It runs through ``retry`` with</span>
+<span class="sd">    a bounded timeout, so that a silent stall returns control; a timeout</span>
+<span class="sd">    counts as a lost connection (the Slurm job has not failed).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        function (Callable[..., Any]): A method taking ``client`` first.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Callable[..., Any]: The wrapped method.</span>
+<span class="sd">    """</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wrapped</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">attempt</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">timeout</span> <span class="o">=</span> <span class="n">bounded_read_timeout</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"timeout"</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">options</span><span class="p">[</span><span class="s2">"timeout"</span><span class="p">]</span> <span class="o">=</span> <span class="n">timeout</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">function</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandTimedOut</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">client</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">STATE_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span>
+                <span class="k">raise</span> <span class="n">ReadOnlyCommandTimeout</span><span class="p">(</span>
+                    <span class="s2">"Read-only SSH command timed out"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+        <span class="k">return</span> <span class="n">retry</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">attempt</span><span class="p">,</span> <span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapped</span></div>
+
+
+<span class="c1"># --- Transfers published atomically ------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_local_size</span><span class="p">(</span><span class="n">local</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the size in bytes of a local file or in-memory source."""</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_existing_mode</span><span class="p">(</span><span class="n">sftp</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the permission bits of a remote file, or None if it is new."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IMODE</span><span class="p">(</span><span class="n">sftp</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span><span class="o">.</span><span class="n">st_mode</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="atomic_put"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.atomic_put">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">atomic_put</span><span class="p">(</span><span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span>
+               <span class="n">local</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">],</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+               <span class="n">partial_suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">TRANSFER_PARTIAL_SUFFIX</span>
+               <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Upload a file so that the remote name never shows a partial file.</span>
+
+<span class="sd">    The data goes to ``&lt;remote&gt;&lt;partial_suffix&gt;`` first, is checked for its</span>
+<span class="sd">    size, and is renamed to ``remote``. An interrupted upload restarts from the</span>
+<span class="sd">    beginning. A previous remote file keeps its permission bits. Concurrent</span>
+<span class="sd">    uploads to one remote name are not coordinated: the last rename wins.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        connection (Connection): The ``SlurmClient``.</span>
+<span class="sd">        local (Union[str, io.StringIO, io.BytesIO]): A local path or an</span>
+<span class="sd">            in-memory source.</span>
+<span class="sd">        remote (str): The final remote path.</span>
+<span class="sd">        partial_suffix (str): Suffix of the temporary remote name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        TransferResult: The result, with ``remote`` set to the final path.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        IncompleteTransfer: If the uploaded size is wrong (retried).</span>
+<span class="sd">    """</span>
+    <span class="n">partial</span> <span class="o">=</span> <span class="n">remote</span> <span class="o">+</span> <span class="n">partial_suffix</span>
+    <span class="n">expected_size</span> <span class="o">=</span> <span class="n">_local_size</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">attempt</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="s2">"seek"</span><span class="p">):</span>
+            <span class="n">local</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">sftp_timeout</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span> <span class="k">as</span> <span class="n">sftp</span><span class="p">:</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="n">_existing_mode</span><span class="p">(</span><span class="n">sftp</span><span class="p">,</span> <span class="n">remote</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">partial</span><span class="p">)</span>
+            <span class="n">uploaded_size</span> <span class="o">=</span> <span class="n">sftp</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">partial</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span>
+            <span class="k">if</span> <span class="n">uploaded_size</span> <span class="o">!=</span> <span class="n">expected_size</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">IncompleteTransfer</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Uploaded </span><span class="si">{</span><span class="n">uploaded_size</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">expected_size</span><span class="si">}</span><span class="s2"> bytes "</span>
+                    <span class="sa">f</span><span class="s2">"to </span><span class="si">{</span><span class="n">partial</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">sftp</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">partial</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+            <span class="n">sftp</span><span class="o">.</span><span class="n">posix_rename</span><span class="p">(</span><span class="n">partial</span><span class="p">,</span> <span class="n">remote</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">remote</span> <span class="o">=</span> <span class="n">remote</span>
+            <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">return</span> <span class="n">retry</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">attempt</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"upload to </span><span class="si">{</span><span class="n">remote</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="atomic_get"><a class="viewcode-back" href="../../biomero.html#biomero.ssh_recovery.atomic_get">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">atomic_get</span><span class="p">(</span><span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span>
+               <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Download a file so that the local name never shows a partial file.</span>
+
+<span class="sd">    The data goes to a temporary local file, is checked against the remote</span>
+<span class="sd">    file (unchanged and complete), and then replaces the local file. An</span>
+<span class="sd">    earlier complete local file stays available until then.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        connection (Connection): The ``SlurmClient``.</span>
+<span class="sd">        remote (str): The remote path.</span>
+<span class="sd">        directory (str): The local directory to download into.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        TransferResult: The result, with ``local`` set to the final path.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        IncompleteTransfer: If the remote file changed or the download is</span>
+<span class="sd">            incomplete (retried).</span>
+<span class="sd">    """</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">remote</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">destination</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">attempt</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">sftp_timeout</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span> <span class="k">as</span> <span class="n">sftp</span><span class="p">:</span>
+            <span class="n">before</span> <span class="o">=</span> <span class="n">sftp</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+            <span class="n">descriptor</span><span class="p">,</span> <span class="n">partial</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span>
+                <span class="n">prefix</span><span class="o">=</span><span class="sa">f</span><span class="s2">".</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">."</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">".part"</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">partial</span><span class="p">)</span>
+                <span class="n">after</span> <span class="o">=</span> <span class="n">sftp</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+                <span class="n">remote_unchanged</span> <span class="o">=</span> <span class="p">((</span><span class="n">before</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span> <span class="n">before</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">)</span>
+                                    <span class="o">==</span> <span class="p">(</span><span class="n">after</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span> <span class="n">after</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">))</span>
+                <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">remote_unchanged</span>
+                        <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">partial</span><span class="p">)</span> <span class="o">!=</span> <span class="n">after</span><span class="o">.</span><span class="n">st_size</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">IncompleteTransfer</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">"Remote file </span><span class="si">{</span><span class="n">remote</span><span class="si">}</span><span class="s2"> changed or the download is "</span>
+                        <span class="s2">"incomplete"</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">partial</span><span class="p">,</span> <span class="n">destination</span><span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">local</span> <span class="o">=</span> <span class="n">destination</span>
+                <span class="k">return</span> <span class="n">result</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">partial</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">partial</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">retry</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">attempt</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"download </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+<span class="c1"># Deprecated alias: biomero-scripts' acceptance scripts call ``download``.</span>
+<span class="n">download</span> <span class="o">=</span> <span class="n">atomic_get</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"DEFAULT_SSH_RECOVERY_TIMEOUT"</span><span class="p">,</span> <span class="s2">"IncompleteTransfer"</span><span class="p">,</span> <span class="s2">"OutageWindow"</span><span class="p">,</span>
+    <span class="s2">"ReadOnlyCommandTimeout"</span><span class="p">,</span> <span class="s2">"RecoveryPending"</span><span class="p">,</span> <span class="s2">"RecoveryState"</span><span class="p">,</span>
+    <span class="s2">"RemoteOperationStillPending"</span><span class="p">,</span> <span class="s2">"SSHRecoveryCancelled"</span><span class="p">,</span>
+    <span class="s2">"SSHRecoveryTimeout"</span><span class="p">,</span> <span class="s2">"atomic_get"</span><span class="p">,</span> <span class="s2">"atomic_put"</span><span class="p">,</span> <span class="s2">"bounded_read_timeout"</span><span class="p">,</span>
+    <span class="s2">"download"</span><span class="p">,</span> <span class="s2">"io_timeout"</span><span class="p">,</span> <span class="s2">"is_transient"</span><span class="p">,</span> <span class="s2">"limit_channel_open"</span><span class="p">,</span>
+    <span class="s2">"native_timeouts"</span><span class="p">,</span> <span class="s2">"read_only"</span><span class="p">,</span> <span class="s2">"retry"</span><span class="p">,</span> <span class="s2">"scope"</span><span class="p">,</span> <span class="s2">"sftp_timeout"</span><span class="p">,</span>
+    <span class="s2">"transient_reason"</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

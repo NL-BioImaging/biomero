@@ -1,4 +1,5 @@
 """Native SSH bounds return monitoring to the existing recovery policy."""
+import io
 import socket
 import select
 import os
@@ -324,8 +325,9 @@ def test_custom_transport_timeout_survives_reconnection(private_ssh):
 
 def test_quiet_healthy_durable_command_has_no_total_runtime_cap(private_ssh):
     client = private_ssh.client
-    worker, outcome = observe(lambda: ssh_recovery.run_durable(
-        client, 'wait-output', {}, 'existing protected operation'))
+    worker, outcome = observe(lambda: ssh_recovery.retry(
+        client, lambda: client.run_commands(['wait-output']),
+        'existing protected operation'))
     assert private_ssh.started.wait(2)
     time.sleep(1)
     private_ssh.release_output.set()
@@ -443,11 +445,12 @@ def test_zero_recovery_preserves_sftp_timeout_during_transfers(
         upload.mkdir()
         source = upload / 'input'
         source.write_bytes(b'complete upload')
-        result = ssh_recovery.upload(client, str(source), '.')
+        result = ssh_recovery.atomic_put(client, str(source), './input')
         assert (tmp_path / 'input').read_bytes() == b'complete upload'
         assert result.remote == './input'
     else:
-        result = ssh_recovery.publish_script(client, 'echo complete\n', 'job.sh')
+        result = ssh_recovery.atomic_put(
+            client, io.StringIO('echo complete\n'), 'job.sh')
         assert (tmp_path / 'job.sh').read_text() == 'echo complete\n'
         assert result.remote == 'job.sh'
 
@@ -472,22 +475,18 @@ def test_zero_recovery_does_not_retry_closed_sftp(
         if operation == 'download':
             ssh_recovery.download(client, 'data', str(tmp_path))
         elif operation == 'upload':
-            ssh_recovery.upload(client, str(source), '.')
+            ssh_recovery.atomic_put(client, str(source), './input')
         else:
-            ssh_recovery.publish_script(client, 'echo complete\n', 'job.sh')
+            ssh_recovery.atomic_put(
+                client, io.StringIO('echo complete\n'), 'job.sh')
     attempt.assert_called_once_with(client)
 
 
 def test_final_native_timeout_closes_transport_at_existing_deadline(private_ssh):
     client, relay = private_ssh.client, private_ssh.relay
+    client.ssh_recovery_timeout = .2
     relay.paused.set()
-
-    def operation():
-        with ssh_recovery.scope(client) as state:
-            state.deadline = time.monotonic() + .2
-            return client.check_job_status([42])
-
-    worker, outcome = observe(operation)
+    worker, outcome = observe(lambda: client.check_job_status([42]))
     worker.join(1)
     was_connected = client.is_connected
     relay.paused.clear()

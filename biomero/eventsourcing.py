@@ -547,7 +547,8 @@ class WorkflowTracker(Application):
         update_task_progress: Updates the progress of a task.
     """
 
-    @retry_on_database_conflict(max_retries=10)
+    @retry_on_database_conflict(
+        max_retries=constants.DATABASE_CONFLICT_DEFAULT_RETRIES)
     def initiate_workflow(self,
                           name: str,
                           description: str,
@@ -571,7 +572,7 @@ class WorkflowTracker(Application):
         EngineManager.safe_commit()
         return workflow.id
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def add_task_to_workflow(self,
                              workflow_id: UUID,
                              task_name: str,
@@ -648,7 +649,7 @@ class WorkflowTracker(Application):
                     f"supervisor (launcher task {task_id})")
         return task_id
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def record_canonical_inputs(
         self,
         workflow_id: UUID,
@@ -693,7 +694,7 @@ class WorkflowTracker(Application):
             inputs=tuple(snapshot["inputs"]),
         )
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def start_workflow(self, workflow_id: UUID):
         """
         Starts the workflow with the given UUID.
@@ -708,7 +709,7 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def complete_workflow(self, workflow_id: UUID):
         """
         Marks the workflow with the given UUID as completed.
@@ -723,7 +724,7 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def fail_workflow(self, workflow_id: UUID, error_message: str):
         """
         Marks the workflow with the given UUID as failed with an error message.
@@ -739,7 +740,7 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def start_task(self, task_id: UUID):
         """
         Starts the task with the given UUID.
@@ -754,7 +755,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def complete_task(self, task_id: UUID, message: str):
         """
         Marks the task with the given UUID as completed with a result message.
@@ -770,7 +771,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def fail_task(self, task_id: UUID, error_message: str):
         """
         Marks the task with the given UUID as failed with an error message.
@@ -786,7 +787,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def add_job_id(self, task_id, slurm_job_id):
         """
         Adds a Slurm job ID to the task with the given UUID.
@@ -802,7 +803,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def record_storage_provenance(self, task_id, target_key, evidence):
         """Persist observed storage provenance for an opaque result target."""
         target_key = str(target_key)
@@ -813,7 +814,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def add_result(self, task_id, result):
         """
         Adds a result to the task with the given UUID.
@@ -829,7 +830,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def update_task_status(self, task_id, status):
         """
         Updates the status of the task with the given UUID.
@@ -845,7 +846,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
         
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def update_task_progress(self, task_id, progress):
         """
         Updates the progress of the task with the given UUID.
@@ -981,7 +982,7 @@ class WorkflowTracker(Application):
         logger.debug(f"[WFT] {owner} released launcher {task_id}")
         return True
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def request_workflow_cancel(self, workflow_id: UUID, reason: str) -> None:
         """
         Records that a workflow must be cancelled. Whoever executes the

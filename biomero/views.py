@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 from uuid import UUID
 
 from eventsourcing.application import AggregateNotFoundError
+from eventsourcing.persistence import PersistenceError
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.system import ProcessApplication
 from eventsourcing.dispatch import singledispatchmethod
@@ -57,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 # What `import biomero` exposes from this module.
 __all__ = ["JobAccounting", "JobProgress", "WorkflowProgress",
-           "WorkflowAnalytics", "tracker_repository", "workflow_phase_for"]
+           "WorkflowAnalytics"]
 
 # A view application only has its own event store, so an aggregate the tracker
 # created is not in it. Since a workflow may now be run by a process that did
@@ -65,6 +66,11 @@ __all__ = ["JobAccounting", "JobProgress", "WorkflowProgress",
 # WorkflowTracker.claim_launcher_task), the views have to be able to look those
 # aggregates up rather than relying on what they saw go past in memory.
 _tracker = None
+
+# What a lookup in the tracker or a view table can raise on a database problem:
+# the tracker's repository wraps database errors in eventsourcing's
+# PersistenceError subclasses, the view tables raise SQLAlchemy's.
+LOOKUP_ERRORS = (SQLAlchemyError, PersistenceError)
 
 
 def tracker_repository():
@@ -85,8 +91,8 @@ def get_tracker_aggregate(aggregate_id: UUID, kind: str) -> Optional[Any]:
     errors still propagate.
 
     Args:
-        aggregate_id: ID of the workflow or task.
-        kind: What the aggregate is, for the log message.
+        aggregate_id (UUID): ID of the workflow or task.
+        kind (str): What the aggregate is, for the log message.
 
     Returns:
         The aggregate, or None if it could not be read.
@@ -96,10 +102,31 @@ def get_tracker_aggregate(aggregate_id: UUID, kind: str) -> Optional[Any]:
     except AggregateNotFoundError:
         logger.warning(f"{kind} {aggregate_id} not found in the workflow "
                        f"tracker")
-    except SQLAlchemyError:
+    except LOOKUP_ERRORS:
         logger.warning(f"{kind} {aggregate_id} could not be read from the "
                        f"workflow tracker", exc_info=True)
     return None
+
+
+def first_view_row(query: Callable, description: str) -> Optional[Any]:
+    """Look a row up in a view table through the producer's shared session.
+
+    Like ``get_tracker_aggregate``, a database error is a WARNING with the
+    traceback and the lookup reports None.
+
+    Args:
+        query (Callable): Function that takes the session and returns the row.
+        description (str): What is looked up, for the log message.
+
+    Returns:
+        The row, or None if there is none or it could not be read.
+    """
+    try:
+        return query(EngineManager.get_session())
+    except LOOKUP_ERRORS:
+        logger.warning(f"{description} could not be read from its view "
+                       f"table", exc_info=True)
+        return None
 
 
 def commit_after_event(handler: Callable) -> Callable:
@@ -122,8 +149,8 @@ def write_view_row(description: str, write: Callable) -> None:
     ``retry_on_database_conflict`` can retry it.
 
     Args:
-        description: What is written, for the log.
-        write: Function that changes the view through the given session.
+        description (str): What is written, for the log.
+        write (Callable): Function that changes the view through the given session.
     """
     with EngineManager.get_session() as session:
         try:
@@ -144,9 +171,9 @@ def resolve_workflow_owner(workflows: Dict[UUID, dict],
     depend on whether another projection has processed the workflow yet.
 
     Args:
-        workflows: The projection's cache of ``{"user": ..., "group": ...}``
+        workflows (Dict[UUID, dict]): The projection's cache of ``{"user": ..., "group": ...}``
             per workflow ID; filled in when the workflow is looked up.
-        wf_id: ID of the workflow.
+        wf_id (UUID): ID of the workflow.
 
     Returns:
         The cached owner, or None if the workflow is unknown to the tracker.
@@ -167,9 +194,9 @@ def workflow_phase_for(task_name: str, status: Optional[str] = None,
     the two cannot disagree about a phase.
 
     Args:
-        task_name: Name of the task.
-        status: The task's reported status; None when the task just started.
-        task_progress: The workflow task's own progress (e.g. ``"43%"``), if
+        task_name (str): Name of the task.
+        status (Optional[str]): The task's reported status; None when the task just started.
+        task_progress (Optional[str]): The workflow task's own progress (e.g. ``"43%"``), if
             reported; it moves the progress within the running phase.
 
     Returns:
@@ -200,7 +227,7 @@ def interpolate_task_progress(task_progress: str) -> str:
     """Map a workflow task's own progress onto the running-to-retrieving span.
 
     Args:
-        task_progress: The task's progress, e.g. ``"43%"``.
+        task_progress (str): The task's progress, e.g. ``"43%"``.
 
     Returns:
         The progress of the whole workflow, e.g. ``"71.2%"`` for 43%.
@@ -321,10 +348,10 @@ class JobAccounting(ProcessApplication):
         failing and leaving the old mapping in place.
 
         Args:
-            job_id: The Slurm job ID.
-            user: The ID of the user who owns the workflow.
-            group: The group ID of the workflow.
-            task_id: The task the job belongs to.
+            job_id (int): The Slurm job ID.
+            user (int): The ID of the user who owns the workflow.
+            group (int): The group ID of the workflow.
+            task_id (UUID): The task the job belongs to.
         """
         write_view_row(
             f"job {job_id}",
@@ -405,8 +432,10 @@ class WorkflowProgress(ProcessApplication):
         if wf_id not in self.workflows:
             # Borrow the producer's scoped session. Closing it here would
             # roll back the event currently notifying this cold listener.
-            session = EngineManager.get_session()
-            row = session.query(WorkflowProgressView).filter_by(workflow_id=wf_id).first()
+            row = first_view_row(
+                lambda session: session.query(WorkflowProgressView).filter_by(
+                    workflow_id=wf_id).first(),
+                f"[WFP] Workflow {wf_id}")
             if row:
                 self.workflows[wf_id] = {
                     "status": row.status,
@@ -694,6 +723,52 @@ class JobProgress(ProcessApplication):
         self.task_to_job = {}  # {task_id: job_id}
         self.job_status = {}   # {job_id: {"status": status, "progress": progress}}
 
+    def resolve_job(self, task_id: UUID) -> Optional[int]:
+        """Return the Slurm job of a task, looked up in the tracker if unseen.
+
+        A listener that restarted after the job was registered has not seen the
+        JobIdAdded event, so the map in memory is empty for that task. The job
+        is then read from the task aggregate (its latest job), like the other
+        projections resolve what they did not see.
+
+        Args:
+            task_id (UUID): ID of the task the event belongs to.
+
+        Returns:
+            The Slurm job ID, or None if the task has no job (or could not be
+            read).
+        """
+        if task_id not in self.task_to_job:
+            task_agg = get_tracker_aggregate(task_id, "Task")
+            if task_agg is not None and task_agg.job_ids:
+                self.task_to_job[task_id] = task_agg.job_ids[-1]
+                logger.debug(f"[JP] Resolved job {task_agg.job_ids[-1]} of "
+                             f"unseen task {task_id} from the tracker")
+            else:
+                logger.debug(f"[JP] Task {task_id} has no known job; "
+                             f"event ignored")
+        return self.task_to_job.get(task_id)
+
+    def resolve_job_state(self, job_id: int, default_status: str) -> dict:
+        """Return the status and progress of a job, from the view if unseen.
+
+        Args:
+            job_id (int): The Slurm job ID.
+            default_status (str): Status to use when the job has no row yet.
+
+        Returns:
+            The (cached) ``{"status": ..., "progress": ...}`` of the job.
+        """
+        if job_id not in self.job_status:
+            row = first_view_row(
+                lambda session: session.query(JobProgressView).filter_by(
+                    slurm_job_id=job_id).first(),
+                f"[JP] Job {job_id}")
+            self.job_status[job_id] = (
+                {"status": row.status, "progress": row.progress} if row
+                else {"status": default_status, "progress": None})
+        return self.job_status[job_id]
+
     @singledispatchmethod
     def policy(self, domain_event: Any, process_event: ProcessingEvent) -> None:
         """Default policy"""
@@ -718,12 +793,9 @@ class JobProgress(ProcessApplication):
         task_id = domain_event.originator_id
         status = domain_event.status
 
-        job_id = self.task_to_job.get(task_id)
+        job_id = self.resolve_job(task_id)
         if job_id is not None:
-            if job_id in self.job_status:
-                self.job_status[job_id]["status"] = status
-            else:
-                self.job_status[job_id] = {"status": status, "progress": None}
+            self.resolve_job_state(job_id, status)["status"] = status
 
             logger.debug(f"[JP] Status updated: job_id={job_id}, status={status} -- {domain_event.__dict__}")
             # Update view table
@@ -737,12 +809,10 @@ class JobProgress(ProcessApplication):
         task_id = domain_event.originator_id
         progress = domain_event.progress
 
-        job_id = self.task_to_job.get(task_id)
+        job_id = self.resolve_job(task_id)
         if job_id is not None:
-            if job_id in self.job_status:
-                self.job_status[job_id]["progress"] = progress
-            else:
-                self.job_status[job_id] = {"status": TASK_STATUS_UNKNOWN, "progress": progress}
+            self.resolve_job_state(
+                job_id, TASK_STATUS_UNKNOWN)["progress"] = progress
 
             logger.debug(f"[JP] Progress updated: job_id={job_id}, progress={progress} -- {domain_event.__dict__}")
             # Update view table
@@ -789,9 +859,10 @@ class WorkflowAnalytics(ProcessApplication):
             if task_agg is not None:
                 start_time = None
                 # Do not close or roll back the producer's event transaction.
-                session = EngineManager.get_session()
-                row = session.query(TaskExecution).filter_by(
-                    task_id=task_id).first()
+                row = first_view_row(
+                    lambda session: session.query(TaskExecution).filter_by(
+                        task_id=task_id).first(),
+                    f"[WFA] Task {task_id}")
                 if row:
                     start_time = row.start_time
                 self.tasks[task_id] = {

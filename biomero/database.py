@@ -26,7 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.exc import DBAPIError, OperationalError, IntegrityError
-from biomero.constants import slurm_env
+from biomero.constants import DATABASE_CONFLICT_DEFAULT_RETRIES, slurm_env
 import os
 import threading
 import time
@@ -93,7 +93,7 @@ def is_retryable_conflict(error: Exception) -> bool:
     """Whether a database error is a concurrency conflict worth retrying.
 
     Args:
-        error: The exception raised by the database operation.
+        error (Exception): The exception raised by the database operation.
 
     Returns:
         False for permanent data validation errors, True for an event
@@ -115,7 +115,9 @@ def backoff_delay(attempt: int, base_delay: float, max_delay: float) -> float:
     return min(base_delay * (2 ** attempt) + random.uniform(0, 0.1), max_delay)
 
 
-def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
+def retry_on_database_conflict(
+        max_retries=DATABASE_CONFLICT_DEFAULT_RETRIES,
+        base_delay=0.1, max_delay=5.0):
     """Decorator to retry database operations on concurrency conflicts.
 
     Args:
@@ -540,7 +542,8 @@ class EngineManager:
             cls._session.remove()
     
     @classmethod
-    @retry_on_database_conflict(max_retries=10)
+    @retry_on_database_conflict(
+        max_retries=DATABASE_CONFLICT_DEFAULT_RETRIES)
     def safe_commit(cls):
         """
         Commits the transaction with automatic retry on conflicts.

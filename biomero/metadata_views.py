@@ -146,9 +146,9 @@ def format_large_field_reference(csv_name: str, size: int, digest: str) -> str:
     """Format the text that replaces a value too large for the OMERO index.
 
     Args:
-        csv_name: File name of the CSV holding the full value.
-        size: Size of the original value in UTF-8 bytes.
-        digest: SHA-256 hex digest of the original value.
+        csv_name (str): File name of the CSV holding the full value.
+        size (int): Size of the original value in UTF-8 bytes.
+        digest (str): SHA-256 hex digest of the original value.
 
     Returns:
         The reference text, recognised by ``is_large_field_reference``.
@@ -161,7 +161,7 @@ def is_large_field_reference(value: Any) -> bool:
     """Whether a stored value is a reference to a CSV file.
 
     Args:
-        value: A stored annotation value.
+        value (Any): A stored annotation value.
 
     Returns:
         True if the value has the form ``format_large_field_reference`` writes.
@@ -177,7 +177,7 @@ def is_internal_task(task: Any) -> bool:
     """Whether a task is coordination bookkeeping that the view omits.
 
     Args:
-        task: A Task aggregate.
+        task (Any): A Task aggregate.
 
     Returns:
         True for a detached launcher task or a remote shallower task.
@@ -190,7 +190,7 @@ def qualifying_workflow_names(parameter_name: str) -> List[str]:
     """Return the workflow names a parameter name is qualified with.
 
     Args:
-        parameter_name: A task parameter name, e.g. ``"cellpose | diameter"``.
+        parameter_name (str): A task parameter name, e.g. ``"cellpose | diameter"``.
 
     Returns:
         The workflow name in front of each separator found in the name.
@@ -217,9 +217,9 @@ def selected_workflow_names(
     the orchestration task stores per workflow.
 
     Args:
-        params: Task parameters.
-        task_name: Name of the task.
-        configured: Workflows that have qualified parameters in the task.
+        params (Mapping[str, Any]): Task parameters.
+        task_name (str): Name of the task.
+        configured (Set[str]): Workflows that have qualified parameters in the task.
 
     Returns:
         The selected workflow names, or None when the selection is unknown.
@@ -235,9 +235,9 @@ def is_parameter_of_unselected_workflow(
     """Whether a parameter is excluded when the workflow selection is known.
 
     Args:
-        parameter_name: Name of the task parameter.
-        selected: Selected workflow names.
-        configured: All workflows that have qualified parameters in the task.
+        parameter_name (str): Name of the task parameter.
+        selected (Set[str]): Selected workflow names.
+        configured (Set[str]): All workflows that have qualified parameters in the task.
 
     Returns:
         True for descriptor parameters, the workflow flag and ``_Version``
@@ -265,7 +265,7 @@ def view_parameters(task: Any) -> Dict[str, Any]:
     available in the event store and the full CSV.
 
     Args:
-        task: A Task aggregate.
+        task (Any): A Task aggregate.
 
     Returns:
         The task parameters to render.
@@ -298,9 +298,9 @@ def load_aggregate(
     """Load a workflow or task, at its pinned version when one is given.
 
     Args:
-        tracker: A WorkflowTracker.
-        aggregate_id: ID of the aggregate.
-        aggregate_versions: Pinned version per aggregate ID, or None for the
+        tracker (WorkflowTracker): The workflow tracker.
+        aggregate_id (Any): ID of the aggregate.
+        aggregate_versions (Optional[Mapping[str, int]]): Pinned version per aggregate ID, or None for the
             current state.
 
     Returns:
@@ -327,9 +327,9 @@ def load_visible_tasks(
     """Load the tasks of a workflow that appear in the view.
 
     Args:
-        tracker: A WorkflowTracker.
-        workflow: The WorkflowRun aggregate.
-        aggregate_versions: Pinned version per aggregate ID, or None.
+        tracker (WorkflowTracker): The workflow tracker.
+        workflow (Any): The WorkflowRun aggregate.
+        aggregate_versions (Optional[Mapping[str, int]]): Pinned version per aggregate ID, or None.
 
     Returns:
         The non-internal tasks in workflow order.
@@ -367,7 +367,7 @@ def software_version(description: Any) -> str:
     (core's own conversion workflow stores a number) have no version to find.
 
     Args:
-        description: The workflow description, e.g. ``"Segments nuclei\n2.9.0"``.
+        description (Any): The workflow description, e.g. ``"Segments nuclei\n2.9.0"``.
 
     Returns:
         The first ``x.y.z`` version on the last line, else
@@ -486,14 +486,14 @@ def render_workflow_metadata(
     historical workflow with current task state.
 
     Args:
-        tracker: A WorkflowTracker.
-        workflow_id: ID of the workflow to render.
-        view_version: View layout; only ``METADATA_VIEW_VERSION`` exists.
-        aggregate_versions: Pinned version per aggregate ID, or None for the
+        tracker (WorkflowTracker): The workflow tracker.
+        workflow_id (Any): ID of the workflow to render.
+        view_version (str): View layout; only ``METADATA_VIEW_VERSION`` exists.
+        aggregate_versions (Optional[Mapping[str, int]]): Pinned version per aggregate ID, or None for the
             current state.
-        revision_fields: Add ``Metadata_View_Version`` and
+        revision_fields (bool): Add ``Metadata_View_Version`` and
             ``Aggregate_Version``. Off reproduces the legacy layout.
-        target_key: Result target (e.g. ``"Plate:123"``) whose storage facts
+        target_key (Optional[str]): Result target (e.g. ``"Plate:123"``) whose storage facts
             to add to the import task.
 
     Returns:
@@ -546,9 +546,9 @@ def versions_with_timestamp(tracker: Any, aggregate_id: str,
     of replaying the aggregate once per version.
 
     Args:
-        tracker: A WorkflowTracker.
-        aggregate_id: ID of the workflow or task.
-        timestamp: ISO timestamp from a stored ``Modified_On`` value.
+        tracker (WorkflowTracker): The workflow tracker.
+        aggregate_id (str): ID of the workflow or task.
+        timestamp (Optional[str]): ISO timestamp from a stored ``Modified_On`` value.
 
     Returns:
         The matching versions (empty if none, several if ambiguous).
@@ -566,9 +566,9 @@ def snapshot_version(tracker: Any, aggregate_id: str,
     and need a unique ``Modified_On`` match in the aggregate's history.
 
     Args:
-        tracker: A WorkflowTracker.
-        aggregate_id: ID of the workflow or task of the row.
-        values: The stored key/values.
+        tracker (WorkflowTracker): The workflow tracker.
+        aggregate_id (str): ID of the workflow or task of the row.
+        values (Mapping[str, Any]): The stored key/values.
 
     Returns:
         The aggregate version.
@@ -599,9 +599,9 @@ def resolve_metadata_versions(
     Missing or inconsistent snapshots are errors; callers must not guess.
 
     Args:
-        tracker: A WorkflowTracker.
-        workflow_id: ID of the workflow whose rows to resolve.
-        annotations: Existing annotations of any namespace.
+        tracker (WorkflowTracker): The workflow tracker.
+        workflow_id (Any): ID of the workflow whose rows to resolve.
+        annotations (Iterable[MetadataAnnotation]): Existing annotations of any namespace.
 
     Returns:
         The version per aggregate ID (the workflow and each task).
@@ -657,9 +657,9 @@ def advance_import_task_to_storage_evidence(
     snapshot is never silently replaced.
 
     Args:
-        tracker: A WorkflowTracker.
-        versions: Pinned versions from ``resolve_metadata_versions``.
-        target_key: Result target whose storage evidence to look for.
+        tracker (WorkflowTracker): The workflow tracker.
+        versions (Mapping[str, int]): Pinned versions from ``resolve_metadata_versions``.
+        target_key (Optional[str]): Result target whose storage evidence to look for.
 
     Returns:
         A copy of ``versions`` with the import task advanced if needed.
@@ -712,10 +712,10 @@ def stale_keys(tracker: Any, existing: Mapping[str, Any],
     the task never had was added by a user and is kept.
 
     Args:
-        tracker: A WorkflowTracker.
-        existing: Stored key/values.
-        rendered: Key/values the current view renders for this row.
-        versions: Pinned aggregate versions.
+        tracker (WorkflowTracker): The workflow tracker.
+        existing (Mapping[str, Any]): Stored key/values.
+        rendered (Mapping[str, Any]): Key/values the current view renders for this row.
+        versions (Mapping[str, int]): Pinned aggregate versions.
 
     Returns:
         The keys to drop from the stored row.
@@ -746,10 +746,10 @@ def merge_view_values(
     already reduced to a CSV reference stay reduced.
 
     Args:
-        tracker: A WorkflowTracker.
-        existing: Stored key/values.
-        rendered: Key/values the current view renders for this row.
-        versions: Pinned aggregate versions.
+        tracker (WorkflowTracker): The workflow tracker.
+        existing (Mapping[str, Any]): Stored key/values.
+        rendered (Mapping[str, Any]): Key/values the current view renders for this row.
+        versions (Mapping[str, int]): Pinned aggregate versions.
 
     Returns:
         The key/values after the refresh.
@@ -771,10 +771,10 @@ def plan_unexpected_row(
     """Plan a stored view row that the current view no longer renders.
 
     Args:
-        tracker: A WorkflowTracker.
-        row: The stored annotation.
-        workflow_id: ID of the workflow being refreshed.
-        identity: The row's ``annotation_identity``.
+        tracker (WorkflowTracker): The workflow tracker.
+        row (MetadataAnnotation): The stored annotation.
+        workflow_id (Any): ID of the workflow being refreshed.
+        identity (Tuple): The row's ``annotation_identity``.
 
     Returns:
         An unlink of the row if it belongs to an internal task.
@@ -808,12 +808,12 @@ def plan_metadata_refresh(
     Other snapshots stay pinned.
 
     Args:
-        tracker: A WorkflowTracker.
-        workflow_id: ID of the workflow to refresh.
-        annotations: All annotations currently on the OMERO object.
-        view_version: View layout; only ``METADATA_VIEW_VERSION`` exists.
-        target_key: Result target for the storage facts.
-        refresh_storage: Advance the import task to newly recorded storage
+        tracker (WorkflowTracker): The workflow tracker.
+        workflow_id (Any): ID of the workflow to refresh.
+        annotations (Sequence[MetadataAnnotation]): All annotations currently on the OMERO object.
+        view_version (str): View layout; only ``METADATA_VIEW_VERSION`` exists.
+        target_key (Optional[str]): Result target for the storage facts.
+        refresh_storage (bool): Advance the import task to newly recorded storage
             evidence for ``target_key``.
 
     Returns:
@@ -871,8 +871,8 @@ def storage_metadata_view(evidence: Mapping[str, Any],
     """Return compact per-result storage facts; feature flags are not evidence.
 
     Args:
-        evidence: Storage evidence recorded for one result target.
-        target_key: The result target, e.g. ``"Plate:123"``.
+        evidence (Mapping[str, Any]): Storage evidence recorded for one result target.
+        target_key (Optional[str]): The result target, e.g. ``"Plate:123"``.
 
     Returns:
         The view key/values, empty if the evidence names no known storage.

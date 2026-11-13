@@ -67,6 +67,9 @@ UNKNOWN_TASK_NAME = "unknown"
 # Attempts of an operation that hit a database conflict (see
 # biomero.database.retry_on_database_conflict).
 DATABASE_CONFLICT_MAX_RETRIES = 3
+# Attempts for the operations that must not give up early (committing the
+# event store; also the default of retry_on_database_conflict).
+DATABASE_CONFLICT_DEFAULT_RETRIES = 10
 
 # Metadata maintenance requests (see biomero.maintenance).
 MAINTENANCE_SCAN_PAGE_SIZE = 100

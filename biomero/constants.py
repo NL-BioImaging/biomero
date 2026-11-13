@@ -291,6 +291,16 @@ class results:
     PLATE_LABEL_PREVIEW_NAME = "Plate_Label_Preview_Name"
     TEST_WRITE_PERMISSIONS_ONLY = "Test_Write_Permissions_Only"
     WORKFLOW_UUID_OUTPUT = "Workflow_UUID"
+    # Names of the outputs that one script sets and another script reads
+    # (SLURM_Run_Workflow.py reads those of the transfer and result scripts and
+    # forwards some). They are a contract between the scripts: a producer and a
+    # reader must use the same string, so scripts take them from here instead
+    # of defining their own copy.
+    MESSAGE_OUTPUT = "Message"
+    URL_OUTPUT = "URL"
+    FILE_ANNOTATION_OUTPUT = "File_Annotation"
+    RESULTS_PATH_OUTPUT = "Results_Path"
+    CANONICAL_INPUTS_OUTPUT = "Canonical_Inputs"
     OUTPUT_ATTACH_FILE_OUTPUTS = "Output - Attach non-image output files as annotations"
     OUTPUT_ATTACH_FILE_OUTPUTS_TARGET = "File output destination"
     OUTPUT_CREATE_ROIS = "Create_ROIs"

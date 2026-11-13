@@ -97,7 +97,11 @@ Metadata maintenance requests
 -----------------------------
 
 ``biomero.maintenance.MetadataRefresh`` stores administrative metadata-refresh
-requests in the same ``WorkflowTracker`` event store, separately from
+requests in the same ``WorkflowTracker`` event store. The class stays in core
+because every projection of that store resolves an event's class from its stored
+topic (the import path of the class); the lifecycle guards, the topics and the
+notification scan live with it, while running a request is the processor's job.
+Requests are kept separate from
 ``WorkflowRun`` and ``Task``. These requests do not create analysis projection
 rows. The aggregate contains plain options, requester IDs, lifecycle status,
 progress counters and a compact final outcome; annotation operations remain in
@@ -106,6 +110,48 @@ and use its aggregate versions for historical replay. The processor discovers
 unfinished requests through topic-filtered notifications and retries interrupted
 idempotent sweeps. See NL-BIOMERO's developer supervisor documentation for the
 execution and recovery policy.
+
+Detached launcher claim and cancellation
+----------------------------------------
+
+A detached run is queued as a *launcher task*: a task of a launching script
+whose params carry ``constants.LAUNCHER_MARKER``; a script adds it with
+``WorkflowTracker.add_launcher_task``. Every reader (views,
+provenance, the supervisor) decides with the one rule
+``biomero.eventsourcing.is_launcher_task``, and finds the task with
+``WorkflowTracker.find_launcher_task(workflow_id)``. The scripts decide what a
+launcher records and how a run resumes; the supervisor decides what to run.
+
+A supervisor takes a launcher with ``WorkflowTracker.claim_launcher_task(task_id,
+owner)``. The claim is a ``Task.LauncherClaimed`` event appended to the task's
+stream, so it is a compare-and-set: when two supervisors read the same
+unclaimed task and both claim it, the event store accepts one and the other
+call returns ``False``. A claim is valid for
+``constants.LAUNCHER_CLAIM_LEASE_SECONDS``; its owner renews it by claiming
+again (the processor renews three times per lease), and a claim that is not
+renewed can be taken over. The lease is judged against each supervisor's own
+clock, so supervisors need clocks that agree to well within the lease; the
+position in the event store, not the clock, is what keeps two claims apart. A
+supervisor that stops cleanly gives its claim up with
+``release_launcher_task``. The claim does not change ``Task.status``. Launchers claimed by 2.9 betas carry the status
+``CLAIMED`` and no owner; they still load, the views still ignore that status,
+and such a launcher is free to claim.
+
+``WorkflowTracker.request_workflow_cancel(workflow_id, reason)`` records a
+``WorkflowRun.CancelRequested`` event. Whoever executes the workflow calls
+``raise_if_cancel_requested`` between its steps; that raises
+``WorkflowCancelled``, upon which the executor cancels the workflow's Slurm jobs
+with ``SlurmClient.cancel_slurm_jobs`` and fails the workflow.
+``WorkflowCancelled`` is a ``WorkflowInterrupted``, the base for "stop now"
+conditions (an executor that lost its claim raises its own subclass): stage
+handlers let any ``WorkflowInterrupted`` pass without failing their task, and
+only a cancel makes the executor fail the workflow. It is deliberately not an
+``InterruptedError``, which is an ``OSError`` that SSH recovery handlers could
+catch.
+
+Resuming reads every task of the workflow once per call, and a run checks for a
+cancel once per poll; both are cheap next to a Slurm poll, but are one read per
+task for a workflow with very many tasks.
 
 Inspecting aggregate history
 ----------------------------
@@ -131,7 +177,8 @@ Reading an aggregate does not run or resume it. ``TaskCompleted`` records
 inspect lifecycle events as well as status strings.
 
 When comparing detached and inline runs, account for the additional launcher
-task. ``CLAIMED`` is a coordination state and is not analysis ``RUNNING``.
+task. Its claim (``claimed_by``, ``claimed_at``) is coordination state and is not
+analysis ``RUNNING``; older 2.9 betas stored the claim as the status ``CLAIMED``.
 Remote shallowing adds its own helper task and receipts. These records remain
 in history even when excluded from the searchable metadata view. See
 :doc:`execution-and-storage` and :doc:`metadata-views`.

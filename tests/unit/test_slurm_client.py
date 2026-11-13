@@ -1431,71 +1431,59 @@ def test_check_job_status(mock_run_commands,
     mock_run_commands.assert_called_with(
         ['sacct -n -o JobId,State,End -X -j 12345 -j 67890'], env=None)
     assert job_status_dict == {12345: 'RUNNING', 67890: 'COMPLETED'}
-    
-    
+
+
+@pytest.mark.parametrize("job_ids, expected", [
+    ([12, "34"], [12, 34]),
+    # extract_job_id() returns -1 when no job was found; None and text are noise
+    ([-1, 0, None, "x", 56], [56]),
+    ([], []),
+])
+def test_positive_job_ids_keeps_only_valid_slurm_jobs(slurm_client, job_ids,
+                                                      expected):
+    assert slurm_client.positive_job_ids(job_ids) == expected
+
+
 @patch('biomero.slurm_client.SlurmClient.run_commands')
-def test_check_job_array_status(mock_run_commands, slurm_client):
-    # GIVEN
-    mock_stdout = """2304_1        COMPLETED 2024-02-29T10:22:38 
-    2304_2        COMPLETED 2024-02-29T10:22:38 
-    2304_3        COMPLETED 2024-02-29T10:22:40 
-    2304_4        COMPLETED 2024-02-29T10:22:40 
-    2304_5        COMPLETED 2024-02-29T10:22:43 
-    2304_6        COMPLETED 2024-02-29T10:22:43 
-    2304_7        COMPLETED 2024-02-29T10:22:45 
-    2304_8        COMPLETED 2024-02-29T10:22:45 
-    2304_9        COMPLETED 2024-02-29T10:22:47 
-    2304_10       COMPLETED 2024-02-29T10:22:47 
-    2304_11       COMPLETED 2024-02-29T10:22:50 
-    2304_12       COMPLETED 2024-02-29T10:22:50 
-    2304_13       COMPLETED 2024-02-29T10:22:52 
-    2304_14       COMPLETED 2024-02-29T10:22:52 
-    2304_15       COMPLETED 2024-02-29T10:22:54 
-    2304_16       COMPLETED 2024-02-29T10:22:54 
-    2304_17       COMPLETED 2024-02-29T10:22:57 
-    2304_18       COMPLETED 2024-02-29T10:22:57 
-    2304_19       COMPLETED 2024-02-29T10:22:59 
-    2304_20       COMPLETED 2024-02-29T10:22:59 
-    2304_21       COMPLETED 2024-02-29T10:23:01 
-    2304_22       COMPLETED 2024-02-29T10:23:01 
-    2304_23       COMPLETED 2024-02-29T10:23:04 
-    2304_24       COMPLETED 2024-02-29T10:23:04 
-    2304_25       COMPLETED 2024-02-29T10:23:06 
-    2304_26       COMPLETED 2024-02-29T10:23:06 
-    2304_27       COMPLETED 2024-02-29T10:23:08 
-    2304_28       COMPLETED 2024-02-29T10:23:08 
-    2304_29       COMPLETED 2024-02-29T10:23:11 
-    2304_30       COMPLETED 2024-02-29T10:23:11 
-    2304_31       COMPLETED 2024-02-29T10:23:13 
-    2304_32       COMPLETED 2024-02-29T10:23:12 
-    2304_33       COMPLETED 2024-02-29T10:23:14 
-    2304_34       COMPLETED 2024-02-29T10:23:15 
-    2304_35       COMPLETED 2024-02-29T10:23:17 
-    2339_1        COMPLETED 2024-02-29T10:34:42 
-    2339_2        COMPLETED 2024-02-29T10:34:42 
-    2339_3        COMPLETED 2024-02-29T10:34:44 
-    2339_4        COMPLETED 2024-02-29T10:34:44 
-    2339_5        COMPLETED 2024-02-29T10:34:46 
-    2339_6        COMPLETED 2024-02-29T10:34:46 
-    2339_7        COMPLETED 2024-02-29T10:34:48 
-    2339_8        COMPLETED 2024-02-29T10:34:48 
-    2339_9        COMPLETED 2024-02-29T10:34:51 
-    2339_10       COMPLETED 2024-02-29T10:34:51 
-    2339_11       COMPLETED 2024-02-29T10:34:53 
-    2339_12       COMPLETED 2024-02-29T10:34:53 
-    2339_[13-94+   PENDING  Unknown"""
+def test_cancel_slurm_jobs_cancels_the_valid_jobs_in_one_scancel(
+        mock_run_commands, slurm_client):
+    mock_run_commands.return_value = SerializableMagicMock(ok=True)
 
-    mock_run_commands.return_value = SerializableMagicMock(ok=True, stdout=mock_stdout)
+    slurm_client.cancel_slurm_jobs([12345, -1, "67890"])
 
-    # WHEN
-    job_status_dict, _ = slurm_client.check_job_status([2304, 2339])
+    mock_run_commands.assert_called_once_with(
+        ['scancel --user="$USER" 12345 67890'], warn=True)
 
-    # THEN
-    mock_run_commands.assert_called_with(
-        ['sacct -n -o JobId,State,End -X -j 2304 -j 2339'], env=None)
 
-    expected_status_dict = {2304: 'COMPLETED', 2339: 'PENDING'}
-    assert job_status_dict == expected_status_dict
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+def test_cancel_slurm_jobs_without_a_valid_job_runs_nothing(
+        mock_run_commands, slurm_client):
+    assert slurm_client.cancel_slurm_jobs([-1, None]) is None
+    mock_run_commands.assert_not_called()
+
+
+@patch('biomero.slurm_client.SlurmClient.run_commands')
+def test_cancel_slurm_jobs_that_already_ended_is_only_a_warning(
+        mock_run_commands, slurm_client, caplog):
+    mock_run_commands.return_value = SerializableMagicMock(
+        ok=False, stderr="Job/step already completing or completed")
+
+    with caplog.at_level(logging.WARNING, logger="biomero.slurm_client"):
+        result = slurm_client.cancel_slurm_jobs([12345])
+
+    assert result.ok is False
+    assert any(record.levelno == logging.WARNING
+               and "already completing" in record.getMessage()
+               for record in caplog.records)
+
+
+def test_get_workflow_tasks_raises_on_read_errors(slurm_client):
+    """Resume must see a database error, not an empty history."""
+    tracker = MagicMock()
+    tracker.repository.get.side_effect = RuntimeError("database down")
+    slurm_client.workflowTracker = tracker
+    with pytest.raises(RuntimeError, match="database down"):
+        slurm_client.get_workflow_tasks("00000000-0000-0000-0000-000000000001")
 
 
 @patch('biomero.slurm_client.logger')

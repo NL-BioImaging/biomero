@@ -17,21 +17,20 @@ from eventsourcing.dispatch import singledispatchmethod
 import logging
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
-from biomero.eventsourcing import WorkflowRun, Task
+from biomero.eventsourcing import WorkflowRun, Task, is_launcher_task
 from biomero.database import EngineManager, JobView, TaskExecution, JobProgressView, WorkflowProgressView, retry_on_database_conflict
 from biomero.constants import (
-    RUN_WF_BATCHED_SCRIPT,
+    LEGACY_CLAIMED_STATUS,
     REMOTE_SHALLOWER_TASK_NAME,
-    RUN_WF_SCRIPT,
     workflow_status as wfs,
 )
-from biomero.detached import CLAIMED, LAUNCHER_MARKER
 
 logger = logging.getLogger(__name__)
 
 # A view application only has its own event store, so an aggregate the tracker
 # created is not in it. Since a workflow may now be run by a process that did
-# not create it (see biomero.detached), the views have to be able to look those
+# not create it (a detached supervisor claims launchers, see
+# WorkflowTracker.claim_launcher_task), the views have to be able to look those
 # aggregates up rather than relying on what they saw go past in memory.
 _tracker = None
 
@@ -259,13 +258,7 @@ class WorkflowProgress(ProcessApplication):
                 self.tasks[task_id] = {
                     "task_name": task_agg.task_name,
                     "workflow_id": task_agg.workflow_id,
-                    "is_launcher": (
-                        task_agg.task_name in (
-                            RUN_WF_SCRIPT,
-                            RUN_WF_BATCHED_SCRIPT,
-                        )
-                        and LAUNCHER_MARKER in (task_agg.params or {})
-                    ),
+                    "is_launcher": is_launcher_task(task_agg),
                     # Progress is reported by events, not kept on the task.
                     "progress": None
                 }
@@ -359,10 +352,7 @@ class WorkflowProgress(ProcessApplication):
         self.tasks[task_id] = {
             "task_name": task_name,
             "workflow_id": None,
-            "is_launcher": (
-                task_name in (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
-                and LAUNCHER_MARKER in (domain_event.params or {})
-            ),
+            "is_launcher": is_launcher_task(domain_event),
             "progress": None
             }
         logger.debug(f"[WFP] Task created: task_id={task_id}, task_name={task_name} -- {domain_event.__dict__}")
@@ -428,9 +418,11 @@ class WorkflowProgress(ProcessApplication):
             wf_id = task_info["workflow_id"]
             task_name = task_info["task_name"].lower()
 
-            # CLAIMED is supervisor bookkeeping, not workflow execution. The
+            # A claim is its own event now, but 2.9 betas stored it as the
+            # status CLAIMED. That is supervisor bookkeeping, not workflow
+            # execution, and must stay out of the view. The
             # first real task's TaskStarted event will set the visible phase.
-            if task_info.get("is_launcher") and status == CLAIMED:
+            if task_info.get("is_launcher") and status == LEGACY_CLAIMED_STATUS:
                 logger.debug(
                     f"[WFP] Ignoring detached launcher claim: "
                     f"task_id={task_id}, wf_id={wf_id}"

@@ -1005,8 +1005,9 @@ def test_workflow_progress_task_started_persists_phase(
         assert workflow_view.progress == "25%"
 
 
+@pytest.mark.parametrize("claim", ["legacy_status", "claim_event"])
 def test_workflow_progress_ignores_detached_launcher_claim(
-        workflow_tracker_and_workflow_progress):
+        workflow_tracker_and_workflow_progress, claim):
     workflow_tracker, workflow_progress = (
         workflow_tracker_and_workflow_progress)
     workflow_id = workflow_tracker.initiate_workflow(
@@ -1019,7 +1020,11 @@ def test_workflow_progress_ignores_detached_launcher_claim(
         {"_biomero_detached_launcher": "v1"},
     )
 
-    workflow_tracker.update_task_status(launcher_id, "CLAIMED")
+    if claim == "legacy_status":
+        # How the 2.9 betas recorded a claim.
+        workflow_tracker.update_task_status(launcher_id, "CLAIMED")
+    else:
+        assert workflow_tracker.claim_launcher_task(launcher_id, "supervisor")
 
     assert workflow_progress.workflows[workflow_id]["status"] == (
         wfs.INITIALIZING)

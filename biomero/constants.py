@@ -17,6 +17,9 @@
 import re
 from uuid import UUID
 
+# Values that switch a boolean environment setting on (compared lowercase).
+TRUTHY_VALUES = ("true", "1", "yes", "y", "on")
+
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
@@ -26,6 +29,23 @@ RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
 # Name of the workflow task that records one remote shallower (helper) run.
 REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
+
+# Detached runs: a workflow script queues a run for a supervisor by recording a
+# "launcher" task. Only a task of a launching script that carries the marker
+# key in its params is a launcher; the batched script, for instance, also adds
+# one ordinary task per batch under the launching script's name.
+LAUNCHER_MARKER = "_biomero_detached_launcher"
+LAUNCHER_TASK_NAMES = (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
+# How long a supervisor's claim on a launcher task stays valid without being
+# renewed. After that, another supervisor may take the run over.
+LAUNCHER_CLAIM_LEASE_SECONDS = 300
+# Status that 2.9 betas wrote on a launcher task to mark it as claimed. It is
+# no longer written (a claim is its own event), but may exist in stored events.
+LEGACY_CLAIMED_STATUS = "CLAIMED"
+
+# Metadata maintenance requests (see biomero.maintenance).
+MAINTENANCE_SCAN_PAGE_SIZE = 100
+MAINTENANCE_RECENT_REQUESTS = 5
 
 # Blueprint qualitative color scheme. Keep these values in Python because the
 # OMERO scripts do not load the Blueprint JavaScript package.
@@ -365,6 +385,15 @@ class workflow_status:
     FAILED = "FAILED"
     RUNNING = "RUNNING"
     JOB_STATUS = "JOB_"
+
+
+class metadata_refresh_status:
+    """Lifecycle states of a metadata maintenance request."""
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    DONE = "DONE"
+    FAILED = "FAILED"
+    ACTIVE = (QUEUED, RUNNING)
 
 
 class schema_formats:

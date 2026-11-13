@@ -1,3 +1,7 @@
+import logging
+
+import pytest
+
 from biomero import maintenance
 from biomero.eventsourcing import WorkflowTracker
 
@@ -65,3 +69,67 @@ def test_handoff_is_visible_to_an_independent_sql_reader(tmp_path):
         with WorkflowTracker(env=env) as reader:
             assert maintenance.pending_metadata_refreshes(reader)[1] == {request_id}
             assert reader.repository.get(request_id).status == 'QUEUED'
+
+
+def queued_request(tracker):
+    request_id = maintenance.queue_metadata_refresh(tracker, 1, 2, {})
+    return tracker.repository.get(request_id)
+
+
+def test_finished_request_cannot_start_progress_or_finish_again():
+    with WorkflowTracker(env={'PERSISTENCE_MODULE': 'eventsourcing.popo'}) as tracker:
+        request = queued_request(tracker)
+        request.finished({'counts': {'failed': 0}})
+        for illegal in (request.started,
+                        lambda: request.progressed({'processed': 1}),
+                        lambda: request.finished({})):
+            with pytest.raises(ValueError, match='DONE'):
+                illegal()
+        tracker.save(request)
+        assert len(tracker.repository.get(request.id).report) == 1
+
+
+def test_queued_request_has_no_progress_yet():
+    with WorkflowTracker(env={'PERSISTENCE_MODULE': 'eventsourcing.popo'}) as tracker:
+        request = queued_request(tracker)
+        with pytest.raises(ValueError, match='QUEUED'):
+            request.progressed({'processed': 1})
+
+
+def test_a_resumed_request_may_start_again():
+    with WorkflowTracker(env={'PERSISTENCE_MODULE': 'eventsourcing.popo'}) as tracker:
+        request = queued_request(tracker)
+        request.started()
+        request.started()  # the restarted supervisor resumes a RUNNING sweep
+        request.progressed({'processed': 1})
+        tracker.save(request)
+        assert tracker.repository.get(request.id).status == 'RUNNING'
+
+
+def test_stored_streams_keep_their_event_names():
+    from eventsourcing.utils import get_topic
+    for name in ('Created', 'Started', 'Progress', 'Finished'):
+        event_class = getattr(maintenance.MetadataRefresh, name)
+        assert get_topic(event_class) == (
+            f'biomero.maintenance:MetadataRefresh.{name}')
+
+
+def test_request_statuses_are_the_constants():
+    from biomero.constants import metadata_refresh_status as status
+    assert (status.QUEUED, status.RUNNING, status.DONE, status.FAILED) == (
+        'QUEUED', 'RUNNING', 'DONE', 'FAILED')
+    with WorkflowTracker(env={'PERSISTENCE_MODULE': 'eventsourcing.popo'}) as tracker:
+        request = queued_request(tracker)
+        assert request.status == status.QUEUED
+        request.started()
+        assert request.status == status.RUNNING
+        request.finished({'counts': {'failed': 2}})
+        assert request.status == status.FAILED
+
+
+def test_queueing_a_request_is_logged(caplog):
+    with WorkflowTracker(env={'PERSISTENCE_MODULE': 'eventsourcing.popo'}) as tracker:
+        with caplog.at_level(logging.INFO, logger='biomero.maintenance'):
+            request_id = maintenance.queue_metadata_refresh(tracker, 1, 2, {})
+    assert any(record.levelno == logging.INFO and str(request_id) in record.getMessage()
+               for record in caplog.records)

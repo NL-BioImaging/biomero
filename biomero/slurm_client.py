@@ -39,7 +39,7 @@ import hashlib
 import json
 import string
 from biomero.constants import (
-    slurm_env, LOCK_FILE_PATTERN, COMMAND_NOT_FOUND_EXIT_CODE, DEFAULT_SLURM_LOCK_CMD,
+    slurm_env, TRUTHY_VALUES, LOCK_FILE_PATTERN, COMMAND_NOT_FOUND_EXIT_CODE, DEFAULT_SLURM_LOCK_CMD,
     DEFAULT_SSH_RECOVERY_TIMEOUT, LOCK_WAIT_SECONDS, REMOTE_BUSY_EXIT_CODE, SSH_AUTH_TIMEOUT_SECONDS,
     SSH_BANNER_TIMEOUT_SECONDS, SSH_CONNECT_TIMEOUT_SECONDS,
     SSH_KEEPALIVE_SECONDS, SUBMISSION_JOB_NAME_PREFIX,
@@ -504,6 +504,9 @@ class SlurmClient(Connection):
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
+    # --user restricts the cancel to jobs of the account running it, expanded
+    # on the remote side like the other commands' $USER.
+    _CANCEL_JOBS_CMD = 'scancel --user="$USER" {slurm_job_ids}'
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
@@ -654,10 +657,9 @@ class SlurmClient(Connection):
 
         if env_value is not None:
             if value_type is bool:
-                truthy_values = ("true", "1", "yes", "y", "on")
                 falsy_values = ("false", "0", "no", "n", "off")
                 lowered = env_value.lower()
-                if lowered in truthy_values:
+                if lowered in TRUTHY_VALUES:
                     return True
                 if lowered in falsy_values:
                     return False
@@ -2541,9 +2543,8 @@ class SlurmClient(Connection):
                 slurm_model_jobs[k[:-len(suffix_job)]] = v
                 slurm_model_jobs_params[k[:-len(suffix_job)]] = []
             elif k.endswith(suffix_use_gpu):
-                slurm_model_use_gpu[k[:-len(suffix_use_gpu)]] = str(v).lower() in (
-                    "true", "1", "yes", "y", "on"
-                )
+                slurm_model_use_gpu[k[:-len(suffix_use_gpu)]] = (
+                    str(v).lower() in TRUTHY_VALUES)
             elif job_param_match:
                 slurm_model_jobs_params[job_param_match.group(1)].append(
                     f" --{job_param_match.group(2)}={v}")
@@ -4066,17 +4067,7 @@ class SlurmClient(Connection):
             SSHException: If the command fails, or sacct returns no job rows
                 after ``job_status_attempts`` attempts.
         """
-        # Filter job IDs to only include valid positive integers
-        valid_job_ids = []
-        for jid in slurm_job_ids:
-            try:
-                if jid is not None:
-                    val = int(jid)
-                    if val > 0:
-                        valid_job_ids.append(val)
-            except (ValueError, TypeError):
-                continue
-
+        valid_job_ids = self.positive_job_ids(slurm_job_ids)
         if not valid_job_ids:
             return {}, None
 
@@ -4145,6 +4136,65 @@ class SlurmClient(Connection):
                 continue
             job_status_dict[job_id] = parts[1]
         return job_status_dict
+
+    @staticmethod
+    def positive_job_ids(slurm_job_ids: List) -> List[int]:
+        """
+        Keep the entries that are valid Slurm job IDs: positive integers.
+
+        Args:
+            slurm_job_ids (List): Job IDs as numbers or strings; None and
+                values that are not numbers (such as the -1 that
+                ``extract_job_id`` returns for "not found") are dropped.
+
+        Returns:
+            List[int]: The valid job IDs, in the original order.
+        """
+        valid_job_ids = []
+        for job_id in slurm_job_ids:
+            try:
+                if job_id is not None and int(job_id) > 0:
+                    valid_job_ids.append(int(job_id))
+            except (ValueError, TypeError):
+                continue
+        return valid_job_ids
+
+    def cancel_slurm_jobs(self, slurm_job_ids: List[int]) -> Optional[Result]:
+        """
+        Cancel Slurm jobs, for example when the workflow they belong to is
+        cancelled.
+
+        Cancelling a job that already ended is not an error for the caller: the
+        job is gone either way, so this logs what Slurm answered and returns
+        the result instead of raising.
+
+        The command restricts ``scancel`` to jobs owned by the cluster account
+        BIOMERO connects with (``--user``, which Slurm documents as "restrict
+        the scancel operation to jobs owned by the given user"). An account
+        with Slurm operator, admin or coordinator rights may otherwise cancel
+        other users' jobs, so a wrong or stale job ID can never hit a job that
+        is not BIOMERO's. It uses ``--user="$USER"`` rather than ``--me``,
+        which older Slurm versions lack.
+
+        Args:
+            slurm_job_ids (List[int]): The job IDs of the jobs to cancel.
+
+        Returns:
+            Result: The result of the ``scancel`` command, or None when none
+                of the IDs is a valid job ID.
+        """
+        valid_job_ids = self.positive_job_ids(slurm_job_ids)
+        if not valid_job_ids:
+            logger.debug(f"No valid Slurm job to cancel in {slurm_job_ids}")
+            return None
+        cancel_cmd = self._CANCEL_JOBS_CMD.format(
+            slurm_job_ids=" ".join(str(job_id) for job_id in valid_job_ids))
+        logger.info(f"Cancelling Slurm jobs {valid_job_ids}")
+        result = self.run_commands([cancel_cmd], warn=True)
+        if not result.ok:
+            logger.warning(f"scancel of {valid_job_ids} reported: "
+                           f"{result.stderr or result.stdout}")
+        return result
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """
@@ -4524,9 +4574,7 @@ class SlurmClient(Connection):
         if use_gpu_value is None:
             use_gpu = config_use_gpu
         else:
-            use_gpu = str(use_gpu_value).lower() in (
-                "true", "1", "yes", "y", "on"
-            )
+            use_gpu = str(use_gpu_value).lower() in TRUTHY_VALUES
 
         if self.inject_gpu_flag:
             if use_gpu:

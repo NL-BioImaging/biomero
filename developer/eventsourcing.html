@@ -95,7 +95,8 @@
 <li class="toctree-l3"><a class="reference internal" href="#versioning-aggregates">Versioning aggregates</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#view-side">View side</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#view-side">View side</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-phase-and-progress">Workflow phase and progress</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#rebuilding-views-reprojection">Rebuilding views (reprojection)</a></li>
 </ul>
 </li>
@@ -196,6 +197,28 @@ changed and whether a downgrade still works.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">biomero.views.WorkflowAnalytics</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">biomero_task_execution</span></code> (per-task analytics, timings, failures)</p></li>
 </ul>
 <p>These are standard SQLAlchemy models defined in <code class="docutils literal notranslate"><span class="pre">biomero.database</span></code>. Schema changes are applied via event sourcing system rebuild.</p>
+</section>
+<section id="workflow-phase-and-progress">
+<h2>Workflow phase and progress<a class="headerlink" href="#workflow-phase-and-progress" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">WorkflowProgress</span></code> derives the workflow status and progress shown to users
+from the task that starts or reports a status, with one table
+(<code class="docutils literal notranslate"><span class="pre">biomero.views.workflow_phase_for</span></code>) used for both <code class="docutils literal notranslate"><span class="pre">TaskStarted</span></code> (no task
+status yet) and <code class="docutils literal notranslate"><span class="pre">StatusUpdated</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">_SLURM_Image_Transfer.py</span></code>: <code class="docutils literal notranslate"><span class="pre">TRANSFERRING</span></code>, 5%</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">convert_*</span></code> and <code class="docutils literal notranslate"><span class="pre">SLURM_Remote_Conversion.py</span></code>: <code class="docutils literal notranslate"><span class="pre">CONVERTING</span></code>, 25%</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SLURM_Get_Results.py</span></code>: <code class="docutils literal notranslate"><span class="pre">RETRIEVING</span></code>, 90%; <code class="docutils literal notranslate"><span class="pre">POSTPROCESSING</span></code>, 95% when
+that is the reported status</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SLURM_Import_Results.py</span></code>: <code class="docutils literal notranslate"><span class="pre">IMPORTING</span></code> (or the reported status), 90%;
+95% for <code class="docutils literal notranslate"><span class="pre">POSTPROCESSING</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SLURM_Run_Workflow.py</span></code> and the batched script: <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>, 50%</p></li>
+<li><p>any other task (the user’s workflow): <code class="docutils literal notranslate"><span class="pre">JOB_</span></code> plus the task status, 50%</p></li>
+</ul>
+<p>The progress of a user’s workflow task is interpolated between 50% and 90%.
+Before 2.9, a <code class="docutils literal notranslate"><span class="pre">StatusUpdated</span></code> of <code class="docutils literal notranslate"><span class="pre">SLURM_Remote_Conversion.py</span></code> was shown as
+<code class="docutils literal notranslate"><span class="pre">JOB_&lt;status&gt;</span></code> at 50%; it is now <code class="docutils literal notranslate"><span class="pre">CONVERTING</span></code> at 25%, as it already was
+when the task started. Only rows computed from new events change; replay the
+projections (see below) to correct older rows.</p>
 <section id="rebuilding-views-reprojection">
 <h3>Rebuilding views (reprojection)<a class="headerlink" href="#rebuilding-views-reprojection" title="Permalink to this heading"></a></h3>
 <p>Views are derived data. To catch up an existing progress listener, use the

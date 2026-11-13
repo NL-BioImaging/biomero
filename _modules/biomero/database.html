@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.database &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scripts.html">OMERO workflow scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.database</li>
+  <li class="wy-breadcrumbs-aside">
+    <a href="https://github.com/NL-BioImaging/biomero" class="fa fa-github" title="Open the repository on GitHub">
+      NL-BioImaging/biomero
+    </a>
+  </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.database</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2024 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_topic</span><span class="p">,</span> <span class="n">clear_topic_cache</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_engine</span><span class="p">,</span>
+    <span class="n">Column</span><span class="p">,</span>
+    <span class="n">Integer</span><span class="p">,</span>
+    <span class="n">String</span><span class="p">,</span>
+    <span class="n">DateTime</span><span class="p">,</span>
+    <span class="n">event</span><span class="p">,</span>
+    <span class="n">inspect</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">sessionmaker</span><span class="p">,</span> <span class="n">declarative_base</span><span class="p">,</span> <span class="n">scoped_session</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.dialects.postgresql</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span> <span class="k">as</span> <span class="n">PGUUID</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.exc</span><span class="w"> </span><span class="kn">import</span> <span class="n">DBAPIError</span><span class="p">,</span> <span class="n">OperationalError</span><span class="p">,</span> <span class="n">IntegrityError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">DATABASE_CONFLICT_DEFAULT_RETRIES</span><span class="p">,</span> <span class="n">slurm_env</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">weakref</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
+
+<span class="c1"># Import EventSourcing exceptions</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.persistence</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">EventSourcingIntegrityError</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.persistence</span><span class="w"> </span><span class="kn">import</span> <span class="n">OperationalError</span> <span class="k">as</span> <span class="n">EventSourcingOperationalError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="c1"># Fallback for older versions</span>
+    <span class="n">EventSourcingIntegrityError</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">EventSourcingOperationalError</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># --------------------- CONCURRENCY HELPERS ---------------------------- #</span>
+
+<span class="c1"># Messages (lowercase) of database errors that are concurrency conflicts, and</span>
+<span class="c1"># so worth retrying.</span>
+<span class="n">RETRYABLE_CONFLICT_MESSAGES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"unique constraint"</span><span class="p">,</span>
+    <span class="s2">"duplicate key"</span><span class="p">,</span>
+    <span class="s2">"concurrent update"</span><span class="p">,</span>
+    <span class="s2">"transaction is aborted"</span><span class="p">,</span>
+    <span class="s2">"deadlock detected"</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Messages (lowercase) of permanent data validation errors: never retried.</span>
+<span class="n">NON_RETRYABLE_ERROR_MESSAGES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"not null constraint"</span><span class="p">,</span>
+    <span class="s2">"null value in column"</span><span class="p">,</span>
+    <span class="s2">"cannot be null"</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">conflict_exception_types</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the exception types that may be a database conflict."""</span>
+    <span class="n">exception_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">OperationalError</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">EventSourcingIntegrityError</span><span class="p">:</span>
+        <span class="n">exception_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">EventSourcingIntegrityError</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">EventSourcingOperationalError</span><span class="p">:</span>
+        <span class="n">exception_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">EventSourcingOperationalError</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">exception_types</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_eventsourcing_error</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether an error comes from the event sourcing persistence layer.</span>
+
+<span class="sd">    Those are always concurrency conflicts (newer versions may have empty</span>
+<span class="sd">    messages) and never data validation errors.</span>
+<span class="sd">    """</span>
+    <span class="n">eventsourcing_types</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+        <span class="n">error_type</span> <span class="k">for</span> <span class="n">error_type</span> <span class="ow">in</span>
+        <span class="p">(</span><span class="n">EventSourcingIntegrityError</span><span class="p">,</span> <span class="n">EventSourcingOperationalError</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">error_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">eventsourcing_types</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_retryable_conflict</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether a database error is a concurrency conflict worth retrying.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        error (Exception): The exception raised by the database operation.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        False for permanent data validation errors, True for an event</span>
+<span class="sd">        sourcing error or a message that names a known conflict.</span>
+<span class="sd">    """</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="c1"># For EventSourcing exceptions, also check the underlying cause</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="s2">"__cause__"</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">message</span> <span class="o">+=</span> <span class="s2">" "</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">__cause__</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">text</span> <span class="ow">in</span> <span class="n">message</span> <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">NON_RETRYABLE_ERROR_MESSAGES</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Non-retryable data validation error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">is_eventsourcing_error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">text</span> <span class="ow">in</span> <span class="n">message</span> <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">RETRYABLE_CONFLICT_MESSAGES</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">backoff_delay</span><span class="p">(</span><span class="n">attempt</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">base_delay</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the exponential backoff, with jitter, before the next attempt."""</span>
+    <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">base_delay</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">)</span> <span class="o">+</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span> <span class="n">max_delay</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">retry_on_database_conflict</span><span class="p">(</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="n">DATABASE_CONFLICT_DEFAULT_RETRIES</span><span class="p">,</span>
+        <span class="n">base_delay</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_delay</span><span class="o">=</span><span class="mf">5.0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Decorator to retry database operations on concurrency conflicts.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        max_retries: Maximum number of retry attempts</span>
+<span class="sd">        base_delay: Base delay between retries in seconds</span>
+<span class="sd">        max_delay: Maximum delay between retries in seconds</span>
+<span class="sd">    """</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">last_exception</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_retries</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">conflict_exception_types</span><span class="p">()</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                    <span class="n">last_exception</span> <span class="o">=</span> <span class="n">error</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">attempt</span> <span class="o">==</span> <span class="n">max_retries</span>
+                            <span class="ow">or</span> <span class="ow">not</span> <span class="n">is_retryable_conflict</span><span class="p">(</span><span class="n">error</span><span class="p">)):</span>
+                        <span class="k">break</span>
+                    <span class="n">delay</span> <span class="o">=</span> <span class="n">backoff_delay</span><span class="p">(</span><span class="n">attempt</span><span class="p">,</span> <span class="n">base_delay</span><span class="p">,</span> <span class="n">max_delay</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">"Database conflict on attempt </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">max_retries</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">. "</span>
+                        <span class="sa">f</span><span class="s2">"Retrying in </span><span class="si">{</span><span class="n">delay</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s..."</span>
+                    <span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">EngineManager</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">rollback_error</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Rollback before retry failed: "</span>
+                                       <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rollback_error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+            <span class="c1"># All retries exhausted, raise the last exception</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Database operation failed after </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> attempts (max </span><span class="si">{</span><span class="n">max_retries</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">last_exception</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">last_exception</span>
+
+        <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">decorator</span>
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">database_transaction</span><span class="p">(</span><span class="n">isolation_level</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Context manager for database transactions with proper error handling.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        isolation_level: SQLAlchemy isolation level (e.g., 'READ_COMMITTED', 'SERIALIZABLE')</span>
+<span class="sd">    """</span>
+    <span class="c1"># Don't manage session lifecycle here - let the scoped session handle it</span>
+    <span class="c1"># Just provide transaction boundaries and error handling</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Set isolation level if specified</span>
+        <span class="k">if</span> <span class="n">isolation_level</span><span class="p">:</span>
+            <span class="n">session</span> <span class="o">=</span> <span class="n">EngineManager</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span>
+            <span class="n">session</span><span class="o">.</span><span class="n">connection</span><span class="p">(</span><span class="n">execution_options</span><span class="o">=</span><span class="p">{</span><span class="s1">'isolation_level'</span><span class="p">:</span> <span class="n">isolation_level</span><span class="p">})</span>
+            
+        <span class="k">yield</span>
+        
+        <span class="c1"># Commit if we reach this point</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Transaction rolled back due to: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">rollback_error</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error during rollback: </span><span class="si">{</span><span class="n">rollback_error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">raise</span>
+
+
+<span class="c1"># --------------------- VIEWS DB tables/classes ---------------------------- #</span>
+
+<span class="c1"># Base class for declarative class definitions</span>
+<span class="n">Base</span> <span class="o">=</span> <span class="n">declarative_base</span><span class="p">()</span>
+
+<span class="c1"># Set to True when Base.metadata.create_all created any tables in this process</span>
+<span class="n">CREATED_ANY_TABLES</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">JobView</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    SQLAlchemy model for the 'biomero_job_view' table.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        slurm_job_id (Integer): The unique identifier for the Slurm job.</span>
+<span class="sd">        user (Integer): The ID of the user who submitted the job.</span>
+<span class="sd">        group (Integer): The group ID associated with the job.</span>
+<span class="sd">        task_id (UUID): The unique identifier for the biomero task</span>
+
+<span class="sd">    Note: Schema changes are handled via event sourcing system rebuild.</span>
+<span class="sd">    Use SlurmClient.initialize_analytics_system(reset_tables=True) to</span>
+<span class="sd">    apply changes.</span>
+<span class="sd">    """</span>
+    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">'biomero_job_view'</span>
+
+    <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">group</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">task_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">PGUUID</span><span class="p">(</span><span class="n">as_uuid</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+    
+
+<span class="k">class</span><span class="w"> </span><span class="nc">JobProgressView</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    SQLAlchemy model for the 'biomero_job_progress_view' table.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        slurm_job_id (Integer): The unique identifier for the Slurm job.</span>
+<span class="sd">        status (String): The current status of the Slurm job.</span>
+<span class="sd">        progress (String, optional): The progress status of the Slurm job.</span>
+
+<span class="sd">    Note: Schema changes are handled via event sourcing system rebuild.</span>
+<span class="sd">    Use SlurmClient.initialize_analytics_system(reset_tables=True) to</span>
+<span class="sd">    apply changes.</span>
+<span class="sd">    """</span>
+    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">'biomero_job_progress_view'</span>
+
+    <span class="n">slurm_job_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">progress</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowProgressView</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    SQLAlchemy model for the 'workflow_progress_view' table.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        workflow_id (PGUUID): The unique identifier for the workflow</span>
+<span class="sd">            (primary key).</span>
+<span class="sd">        status (String, optional): The current status of the workflow.</span>
+<span class="sd">        progress (String, optional): The progress status of the workflow.</span>
+<span class="sd">        user (String, optional): The user who initiated the workflow.</span>
+<span class="sd">        group (String, optional): The group associated with the workflow.</span>
+<span class="sd">        name (String, optional): The name of the workflow</span>
+<span class="sd">        task (String, optional): The current task being executed</span>
+<span class="sd">        main_task_name (String, optional): The main user-facing workflow task</span>
+<span class="sd">            (e.g., "cellexpansion" instead of "SLURM_Get_Results.py")</span>
+
+<span class="sd">    Note: Schema changes are handled via event sourcing system rebuild.</span>
+<span class="sd">    Use SlurmClient.initialize_analytics_system(reset_tables=True) to</span>
+<span class="sd">    apply changes.</span>
+<span class="sd">    """</span>
+    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">'biomero_workflow_progress_view'</span>
+
+    <span class="n">workflow_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">PGUUID</span><span class="p">(</span><span class="n">as_uuid</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">progress</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">group</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">task</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">main_task_name</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    
+    
+<span class="k">class</span><span class="w"> </span><span class="nc">TaskExecution</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    SQLAlchemy model for the 'biomero_task_execution' table.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        task_id (PGUUID): The unique identifier for the task.</span>
+<span class="sd">        task_name (String): The name of the task.</span>
+<span class="sd">        task_version (String): The version of the task.</span>
+<span class="sd">        user_id (Integer, optional): The ID of the user who initiated the task.</span>
+<span class="sd">        group_id (Integer, optional): The group ID associated with the task.</span>
+<span class="sd">        status (String): The current status of the task.</span>
+<span class="sd">        start_time (DateTime): The time when the task started.</span>
+<span class="sd">        end_time (DateTime, optional): The time when the task ended.</span>
+<span class="sd">        error_type (String, optional): Type of error encountered during</span>
+<span class="sd">            execution, if any.</span>
+
+<span class="sd">        Migration warning:</span>
+<span class="sd">            Any schema change (columns, types, constraints, indexes)</span>
+<span class="sd">            must be captured in a new Alembic revision and applied to</span>
+<span class="sd">            the DB.</span>
+
+<span class="sd">                PowerShell (Windows):</span>
+<span class="sd">                        $env:SQLALCHEMY_URL = \</span>
+<span class="sd">                            'postgresql+psycopg2://USER:PASS@HOST:5432/DB'</span>
+<span class="sd">                        cd biomero/biomero</span>
+<span class="sd">                        alembic -c migrations/alembic.ini revision \</span>
+<span class="sd">                            --autogenerate -m "explain change"</span>
+
+<span class="sd">                        Bash (Linux/macOS):</span>
+<span class="sd">                                export SQLALCHEMY_URL= \</span>
+<span class="sd">                                    postgresql+psycopg2://USER:PASS@HOST:5432/DB</span>
+<span class="sd">                        cd biomero/biomero</span>
+<span class="sd">                        alembic -c migrations/alembic.ini revision \</span>
+<span class="sd">                            --autogenerate -m "explain change"</span>
+
+<span class="sd">                Alternatively run upgrade:</span>
+<span class="sd">                        alembic -c migrations/alembic.ini upgrade head</span>
+
+<span class="sd">                        Notes:</span>
+<span class="sd">                                - Version table: alembic_version_biomero</span>
+<span class="sd">                                - Only BIOMERO tables are included via env.py</span>
+<span class="sd">                                    include_object</span>
+<span class="sd">    """</span>
+    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">'biomero_task_execution'</span>
+
+    <span class="n">task_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">PGUUID</span><span class="p">(</span><span class="n">as_uuid</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">task_name</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">task_version</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
+    <span class="n">user_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">group_id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">end_time</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">error_type</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+
+<span class="c1"># Listen for SQLAlchemy actually creating one or more tables via create_all</span>
+<span class="nd">@event</span><span class="o">.</span><span class="n">listens_for</span><span class="p">(</span><span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="s2">"after_create"</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_receive_after_create</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">CREATED_ANY_TABLES</span>
+    <span class="k">if</span> <span class="n">tables</span><span class="p">:</span>
+        <span class="n">CREATED_ANY_TABLES</span> <span class="o">=</span> <span class="kc">True</span>
+    
+
+<span class="k">class</span><span class="w"> </span><span class="nc">EngineHolder</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Identity token of one user of the database engine.</span>
+
+<span class="sd">    Users (``SlurmClient`` instances) cannot be compared or hashed by value</span>
+<span class="sd">    (Fabric connections are equal when their host is), so each owns a token.</span>
+<span class="sd">    """</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"__weakref__"</span><span class="p">,)</span>
+
+
+<div class="viewcode-block" id="EngineManager"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">EngineManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Manages the SQLAlchemy engine and session lifecycle.</span>
+
+<span class="sd">    Class Attributes:</span>
+<span class="sd">        _engine: The SQLAlchemy engine used to connect to the database.</span>
+<span class="sd">        _scoped_session_topic: The topic of the scoped session.</span>
+<span class="sd">        _session: The scoped session used for database operations.</span>
+<span class="sd">        _holders: The live ``EngineHolder`` tokens that acquired the engine.</span>
+<span class="sd">            Weakly referenced, so a holder that is garbage collected without</span>
+<span class="sd">            releasing does not keep the engine alive.</span>
+<span class="sd">    """</span>
+    <span class="n">_engine</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_scoped_session_topic</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_session</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_holders</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">WeakSet</span><span class="p">()</span>
+    <span class="n">_holders_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="EngineManager.acquire"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.acquire">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">acquire</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">holder</span><span class="p">:</span> <span class="n">EngineHolder</span><span class="p">,</span> <span class="n">sqlalchemy_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create the scoped session for ``holder`` and register it as a user.</span>
+
+<span class="sd">        Creating the engine and registering the holder happen under one lock,</span>
+<span class="sd">        so a holder that exits meanwhile cannot dispose an engine that this</span>
+<span class="sd">        one is about to use.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            holder (EngineHolder): The token of the new user.</span>
+<span class="sd">            sqlalchemy_url (str, optional): The SQLAlchemy database URL; see</span>
+<span class="sd">                ``create_scoped_session``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The topic of the scoped session adapter class.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_holders_lock</span><span class="p">:</span>
+            <span class="n">topic</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">create_scoped_session</span><span class="p">(</span><span class="n">sqlalchemy_url</span><span class="o">=</span><span class="n">sqlalchemy_url</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_holders</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">holder</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">topic</span></div>
+
+<div class="viewcode-block" id="EngineManager.release"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.release">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">release</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">holder</span><span class="p">:</span> <span class="n">EngineHolder</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Unregister ``holder``; dispose the engine with the last holder.</span>
+
+<span class="sd">        While other holders remain (the workflow supervisor runs several</span>
+<span class="sd">        clients), only this thread's session is removed. Deciding and</span>
+<span class="sd">        disposing happen under the lock of ``acquire``. Releasing a holder</span>
+<span class="sd">        twice, or one that never acquired, is harmless.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            holder (EngineHolder): The token of the user that is done.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_holders_lock</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_holders</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">holder</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_holders</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"Other holders use the database engine; "</span>
+                             <span class="s2">"releasing only this thread's session"</span><span class="p">)</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">remove_session</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">close_engine</span><span class="p">()</span></div>
+        
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_tables</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Create the view tables that do not exist yet, and detect fresh installs.</span>
+
+<span class="sd">        Concurrent starts can race here, and the loser's DDL may fail although</span>
+<span class="sd">        the tables exist afterwards. That is the only failure tolerated: after</span>
+<span class="sd">        a database error, every table must exist, otherwise the original error</span>
+<span class="sd">        (wrong URL, bad credentials, missing privileges, failed DDL) is raised.</span>
+<span class="sd">        """</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">create_all</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">DBAPIError</span> <span class="k">as</span> <span class="n">create_error</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">existing</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span><span class="p">)</span>
+                <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">tables</span>
+                           <span class="k">if</span> <span class="ow">not</span> <span class="n">existing</span><span class="o">.</span><span class="n">has_table</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span>
+            <span class="k">except</span> <span class="n">DBAPIError</span><span class="p">:</span>
+                <span class="c1"># The check failed too: report the error that started it.</span>
+                <span class="k">raise</span> <span class="n">create_error</span>
+            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+                <span class="k">raise</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"Lost the race to create the tables; they exist now"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EngineManager.create_scoped_session"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.create_scoped_session">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_scoped_session</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">sqlalchemy_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Creates and returns a scoped session for interacting with the</span>
+<span class="sd">        database.</span>
+
+<span class="sd">        If the engine doesn't already exist, it initializes the SQLAlchemy</span>
+<span class="sd">        engine and sets up the scoped session. The engine and the session are</span>
+<span class="sd">        set up independently: a long-lived process (such as the workflow</span>
+<span class="sd">        supervisor) can outlive a session that was removed on the way out of a</span>
+<span class="sd">        SlurmClient context, and still needs a working session afterwards.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sqlalchemy_url (str, optional): The SQLAlchemy database URL. If</span>
+<span class="sd">                not provided, the method will retrieve the value from the</span>
+<span class="sd">                'SQLALCHEMY_URL' environment variable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The topic of the scoped session adapter class.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Note, we only allow sqlalchemy eventsourcing module</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">sqlalchemy_url</span><span class="p">:</span>
+                <span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">SQLALCHEMY_URL</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">sqlalchemy_url</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_create_tables</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="c1"># Do not keep an engine whose tables are missing: the next</span>
+                <span class="c1"># call would skip creating them.</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">raise</span>
+
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Create a scoped_session object.</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">scoped_session</span><span class="p">(</span>
+                <span class="n">sessionmaker</span><span class="p">(</span>
+                    <span class="n">autocommit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">autoflush</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">bind</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="k">class</span><span class="w"> </span><span class="nc">MyScopedSessionAdapter</span><span class="p">:</span>
+                <span class="k">def</span><span class="w"> </span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+
+            <span class="c1"># Produce the topic of the scoped session adapter class.</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_scoped_session_topic</span> <span class="o">=</span> <span class="n">get_topic</span><span class="p">(</span><span class="n">MyScopedSessionAdapter</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_scoped_session_topic</span></div>
+
+<div class="viewcode-block" id="EngineManager.get_session"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.get_session">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_session</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Retrieves the current scoped session, setting one up when needed.</span>
+
+<span class="sd">        This is a borrowed, thread-scoped session, not a new owned session.</span>
+<span class="sd">        Do not use it as a context manager for reads made while an event is</span>
+<span class="sd">        being processed: Session.__exit__ closes the session and rolls back</span>
+<span class="sd">        the pending producer event transaction. A block that commits before it</span>
+<span class="sd">        ends (the views' ``update_view_table``) is safe, because nothing is</span>
+<span class="sd">        pending when it closes. SlurmClient's outer context releases the</span>
+<span class="sd">        session when work finishes.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Session: The SQLAlchemy session for interacting with the database.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">create_scoped_session</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="p">()</span></div>
+    
+<div class="viewcode-block" id="EngineManager.commit"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.commit">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">commit</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Commits the current transaction in the scoped session.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"No database session to commit"</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># The caller (or retry_on_database_conflict) logs the error.</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+            <span class="k">raise</span></div>
+    
+<div class="viewcode-block" id="EngineManager.rollback"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.rollback">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rollback</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Rolls back the current transaction in the scoped session.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"No database session to roll back"</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># Force session removal on rollback failure; the error is raised</span>
+            <span class="c1"># for the caller to log.</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+            <span class="k">raise</span></div>
+    
+<div class="viewcode-block" id="EngineManager.remove_session"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.remove_session">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove_session</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Removes the current session from the scoped session registry.</span>
+
+<span class="sd">        Safe to call when no session was ever set up, so that it can be used</span>
+<span class="sd">        for cleanup on any exit path.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span></div>
+    
+<div class="viewcode-block" id="EngineManager.safe_commit"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.safe_commit">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="n">DATABASE_CONFLICT_DEFAULT_RETRIES</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">safe_commit</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Commits the transaction with automatic retry on conflicts.</span>
+<span class="sd">        """</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+            
+<div class="viewcode-block" id="EngineManager.close_engine"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.EngineManager.close_engine">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">close_engine</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Closes the database engine and cleans up the session.</span>
+
+<span class="sd">    This method disposes of the SQLAlchemy engine, removes the session,</span>
+<span class="sd">        and resets all associated class attributes to `None`.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_scoped_session_topic</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">clear_topic_cache</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

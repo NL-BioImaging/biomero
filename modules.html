@@ -246,6 +246,18 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="biomero.html#module-biomero.eventsourcing">biomero.eventsourcing module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager"><code class="docutils literal notranslate"><span class="pre">EngineManager</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.acquire"><code class="docutils literal notranslate"><span class="pre">EngineManager.acquire()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.close_engine"><code class="docutils literal notranslate"><span class="pre">EngineManager.close_engine()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.commit"><code class="docutils literal notranslate"><span class="pre">EngineManager.commit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.create_scoped_session"><code class="docutils literal notranslate"><span class="pre">EngineManager.create_scoped_session()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.get_session"><code class="docutils literal notranslate"><span class="pre">EngineManager.get_session()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.release"><code class="docutils literal notranslate"><span class="pre">EngineManager.release()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.remove_session"><code class="docutils literal notranslate"><span class="pre">EngineManager.remove_session()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.rollback"><code class="docutils literal notranslate"><span class="pre">EngineManager.rollback()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.EngineManager.safe_commit"><code class="docutils literal notranslate"><span class="pre">EngineManager.safe_commit()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.eventsourcing.NoOpWorkflowTracker"><code class="docutils literal notranslate"><span class="pre">NoOpWorkflowTracker</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.eventsourcing.ResultDict"><code class="docutils literal notranslate"><span class="pre">ResultDict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.ResultDict.command"><code class="docutils literal notranslate"><span class="pre">ResultDict.command</span></code></a></li>
@@ -316,7 +328,7 @@
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.add_task"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.add_task</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.complete_workflow"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.complete_workflow()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.fail_workflow"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.fail_workflow()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.record_canonical_inputs"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.record_canonical_inputs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.record_canonical_inputs"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.record_canonical_inputs()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.request_cancel"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.request_cancel</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.eventsourcing.WorkflowRun.start_workflow"><code class="docutils literal notranslate"><span class="pre">WorkflowRun.start_workflow</span></code></a></li>
 </ul>
@@ -382,6 +394,8 @@
 <li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.views.JobProgress"><code class="docutils literal notranslate"><span class="pre">JobProgress</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.JobProgress.name"><code class="docutils literal notranslate"><span class="pre">JobProgress.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.JobProgress.policy"><code class="docutils literal notranslate"><span class="pre">JobProgress.policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.JobProgress.resolve_job"><code class="docutils literal notranslate"><span class="pre">JobProgress.resolve_job()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.JobProgress.resolve_job_state"><code class="docutils literal notranslate"><span class="pre">JobProgress.resolve_job_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.JobProgress.topics"><code class="docutils literal notranslate"><span class="pre">JobProgress.topics</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.JobProgress.update_view_table"><code class="docutils literal notranslate"><span class="pre">JobProgress.update_view_table()</span></code></a></li>
 </ul>
@@ -404,20 +418,53 @@
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.WorkflowProgress.policy"><code class="docutils literal notranslate"><span class="pre">WorkflowProgress.policy()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.WorkflowProgress.resolve_task"><code class="docutils literal notranslate"><span class="pre">WorkflowProgress.resolve_task()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.WorkflowProgress.resolve_workflow"><code class="docutils literal notranslate"><span class="pre">WorkflowProgress.resolve_workflow()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.WorkflowProgress.skip_remote_shallower"><code class="docutils literal notranslate"><span class="pre">WorkflowProgress.skip_remote_shallower()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.WorkflowProgress.topics"><code class="docutils literal notranslate"><span class="pre">WorkflowProgress.topics</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.views.WorkflowProgress.update_view_table"><code class="docutils literal notranslate"><span class="pre">WorkflowProgress.update_view_table()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.views.tracker_repository"><code class="docutils literal notranslate"><span class="pre">tracker_repository()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="biomero.html#module-biomero.provenance">biomero.provenance module</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.provenance.MetadataAnnotation"><code class="docutils literal notranslate"><span class="pre">MetadataAnnotation</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.provenance.MetadataChange"><code class="docutils literal notranslate"><span class="pre">MetadataChange</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.provenance.plan_metadata_refresh"><code class="docutils literal notranslate"><span class="pre">plan_metadata_refresh()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.provenance.render_workflow_metadata"><code class="docutils literal notranslate"><span class="pre">render_workflow_metadata()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.provenance.resolve_metadata_versions"><code class="docutils literal notranslate"><span class="pre">resolve_metadata_versions()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.provenance.storage_metadata_view"><code class="docutils literal notranslate"><span class="pre">storage_metadata_view()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="biomero.html#module-biomero.metadata_views">biomero.metadata_views module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.MetadataAnnotation"><code class="docutils literal notranslate"><span class="pre">MetadataAnnotation</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.MetadataChange"><code class="docutils literal notranslate"><span class="pre">MetadataChange</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.StorageEvidence"><code class="docutils literal notranslate"><span class="pre">StorageEvidence</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.metadata_views.StorageEvidence.evidence"><code class="docutils literal notranslate"><span class="pre">StorageEvidence.evidence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.metadata_views.StorageEvidence.latest_task"><code class="docutils literal notranslate"><span class="pre">StorageEvidence.latest_task</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.metadata_views.StorageEvidence.task_id"><code class="docutils literal notranslate"><span class="pre">StorageEvidence.task_id</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.advance_import_task_to_storage_evidence"><code class="docutils literal notranslate"><span class="pre">advance_import_task_to_storage_evidence()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.annotation_identity"><code class="docutils literal notranslate"><span class="pre">annotation_identity()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.belongs_to_workflow_view"><code class="docutils literal notranslate"><span class="pre">belongs_to_workflow_view()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.configured_workflow_names"><code class="docutils literal notranslate"><span class="pre">configured_workflow_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.find_storage_evidence"><code class="docutils literal notranslate"><span class="pre">find_storage_evidence()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.format_large_field_reference"><code class="docutils literal notranslate"><span class="pre">format_large_field_reference()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.is_internal_task"><code class="docutils literal notranslate"><span class="pre">is_internal_task()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.is_large_field_reference"><code class="docutils literal notranslate"><span class="pre">is_large_field_reference()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.is_parameter_of_unselected_workflow"><code class="docutils literal notranslate"><span class="pre">is_parameter_of_unselected_workflow()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.job_row_values"><code class="docutils literal notranslate"><span class="pre">job_row_values()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.load_aggregate"><code class="docutils literal notranslate"><span class="pre">load_aggregate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.load_visible_tasks"><code class="docutils literal notranslate"><span class="pre">load_visible_tasks()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.make_annotation"><code class="docutils literal notranslate"><span class="pre">make_annotation()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.merge_view_values"><code class="docutils literal notranslate"><span class="pre">merge_view_values()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.plan_metadata_refresh"><code class="docutils literal notranslate"><span class="pre">plan_metadata_refresh()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.plan_unexpected_row"><code class="docutils literal notranslate"><span class="pre">plan_unexpected_row()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.qualifying_workflow_names"><code class="docutils literal notranslate"><span class="pre">qualifying_workflow_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.render_workflow_metadata"><code class="docutils literal notranslate"><span class="pre">render_workflow_metadata()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.resolve_metadata_versions"><code class="docutils literal notranslate"><span class="pre">resolve_metadata_versions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.selected_workflow_names"><code class="docutils literal notranslate"><span class="pre">selected_workflow_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.snapshot_version"><code class="docutils literal notranslate"><span class="pre">snapshot_version()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.software_version"><code class="docutils literal notranslate"><span class="pre">software_version()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.stale_keys"><code class="docutils literal notranslate"><span class="pre">stale_keys()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.storage_metadata_view"><code class="docutils literal notranslate"><span class="pre">storage_metadata_view()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.task_namespace"><code class="docutils literal notranslate"><span class="pre">task_namespace()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.task_row_values"><code class="docutils literal notranslate"><span class="pre">task_row_values()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.validate_view_version"><code class="docutils literal notranslate"><span class="pre">validate_view_version()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.versions_with_timestamp"><code class="docutils literal notranslate"><span class="pre">versions_with_timestamp()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.view_parameters"><code class="docutils literal notranslate"><span class="pre">view_parameters()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.with_revision"><code class="docutils literal notranslate"><span class="pre">with_revision()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="biomero.html#biomero.metadata_views.workflow_row_values"><code class="docutils literal notranslate"><span class="pre">workflow_row_values()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="biomero.html#module-biomero.detached">biomero.detached module</a><ul>

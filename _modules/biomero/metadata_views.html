@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.metadata_views &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scripts.html">OMERO workflow scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.metadata_views</li>
+  <li class="wy-breadcrumbs-aside">
+    <a href="https://github.com/NL-BioImaging/biomero" class="fa fa-github" title="Open the repository on GitHub">
+      NL-BioImaging/biomero
+    </a>
+  </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.metadata_views</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2024 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">"""Versioned OMERO key/value views of immutable workflow history.</span>
+
+<span class="sd">The event store is the authoritative record of a workflow. This module renders</span>
+<span class="sd">(and plans refreshes of) the searchable key/value *views* of that history that</span>
+<span class="sd">the scripts attach to OMERO objects. It neither writes events nor changes OMERO</span>
+<span class="sd">objects: it only returns plain data structures that the caller applies.</span>
+
+<span class="sd">Full CSV export is deliberately independent of this searchable, selectively</span>
+<span class="sd">reduced view. The textual contract with the scripts that write the views is</span>
+<span class="sd">pinned in ``tests/unit/test_metadata_views.py``.</span>
+<span class="sd">"""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">NamedTuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">IMAGE_IMPORT_SCRIPT</span><span class="p">,</span>
+    <span class="n">IMPORT_RESULTS_SCRIPT</span><span class="p">,</span>
+    <span class="n">LAUNCHER_MARKER</span><span class="p">,</span>
+    <span class="n">REMOTE_SHALLOWER_TASK_NAME</span><span class="p">,</span>
+    <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">,</span>
+    <span class="n">RUN_WF_SCRIPT</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_launcher_task</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">NAMESPACE</span> <span class="o">=</span> <span class="s2">"biomero/workflow"</span>
+<span class="n">TASK_NAMESPACE_PREFIX</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">NAMESPACE</span><span class="si">}</span><span class="s2">/task/"</span>
+<span class="n">JOB_NAMESPACE_SUFFIX</span> <span class="o">=</span> <span class="s2">"/job"</span>
+
+<span class="c1"># The only metadata view layout. It is written to ``Metadata_View_Version`` so</span>
+<span class="c1"># a later layout can be told apart from existing annotations.</span>
+<span class="n">METADATA_VIEW_VERSION</span> <span class="o">=</span> <span class="s2">"v0"</span>
+<span class="n">SUPPORTED_METADATA_VIEW_VERSIONS</span> <span class="o">=</span> <span class="p">(</span><span class="n">METADATA_VIEW_VERSION</span><span class="p">,)</span>
+
+<span class="c1"># Result tasks whose annotations the scripts discover under the Get Results</span>
+<span class="c1"># namespace, whichever of the two scripts ran the import.</span>
+<span class="n">RESULT_TASK_NAMES</span> <span class="o">=</span> <span class="p">(</span><span class="n">IMPORT_RESULTS_SCRIPT</span><span class="p">,</span> <span class="n">IMAGE_IMPORT_SCRIPT</span><span class="p">)</span>
+<span class="c1"># Orchestration tasks that can carry parameters of several workflows.</span>
+<span class="n">ORCHESTRATION_TASK_NAMES</span> <span class="o">=</span> <span class="p">(</span><span class="n">RUN_WF_SCRIPT</span><span class="p">,</span> <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">)</span>
+
+<span class="c1"># Task parameters are prefixed in the view, so they cannot clash with the</span>
+<span class="c1"># fixed task fields. Job environment variables get their own prefix.</span>
+<span class="n">PARAM_PREFIX</span> <span class="o">=</span> <span class="s2">"Param_"</span>
+<span class="n">ENV_PREFIX</span> <span class="o">=</span> <span class="s2">"Env_"</span>
+<span class="n">OUTPUT_SETTINGS_PARAM</span> <span class="o">=</span> <span class="s2">"output_settings"</span>
+<span class="c1"># Parameters of an orchestration task that are qualified by workflow name:</span>
+<span class="c1"># "&lt;workflow&gt; | &lt;parameter&gt;" and the older "&lt;workflow&gt;_|_&lt;parameter&gt;".</span>
+<span class="n">WORKFLOW_PARAM_SEPARATORS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">" | "</span><span class="p">,</span> <span class="s2">"_|_"</span><span class="p">)</span>
+<span class="n">WORKFLOW_VERSION_SUFFIX</span> <span class="o">=</span> <span class="s2">"_Version"</span>
+<span class="c1"># Orchestration parameters that only duplicate the workflow descriptors</span>
+<span class="c1"># (wf_params_, wf_file_params_) or are BIOMERO bookkeeping such as the</span>
+<span class="c1"># launcher marker (_biomero_).</span>
+<span class="n">WF_PARAMS_PREFIX</span> <span class="o">=</span> <span class="s2">"wf_params_"</span>
+<span class="n">WF_FILE_PARAMS_PREFIX</span> <span class="o">=</span> <span class="s2">"wf_file_params_"</span>
+<span class="c1"># The launcher marker and the other BIOMERO bookkeeping parameters share the</span>
+<span class="c1"># leading "_biomero_".</span>
+<span class="n">BIOMERO_PARAM_PREFIX</span> <span class="o">=</span> <span class="n">LAUNCHER_MARKER</span><span class="p">[:</span><span class="n">LAUNCHER_MARKER</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">"_"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+<span class="n">EXCLUDED_PARAM_PREFIXES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">WF_PARAMS_PREFIX</span><span class="p">,</span> <span class="n">WF_FILE_PARAMS_PREFIX</span><span class="p">,</span> <span class="n">BIOMERO_PARAM_PREFIX</span><span class="p">)</span>
+
+<span class="n">UNKNOWN_SOFTWARE_VERSION</span> <span class="o">=</span> <span class="s2">"Unknown"</span>
+<span class="n">SOFTWARE_VERSION_PATTERN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"\d+\.\d+\.\d+"</span><span class="p">)</span>
+<span class="n">STORAGE_SHALLOW_ZARR</span> <span class="o">=</span> <span class="s2">"shallow-zarr"</span>
+<span class="n">STORAGE_FULL_ZARR</span> <span class="o">=</span> <span class="s2">"full-zarr"</span>
+<span class="n">STORAGE_FORMATS</span> <span class="o">=</span> <span class="p">(</span><span class="n">STORAGE_SHALLOW_ZARR</span><span class="p">,</span> <span class="n">STORAGE_FULL_ZARR</span><span class="p">)</span>
+<span class="c1"># Largest UTF-8 size of the inline ``Canonical_Biocodes`` value. The scripts</span>
+<span class="c1"># replace any key/value pair above 1024 bytes by a CSV reference (see</span>
+<span class="c1"># LARGE_FIELD_REFERENCE_TEMPLATE), so the biocode list is summarised well</span>
+<span class="c1"># before that, to keep the pair searchable in OMERO.</span>
+<span class="n">MAX_INLINE_BIOCODES_BYTES</span> <span class="o">=</span> <span class="mi">800</span>
+
+<span class="c1"># The scripts replace a key/value pair too large for the OMERO index by this</span>
+<span class="c1"># text and attach the full value as a CSV file. A refresh must not re-inflate</span>
+<span class="c1"># such a value, so core recognises the text with a pattern that matches what</span>
+<span class="c1"># ``format_large_field_reference`` writes.</span>
+<span class="n">LARGE_FIELD_REFERENCE_TEMPLATE</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"Large field; full value in </span><span class="si">{csv_name}</span><span class="s2"> (utf8_bytes=</span><span class="si">{size}</span><span class="s2">; sha256=</span><span class="si">{digest}</span><span class="s2">)"</span><span class="p">)</span>
+<span class="n">LARGE_FIELD_REFERENCE_PATTERN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">r</span><span class="s2">"Large field; full value in metadata_\S+\.csv "</span>
+    <span class="sa">r</span><span class="s2">"\(utf8_bytes=\d+; sha256=[0-9a-f]+\)"</span><span class="p">)</span>
+
+<span class="c1"># Evidence key -&gt; view key, for the storage facts of a result.</span>
+<span class="n">STORAGE_EVIDENCE_LABELS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"location"</span><span class="p">:</span> <span class="s2">"Shallowing_Location"</span><span class="p">,</span>
+    <span class="s2">"tool_version"</span><span class="p">:</span> <span class="s2">"Shallower_Tool_Version"</span><span class="p">,</span>
+    <span class="s2">"container"</span><span class="p">:</span> <span class="s2">"Shallower_Container"</span><span class="p">,</span>
+    <span class="s2">"manifest"</span><span class="p">:</span> <span class="s2">"Shallow_Manifest"</span><span class="p">,</span>
+    <span class="s2">"manifest_sha256"</span><span class="p">:</span> <span class="s2">"Shallow_Manifest_SHA256"</span><span class="p">,</span>
+    <span class="s2">"report_sha256"</span><span class="p">:</span> <span class="s2">"Shallower_Report_SHA256"</span><span class="p">,</span>
+    <span class="s2">"task_id"</span><span class="p">:</span> <span class="s2">"Shallower_Task_ID"</span><span class="p">,</span>
+    <span class="s2">"job_id"</span><span class="p">:</span> <span class="s2">"Shallower_Job_ID"</span><span class="p">,</span>
+    <span class="s2">"reason"</span><span class="p">:</span> <span class="s2">"Storage_Outcome_Reason"</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="MetadataAnnotation"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.MetadataAnnotation">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MetadataAnnotation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One key/value annotation: its namespace and its values."""</span>
+
+    <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="MetadataChange"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.MetadataChange">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MetadataChange</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A planned change; ``after`` is None to unlink the annotation."""</span>
+
+    <span class="n">before</span><span class="p">:</span> <span class="n">MetadataAnnotation</span>
+    <span class="n">after</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MetadataAnnotation</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="StorageEvidence"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.StorageEvidence">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">StorageEvidence</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Newly recorded storage evidence on the latest version of a task."""</span>
+
+    <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">latest_task</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="n">evidence</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Contract with the scripts: reduced (large) fields</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="format_large_field_reference"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.format_large_field_reference">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">format_large_field_reference</span><span class="p">(</span><span class="n">csv_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">digest</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Format the text that replaces a value too large for the OMERO index.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        csv_name (str): File name of the CSV holding the full value.</span>
+<span class="sd">        size (int): Size of the original value in UTF-8 bytes.</span>
+<span class="sd">        digest (str): SHA-256 hex digest of the original value.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The reference text, recognised by ``is_large_field_reference``.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">LARGE_FIELD_REFERENCE_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">csv_name</span><span class="o">=</span><span class="n">csv_name</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">digest</span><span class="o">=</span><span class="n">digest</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="is_large_field_reference"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.is_large_field_reference">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_large_field_reference</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether a stored value is a reference to a CSV file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (Any): A stored annotation value.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True if the value has the form ``format_large_field_reference`` writes.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">LARGE_FIELD_REFERENCE_PATTERN</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Task selection and parameters</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="is_internal_task"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.is_internal_task">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_internal_task</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether a task is coordination bookkeeping that the view omits.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        task (Any): A Task aggregate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True for a detached launcher task or a remote shallower task.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">is_launcher_task</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span> <span class="o">==</span> <span class="n">REMOTE_SHALLOWER_TASK_NAME</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="qualifying_workflow_names"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.qualifying_workflow_names">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">qualifying_workflow_names</span><span class="p">(</span><span class="n">parameter_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the workflow names a parameter name is qualified with.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parameter_name (str): A task parameter name, e.g. ``"cellpose | diameter"``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The workflow name in front of each separator found in the name.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">parameter_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">separator</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">separator</span> <span class="ow">in</span> <span class="n">WORKFLOW_PARAM_SEPARATORS</span>
+            <span class="k">if</span> <span class="n">separator</span> <span class="ow">in</span> <span class="n">parameter_name</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="configured_workflow_names"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.configured_workflow_names">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">configured_workflow_names</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the workflows that have qualified parameters in a task."""</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">name</span> <span class="k">for</span> <span class="n">parameter_name</span> <span class="ow">in</span> <span class="n">params</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">qualifying_workflow_names</span><span class="p">(</span><span class="n">parameter_name</span><span class="p">)}</span></div>
+
+
+<div class="viewcode-block" id="selected_workflow_names"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.selected_workflow_names">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">selected_workflow_names</span><span class="p">(</span>
+        <span class="n">params</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">task_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">configured</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""Return the selected workflows of an orchestration task, if known.</span>
+
+<span class="sd">    Older batched orchestration tasks can contain the parameters of all</span>
+<span class="sd">    configured workflows. Workflow-qualified parameters are only filtered when</span>
+<span class="sd">    the selection is explicit, or can be derived from the boolean flags that</span>
+<span class="sd">    the orchestration task stores per workflow.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        params (Mapping[str, Any]): Task parameters.</span>
+<span class="sd">        task_name (str): Name of the task.</span>
+<span class="sd">        configured (Set[str]): Workflows that have qualified parameters in the task.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The selected workflow names, or None when the selection is unknown.</span>
+<span class="sd">    """</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"workflows"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">selected</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">task_name</span> <span class="ow">in</span> <span class="n">ORCHESTRATION_TASK_NAMES</span><span class="p">:</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">configured</span> <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">selected</span></div>
+
+
+<div class="viewcode-block" id="is_parameter_of_unselected_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.is_parameter_of_unselected_workflow">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_parameter_of_unselected_workflow</span><span class="p">(</span>
+        <span class="n">parameter_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">selected</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">configured</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether a parameter is excluded when the workflow selection is known.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parameter_name (str): Name of the task parameter.</span>
+<span class="sd">        selected (Set[str]): Selected workflow names.</span>
+<span class="sd">        configured (Set[str]): All workflows that have qualified parameters in the task.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True for descriptor parameters, the workflow flag and ``_Version``</span>
+<span class="sd">        entry of an unselected workflow, and any qualified parameter of a</span>
+<span class="sd">        workflow outside the selection.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">parameter_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">EXCLUDED_PARAM_PREFIXES</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">selected</span>
+           <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">qualifying_workflow_names</span><span class="p">(</span><span class="n">parameter_name</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">parameter_name</span> <span class="ow">in</span> <span class="n">configured</span> <span class="ow">and</span> <span class="n">parameter_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">parameter_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">WORKFLOW_VERSION_SUFFIX</span><span class="p">):</span>
+        <span class="n">workflow_name</span> <span class="o">=</span> <span class="n">parameter_name</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">WORKFLOW_VERSION_SUFFIX</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">workflow_name</span> <span class="ow">in</span> <span class="n">configured</span> <span class="ow">and</span> <span class="n">workflow_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">selected</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="view_parameters"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.view_parameters">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">view_parameters</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the task parameters that belong in the metadata view.</span>
+
+<span class="sd">    Duplicated output settings and, where the selection is known, parameters</span>
+<span class="sd">    of workflows that were configured but not selected are left out. They stay</span>
+<span class="sd">    available in the event store and the full CSV.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        task (Any): A Task aggregate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The task parameters to render.</span>
+<span class="sd">    """</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">OUTPUT_SETTINGS_PARAM</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">configured</span> <span class="o">=</span> <span class="n">configured_workflow_names</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="n">selected_workflow_names</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span> <span class="n">configured</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="n">params</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">selected</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_parameter_of_unselected_workflow</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">selected</span><span class="p">,</span> <span class="n">configured</span><span class="p">)}</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Rendering</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="validate_view_version"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.validate_view_version">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">validate_view_version</span><span class="p">(</span><span class="n">view_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Raise ValueError unless ``view_version`` is a supported view layout."""</span>
+    <span class="k">if</span> <span class="n">view_version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">SUPPORTED_METADATA_VIEW_VERSIONS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown metadata view: </span><span class="si">{</span><span class="n">view_version</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_aggregate"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.load_aggregate">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">load_aggregate</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">aggregate_versions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Load a workflow or task, at its pinned version when one is given.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        aggregate_id (Any): ID of the aggregate.</span>
+<span class="sd">        aggregate_versions (Optional[Mapping[str, int]]): Pinned version per aggregate ID, or None for the</span>
+<span class="sd">            current state.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The aggregate.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        KeyError: If the mapping has no version for this aggregate.</span>
+<span class="sd">        ValueError: If the pinned version does not exist.</span>
+<span class="sd">    """</span>
+    <span class="n">aggregate_id</span> <span class="o">=</span> <span class="n">UUID</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">aggregate_versions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">)</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">aggregate_versions</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">)]</span>
+    <span class="n">aggregate</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">aggregate</span><span class="o">.</span><span class="n">version</span> <span class="o">!=</span> <span class="n">version</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Aggregate version not found: </span><span class="si">{</span><span class="n">aggregate_id</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">aggregate</span></div>
+
+
+<div class="viewcode-block" id="load_visible_tasks"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.load_visible_tasks">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">load_visible_tasks</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">aggregate_versions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Load the tasks of a workflow that appear in the view.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        workflow (Any): The WorkflowRun aggregate.</span>
+<span class="sd">        aggregate_versions (Optional[Mapping[str, int]]): Pinned version per aggregate ID, or None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The non-internal tasks in workflow order.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a pinned view has no version for a non-internal task.</span>
+<span class="sd">    """</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">aggregate_versions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">aggregate_versions</span><span class="p">):</span>
+            <span class="c1"># Only an internal task may lack a pinned version. Whether a task</span>
+            <span class="c1"># is internal is immutable creation data, so any version tells.</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="n">is_internal_task</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Skipping internal task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> without a "</span>
+                             <span class="sa">f</span><span class="s2">"pinned version"</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing historical task version: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">load_aggregate</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">task_id</span><span class="p">,</span> <span class="n">aggregate_versions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_internal_task</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Omitting internal task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> from the view"</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tasks</span></div>
+
+
+<div class="viewcode-block" id="software_version"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.software_version">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">software_version</span><span class="p">(</span><span class="n">description</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Extract the software version from a workflow description.</span>
+
+<span class="sd">    The scripts store the version as the last line of the description</span>
+<span class="sd">    (``"&lt;description&gt;\n&lt;version&gt;"``). Only that line is searched: a</span>
+<span class="sd">    version number earlier in the description (for example "based on cellpose</span>
+<span class="sd">    2.1.1") is not the software version. Workflows without a text description</span>
+<span class="sd">    (core's own conversion workflow stores a number) have no version to find.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        description (Any): The workflow description, e.g. ``"Segments nuclei\n2.9.0"``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The first ``x.y.z`` version on the last line, else</span>
+<span class="sd">        ``UNKNOWN_SOFTWARE_VERSION``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">description</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">description</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No workflow description to read a software version "</span>
+                     <span class="sa">f</span><span class="s2">"from: </span><span class="si">{</span><span class="n">description</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UNKNOWN_SOFTWARE_VERSION</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">SOFTWARE_VERSION_PATTERN</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No software version on the last line of the "</span>
+                       <span class="sa">f</span><span class="s2">"workflow description </span><span class="si">{</span><span class="n">description</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UNKNOWN_SOFTWARE_VERSION</span>
+    <span class="k">return</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="make_annotation"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.make_annotation">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">make_annotation</span><span class="p">(</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">aggregate</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">view_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">revision_fields</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetadataAnnotation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return an annotation, with revision markers when they are enabled."""</span>
+    <span class="k">return</span> <span class="n">MetadataAnnotation</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">with_revision</span><span class="p">(</span>
+        <span class="n">values</span><span class="p">,</span> <span class="n">aggregate</span><span class="p">,</span> <span class="n">view_version</span><span class="p">,</span> <span class="n">revision_fields</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="with_revision"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.with_revision">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">with_revision</span><span class="p">(</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">aggregate</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">view_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">revision_fields</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return ``values`` plus the view and aggregate version markers."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">revision_fields</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">values</span>
+    <span class="k">return</span> <span class="p">{</span><span class="o">**</span><span class="n">values</span><span class="p">,</span> <span class="s2">"Metadata_View_Version"</span><span class="p">:</span> <span class="n">view_version</span><span class="p">,</span>
+            <span class="s2">"Aggregate_Version"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aggregate</span><span class="o">.</span><span class="n">version</span><span class="p">)}</span></div>
+
+
+<div class="viewcode-block" id="workflow_row_values"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.workflow_row_values">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">workflow_row_values</span><span class="p">(</span><span class="n">workflow</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+                        <span class="n">tasks</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the key/values of the workflow annotation."""</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"Workflow_ID"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">),</span>
+        <span class="s2">"Name"</span><span class="p">:</span> <span class="n">workflow</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="s2">"Version"</span><span class="p">:</span> <span class="n">software_version</span><span class="p">(</span><span class="n">workflow</span><span class="o">.</span><span class="n">description</span><span class="p">),</span>
+        <span class="s2">"Created_On"</span><span class="p">:</span> <span class="n">workflow</span><span class="o">.</span><span class="n">_created_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="s2">"Modified_On"</span><span class="p">:</span> <span class="n">workflow</span><span class="o">.</span><span class="n">_modified_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="s2">"Task_IDs"</span><span class="p">:</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="task_row_values"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.task_row_values">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">task_row_values</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+                    <span class="n">target_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the key/values of a task annotation.</span>
+
+<span class="sd">    Result tasks also get the storage facts recorded for ``target_key``.</span>
+<span class="sd">    """</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"Task_ID"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">_id</span><span class="p">),</span> <span class="s2">"Workflow_ID"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">),</span>
+        <span class="s2">"Workflow_Name"</span><span class="p">:</span> <span class="n">workflow</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"Name"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
+        <span class="s2">"Version"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">task_version</span><span class="p">,</span>
+        <span class="s2">"Created_On"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">_created_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="s2">"Modified_On"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">_modified_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="s2">"Status"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="s2">"Input_Data"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">input_data</span><span class="p">,</span>
+        <span class="s2">"Job_IDs"</span><span class="p">:</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="n">values</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PARAM_PREFIX</span><span class="si">}{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">view_parameters</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+    <span class="n">evidence</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">storage_provenance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_key</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">evidence</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span> <span class="ow">in</span> <span class="n">RESULT_TASK_NAMES</span><span class="p">:</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">storage_metadata_view</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">target_key</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">values</span></div>
+
+
+<div class="viewcode-block" id="job_row_values"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.job_row_values">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">job_row_values</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the key/values of one job annotation of a task.</span>
+
+<span class="sd">    Legacy ``v0`` layout: a task has one result message and one first result</span>
+<span class="sd">    (command and environment), so every job of the task repeats them.</span>
+<span class="sd">    """</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Job_ID"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">job_id</span><span class="p">),</span> <span class="s2">"Task_ID"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">_id</span><span class="p">),</span>
+              <span class="s2">"Workflow_ID"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">),</span>
+              <span class="s2">"Result_Message"</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">result_message</span><span class="p">}</span>
+    <span class="n">first_result</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">results</span> <span class="k">else</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="s2">"command"</span> <span class="ow">in</span> <span class="n">first_result</span><span class="p">:</span>
+        <span class="n">values</span><span class="p">[</span><span class="s2">"Command"</span><span class="p">]</span> <span class="o">=</span> <span class="n">first_result</span><span class="p">[</span><span class="s2">"command"</span><span class="p">]</span>
+    <span class="n">values</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ENV_PREFIX</span><span class="si">}{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">first_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"env"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+    <span class="k">return</span> <span class="n">values</span></div>
+
+
+<div class="viewcode-block" id="task_namespace"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.task_namespace">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">task_namespace</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the namespace of a task annotation.</span>
+
+<span class="sd">    Import tasks keep the Get Results namespace that result discovery uses.</span>
+<span class="sd">    """</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="p">(</span><span class="n">IMAGE_IMPORT_SCRIPT</span> <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span> <span class="o">==</span> <span class="n">IMPORT_RESULTS_SCRIPT</span>
+            <span class="k">else</span> <span class="n">task</span><span class="o">.</span><span class="n">task_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">TASK_NAMESPACE_PREFIX</span><span class="si">}{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span></div>
+
+
+<div class="viewcode-block" id="render_workflow_metadata"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.render_workflow_metadata">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">render_workflow_metadata</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+        <span class="n">view_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">METADATA_VIEW_VERSION</span><span class="p">,</span>
+        <span class="n">aggregate_versions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">revision_fields</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">target_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">MetadataAnnotation</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return ordered namespace/value pairs without writing to any datastore.</span>
+
+<span class="sd">    ``v0`` is the only supported view and retains legacy task/job fields,</span>
+<span class="sd">    including job command, environment and result-message fields. It omits</span>
+<span class="sd">    detached coordination tasks and duplicated output settings. Scientific</span>
+<span class="sd">    false/zero values are retained. ``Version`` still means the software</span>
+<span class="sd">    version.</span>
+
+<span class="sd">    An explicit ``aggregate_versions`` mapping pins the workflow and every</span>
+<span class="sd">    retained task independently. Missing versions fail instead of mixing a</span>
+<span class="sd">    historical workflow with current task state.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        workflow_id (Any): ID of the workflow to render.</span>
+<span class="sd">        view_version (str): View layout; only ``METADATA_VIEW_VERSION`` exists.</span>
+<span class="sd">        aggregate_versions (Optional[Mapping[str, int]]): Pinned version per aggregate ID, or None for the</span>
+<span class="sd">            current state.</span>
+<span class="sd">        revision_fields (bool): Add ``Metadata_View_Version`` and</span>
+<span class="sd">            ``Aggregate_Version``. Off reproduces the legacy layout.</span>
+<span class="sd">        target_key (Optional[str]): Result target (e.g. ``"Plate:123"``) whose storage facts</span>
+<span class="sd">            to add to the import task.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The workflow annotation, then for each task its annotation followed</span>
+<span class="sd">        by one annotation per job.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: For an unknown view or a version that cannot be found.</span>
+<span class="sd">    """</span>
+    <span class="n">validate_view_version</span><span class="p">(</span><span class="n">view_version</span><span class="p">)</span>
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">load_aggregate</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">aggregate_versions</span><span class="p">)</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="n">load_visible_tasks</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">workflow</span><span class="p">,</span> <span class="n">aggregate_versions</span><span class="p">)</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span><span class="n">make_annotation</span><span class="p">(</span>
+        <span class="n">NAMESPACE</span><span class="p">,</span> <span class="n">workflow_row_values</span><span class="p">(</span><span class="n">workflow</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">tasks</span><span class="p">),</span>
+        <span class="n">workflow</span><span class="p">,</span> <span class="n">view_version</span><span class="p">,</span> <span class="n">revision_fields</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+        <span class="n">namespace</span> <span class="o">=</span> <span class="n">task_namespace</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">make_annotation</span><span class="p">(</span>
+            <span class="n">namespace</span><span class="p">,</span> <span class="n">task_row_values</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">workflow</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">target_key</span><span class="p">),</span>
+            <span class="n">task</span><span class="p">,</span> <span class="n">view_version</span><span class="p">,</span> <span class="n">revision_fields</span><span class="p">))</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">make_annotation</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">namespace</span><span class="si">}{</span><span class="n">JOB_NAMESPACE_SUFFIX</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="n">job_row_values</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">),</span>
+            <span class="n">task</span><span class="p">,</span> <span class="n">view_version</span><span class="p">,</span> <span class="n">revision_fields</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Rendered </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span><span class="si">}</span><span class="s2"> metadata annotations for workflow "</span>
+                 <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> (view=</span><span class="si">{</span><span class="n">view_version</span><span class="si">}</span><span class="s2">, "</span>
+                 <span class="sa">f</span><span class="s2">"pinned=</span><span class="si">{</span><span class="n">aggregate_versions</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="kc">None</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rows</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Snapshot resolution</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="belongs_to_workflow_view"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.belongs_to_workflow_view">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">belongs_to_workflow_view</span><span class="p">(</span><span class="n">row</span><span class="p">:</span> <span class="n">MetadataAnnotation</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether an annotation is a view row of the given workflow."""</span>
+    <span class="n">in_view_namespace</span> <span class="o">=</span> <span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">namespace</span> <span class="o">==</span> <span class="n">NAMESPACE</span>
+                         <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">namespace</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">TASK_NAMESPACE_PREFIX</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">in_view_namespace</span> <span class="ow">and</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Workflow_ID"</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="versions_with_timestamp"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.versions_with_timestamp">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">versions_with_timestamp</span><span class="p">(</span><span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                            <span class="n">timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Find the versions of an aggregate that were last modified at a time.</span>
+
+<span class="sd">    The modification time of version N is the timestamp of the event that</span>
+<span class="sd">    produced it, so a single pass over the events finds every match, instead</span>
+<span class="sd">    of replaying the aggregate once per version.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        aggregate_id (str): ID of the workflow or task.</span>
+<span class="sd">        timestamp (Optional[str]): ISO timestamp from a stored ``Modified_On`` value.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The matching versions (empty if none, several if ambiguous).</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">event</span><span class="o">.</span><span class="n">originator_version</span>
+            <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">tracker</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="o">==</span> <span class="n">timestamp</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="snapshot_version"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.snapshot_version">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">snapshot_version</span><span class="p">(</span><span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                     <span class="n">values</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Recover the aggregate version a stored view row was rendered from.</span>
+
+<span class="sd">    New rows carry ``Aggregate_Version``. Legacy rows have no revision number</span>
+<span class="sd">    and need a unique ``Modified_On`` match in the aggregate's history.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        aggregate_id (str): ID of the workflow or task of the row.</span>
+<span class="sd">        values (Mapping[str, Any]): The stored key/values.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The aggregate version.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If the snapshot is inconsistent, missing or ambiguous.</span>
+<span class="sd">    """</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Modified_On"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"Aggregate_Version"</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="s2">"Aggregate_Version"</span><span class="p">])</span>
+        <span class="n">aggregate</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">),</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">aggregate</span><span class="o">.</span><span class="n">version</span> <span class="o">!=</span> <span class="n">version</span>
+                <span class="ow">or</span> <span class="n">timestamp</span> <span class="o">!=</span> <span class="n">aggregate</span><span class="o">.</span><span class="n">_modified_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Inconsistent snapshot: </span><span class="si">{</span><span class="n">aggregate_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">version</span>
+    <span class="n">matches</span> <span class="o">=</span> <span class="n">versions_with_timestamp</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing or ambiguous snapshot: </span><span class="si">{</span><span class="n">aggregate_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="resolve_metadata_versions"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.resolve_metadata_versions">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">resolve_metadata_versions</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">annotations</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">MetadataAnnotation</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Recover exact aggregate versions from existing key/value snapshots.</span>
+
+<span class="sd">    Job rows inherit the paired task snapshot, never the current task version.</span>
+<span class="sd">    Missing or inconsistent snapshots are errors; callers must not guess.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        workflow_id (Any): ID of the workflow whose rows to resolve.</span>
+<span class="sd">        annotations (Iterable[MetadataAnnotation]): Existing annotations of any namespace.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The version per aggregate ID (the workflow and each task).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a snapshot is inconsistent, ambiguous or conflicting,</span>
+<span class="sd">            or the workflow has no snapshot.</span>
+<span class="sd">    """</span>
+    <span class="n">versions</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">annotations</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">belongs_to_workflow_view</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="s2">"Job_ID"</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">aggregate_id</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Task_ID"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">))</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">snapshot_version</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">versions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span> <span class="o">!=</span> <span class="n">version</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Conflicting snapshots: </span><span class="si">{</span><span class="n">aggregate_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">versions</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">version</span>
+    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">versions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Missing workflow snapshot"</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Resolved snapshot versions for workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">: "</span>
+                 <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">versions</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">versions</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Storage repair</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="find_storage_evidence"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.find_storage_evidence">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">find_storage_evidence</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="n">target_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">StorageEvidence</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Find result tasks whose latest version has evidence for a target."""</span>
+    <span class="n">found</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aggregate_id</span> <span class="ow">in</span> <span class="n">versions</span><span class="p">:</span>
+        <span class="n">latest</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">latest</span><span class="p">,</span> <span class="s2">"task_name"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">RESULT_TASK_NAMES</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">evidence</span> <span class="o">=</span> <span class="n">latest</span><span class="o">.</span><span class="n">storage_provenance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">evidence</span> <span class="ow">and</span> <span class="n">storage_metadata_view</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">target_key</span><span class="p">):</span>
+            <span class="n">found</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">StorageEvidence</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">,</span> <span class="n">latest</span><span class="p">,</span> <span class="n">evidence</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">found</span></div>
+
+
+<div class="viewcode-block" id="advance_import_task_to_storage_evidence"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.advance_import_task_to_storage_evidence">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">advance_import_task_to_storage_evidence</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="n">target_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Pin the import task to the version that carries new storage evidence.</span>
+
+<span class="sd">    Explicit storage repair advances only the import-task snapshot. Other</span>
+<span class="sd">    snapshots stay pinned. Existing, different storage evidence in the pinned</span>
+<span class="sd">    snapshot is never silently replaced.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        versions (Mapping[str, int]): Pinned versions from ``resolve_metadata_versions``.</span>
+<span class="sd">        target_key (Optional[str]): Result target whose storage evidence to look for.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A copy of ``versions`` with the import task advanced if needed.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: Without a target, without exactly one import task that</span>
+<span class="sd">            has evidence for it, or when the pinned snapshot holds different</span>
+<span class="sd">            evidence.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">target_key</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Storage repair requires a target_key"</span><span class="p">)</span>
+    <span class="n">candidates</span> <span class="o">=</span> <span class="n">find_storage_evidence</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">versions</span><span class="p">,</span> <span class="n">target_key</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"Cannot identify unique import-task storage evidence for target"</span><span class="p">)</span>
+    <span class="n">candidate</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">pinned_task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">UUID</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">task_id</span><span class="p">),</span> <span class="n">version</span><span class="o">=</span><span class="n">versions</span><span class="p">[</span><span class="n">candidate</span><span class="o">.</span><span class="n">task_id</span><span class="p">])</span>
+    <span class="n">previous</span> <span class="o">=</span> <span class="n">pinned_task</span><span class="o">.</span><span class="n">storage_provenance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_key</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">previous</span> <span class="ow">and</span> <span class="n">previous</span> <span class="o">!=</span> <span class="n">candidate</span><span class="o">.</span><span class="n">evidence</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"Import snapshot already contains different storage evidence"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">previous</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Import task </span><span class="si">{</span><span class="n">candidate</span><span class="o">.</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> already has the "</span>
+                     <span class="sa">f</span><span class="s2">"storage evidence for </span><span class="si">{</span><span class="n">target_key</span><span class="si">}</span><span class="s2">; keeping its snapshot"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Advancing import task </span><span class="si">{</span><span class="n">candidate</span><span class="o">.</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> to version "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">candidate</span><span class="o">.</span><span class="n">latest_task</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2"> for the storage evidence "</span>
+                <span class="sa">f</span><span class="s2">"of </span><span class="si">{</span><span class="n">target_key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="o">**</span><span class="n">versions</span><span class="p">,</span> <span class="n">candidate</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="n">candidate</span><span class="o">.</span><span class="n">latest_task</span><span class="o">.</span><span class="n">version</span><span class="p">}</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Refresh planning</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="annotation_identity"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.annotation_identity">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">annotation_identity</span><span class="p">(</span>
+        <span class="n">row</span><span class="p">:</span> <span class="n">MetadataAnnotation</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""Return what identifies a view row: namespace, task ID and job ID."""</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Task_ID"</span><span class="p">),</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Job_ID"</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="stale_keys"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.stale_keys">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">stale_keys</span><span class="p">(</span><span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">existing</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+               <span class="n">rendered</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+               <span class="n">versions</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return stored keys that the current view no longer renders.</span>
+
+<span class="sd">    ``Param_output_settings`` is always stale. Another ``Param_*`` key is</span>
+<span class="sd">    stale if the pinned task has that parameter (the view now omits it); a key</span>
+<span class="sd">    the task never had was added by a user and is kept.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        existing (Mapping[str, Any]): Stored key/values.</span>
+<span class="sd">        rendered (Mapping[str, Any]): Key/values the current view renders for this row.</span>
+<span class="sd">        versions (Mapping[str, int]): Pinned aggregate versions.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The keys to drop from the stored row.</span>
+<span class="sd">    """</span>
+    <span class="n">stale</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PARAM_PREFIX</span><span class="si">}{</span><span class="n">OUTPUT_SETTINGS_PARAM</span><span class="si">}</span><span class="s2">"</span><span class="p">}</span> <span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">existing</span><span class="p">)</span>
+    <span class="n">task_id</span> <span class="o">=</span> <span class="n">existing</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Task_ID"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">task_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">stale</span>
+    <span class="n">task_params</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">existing</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">PARAM_PREFIX</span><span class="p">)</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rendered</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">task_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">UUID</span><span class="p">(</span><span class="n">task_id</span><span class="p">),</span> <span class="n">version</span><span class="o">=</span><span class="n">versions</span><span class="p">[</span><span class="n">task_id</span><span class="p">])</span>
+                <span class="n">task_params</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{}</span>
+            <span class="k">if</span> <span class="n">name</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">PARAM_PREFIX</span><span class="p">):]</span> <span class="ow">in</span> <span class="n">task_params</span><span class="p">:</span>
+                <span class="n">stale</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">stale</span></div>
+
+
+<div class="viewcode-block" id="merge_view_values"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.merge_view_values">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">merge_view_values</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">existing</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">rendered</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">versions</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Merge the rendered view into a stored row.</span>
+
+<span class="sd">    Unknown keys are preserved, keys the view omits are dropped and values</span>
+<span class="sd">    already reduced to a CSV reference stay reduced.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        existing (Mapping[str, Any]): Stored key/values.</span>
+<span class="sd">        rendered (Mapping[str, Any]): Key/values the current view renders for this row.</span>
+<span class="sd">        versions (Mapping[str, int]): Pinned aggregate versions.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The key/values after the refresh.</span>
+<span class="sd">    """</span>
+    <span class="n">stale</span> <span class="o">=</span> <span class="n">stale_keys</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">existing</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">versions</span><span class="p">)</span>
+    <span class="n">merged</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">existing</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+              <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">stale</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rendered</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">is_large_field_reference</span><span class="p">(</span><span class="n">existing</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">""</span><span class="p">)):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Keeping the reduced value of </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">merged</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">merged</span></div>
+
+
+<div class="viewcode-block" id="plan_unexpected_row"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.plan_unexpected_row">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">plan_unexpected_row</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">row</span><span class="p">:</span> <span class="n">MetadataAnnotation</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">identity</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetadataChange</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Plan a stored view row that the current view no longer renders.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        row (MetadataAnnotation): The stored annotation.</span>
+<span class="sd">        workflow_id (Any): ID of the workflow being refreshed.</span>
+<span class="sd">        identity (Tuple): The row's ``annotation_identity``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        An unlink of the row if it belongs to an internal task.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If the row does not belong to an internal task.</span>
+<span class="sd">    """</span>
+    <span class="n">task_id</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Task_ID"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">task_id</span> <span class="ow">and</span> <span class="n">is_internal_task</span><span class="p">(</span><span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">task_id</span><span class="p">))):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unlinking annotation of internal task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">namespace</span><span class="si">}</span><span class="s2">) in workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">MetadataChange</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unrecognized annotation identity in workflow "</span>
+                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">identity</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="plan_metadata_refresh"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.plan_metadata_refresh">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">plan_metadata_refresh</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">annotations</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">MetadataAnnotation</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span>
+        <span class="n">view_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">METADATA_VIEW_VERSION</span><span class="p">,</span>
+        <span class="n">target_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">refresh_storage</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">MetadataChange</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Plan a snapshot-preserving update. None means unlink, not global delete.</span>
+
+<span class="sd">    Unknown namespaces and extra keys are preserved. Missing task snapshots,</span>
+<span class="sd">    duplicate identities and changed namespaces fail closed. Large fields that</span>
+<span class="sd">    were already replaced by CSV references remain reduced.</span>
+
+<span class="sd">    Explicit storage repair (``refresh_storage``) may advance the import-task</span>
+<span class="sd">    snapshot to a version carrying newly recorded evidence for ``target_key``.</span>
+<span class="sd">    Other snapshots stay pinned.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): The workflow tracker.</span>
+<span class="sd">        workflow_id (Any): ID of the workflow to refresh.</span>
+<span class="sd">        annotations (Sequence[MetadataAnnotation]): All annotations currently on the OMERO object.</span>
+<span class="sd">        view_version (str): View layout; only ``METADATA_VIEW_VERSION`` exists.</span>
+<span class="sd">        target_key (Optional[str]): Result target for the storage facts.</span>
+<span class="sd">        refresh_storage (bool): Advance the import task to newly recorded storage</span>
+<span class="sd">            evidence for ``target_key``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        One change per given annotation, in order.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If the refresh cannot be planned safely.</span>
+<span class="sd">    """</span>
+    <span class="n">validate_view_version</span><span class="p">(</span><span class="n">view_version</span><span class="p">)</span>
+    <span class="n">versions</span> <span class="o">=</span> <span class="n">resolve_metadata_versions</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">annotations</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">refresh_storage</span><span class="p">:</span>
+        <span class="n">versions</span> <span class="o">=</span> <span class="n">advance_import_task_to_storage_evidence</span><span class="p">(</span>
+            <span class="n">tracker</span><span class="p">,</span> <span class="n">versions</span><span class="p">,</span> <span class="n">target_key</span><span class="p">)</span>
+    <span class="n">rendered</span> <span class="o">=</span> <span class="n">render_workflow_metadata</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">view_version</span><span class="o">=</span><span class="n">view_version</span><span class="p">,</span>
+        <span class="n">aggregate_versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="n">target_key</span><span class="o">=</span><span class="n">target_key</span><span class="p">)</span>
+    <span class="n">expected_rows</span> <span class="o">=</span> <span class="p">{</span><span class="n">annotation_identity</span><span class="p">(</span><span class="n">row</span><span class="p">):</span> <span class="n">row</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rendered</span><span class="p">}</span>
+
+    <span class="n">changes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">seen_identities</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">annotations</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">belongs_to_workflow_view</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Keeping annotation outside the workflow view: "</span>
+                         <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">namespace</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">changes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MetadataChange</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">row</span><span class="p">))</span>
+            <span class="k">continue</span>
+        <span class="n">identity</span> <span class="o">=</span> <span class="n">annotation_identity</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">identity</span> <span class="ow">in</span> <span class="n">seen_identities</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Duplicate annotation identity: </span><span class="si">{</span><span class="n">identity</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">seen_identities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">identity</span><span class="p">)</span>
+        <span class="n">expected_row</span> <span class="o">=</span> <span class="n">expected_rows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">identity</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">expected_row</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">changes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plan_unexpected_row</span><span class="p">(</span>
+                <span class="n">tracker</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">identity</span><span class="p">))</span>
+            <span class="k">continue</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="n">merge_view_values</span><span class="p">(</span>
+            <span class="n">tracker</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">expected_row</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">versions</span><span class="p">)</span>
+        <span class="n">changes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MetadataChange</span><span class="p">(</span>
+            <span class="n">row</span><span class="p">,</span> <span class="n">MetadataAnnotation</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="n">merged</span><span class="p">)))</span>
+
+    <span class="n">missing_identities</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">expected_rows</span><span class="p">)</span> <span class="o">-</span> <span class="n">seen_identities</span>
+    <span class="k">if</span> <span class="n">missing_identities</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Missing annotations for workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">; refusing an "</span>
+            <span class="sa">f</span><span class="s2">"incomplete refresh: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="w"> </span><span class="n">missing_identities</span><span class="p">))</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">changes</span></div>
+
+
+<span class="c1"># ------------------------------------------------------------------ #</span>
+<span class="c1"># Storage facts</span>
+<span class="c1"># ------------------------------------------------------------------ #</span>
+
+<div class="viewcode-block" id="storage_metadata_view"><a class="viewcode-back" href="../../biomero.html#biomero.metadata_views.storage_metadata_view">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">storage_metadata_view</span><span class="p">(</span><span class="n">evidence</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+                          <span class="n">target_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return compact per-result storage facts; feature flags are not evidence.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        evidence (Mapping[str, Any]): Storage evidence recorded for one result target.</span>
+<span class="sd">        target_key (Optional[str]): The result target, e.g. ``"Plate:123"``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The view key/values, empty if the evidence names no known storage.</span>
+<span class="sd">    """</span>
+    <span class="n">storage</span> <span class="o">=</span> <span class="n">evidence</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"storage"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">storage</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">STORAGE_FORMATS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Storage_Target"</span><span class="p">:</span> <span class="n">target_key</span><span class="p">,</span> <span class="s2">"Storage_Format"</span><span class="p">:</span> <span class="n">storage</span><span class="p">,</span>
+              <span class="s2">"Storage_Shallow"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">storage</span> <span class="o">==</span> <span class="n">STORAGE_SHALLOW_ZARR</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()}</span>
+    <span class="k">for</span> <span class="n">evidence_key</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">STORAGE_EVIDENCE_LABELS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">evidence</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">evidence_key</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">values</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">evidence</span><span class="p">[</span><span class="n">evidence_key</span><span class="p">])</span>
+    <span class="n">codes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">evidence</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"source_biocodes"</span><span class="p">,</span> <span class="p">[])))</span>
+    <span class="k">if</span> <span class="n">codes</span><span class="p">:</span>
+        <span class="n">values</span><span class="p">[</span><span class="s2">"Canonical_Biocode_Count"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">codes</span><span class="p">))</span>
+        <span class="n">joined</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+        <span class="n">fits_inline</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">joined</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="n">MAX_INLINE_BIOCODES_BYTES</span>
+        <span class="n">values</span><span class="p">[</span><span class="s2">"Canonical_Biocodes"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">joined</span> <span class="k">if</span> <span class="n">fits_inline</span>
+            <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span><span class="si">}</span><span class="s2"> codes; see Shallow_Manifest"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">values</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

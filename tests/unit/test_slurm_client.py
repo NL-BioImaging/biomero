@@ -1452,7 +1452,7 @@ def test_cancel_slurm_jobs_cancels_the_valid_jobs_in_one_scancel(
     slurm_client.cancel_slurm_jobs([12345, -1, "67890"])
 
     mock_run_commands.assert_called_once_with(
-        ['scancel 12345 67890'], warn=True)
+        ['scancel --user="$USER" 12345 67890'], warn=True)
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')

@@ -504,7 +504,9 @@ class SlurmClient(Connection):
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
-    _CANCEL_JOBS_CMD = "scancel {slurm_job_ids}"
+    # --user restricts the cancel to jobs of the account running it, expanded
+    # on the remote side like the other commands' $USER.
+    _CANCEL_JOBS_CMD = 'scancel --user="$USER" {slurm_job_ids}'
     # TODO move all commands to a similar format.
     # Then maybe allow overwrite from slurm-config.ini
     _LOGFILE = "omero-{slurm_job_id}.log"
@@ -4165,6 +4167,14 @@ class SlurmClient(Connection):
         Cancelling a job that already ended is not an error for the caller: the
         job is gone either way, so this logs what Slurm answered and returns
         the result instead of raising.
+
+        The command restricts ``scancel`` to jobs owned by the cluster account
+        BIOMERO connects with (``--user``, which Slurm documents as "restrict
+        the scancel operation to jobs owned by the given user"). An account
+        with Slurm operator, admin or coordinator rights may otherwise cancel
+        other users' jobs, so a wrong or stale job ID can never hit a job that
+        is not BIOMERO's. It uses ``--user="$USER"`` rather than ``--me``,
+        which older Slurm versions lack.
 
         Args:
             slurm_job_ids (List[int]): The job IDs of the jobs to cancel.

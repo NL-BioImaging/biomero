@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>biomero.detached &mdash; BIOMERO 1 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BIOMERO
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">BIOMERO - Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO — BioImage Analysis in OMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-2-0"><img src="https://raw.githubusercontent.com/NL-BioImaging/OMERO.biomero/refs/tags/v1.2.1/webapp/src/img/biomero-logo.svg" alt="BIOMERO" height="28" style="height:28px; width:auto; vertical-align:middle;"> BIOMERO 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-python-library-biomero-analyzer">BIOMERO Python library (BIOMERO.analyzer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#quickstart">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#prerequisites-getting-started-with-biomero">Prerequisites &amp; Getting Started with BIOMERO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-scripts">BIOMERO.scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#biomero-web-interface">BIOMERO Web Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#docker-containers">(Docker) containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#see-the-tutorials">See the tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#developer-eventsourcing-and-views">Developer: Eventsourcing and Views</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurmclient-class">SlurmClient class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-config-ini">slurm-config.ini</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-an-existing-workflow">How to add an existing workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#how-to-add-your-new-custom-workflow">How to add your new custom workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#slurm-jobs">Slurm jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#batching">Batching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#using-the-gpu-on-slurm">Using the GPU on Slurm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#transfering-data">Transfering data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#testing-the-python-code">Testing the Python code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html#logging">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../components.html">BIOMERO components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citing.html">Citing BIOMERO</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html">Cellprofiler tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#cellexpansion-tutorial">CellExpansion tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#local-slurm-tutorial">Local Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#google-cloud-slurm-tutorial">Google Cloud Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#microsoft-azure-slurm-tutorial">Microsoft Azure Slurm tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial_link.html#extra-thoughts">Extra thoughts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../scripts.html">OMERO workflow scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slurm-configuration.html">SLURM Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration-reference.html">Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">biomero</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/eventsourcing.html">Eventsourcing and Views (Developer)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/execution-and-storage.html">Execution, storage and recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer/metadata-views.html">Workflow metadata views</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BIOMERO</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">biomero.detached</li>
+  <li class="wy-breadcrumbs-aside">
+    <a href="https://github.com/NL-BioImaging/biomero" class="fa fa-github" title="Open the repository on GitHub">
+      NL-BioImaging/biomero
+    </a>
+  </li>
+
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for biomero.detached</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2024 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#        http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied.  See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="sd">"""The detached-mode setting, and aliases for names that moved.</span>
+
+<span class="sd">A BIOMERO workflow run outlives the OMERO session that asks for it, so a</span>
+<span class="sd">script can queue the run in a *launcher task* and a supervisor (the OMERO</span>
+<span class="sd">processor in NL-BIOMERO) executes it. Core only provides the mechanisms:</span>
+
+<span class="sd">* the launcher marker and rule: ``constants.LAUNCHER_MARKER``,</span>
+<span class="sd">  ``WorkflowTracker.add_launcher_task`` and ``eventsourcing.is_launcher_task``;</span>
+<span class="sd">* task lookup and the atomic claim: ``WorkflowTracker.find_launcher_task``,</span>
+<span class="sd">  ``WorkflowTracker.claim_launcher_task`` and</span>
+<span class="sd">  ``WorkflowTracker.release_launcher_task``;</span>
+<span class="sd">* cancellation: ``WorkflowTracker.request_workflow_cancel`` and</span>
+<span class="sd">  ``SlurmClient.cancel_slurm_jobs``.</span>
+
+<span class="sd">The scripts decide what to record in a launcher task and how to resume a run;</span>
+<span class="sd">the supervisor decides which runs to execute. This module holds the one reader</span>
+<span class="sd">of the setting that switches the feature on, which the scripts and the</span>
+<span class="sd">supervisor all need, plus aliases that keep the names of the 2.9 betas</span>
+<span class="sd">working. The aliases are deprecated: use the names above.</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Owner recorded when a caller of the deprecated claim_launcher_task() does not</span>
+<span class="c1"># identify itself.</span>
+<span class="n">LEGACY_CLAIM_OWNER</span> <span class="o">=</span> <span class="s2">"legacy-supervisor"</span>
+
+<span class="c1"># Names that moved out of core, and where they are now.</span>
+<span class="n">MOVED_TO_SCRIPTS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"register_detached_launcher"</span><span class="p">:</span> <span class="s2">"SLURM_Run_Workflow.py"</span><span class="p">,</span>
+    <span class="s2">"load_task_history"</span><span class="p">:</span> <span class="s2">"SLURM_Run_Workflow.py"</span><span class="p">,</span>
+    <span class="s2">"task_completed"</span><span class="p">:</span> <span class="s2">"SLURM_Run_Workflow.py"</span><span class="p">,</span>
+    <span class="s2">"submitted_job"</span><span class="p">:</span> <span class="s2">"SLURM_Run_Workflow.py"</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># Old constant names and the constants they now come from.</span>
+<span class="n">RENAMED_CONSTANTS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"LAUNCHER_MARKER"</span><span class="p">:</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_MARKER</span><span class="p">,</span>
+    <span class="s2">"LAUNCHER_TASK_NAMES"</span><span class="p">:</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_TASK_NAMES</span><span class="p">,</span>
+    <span class="s2">"CLAIMED"</span><span class="p">:</span> <span class="n">constants</span><span class="o">.</span><span class="n">LEGACY_CLAIMED_STATUS</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="detached_mode_enabled"><a class="viewcode-back" href="../../biomero.html#biomero.detached.detached_mode_enabled">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">detached_mode_enabled</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether workflow scripts should queue runs instead of executing them.</span>
+
+<span class="sd">    Opt-in through the BIOMERO_DETACHED_WORKFLOWS environment variable of the</span>
+<span class="sd">    OMERO processor running the script, because it requires a supervisor to be</span>
+<span class="sd">    present: without one, a queued run would never be executed. The variable</span>
+<span class="sd">    is declared in constants.slurm_env so that the processor forwards it to the</span>
+<span class="sd">    script subprocesses it starts, which is where this is read. This is the</span>
+<span class="sd">    only reader of the variable: callers use this function.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True when the variable has one of constants.TRUTHY_VALUES.</span>
+<span class="sd">    """</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_DETACHED_WORKFLOWS</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="n">enabled</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">TRUTHY_VALUES</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">constants</span><span class="o">.</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_DETACHED_WORKFLOWS</span><span class="si">}</span><span class="s2">="</span>
+                 <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">: detached mode "</span>
+                 <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'enabled'</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">enabled</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'disabled'</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">enabled</span></div>
+
+
+<span class="c1"># -------------------- deprecated aliases -------------------- #</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_warn_deprecated</span><span class="p">(</span><span class="n">old</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">"biomero.detached.</span><span class="si">{</span><span class="n">old</span><span class="si">}</span><span class="s2"> is deprecated; use </span><span class="si">{</span><span class="n">new</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                  <span class="ne">DeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Serve the renamed constants, and explain the names that moved away."""</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">RENAMED_CONSTANTS</span><span class="p">:</span>
+        <span class="n">_warn_deprecated</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"biomero.constants (value of </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">RENAMED_CONSTANTS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">MOVED_TO_SCRIPTS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"biomero.detached.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> moved to biomero-scripts "</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">MOVED_TO_SCRIPTS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="si">}</span><span class="s2">); core only keeps the mechanisms. "</span>
+            <span class="sa">f</span><span class="s2">"Update biomero-scripts to the version released with this "</span>
+            <span class="sa">f</span><span class="s2">"biomero."</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"module </span><span class="si">{</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2"> has no attribute </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_launcher_task</span><span class="p">(</span><span class="n">task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Deprecated: use biomero.eventsourcing.is_launcher_task."""</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_launcher_task</span> <span class="k">as</span> <span class="n">launcher_rule</span>
+    <span class="n">_warn_deprecated</span><span class="p">(</span><span class="s2">"is_launcher_task"</span><span class="p">,</span> <span class="s2">"eventsourcing.is_launcher_task"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">launcher_rule</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">workflow_tracker</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">"""Deprecated: use the SlurmClient's ``workflowTracker``."""</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowTracker</span>
+    <span class="n">_warn_deprecated</span><span class="p">(</span><span class="s2">"workflow_tracker"</span><span class="p">,</span> <span class="s2">"SlurmClient.workflowTracker"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">WorkflowTracker</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">find_launcher_task</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Deprecated: use ``WorkflowTracker.find_launcher_task``.</span>
+
+<span class="sd">    Unlike before, read errors are raised instead of reported as "no</span>
+<span class="sd">    launcher".</span>
+<span class="sd">    """</span>
+    <span class="n">_warn_deprecated</span><span class="p">(</span><span class="s2">"find_launcher_task"</span><span class="p">,</span>
+                     <span class="s2">"WorkflowTracker.find_launcher_task"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tracker</span><span class="o">.</span><span class="n">find_launcher_task</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">claim_launcher_task</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Deprecated: use ``WorkflowTracker.claim_launcher_task``.</span>
+
+<span class="sd">    Claims the task as a fixed legacy owner, atomically.</span>
+<span class="sd">    """</span>
+    <span class="n">_warn_deprecated</span><span class="p">(</span><span class="s2">"claim_launcher_task"</span><span class="p">,</span>
+                     <span class="s2">"WorkflowTracker.claim_launcher_task"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tracker</span><span class="o">.</span><span class="n">claim_launcher_task</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">LEGACY_CLAIM_OWNER</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_claimed</span><span class="p">(</span><span class="n">task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Deprecated: whether a launcher task is (or, in a 2.9 beta, was) claimed.</span>
+
+<span class="sd">    A launcher whose status is the legacy CLAIMED, or that has a claim owner,</span>
+<span class="sd">    counts as claimed.</span>
+<span class="sd">    """</span>
+    <span class="n">_warn_deprecated</span><span class="p">(</span><span class="s2">"is_claimed"</span><span class="p">,</span> <span class="s2">"Task.claimed_by"</span><span class="p">)</span>
+    <span class="n">legacy_status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">LEGACY_CLAIMED_STATUS</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s2">"claimed_by"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s2">"status"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">legacy_status</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, T.T.Luik.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

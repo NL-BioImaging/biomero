@@ -138,21 +138,20 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.exc</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntegrityError</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">func</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowRun</span><span class="p">,</span> <span class="n">Task</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">WorkflowRun</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">is_launcher_task</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">JobView</span><span class="p">,</span> <span class="n">TaskExecution</span><span class="p">,</span> <span class="n">JobProgressView</span><span class="p">,</span> <span class="n">WorkflowProgressView</span><span class="p">,</span> <span class="n">retry_on_database_conflict</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">,</span>
+    <span class="n">LEGACY_CLAIMED_STATUS</span><span class="p">,</span>
     <span class="n">REMOTE_SHALLOWER_TASK_NAME</span><span class="p">,</span>
-    <span class="n">RUN_WF_SCRIPT</span><span class="p">,</span>
     <span class="n">workflow_status</span> <span class="k">as</span> <span class="n">wfs</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.detached</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLAIMED</span><span class="p">,</span> <span class="n">LAUNCHER_MARKER</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="c1"># A view application only has its own event store, so an aggregate the tracker</span>
 <span class="c1"># created is not in it. Since a workflow may now be run by a process that did</span>
-<span class="c1"># not create it (see biomero.detached), the views have to be able to look those</span>
+<span class="c1"># not create it (a detached supervisor claims launchers, see</span>
+<span class="c1"># WorkflowTracker.claim_launcher_task), the views have to be able to look those</span>
 <span class="c1"># aggregates up rather than relying on what they saw go past in memory.</span>
 <span class="n">_tracker</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -380,13 +379,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
                     <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">task_name</span><span class="p">,</span>
                     <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="n">task_agg</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">,</span>
-                    <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="p">(</span>
-                        <span class="n">task_agg</span><span class="o">.</span><span class="n">task_name</span> <span class="ow">in</span> <span class="p">(</span>
-                            <span class="n">RUN_WF_SCRIPT</span><span class="p">,</span>
-                            <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">,</span>
-                        <span class="p">)</span>
-                        <span class="ow">and</span> <span class="n">LAUNCHER_MARKER</span> <span class="ow">in</span> <span class="p">(</span><span class="n">task_agg</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span>
-                    <span class="p">),</span>
+                    <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="n">is_launcher_task</span><span class="p">(</span><span class="n">task_agg</span><span class="p">),</span>
                     <span class="c1"># Progress is reported by events, not kept on the task.</span>
                     <span class="s2">"progress"</span><span class="p">:</span> <span class="kc">None</span>
                 <span class="p">}</span>
@@ -480,10 +473,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
             <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="p">(</span>
-                <span class="n">task_name</span> <span class="ow">in</span> <span class="p">(</span><span class="n">RUN_WF_SCRIPT</span><span class="p">,</span> <span class="n">RUN_WF_BATCHED_SCRIPT</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="n">LAUNCHER_MARKER</span> <span class="ow">in</span> <span class="p">(</span><span class="n">domain_event</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span>
-            <span class="p">),</span>
+            <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="n">is_launcher_task</span><span class="p">(</span><span class="n">domain_event</span><span class="p">),</span>
             <span class="s2">"progress"</span><span class="p">:</span> <span class="kc">None</span>
             <span class="p">}</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Task created: task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, task_name=</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2"> -- </span><span class="si">{</span><span class="n">domain_event</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -549,9 +539,11 @@
             <span class="n">wf_id</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"workflow_id"</span><span class="p">]</span>
             <span class="n">task_name</span> <span class="o">=</span> <span class="n">task_info</span><span class="p">[</span><span class="s2">"task_name"</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
 
-            <span class="c1"># CLAIMED is supervisor bookkeeping, not workflow execution. The</span>
+            <span class="c1"># A claim is its own event now, but 2.9 betas stored it as the</span>
+            <span class="c1"># status CLAIMED. That is supervisor bookkeeping, not workflow</span>
+            <span class="c1"># execution, and must stay out of the view. The</span>
             <span class="c1"># first real task's TaskStarted event will set the visible phase.</span>
-            <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"is_launcher"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="n">CLAIMED</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"is_launcher"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="n">LEGACY_CLAIMED_STATUS</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">"[WFP] Ignoring detached launcher claim: "</span>
                     <span class="sa">f</span><span class="s2">"task_id=</span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">, wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">"</span>

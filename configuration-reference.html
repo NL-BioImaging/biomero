@@ -520,8 +520,8 @@ to use the Info-ZIP <code class="docutils literal notranslate"><span class="pre"
 contract. <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR</span></code> is enabled only by the case-insensitive
 literal value <code class="docutils literal notranslate"><span class="pre">true</span></code>; an absent or different value leaves the opt-in feature
 disabled. <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code> accepts the case-insensitive values
-<code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">yes</span></code> and <code class="docutils literal notranslate"><span class="pre">on</span></code>; it is disabled when absent or set to any
-other value.</p>
+<code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">yes</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code> and <code class="docutils literal notranslate"><span class="pre">on</span></code>; it is disabled when absent or set
+to any other value.</p>
 </section>
 <section id="detached-worker-supervisor">
 <h3>Detached worker supervisor<a class="headerlink" href="#detached-worker-supervisor" title="Permalink to this heading"></a></h3>
@@ -533,7 +533,8 @@ provides a compatible worker supervisor.</p>
 </div>
 <p>The four detached variable names are centralized in
 <code class="docutils literal notranslate"><span class="pre">biomero.constants.slurm_env</span></code> and form one deployment contract. The workflow
-scripts and worker both read <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code>. The three
+scripts and worker both read <code class="docutils literal notranslate"><span class="pre">BIOMERO_DETACHED_WORKFLOWS</span></code>, always through
+<code class="docutils literal notranslate"><span class="pre">biomero.detached.detached_mode_enabled()</span></code>. The three
 supervisor settings are consumed only by deployments that provide a detached
 workflow supervisor, such as the NL-BIOMERO <code class="docutils literal notranslate"><span class="pre">biomeroworker</span></code> container; they
 do not configure <code class="docutils literal notranslate"><span class="pre">SlurmClient</span></code> and do not need entries in

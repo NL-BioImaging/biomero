@@ -101,6 +101,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#schema-changes-views-only">Schema changes (views only)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#metadata-maintenance-requests">Metadata maintenance requests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#detached-launcher-claim-and-cancellation">Detached launcher claim and cancellation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#inspecting-aggregate-history">Inspecting aggregate history</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gotchas">Gotchas</a></li>
 </ul>
@@ -224,7 +225,11 @@ all events to repopulate them with the updated structure.</p>
 <section id="metadata-maintenance-requests">
 <h2>Metadata maintenance requests<a class="headerlink" href="#metadata-maintenance-requests" title="Permalink to this heading"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">biomero.maintenance.MetadataRefresh</span></code> stores administrative metadata-refresh
-requests in the same <code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code> event store, separately from
+requests in the same <code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code> event store. The class stays in core
+because every projection of that store resolves an event’s class from its stored
+topic (the import path of the class); the lifecycle guards, the topics and the
+notification scan live with it, while running a request is the processor’s job.
+Requests are kept separate from
 <code class="docutils literal notranslate"><span class="pre">WorkflowRun</span></code> and <code class="docutils literal notranslate"><span class="pre">Task</span></code>. These requests do not create analysis projection
 rows. The aggregate contains plain options, requester IDs, lifecycle status,
 progress counters and a compact final outcome; annotation operations remain in
@@ -233,6 +238,44 @@ and use its aggregate versions for historical replay. The processor discovers
 unfinished requests through topic-filtered notifications and retries interrupted
 idempotent sweeps. See NL-BIOMERO’s developer supervisor documentation for the
 execution and recovery policy.</p>
+</section>
+<section id="detached-launcher-claim-and-cancellation">
+<h2>Detached launcher claim and cancellation<a class="headerlink" href="#detached-launcher-claim-and-cancellation" title="Permalink to this heading"></a></h2>
+<p>A detached run is queued as a <em>launcher task</em>: a task of a launching script
+whose params carry <code class="docutils literal notranslate"><span class="pre">constants.LAUNCHER_MARKER</span></code>; a script adds it with
+<code class="docutils literal notranslate"><span class="pre">WorkflowTracker.add_launcher_task</span></code>. Every reader (views,
+provenance, the supervisor) decides with the one rule
+<code class="docutils literal notranslate"><span class="pre">biomero.eventsourcing.is_launcher_task</span></code>, and finds the task with
+<code class="docutils literal notranslate"><span class="pre">WorkflowTracker.find_launcher_task(workflow_id)</span></code>. The scripts decide what a
+launcher records and how a run resumes; the supervisor decides what to run.</p>
+<p>A supervisor takes a launcher with <code class="docutils literal notranslate"><span class="pre">WorkflowTracker.claim_launcher_task(task_id,</span>
+<span class="pre">owner)</span></code>. The claim is a <code class="docutils literal notranslate"><span class="pre">Task.LauncherClaimed</span></code> event appended to the task’s
+stream, so it is a compare-and-set: when two supervisors read the same
+unclaimed task and both claim it, the event store accepts one and the other
+call returns <code class="docutils literal notranslate"><span class="pre">False</span></code>. A claim is valid for
+<code class="docutils literal notranslate"><span class="pre">constants.LAUNCHER_CLAIM_LEASE_SECONDS</span></code>; its owner renews it by claiming
+again (the processor renews three times per lease), and a claim that is not
+renewed can be taken over. The lease is judged against each supervisor’s own
+clock, so supervisors need clocks that agree to well within the lease; the
+position in the event store, not the clock, is what keeps two claims apart. A
+supervisor that stops cleanly gives its claim up with
+<code class="docutils literal notranslate"><span class="pre">release_launcher_task</span></code>. The claim does not change <code class="docutils literal notranslate"><span class="pre">Task.status</span></code>. Launchers claimed by 2.9 betas carry the status
+<code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code> and no owner; they still load, the views still ignore that status,
+and such a launcher is free to claim.</p>
+<p><code class="docutils literal notranslate"><span class="pre">WorkflowTracker.request_workflow_cancel(workflow_id,</span> <span class="pre">reason)</span></code> records a
+<code class="docutils literal notranslate"><span class="pre">WorkflowRun.CancelRequested</span></code> event. Whoever executes the workflow calls
+<code class="docutils literal notranslate"><span class="pre">raise_if_cancel_requested</span></code> between its steps; that raises
+<code class="docutils literal notranslate"><span class="pre">WorkflowCancelled</span></code>, upon which the executor cancels the workflow’s Slurm jobs
+with <code class="docutils literal notranslate"><span class="pre">SlurmClient.cancel_slurm_jobs</span></code> and fails the workflow.
+<code class="docutils literal notranslate"><span class="pre">WorkflowCancelled</span></code> is a <code class="docutils literal notranslate"><span class="pre">WorkflowInterrupted</span></code>, the base for “stop now”
+conditions (an executor that lost its claim raises its own subclass): stage
+handlers let any <code class="docutils literal notranslate"><span class="pre">WorkflowInterrupted</span></code> pass without failing their task, and
+only a cancel makes the executor fail the workflow. It is deliberately not an
+<code class="docutils literal notranslate"><span class="pre">InterruptedError</span></code>, which is an <code class="docutils literal notranslate"><span class="pre">OSError</span></code> that SSH recovery handlers could
+catch.</p>
+<p>Resuming reads every task of the workflow once per call, and a run checks for a
+cancel once per poll; both are cheap next to a Slurm poll, but are one read per
+task for a workflow with very many tasks.</p>
 </section>
 <section id="inspecting-aggregate-history">
 <h2>Inspecting aggregate history<a class="headerlink" href="#inspecting-aggregate-history" title="Permalink to this heading"></a></h2>
@@ -254,7 +297,8 @@ Reading an aggregate does not run or resume it. <code class="docutils literal no
 <code class="docutils literal notranslate"><span class="pre">result_message</span></code> without necessarily replacing the task’s <code class="docutils literal notranslate"><span class="pre">status</span></code> field;
 inspect lifecycle events as well as status strings.</p>
 <p>When comparing detached and inline runs, account for the additional launcher
-task. <code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code> is a coordination state and is not analysis <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>.
+task. Its claim (<code class="docutils literal notranslate"><span class="pre">claimed_by</span></code>, <code class="docutils literal notranslate"><span class="pre">claimed_at</span></code>) is coordination state and is not
+analysis <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>; older 2.9 betas stored the claim as the status <code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code>.
 Remote shallowing adds its own helper task and receipts. These records remain
 in history even when excluded from the searchable metadata view. See
 <a class="reference internal" href="execution-and-storage.html"><span class="doc">Execution, storage and recovery</span></a> and <a class="reference internal" href="metadata-views.html"><span class="doc">Workflow metadata views</span></a>.</p>

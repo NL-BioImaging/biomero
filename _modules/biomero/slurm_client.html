@@ -160,7 +160,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">string</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">slurm_env</span><span class="p">,</span> <span class="n">LOCK_FILE_PATTERN</span><span class="p">,</span> <span class="n">COMMAND_NOT_FOUND_EXIT_CODE</span><span class="p">,</span> <span class="n">DEFAULT_SLURM_LOCK_CMD</span><span class="p">,</span>
+    <span class="n">slurm_env</span><span class="p">,</span> <span class="n">TRUTHY_VALUES</span><span class="p">,</span> <span class="n">LOCK_FILE_PATTERN</span><span class="p">,</span> <span class="n">COMMAND_NOT_FOUND_EXIT_CODE</span><span class="p">,</span> <span class="n">DEFAULT_SLURM_LOCK_CMD</span><span class="p">,</span>
     <span class="n">DEFAULT_SSH_RECOVERY_TIMEOUT</span><span class="p">,</span> <span class="n">LOCK_WAIT_SECONDS</span><span class="p">,</span> <span class="n">REMOTE_BUSY_EXIT_CODE</span><span class="p">,</span> <span class="n">SSH_AUTH_TIMEOUT_SECONDS</span><span class="p">,</span>
     <span class="n">SSH_BANNER_TIMEOUT_SECONDS</span><span class="p">,</span> <span class="n">SSH_CONNECT_TIMEOUT_SECONDS</span><span class="p">,</span>
     <span class="n">SSH_KEEPALIVE_SECONDS</span><span class="p">,</span> <span class="n">SUBMISSION_JOB_NAME_PREFIX</span><span class="p">,</span>
@@ -625,6 +625,9 @@
     <span class="n">_ALL_JOBS_CMD</span> <span class="o">=</span> <span class="s2">"sacct --starttime </span><span class="si">{start_time}</span><span class="s2"> --endtime </span><span class="si">{end_time}</span><span class="s2"> --state </span><span class="si">{states}</span><span class="s2"> -o </span><span class="si">{columns}</span><span class="s2"> -n -X "</span>
     <span class="n">_ACTIVE_JOBS_CMD</span> <span class="o">=</span> <span class="s2">"squeue -u $USER --nohead --format </span><span class="si">%F</span><span class="s2">"</span>
     <span class="n">_JOB_STATUS_CMD</span> <span class="o">=</span> <span class="s2">"sacct -n -o JobId,State,End -X -j </span><span class="si">{slurm_job_id}</span><span class="s2">"</span>
+    <span class="c1"># --user restricts the cancel to jobs of the account running it, expanded</span>
+    <span class="c1"># on the remote side like the other commands' $USER.</span>
+    <span class="n">_CANCEL_JOBS_CMD</span> <span class="o">=</span> <span class="s1">'scancel --user="$USER" </span><span class="si">{slurm_job_ids}</span><span class="s1">'</span>
     <span class="c1"># TODO move all commands to a similar format.</span>
     <span class="c1"># Then maybe allow overwrite from slurm-config.ini</span>
     <span class="n">_LOGFILE</span> <span class="o">=</span> <span class="s2">"omero-</span><span class="si">{slurm_job_id}</span><span class="s2">.log"</span>
@@ -775,10 +778,9 @@
 
         <span class="k">if</span> <span class="n">env_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">value_type</span> <span class="ow">is</span> <span class="nb">bool</span><span class="p">:</span>
-                <span class="n">truthy_values</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"true"</span><span class="p">,</span> <span class="s2">"1"</span><span class="p">,</span> <span class="s2">"yes"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"on"</span><span class="p">)</span>
                 <span class="n">falsy_values</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"false"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">,</span> <span class="s2">"no"</span><span class="p">,</span> <span class="s2">"n"</span><span class="p">,</span> <span class="s2">"off"</span><span class="p">)</span>
                 <span class="n">lowered</span> <span class="o">=</span> <span class="n">env_value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">lowered</span> <span class="ow">in</span> <span class="n">truthy_values</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">lowered</span> <span class="ow">in</span> <span class="n">TRUTHY_VALUES</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">True</span>
                 <span class="k">if</span> <span class="n">lowered</span> <span class="ow">in</span> <span class="n">falsy_values</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">False</span>
@@ -2662,9 +2664,8 @@
                 <span class="n">slurm_model_jobs</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_job</span><span class="p">)]]</span> <span class="o">=</span> <span class="n">v</span>
                 <span class="n">slurm_model_jobs_params</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_job</span><span class="p">)]]</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">elif</span> <span class="n">k</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">suffix_use_gpu</span><span class="p">):</span>
-                <span class="n">slurm_model_use_gpu</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_use_gpu</span><span class="p">)]]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span>
-                    <span class="s2">"true"</span><span class="p">,</span> <span class="s2">"1"</span><span class="p">,</span> <span class="s2">"yes"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"on"</span>
-                <span class="p">)</span>
+                <span class="n">slurm_model_use_gpu</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">suffix_use_gpu</span><span class="p">)]]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">TRUTHY_VALUES</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">job_param_match</span><span class="p">:</span>
                 <span class="n">slurm_model_jobs_params</span><span class="p">[</span><span class="n">job_param_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">" --</span><span class="si">{</span><span class="n">job_param_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -4187,17 +4188,7 @@
 <span class="sd">            SSHException: If the command fails, or sacct returns no job rows</span>
 <span class="sd">                after ``job_status_attempts`` attempts.</span>
 <span class="sd">        """</span>
-        <span class="c1"># Filter job IDs to only include valid positive integers</span>
-        <span class="n">valid_job_ids</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">jid</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">jid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">jid</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">val</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                        <span class="n">valid_job_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
-            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
-                <span class="k">continue</span>
-
+        <span class="n">valid_job_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">positive_job_ids</span><span class="p">(</span><span class="n">slurm_job_ids</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">valid_job_ids</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">{},</span> <span class="kc">None</span>
 
@@ -4266,6 +4257,65 @@
                 <span class="k">continue</span>
             <span class="n">job_status_dict</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">job_status_dict</span>
+
+<div class="viewcode-block" id="SlurmClient.positive_job_ids"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.positive_job_ids">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">positive_job_ids</span><span class="p">(</span><span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Keep the entries that are valid Slurm job IDs: positive integers.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            slurm_job_ids (List): Job IDs as numbers or strings; None and</span>
+<span class="sd">                values that are not numbers (such as the -1 that</span>
+<span class="sd">                ``extract_job_id`` returns for "not found") are dropped.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[int]: The valid job IDs, in the original order.</span>
+<span class="sd">        """</span>
+        <span class="n">valid_job_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">slurm_job_ids</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">valid_job_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                <span class="k">continue</span>
+        <span class="k">return</span> <span class="n">valid_job_ids</span></div>
+
+<div class="viewcode-block" id="SlurmClient.cancel_slurm_jobs"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.cancel_slurm_jobs">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">cancel_slurm_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Result</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Cancel Slurm jobs, for example when the workflow they belong to is</span>
+<span class="sd">        cancelled.</span>
+
+<span class="sd">        Cancelling a job that already ended is not an error for the caller: the</span>
+<span class="sd">        job is gone either way, so this logs what Slurm answered and returns</span>
+<span class="sd">        the result instead of raising.</span>
+
+<span class="sd">        The command restricts ``scancel`` to jobs owned by the cluster account</span>
+<span class="sd">        BIOMERO connects with (``--user``, which Slurm documents as "restrict</span>
+<span class="sd">        the scancel operation to jobs owned by the given user"). An account</span>
+<span class="sd">        with Slurm operator, admin or coordinator rights may otherwise cancel</span>
+<span class="sd">        other users' jobs, so a wrong or stale job ID can never hit a job that</span>
+<span class="sd">        is not BIOMERO's. It uses ``--user="$USER"`` rather than ``--me``,</span>
+<span class="sd">        which older Slurm versions lack.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            slurm_job_ids (List[int]): The job IDs of the jobs to cancel.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Result: The result of the ``scancel`` command, or None when none</span>
+<span class="sd">                of the IDs is a valid job ID.</span>
+<span class="sd">        """</span>
+        <span class="n">valid_job_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">positive_job_ids</span><span class="p">(</span><span class="n">slurm_job_ids</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">valid_job_ids</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No valid Slurm job to cancel in </span><span class="si">{</span><span class="n">slurm_job_ids</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">cancel_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_CANCEL_JOBS_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">slurm_job_ids</span><span class="o">=</span><span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">valid_job_ids</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cancelling Slurm jobs </span><span class="si">{</span><span class="n">valid_job_ids</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands</span><span class="p">([</span><span class="n">cancel_cmd</span><span class="p">],</span> <span class="n">warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"scancel of </span><span class="si">{</span><span class="n">valid_job_ids</span><span class="si">}</span><span class="s2"> reported: "</span>
+                           <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_job_status_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_job_status_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_status_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -4645,9 +4695,7 @@
         <span class="k">if</span> <span class="n">use_gpu_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">use_gpu</span> <span class="o">=</span> <span class="n">config_use_gpu</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">use_gpu</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">use_gpu_value</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span>
-                <span class="s2">"true"</span><span class="p">,</span> <span class="s2">"1"</span><span class="p">,</span> <span class="s2">"yes"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"on"</span>
-            <span class="p">)</span>
+            <span class="n">use_gpu</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">use_gpu_value</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">TRUTHY_VALUES</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inject_gpu_flag</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>

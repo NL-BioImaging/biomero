@@ -119,106 +119,238 @@
            <div itemprop="articleBody">
              
   <h1>Source code for biomero.maintenance</h1><div class="highlight"><pre>
-<span></span><span class="sd">"""Durable metadata-maintenance requests, separate from analysis workflows.</span>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Copyright 2024 Torec Luik</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#        http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied.  See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="sd">"""Durable metadata-maintenance requests, separate from analysis workflows.</span>
 
 <span class="sd">Only plain request options and compact outcomes are persisted. The processor</span>
 <span class="sd">owns execution; the scripts layer owns all external annotation operations.</span>
+
+<span class="sd">Why this is in core and not in the processor or the scripts: a request is an</span>
+<span class="sd">aggregate in the WorkflowTracker event store, next to the workflow aggregates.</span>
+<span class="sd">Every projection of that store (``biomero.views``) resolves the class of each</span>
+<span class="sd">event it reads from the event's stored topic, and the topic is the import path</span>
+<span class="sd">of the class: ``biomero.maintenance:MetadataRefresh.Started`` and so on. A</span>
+<span class="sd">class that only the processor or a script can import would make every other</span>
+<span class="sd">process that replays the store fail on these events, and moving the class would</span>
+<span class="sd">orphan the requests already stored. The request lifecycle (this aggregate and</span>
+<span class="sd">its notification scan) therefore stays here; running a request does not.</span>
 <span class="sd">"""</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.domain</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aggregate</span><span class="p">,</span> <span class="n">event</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_topic</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">metadata_refresh_status</span> <span class="k">as</span> <span class="n">refresh_status</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Key of the failure count in a finished request's report (the report is the</span>
+<span class="c1"># outcome of the scripts' refresh_all_metadata()).</span>
+<span class="n">REPORT_COUNTS_KEY</span> <span class="o">=</span> <span class="s2">"counts"</span>
+<span class="n">REPORT_FAILED_KEY</span> <span class="o">=</span> <span class="s2">"failed"</span>
+
 
 <div class="viewcode-block" id="MetadataRefresh"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.MetadataRefresh">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">MetadataRefresh</span><span class="p">(</span><span class="n">Aggregate</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""A resumable maintenance request in the WorkflowTracker event store."""</span>
+<span class="w">    </span><span class="sd">"""A resumable maintenance request in the WorkflowTracker event store.</span>
+
+<span class="sd">    The public methods guard the lifecycle and raise ValueError for a</span>
+<span class="sd">    transition that cannot happen. The guards are not part of the events, so</span>
+<span class="sd">    a stream written before they existed still replays.</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">group</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">group</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">'QUEUED'</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">refresh_status</span><span class="o">.</span><span class="n">QUEUED</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="s1">''</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="s2">""</span>
 
-    <span class="nd">@event</span><span class="p">(</span><span class="s1">'Started'</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">'RUNNING'</span>
+<div class="viewcode-block" id="MetadataRefresh.is_finished"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.MetadataRefresh.is_finished">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether the request reached a terminal state."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">refresh_status</span><span class="o">.</span><span class="n">ACTIVE</span></div>
 
-    <span class="nd">@event</span><span class="p">(</span><span class="s1">'Progress'</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">progressed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="MetadataRefresh.started"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.MetadataRefresh.started">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Mark the request as running; also done when a restart resumes it."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_finished</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Request </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> is already </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">; "</span>
+                             <span class="sa">f</span><span class="s2">"it cannot start again"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_started</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MetadataRefresh.progressed"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.MetadataRefresh.progressed">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">progressed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Record the progress report of a running request."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">refresh_status</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Request </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">; "</span>
+                             <span class="sa">f</span><span class="s2">"only a running request has progress"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_progressed</span><span class="p">(</span><span class="n">report</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MetadataRefresh.finished"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.MetadataRefresh.finished">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Record the outcome: FAILED on an error or failed targets, else DONE.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            report (dict): The outcome of the refresh, with the failure count</span>
+<span class="sd">                under ``report["counts"]["failed"]``.</span>
+<span class="sd">            error (str, optional): Why the request could not run at all.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_finished</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Request </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> is already </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">; "</span>
+                             <span class="sa">f</span><span class="s2">"it cannot finish again"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finished</span><span class="p">(</span><span class="n">report</span><span class="p">,</span> <span class="n">error</span><span class="p">)</span></div>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="s2">"Started"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_started</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">refresh_status</span><span class="o">.</span><span class="n">RUNNING</span>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="s2">"Progress"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_progressed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>
 
-    <span class="nd">@event</span><span class="p">(</span><span class="s1">'Finished'</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">''</span><span class="p">):</span>
+    <span class="nd">@event</span><span class="p">(</span><span class="s2">"Finished"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">):</span>
+        <span class="n">failed_targets</span> <span class="o">=</span> <span class="n">report</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">REPORT_COUNTS_KEY</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">REPORT_FAILED_KEY</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">has_failures</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">error</span> <span class="ow">or</span> <span class="n">failed_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="n">error</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">'FAILED'</span> <span class="k">if</span> <span class="n">error</span> <span class="ow">or</span> <span class="n">report</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'counts'</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'failed'</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'DONE'</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="p">(</span><span class="n">refresh_status</span><span class="o">.</span><span class="n">FAILED</span> <span class="k">if</span> <span class="n">has_failures</span>
+                       <span class="k">else</span> <span class="n">refresh_status</span><span class="o">.</span><span class="n">DONE</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="queue_metadata_refresh"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.queue_metadata_refresh">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">queue_metadata_refresh</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""Persist the handoff before the requesting script closes its session."""</span>
+<div class="viewcode-block" id="queue_metadata_refresh"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.queue_metadata_refresh">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">queue_metadata_refresh</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">group</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                           <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UUID</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Persist the handoff before the requesting script closes its session.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): Tracker whose event store holds requests.</span>
+<span class="sd">        user (int): OMERO user ID of the administrator who asked.</span>
+<span class="sd">        group (int): OMERO group ID to run in.</span>
+<span class="sd">        options (dict): Plain request options for the refresh.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        UUID: The request ID.</span>
+<span class="sd">    """</span>
     <span class="n">request</span> <span class="o">=</span> <span class="n">MetadataRefresh</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
     <span class="n">tracker</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
-    <span class="c1"># Scoped datastores delegate transaction ownership to their caller.</span>
-    <span class="n">datastore</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tracker</span><span class="o">.</span><span class="n">factory</span><span class="p">,</span> <span class="s1">'datastore'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">datastore</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="s1">'scoped_session'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">datastore</span><span class="o">.</span><span class="n">scoped_session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">tracker</span><span class="o">.</span><span class="n">commit_open_transaction</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Queued metadata refresh request </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> for user "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2"> in group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">id</span></div>
 
 
-<div class="viewcode-block" id="pending_metadata_refreshes"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.pending_metadata_refreshes">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">pending_metadata_refreshes</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">pending</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""Catch up only maintenance notifications; recover RUNNING after restart.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_lifecycle_topics</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Topics of the events that decide whether a request is still pending."""</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">get_topic</span><span class="p">(</span><span class="n">event_class</span><span class="p">)</span> <span class="k">for</span> <span class="n">event_class</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Created</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Started</span><span class="p">,</span>
+        <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)]</span>
 
-<span class="sd">    ``start`` is a global notification cursor, not an aggregate version.</span>
-<span class="sd">    A fresh supervisor replays this small, topic-filtered stream once. Its</span>
-<span class="sd">    subsequent polls continue at the returned cursor.</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_lifecycle_notifications</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Yield the request lifecycle notifications from a cursor onwards.</span>
+
+<span class="sd">    Pages through the notification log with only the request topics selected,</span>
+<span class="sd">    so analysis events are never read.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): Tracker whose notification log to read.</span>
+<span class="sd">        start (int, optional): Global notification ID to continue from; this</span>
+<span class="sd">            is a notification cursor, not an aggregate version.</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        Notification: In order of notification ID.</span>
+<span class="sd">    """</span>
+    <span class="n">topics</span> <span class="o">=</span> <span class="n">_lifecycle_topics</span><span class="p">()</span>
+    <span class="n">page_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">MAINTENANCE_SCAN_PAGE_SIZE</span><span class="p">,</span>
+                    <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">section_size</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">notifications</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+            <span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">page_size</span><span class="p">,</span> <span class="n">topics</span><span class="o">=</span><span class="n">topics</span><span class="p">)</span>
+        <span class="k">yield from</span> <span class="n">notifications</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notifications</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">page_size</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">notifications</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span>
+
+
+<div class="viewcode-block" id="pending_metadata_refreshes"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.pending_metadata_refreshes">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">pending_metadata_refreshes</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">pending</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Set</span><span class="p">[</span><span class="n">UUID</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Set</span><span class="p">[</span><span class="n">UUID</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""Catch up on request notifications; a RUNNING request stays pending.</span>
+
+<span class="sd">    A request that was RUNNING when its supervisor stopped has no Finished</span>
+<span class="sd">    event, so it is pending again after a restart and gets resumed.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): Tracker whose notification log to read.</span>
+<span class="sd">        start (int, optional): Notification cursor from a previous call.</span>
+<span class="sd">        pending (set, optional): Pending request IDs from a previous call.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: The cursor to continue from, and the IDs of the requests that</span>
+<span class="sd">            are queued or running.</span>
 <span class="sd">    """</span>
     <span class="n">pending</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">pending</span> <span class="ow">or</span> <span class="p">())</span>
-    <span class="n">topics</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_topic</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="p">(</span>
-        <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Created</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Started</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)]</span>
-    <span class="n">limit</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">section_size</span><span class="p">)</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="n">notifications</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">topics</span><span class="o">=</span><span class="n">topics</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="n">notifications</span><span class="p">:</span>
-            <span class="n">request_id</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span>
-            <span class="k">if</span> <span class="n">notification</span><span class="o">.</span><span class="n">topic</span> <span class="o">==</span> <span class="n">topics</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
-                <span class="n">pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
-            <span class="n">start</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notifications</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">limit</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">start</span><span class="p">,</span> <span class="n">pending</span></div>
+    <span class="n">finished_topic</span> <span class="o">=</span> <span class="n">get_topic</span><span class="p">(</span><span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="n">_lifecycle_notifications</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">start</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">notification</span><span class="o">.</span><span class="n">topic</span> <span class="o">==</span> <span class="n">finished_topic</span><span class="p">:</span>
+            <span class="n">pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Pending metadata refresh requests: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                 <span class="sa">f</span><span class="s2">"(cursor </span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">start</span><span class="p">,</span> <span class="n">pending</span></div>
 
 
-<div class="viewcode-block" id="metadata_refresh_statuses"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.metadata_refresh_statuses">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">metadata_refresh_statuses</span><span class="p">(</span><span class="n">tracker</span><span class="p">,</span> <span class="n">recent</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""Return plain snapshots of all active and bounded recent terminal requests."""</span>
+<div class="viewcode-block" id="metadata_refresh_statuses"><a class="viewcode-back" href="../../biomero.html#biomero.maintenance.metadata_refresh_statuses">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">metadata_refresh_statuses</span><span class="p">(</span>
+        <span class="n">tracker</span><span class="p">,</span>
+        <span class="n">recent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">MAINTENANCE_RECENT_REQUESTS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Plain snapshots of all active and the most recent finished requests.</span>
+
+<span class="sd">    This replays the request notifications from the start on every call, which</span>
+<span class="sd">    is meant for an occasional administrator status check.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tracker (WorkflowTracker): Tracker whose event store holds requests.</span>
+<span class="sd">        recent (int, optional): How many finished requests to include.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list: One dict per request, newest first.</span>
+<span class="sd">    """</span>
     <span class="n">pending</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
     <span class="n">finished</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="n">recent</span><span class="p">)</span>
-    <span class="n">start</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">limit</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">section_size</span><span class="p">)</span>
-    <span class="n">topics</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_topic</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="p">(</span>
-        <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Created</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Started</span><span class="p">,</span> <span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)]</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="n">notifications</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">notification_log</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">topics</span><span class="o">=</span><span class="n">topics</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="n">notifications</span><span class="p">:</span>
-            <span class="n">request_id</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span>
-            <span class="k">if</span> <span class="n">notification</span><span class="o">.</span><span class="n">topic</span> <span class="o">==</span> <span class="n">topics</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
-                <span class="n">pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
-                <span class="n">finished</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
-            <span class="n">start</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notifications</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">limit</span><span class="p">:</span>
-            <span class="k">break</span>
-    <span class="n">requests</span> <span class="o">=</span> <span class="p">[</span><span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">request_id</span> <span class="ow">in</span> <span class="n">pending</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">finished</span><span class="p">)]</span>
+    <span class="n">finished_topic</span> <span class="o">=</span> <span class="n">get_topic</span><span class="p">(</span><span class="n">MetadataRefresh</span><span class="o">.</span><span class="n">Finished</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="n">_lifecycle_notifications</span><span class="p">(</span><span class="n">tracker</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">notification</span><span class="o">.</span><span class="n">topic</span> <span class="o">==</span> <span class="n">finished_topic</span><span class="p">:</span>
+            <span class="n">pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span><span class="p">)</span>
+            <span class="n">finished</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">notification</span><span class="o">.</span><span class="n">originator_id</span><span class="p">)</span>
+    <span class="n">requests</span> <span class="o">=</span> <span class="p">[</span><span class="n">tracker</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_id</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">request_id</span> <span class="ow">in</span> <span class="n">pending</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">finished</span><span class="p">)]</span>
     <span class="n">requests</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">request</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">modified_on</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">return</span> <span class="p">[{</span><span class="s1">'request_id'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="s1">'status'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
-             <span class="s1">'created_on'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">created_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-             <span class="s1">'modified_on'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">modified_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-             <span class="s1">'options'</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">options</span><span class="p">),</span> <span class="s1">'report'</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">report</span><span class="p">),</span>
-             <span class="s1">'error'</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">error</span><span class="p">}</span> <span class="k">for</span> <span class="n">request</span> <span class="ow">in</span> <span class="n">requests</span><span class="p">]</span></div>
+    <span class="k">return</span> <span class="p">[{</span><span class="s2">"request_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="s2">"status"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+             <span class="s2">"created_on"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">created_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+             <span class="s2">"modified_on"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">modified_on</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+             <span class="s2">"options"</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">options</span><span class="p">),</span>
+             <span class="s2">"report"</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">report</span><span class="p">),</span>
+             <span class="s2">"error"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">error</span><span class="p">}</span> <span class="k">for</span> <span class="n">request</span> <span class="ow">in</span> <span class="n">requests</span><span class="p">]</span></div>
 </pre></div>
 
            </div>

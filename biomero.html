@@ -95,8 +95,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.NoOpWorkflowTracker"><code class="docutils literal notranslate"><span class="pre">NoOpWorkflowTracker</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.ResultDict"><code class="docutils literal notranslate"><span class="pre">ResultDict</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.Task"><code class="docutils literal notranslate"><span class="pre">Task</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.WorkflowCancelled"><code class="docutils literal notranslate"><span class="pre">WorkflowCancelled</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.WorkflowInterrupted"><code class="docutils literal notranslate"><span class="pre">WorkflowInterrupted</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.WorkflowRun"><code class="docutils literal notranslate"><span class="pre">WorkflowRun</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.WorkflowTracker"><code class="docutils literal notranslate"><span class="pre">WorkflowTracker</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.eventsourcing.is_launcher_task"><code class="docutils literal notranslate"><span class="pre">is_launcher_task()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#module-biomero.views">biomero.views module</a><ul>
@@ -114,6 +117,10 @@
 <li class="toctree-l4"><a class="reference internal" href="#biomero.provenance.render_workflow_metadata"><code class="docutils literal notranslate"><span class="pre">render_workflow_metadata()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.provenance.resolve_metadata_versions"><code class="docutils literal notranslate"><span class="pre">resolve_metadata_versions()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.provenance.storage_metadata_view"><code class="docutils literal notranslate"><span class="pre">storage_metadata_view()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-biomero.detached">biomero.detached module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.detached.detached_mode_enabled"><code class="docutils literal notranslate"><span class="pre">detached_mode_enabled()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#module-biomero.maintenance">biomero.maintenance module</a><ul>
@@ -375,6 +382,38 @@ this method sets itself (<code class="docutils literal notranslate"><span class=
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.cancel_slurm_jobs">
+<span class="sig-name descname"><span class="pre">cancel_slurm_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_job_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.fabfile.org/en/stable/api/runners.html#fabric.runners.Result" title="(in Fabric)"><span class="pre">Result</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.cancel_slurm_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.cancel_slurm_jobs" title="Permalink to this definition"></a></dt>
+<dd><p>Cancel Slurm jobs, for example when the workflow they belong to is
+cancelled.</p>
+<p>Cancelling a job that already ended is not an error for the caller: the
+job is gone either way, so this logs what Slurm answered and returns
+the result instead of raising.</p>
+<p>The command restricts <code class="docutils literal notranslate"><span class="pre">scancel</span></code> to jobs owned by the cluster account
+BIOMERO connects with (<code class="docutils literal notranslate"><span class="pre">--user</span></code>, which Slurm documents as “restrict
+the scancel operation to jobs owned by the given user”). An account
+with Slurm operator, admin or coordinator rights may otherwise cancel
+other users’ jobs, so a wrong or stale job ID can never hit a job that
+is not BIOMERO’s. It uses <code class="docutils literal notranslate"><span class="pre">--user=&quot;$USER&quot;</span></code> rather than <code class="docutils literal notranslate"><span class="pre">--me</span></code>,
+which older Slurm versions lack.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>slurm_job_ids</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>]</em>) – The job IDs of the jobs to cancel.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The result of the <code class="docutils literal notranslate"><span class="pre">scancel</span></code> command, or None when none</dt><dd><p>of the IDs is a valid job ID.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Result</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1406,6 +1445,25 @@ ignores a caller-supplied <code class="docutils literal notranslate"><span class
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.positive_job_ids">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">positive_job_ids</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_job_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><span class="pre">List</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.positive_job_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.positive_job_ids" title="Permalink to this definition"></a></dt>
+<dd><p>Keep the entries that are valid Slurm job IDs: positive integers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>slurm_job_ids</strong> (<em>List</em>) – Job IDs as numbers or strings; None and
+values that are not numbers (such as the -1 that
+<code class="docutils literal notranslate"><span class="pre">extract_job_id</span></code> returns for “not found”) are dropped.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The valid job IDs, in the original order.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)">int</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.prepare_converters">
 <span class="sig-name descname"><span class="pre">prepare_converters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.prepare_converters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.prepare_converters" title="Permalink to this definition"></a></dt>
 <dd><p>Stage converter runtime files and return their image specifications.</p>
@@ -2380,6 +2438,50 @@ and its parameters for debugging purposes.</p>
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.completed">
+<span class="sig-name descname"><span class="pre">completed</span></span><a class="headerlink" href="#biomero.eventsourcing.Task.completed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether the task was completed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.failed">
+<span class="sig-name descname"><span class="pre">failed</span></span><a class="headerlink" href="#biomero.eventsourcing.Task.failed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether the task failed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.claimed_by">
+<span class="sig-name descname"><span class="pre">claimed_by</span></span><a class="headerlink" href="#biomero.eventsourcing.Task.claimed_by" title="Permalink to this definition"></a></dt>
+<dd><p>The supervisor that holds the claim, for a launcher.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.claimed_at">
+<span class="sig-name descname"><span class="pre">claimed_at</span></span><a class="headerlink" href="#biomero.eventsourcing.Task.claimed_at" title="Permalink to this definition"></a></dt>
+<dd><p>When that claim was made or last renewed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>datetime</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.eventsourcing.Task.Created">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Created</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'UUID'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'int'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'datetime'</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#biomero.eventsourcing.Task.Created" title="Permalink to this definition"></a></dt>
@@ -2413,6 +2515,18 @@ and its parameters for debugging purposes.</p>
 <dt class="sig sig-object py" id="biomero.eventsourcing.Task.JobIdAdded">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JobIdAdded</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'UUID'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'int'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'datetime'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.JobIdAdded"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.JobIdAdded" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DecoratedFuncCaller</span></code>, <a class="reference internal" href="#biomero.eventsourcing.Task.JobIdAdded" title="biomero.eventsourcing.Task.JobIdAdded"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobIdAdded</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.LauncherClaimed">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LauncherClaimed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'UUID'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'int'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'datetime'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">claimed_at</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.15)"><span class="pre">datetime.datetime</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.LauncherClaimed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.LauncherClaimed" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DecoratedFuncCaller</span></code>, <a class="reference internal" href="#biomero.eventsourcing.Task.LauncherClaimed" title="biomero.eventsourcing.Task.LauncherClaimed"><code class="xref py py-class docutils literal notranslate"><span class="pre">LauncherClaimed</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.LauncherReleased">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LauncherReleased</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'UUID'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'int'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'datetime'</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.LauncherReleased"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.LauncherReleased" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DecoratedFuncCaller</span></code>, <a class="reference internal" href="#biomero.eventsourcing.Task.LauncherReleased" title="biomero.eventsourcing.Task.LauncherReleased"><code class="xref py py-class docutils literal notranslate"><span class="pre">LauncherReleased</span></code></a></p>
 </dd></dl>
 
 <dl class="py class">
@@ -2490,6 +2604,11 @@ and its parameters for debugging purposes.</p>
 <dd></dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.claim_launcher">
+<span class="sig-name descname"><span class="pre">claim_launcher</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.claim_launcher"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.claim_launcher" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.eventsourcing.Task.complete_task">
 <span class="sig-name descname"><span class="pre">complete_task</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.complete_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.complete_task" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
@@ -2499,9 +2618,35 @@ and its parameters for debugging purposes.</p>
 <span class="sig-name descname"><span class="pre">fail_task</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.fail_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.fail_task" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.is_claimed_by_other">
+<span class="sig-name descname"><span class="pre">is_claimed_by_other</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">owner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.15)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">lease_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.is_claimed_by_other"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.is_claimed_by_other" title="Permalink to this definition"></a></dt>
+<dd><p>Whether someone else holds a claim that has not expired yet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>owner</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – The supervisor that wants to claim the task.</p></li>
+<li><p><strong>now</strong> (<em>datetime</em>) – The current time (timezone-aware).</p></li>
+<li><p><strong>lease_seconds</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – How long a claim stays valid.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True when another owner’s claim is still within its lease.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.eventsourcing.Task.record_storage_provenance">
 <span class="sig-name descname"><span class="pre">record_storage_provenance</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.record_storage_provenance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.record_storage_provenance" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.Task.release_launcher">
+<span class="sig-name descname"><span class="pre">release_launcher</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.release_launcher"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.release_launcher" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -2519,6 +2664,23 @@ and its parameters for debugging purposes.</p>
 <span class="sig-name descname"><span class="pre">update_task_status</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#Task.update_task_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.Task.update_task_status" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowCancelled">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.eventsourcing.</span></span><span class="sig-name descname"><span class="pre">WorkflowCancelled</span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowCancelled"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowCancelled" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#biomero.eventsourcing.WorkflowInterrupted" title="biomero.eventsourcing.WorkflowInterrupted"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkflowInterrupted</span></code></a></p>
+<p>A workflow was asked to cancel: stop, cancel its jobs, fail it.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowInterrupted">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.eventsourcing.</span></span><span class="sig-name descname"><span class="pre">WorkflowInterrupted</span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowInterrupted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowInterrupted" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#Exception" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
+<p>Whoever runs a workflow must stop now, between its steps.</p>
+<p>Deliberately not an <code class="docutils literal notranslate"><span class="pre">InterruptedError</span></code>: that is an <code class="docutils literal notranslate"><span class="pre">OSError</span></code>, which
+<code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">OSError</span></code> handlers and the SSH recovery classifier would catch.
+Stage handlers let it pass; subclasses say why the run stopped.</p>
 </dd></dl>
 
 <dl class="py class">
@@ -2579,6 +2741,12 @@ and its parameters for debugging purposes.</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a></p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowRun.CancelRequested">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">CancelRequested</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'UUID'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'int'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'datetime'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reason</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.CancelRequested"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.CancelRequested" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DecoratedFuncCaller</span></code>, <a class="reference internal" href="#biomero.eventsourcing.WorkflowRun.CancelRequested" title="biomero.eventsourcing.WorkflowRun.CancelRequested"><code class="xref py py-class docutils literal notranslate"><span class="pre">CancelRequested</span></code></a></p>
 </dd></dl>
 
 <dl class="py class">
@@ -2657,19 +2825,52 @@ and its parameters for debugging purposes.</p>
 <span class="sig-name descname"><span class="pre">add_task</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.add_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.add_task" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
-<dl class="py attribute">
+<dl class="py method">
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowRun.complete_workflow">
-<span class="sig-name descname"><span class="pre">complete_workflow</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.complete_workflow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.complete_workflow" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-name descname"><span class="pre">complete_workflow</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.complete_workflow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.complete_workflow" title="Permalink to this definition"></a></dt>
+<dd><p>Complete the workflow, unless it already reached a final state.</p>
+<p>The refusal is not part of the events, so streams that already contain
+two final events still replay; only new transitions are refused.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>False when the workflow was already final and nothing</dt><dd><p>was recorded.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
 
-<dl class="py attribute">
+<dl class="py method">
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowRun.fail_workflow">
-<span class="sig-name descname"><span class="pre">fail_workflow</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.fail_workflow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.fail_workflow" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-name descname"><span class="pre">fail_workflow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">error_message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.fail_workflow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.fail_workflow" title="Permalink to this definition"></a></dt>
+<dd><p>Fail the workflow, unless it already reached a final state.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>False when the workflow was already final and nothing</dt><dd><p>was recorded.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowRun.record_canonical_inputs">
 <span class="sig-name descname"><span class="pre">record_canonical_inputs</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.record_canonical_inputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.record_canonical_inputs" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowRun.request_cancel">
+<span class="sig-name descname"><span class="pre">request_cancel</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;eventsourcing.domain.UnboundCommandMethodDecorator</span> <span class="pre">object&gt;</span></em><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowRun.request_cancel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowRun.request_cancel" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -2771,6 +2972,37 @@ and its parameters for debugging purposes.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.add_launcher_task">
+<span class="sig-name descname"><span class="pre">add_launcher_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.add_launcher_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.add_launcher_task" title="Permalink to this definition"></a></dt>
+<dd><p>Adds the launcher task that queues a workflow for a detached
+supervisor: an ordinary task of a launching script, marked as launcher.</p>
+<p>What goes into <code class="docutils literal notranslate"><span class="pre">kwargs</span></code> is up to the caller (the script knows what
+its run needs); this only adds the marker, with the script version as
+its value, to a copy of it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>workflow_id</strong> (<em>UUID</em>) – The UUID of the workflow.</p></li>
+<li><p><strong>task_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – The launching script, one of
+constants.LAUNCHER_TASK_NAMES.</p></li>
+<li><p><strong>task_version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – The version of the launching script.</p></li>
+<li><p><strong>input_data</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a>) – Input data for the task.</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a>) – Everything the supervisor needs to run the workflow.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The UUID of the launcher task.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>UUID</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the task name is not a launching script.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="id11">
 <span class="sig-name descname"><span class="pre">add_result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.add_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id11" title="Permalink to this definition"></a></dt>
 <dd><p>Adds a result to the task with the given UUID.</p>
@@ -2805,6 +3037,51 @@ and its parameters for debugging purposes.</p>
 <dd class="field-odd"><p>UUID</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.claim_launcher_task">
+<span class="sig-name descname"><span class="pre">claim_launcher_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">lease_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.claim_launcher_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.claim_launcher_task" title="Permalink to this definition"></a></dt>
+<dd><p>Claims a launcher task for a supervisor, atomically.</p>
+<p>This is a compare-and-set on the task’s event stream: the claim is
+appended as the next event of the task, and the event store accepts
+only one event per position. When two supervisors read the same task
+and both try to claim it, one of them loses and gets False.</p>
+<p>A claim is valid for <code class="docutils literal notranslate"><span class="pre">lease_seconds</span></code>. The owner renews it by
+claiming again; a claim that was not renewed (for example because the
+supervisor crashed) can be taken over by any other owner. Renew well
+within the lease (the processor renews three times per lease). The
+lease compares the claim’s timestamp with this process’s clock, so
+supervisors must have clocks that agree to well within the lease; the
+event-store position, not the clock, is what keeps two claims apart.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>task_id</strong> (<em>UUID</em>) – The launcher task to claim.</p></li>
+<li><p><strong>owner</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Identity of the claiming supervisor.</p></li>
+<li><p><strong>lease_seconds</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a><em>, </em><em>optional</em>) – How long a claim stays valid.
+Defaults to constants.LAUNCHER_CLAIM_LEASE_SECONDS.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True when the caller now holds the claim.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the task is not a launcher task.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.commit_open_transaction">
+<span class="sig-name descname"><span class="pre">commit_open_transaction</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.commit_open_transaction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.commit_open_transaction" title="Permalink to this definition"></a></dt>
+<dd><p>Commits what was saved on a datastore that leaves the transaction to
+its caller (the scoped-session store); other stores commit on save.</p>
+<p>Use this after <code class="docutils literal notranslate"><span class="pre">save()</span></code> for aggregates that are not written through
+one of the tracker’s own methods.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -2861,6 +3138,30 @@ and its parameters for debugging purposes.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.find_launcher_task">
+<span class="sig-name descname"><span class="pre">find_launcher_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><span class="pre">Task</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.find_launcher_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.find_launcher_task" title="Permalink to this definition"></a></dt>
+<dd><p>Finds the launcher task that queued a workflow for a supervisor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>workflow_id</strong> (<em>UUID</em>) – The UUID of the workflow.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The launcher task, or None when the workflow was not</dt><dd><p>queued for a supervisor.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task">Task</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#Exception" title="(in Python v3.15)"><strong>Exception</strong></a> – When the workflow or one of its tasks cannot be read.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.get_canonical_input_manifest">
 <span class="sig-name descname"><span class="pre">get_canonical_input_manifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">CanonicalInputManifest</span></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.get_canonical_input_manifest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.get_canonical_input_manifest" title="Permalink to this definition"></a></dt>
 <dd><p>Returns the validated, JSON-serializable recovery manifest.</p>
@@ -2894,10 +3195,75 @@ and its parameters for debugging purposes.</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.is_workflow_cancel_requested">
+<span class="sig-name descname"><span class="pre">is_workflow_cancel_requested</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.is_workflow_cancel_requested"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.is_workflow_cancel_requested" title="Permalink to this definition"></a></dt>
+<dd><p>Whether a cancel was requested for the workflow.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>workflow_id</strong> (<em>UUID</em>) – The workflow to check.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True once request_workflow_cancel() was called for it.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.is_workflow_finished">
+<span class="sig-name descname"><span class="pre">is_workflow_finished</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.is_workflow_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.is_workflow_finished" title="Permalink to this definition"></a></dt>
+<dd><p>Whether the workflow already completed or failed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>workflow_id</strong> (<em>UUID</em>) – The workflow to check.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True once the workflow reached a final state.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.iter_workflow_tasks">
+<span class="sig-name descname"><span class="pre">iter_workflow_tasks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterator" title="(in Python v3.15)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><span class="pre">Task</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.iter_workflow_tasks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.iter_workflow_tasks" title="Permalink to this definition"></a></dt>
+<dd><p>Yields the tasks of a workflow, in the order they were added.</p>
+<p>Read errors are raised, not hidden: an unreadable history is not an
+empty one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>workflow_id</strong> (<em>UUID</em>) – The UUID of the workflow.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Task</em> – One task aggregate at a time.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.name">
 <span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'WorkflowTracker'</span></em><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.name" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.raise_if_cancel_requested">
+<span class="sig-name descname"><span class="pre">raise_if_cancel_requested</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.raise_if_cancel_requested"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.raise_if_cancel_requested" title="Permalink to this definition"></a></dt>
+<dd><p>Stops the caller when a cancel was requested for the workflow. Call it
+between the steps of a workflow run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>workflow_id</strong> (<em>UUID</em>) – The workflow that is being run.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#biomero.eventsourcing.WorkflowCancelled" title="biomero.eventsourcing.WorkflowCancelled"><strong>WorkflowCancelled</strong></a> – When request_workflow_cancel() was called.</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.record_canonical_inputs">
@@ -2909,6 +3275,54 @@ and its parameters for debugging purposes.</p>
 <dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.record_storage_provenance">
 <span class="sig-name descname"><span class="pre">record_storage_provenance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">evidence</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.record_storage_provenance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.record_storage_provenance" title="Permalink to this definition"></a></dt>
 <dd><p>Persist observed storage provenance for an opaque result target.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.release_database_connections">
+<span class="sig-name descname"><span class="pre">release_database_connections</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.release_database_connections"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.release_database_connections" title="Permalink to this definition"></a></dt>
+<dd><p>Gives this tracker’s database connections back, for a thread that is
+done with its own tracker.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.release_launcher_task">
+<span class="sig-name descname"><span class="pre">release_launcher_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.release_launcher_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.release_launcher_task" title="Permalink to this definition"></a></dt>
+<dd><p>Gives a claim up, so another supervisor can take the run over at once
+instead of after the lease has expired.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>task_id</strong> (<em>UUID</em>) – The launcher task.</p></li>
+<li><p><strong>owner</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Identity of the supervisor that holds the claim.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>True when the claim was released; False when the owner did</dt><dd><p>not hold it.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.eventsourcing.WorkflowTracker.request_workflow_cancel">
+<span class="sig-name descname"><span class="pre">request_workflow_cancel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">reason</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#WorkflowTracker.request_workflow_cancel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.WorkflowTracker.request_workflow_cancel" title="Permalink to this definition"></a></dt>
+<dd><p>Records that a workflow must be cancelled. Whoever executes the
+workflow (the inline script or the detached supervisor) reads this
+and stops; asking again changes nothing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>workflow_id</strong> (<em>UUID</em>) – The workflow to cancel.</p></li>
+<li><p><strong>reason</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Why, for the record.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -2961,6 +3375,25 @@ and its parameters for debugging purposes.</p>
 </dl>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.eventsourcing.is_launcher_task">
+<span class="sig-prename descclassname"><span class="pre">biomero.eventsourcing.</span></span><span class="sig-name descname"><span class="pre">is_launcher_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/eventsourcing.html#is_launcher_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.eventsourcing.is_launcher_task" title="Permalink to this definition"></a></dt>
+<dd><p>Whether a task is a launcher queued for a detached supervisor.</p>
+<p>Works on a Task aggregate and on a Task.TaskCreated event alike, so every
+reader (supervisor, views, provenance) applies the same rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>task</strong> – Anything with <code class="docutils literal notranslate"><span class="pre">task_name</span></code> and <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True for a launching script’s task that carries the marker.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 </section>
@@ -3291,16 +3724,69 @@ Missing/inconsistent snapshots are errors; callers must not guess.</p>
 </dd></dl>
 
 </section>
+<section id="module-biomero.detached">
+<span id="biomero-detached-module"></span><h2>biomero.detached module<a class="headerlink" href="#module-biomero.detached" title="Permalink to this heading"></a></h2>
+<p>The detached-mode setting, and aliases for names that moved.</p>
+<p>A BIOMERO workflow run outlives the OMERO session that asks for it, so a
+script can queue the run in a <em>launcher task</em> and a supervisor (the OMERO
+processor in NL-BIOMERO) executes it. Core only provides the mechanisms:</p>
+<ul class="simple">
+<li><p>the launcher marker and rule: <code class="docutils literal notranslate"><span class="pre">constants.LAUNCHER_MARKER</span></code>,
+<code class="docutils literal notranslate"><span class="pre">WorkflowTracker.add_launcher_task</span></code> and <code class="docutils literal notranslate"><span class="pre">eventsourcing.is_launcher_task</span></code>;</p></li>
+<li><p>task lookup and the atomic claim: <code class="docutils literal notranslate"><span class="pre">WorkflowTracker.find_launcher_task</span></code>,
+<code class="docutils literal notranslate"><span class="pre">WorkflowTracker.claim_launcher_task</span></code> and
+<code class="docutils literal notranslate"><span class="pre">WorkflowTracker.release_launcher_task</span></code>;</p></li>
+<li><p>cancellation: <code class="docutils literal notranslate"><span class="pre">WorkflowTracker.request_workflow_cancel</span></code> and
+<code class="docutils literal notranslate"><span class="pre">SlurmClient.cancel_slurm_jobs</span></code>.</p></li>
+</ul>
+<p>The scripts decide what to record in a launcher task and how to resume a run;
+the supervisor decides which runs to execute. This module holds the one reader
+of the setting that switches the feature on, which the scripts and the
+supervisor all need, plus aliases that keep the names of the 2.9 betas
+working. The aliases are deprecated: use the names above.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.detached.detached_mode_enabled">
+<span class="sig-prename descclassname"><span class="pre">biomero.detached.</span></span><span class="sig-name descname"><span class="pre">detached_mode_enabled</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/detached.html#detached_mode_enabled"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.detached.detached_mode_enabled" title="Permalink to this definition"></a></dt>
+<dd><p>Whether workflow scripts should queue runs instead of executing them.</p>
+<p>Opt-in through the BIOMERO_DETACHED_WORKFLOWS environment variable of the
+OMERO processor running the script, because it requires a supervisor to be
+present: without one, a queued run would never be executed. The variable
+is declared in constants.slurm_env so that the processor forwards it to the
+script subprocesses it starts, which is where this is read. This is the
+only reader of the variable: callers use this function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True when the variable has one of constants.TRUTHY_VALUES.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
 <section id="module-biomero.maintenance">
 <span id="biomero-maintenance-module"></span><h2>biomero.maintenance module<a class="headerlink" href="#module-biomero.maintenance" title="Permalink to this heading"></a></h2>
 <p>Durable metadata-maintenance requests, separate from analysis workflows.</p>
 <p>Only plain request options and compact outcomes are persisted. The processor
 owns execution; the scripts layer owns all external annotation operations.</p>
+<p>Why this is in core and not in the processor or the scripts: a request is an
+aggregate in the WorkflowTracker event store, next to the workflow aggregates.
+Every projection of that store (<code class="docutils literal notranslate"><span class="pre">biomero.views</span></code>) resolves the class of each
+event it reads from the event’s stored topic, and the topic is the import path
+of the class: <code class="docutils literal notranslate"><span class="pre">biomero.maintenance:MetadataRefresh.Started</span></code> and so on. A
+class that only the processor or a script can import would make every other
+process that replays the store fail on these events, and moving the class would
+orphan the requests already stored. The request lifecycle (this aggregate and
+its notification scan) therefore stays here; running a request does not.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.maintenance.MetadataRefresh">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">MetadataRefresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/maintenance.html#MetadataRefresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.MetadataRefresh" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Aggregate</span></code></p>
 <p>A resumable maintenance request in the WorkflowTracker event store.</p>
+<p>The public methods guard the lifecycle and raise ValueError for a
+transition that cannot happen. The guards are not part of the events, so
+a stream written before they existed still replays.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.maintenance.MetadataRefresh.Created">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Created</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'UUID'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'int'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'datetime'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">originator_topic</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#biomero.maintenance.MetadataRefresh.Created" title="Permalink to this definition"></a></dt>
@@ -3343,27 +3829,110 @@ owns execution; the scripts layer owns all external annotation operations.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DecoratedFuncCaller</span></code>, <a class="reference internal" href="#biomero.maintenance.MetadataRefresh.Event" title="biomero.maintenance.MetadataRefresh.Event"><code class="xref py py-class docutils literal notranslate"><span class="pre">Event</span></code></a></p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.maintenance.MetadataRefresh.finished">
+<span class="sig-name descname"><span class="pre">finished</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">report</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#MetadataRefresh.finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.MetadataRefresh.finished" title="Permalink to this definition"></a></dt>
+<dd><p>Record the outcome: FAILED on an error or failed targets, else DONE.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a>) – The outcome of the refresh, with the failure count
+under <code class="docutils literal notranslate"><span class="pre">report[&quot;counts&quot;][&quot;failed&quot;]</span></code>.</p></li>
+<li><p><strong>error</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><em>optional</em>) – Why the request could not run at all.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.maintenance.MetadataRefresh.is_finished">
+<span class="sig-name descname"><span class="pre">is_finished</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#MetadataRefresh.is_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.MetadataRefresh.is_finished" title="Permalink to this definition"></a></dt>
+<dd><p>Whether the request reached a terminal state.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.maintenance.MetadataRefresh.progressed">
+<span class="sig-name descname"><span class="pre">progressed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">report</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#MetadataRefresh.progressed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.MetadataRefresh.progressed" title="Permalink to this definition"></a></dt>
+<dd><p>Record the progress report of a running request.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.maintenance.MetadataRefresh.started">
+<span class="sig-name descname"><span class="pre">started</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#MetadataRefresh.started"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.MetadataRefresh.started" title="Permalink to this definition"></a></dt>
+<dd><p>Mark the request as running; also done when a restart resumes it.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.maintenance.metadata_refresh_statuses">
-<span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">metadata_refresh_statuses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tracker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/maintenance.html#metadata_refresh_statuses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.metadata_refresh_statuses" title="Permalink to this definition"></a></dt>
-<dd><p>Return plain snapshots of all active and bounded recent terminal requests.</p>
+<span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">metadata_refresh_statuses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tracker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><span class="pre">Dict</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#metadata_refresh_statuses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.metadata_refresh_statuses" title="Permalink to this definition"></a></dt>
+<dd><p>Plain snapshots of all active and the most recent finished requests.</p>
+<p>This replays the request notifications from the start on every call, which
+is meant for an occasional administrator status check.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tracker</strong> (<a class="reference internal" href="#biomero.eventsourcing.WorkflowTracker" title="biomero.eventsourcing.WorkflowTracker"><em>WorkflowTracker</em></a>) – Tracker whose event store holds requests.</p></li>
+<li><p><strong>recent</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>, </em><em>optional</em>) – How many finished requests to include.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>One dict per request, newest first.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.maintenance.pending_metadata_refreshes">
-<span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">pending_metadata_refreshes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tracker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/maintenance.html#pending_metadata_refreshes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.pending_metadata_refreshes" title="Permalink to this definition"></a></dt>
-<dd><p>Catch up only maintenance notifications; recover RUNNING after restart.</p>
-<p><code class="docutils literal notranslate"><span class="pre">start</span></code> is a global notification cursor, not an aggregate version.
-A fresh supervisor replays this small, topic-filtered stream once. Its
-subsequent polls continue at the returned cursor.</p>
+<span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">pending_metadata_refreshes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tracker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pending</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Set" title="(in Python v3.15)"><span class="pre">Set</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.15)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Set" title="(in Python v3.15)"><span class="pre">Set</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#pending_metadata_refreshes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.pending_metadata_refreshes" title="Permalink to this definition"></a></dt>
+<dd><p>Catch up on request notifications; a RUNNING request stays pending.</p>
+<p>A request that was RUNNING when its supervisor stopped has no Finished
+event, so it is pending again after a restart and gets resumed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tracker</strong> (<a class="reference internal" href="#biomero.eventsourcing.WorkflowTracker" title="biomero.eventsourcing.WorkflowTracker"><em>WorkflowTracker</em></a>) – Tracker whose notification log to read.</p></li>
+<li><p><strong>start</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>, </em><em>optional</em>) – Notification cursor from a previous call.</p></li>
+<li><p><strong>pending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#set" title="(in Python v3.15)"><em>set</em></a><em>, </em><em>optional</em>) – Pending request IDs from a previous call.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The cursor to continue from, and the IDs of the requests that</dt><dd><p>are queued or running.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)">tuple</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.maintenance.queue_metadata_refresh">
-<span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">queue_metadata_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tracker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/maintenance.html#queue_metadata_refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.queue_metadata_refresh" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">biomero.maintenance.</span></span><span class="sig-name descname"><span class="pre">queue_metadata_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tracker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></span><a class="reference internal" href="_modules/biomero/maintenance.html#queue_metadata_refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.maintenance.queue_metadata_refresh" title="Permalink to this definition"></a></dt>
 <dd><p>Persist the handoff before the requesting script closes its session.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tracker</strong> (<a class="reference internal" href="#biomero.eventsourcing.WorkflowTracker" title="biomero.eventsourcing.WorkflowTracker"><em>WorkflowTracker</em></a>) – Tracker whose event store holds requests.</p></li>
+<li><p><strong>user</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – OMERO user ID of the administrator who asked.</p></li>
+<li><p><strong>group</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – OMERO group ID to run in.</p></li>
+<li><p><strong>options</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a>) – Plain request options for the refresh.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The request ID.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>UUID</p>
+</dd>
+</dl>
 </dd></dl>
 
 </section>

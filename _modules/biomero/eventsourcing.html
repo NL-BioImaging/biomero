@@ -135,12 +135,16 @@
 <span class="c1"># limitations under the License.</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.domain</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aggregate</span><span class="p">,</span> <span class="n">event</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.application</span><span class="w"> </span><span class="kn">import</span> <span class="n">Application</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.persistence</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">EventStoreConflict</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">NAMESPACE_URL</span><span class="p">,</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid5</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span>
+                    <span class="n">Union</span><span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">fabric</span><span class="w"> </span><span class="kn">import</span> <span class="n">Result</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero_schema.zarr</span><span class="w"> </span><span class="kn">import</span> <span class="n">CanonicalInput</span><span class="p">,</span> <span class="n">CanonicalInputManifest</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineManager</span><span class="p">,</span> <span class="n">retry_on_database_conflict</span>
 
 
@@ -169,6 +173,19 @@
         <span class="bp">self</span><span class="p">[</span><span class="s1">'env'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">env</span>
         <span class="bp">self</span><span class="p">[</span><span class="s1">'stdout'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span>
         <span class="bp">self</span><span class="p">[</span><span class="s1">'stderr'</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stderr</span></div>
+
+
+<div class="viewcode-block" id="WorkflowInterrupted"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowInterrupted">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowInterrupted</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Whoever runs a workflow must stop now, between its steps.</span>
+
+<span class="sd">    Deliberately not an ``InterruptedError``: that is an ``OSError``, which</span>
+<span class="sd">    ``except OSError`` handlers and the SSH recovery classifier would catch.</span>
+<span class="sd">    Stage handlers let it pass; subclasses say why the run stopped.</span>
+<span class="sd">    """</span></div>
+
+
+<div class="viewcode-block" id="WorkflowCancelled"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowCancelled">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowCancelled</span><span class="p">(</span><span class="n">WorkflowInterrupted</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A workflow was asked to cancel: stop, cancel its jobs, fail it."""</span></div>
 
 
 <span class="c1"># When updating Aggregate classes, take care of versioning for compatibility:</span>
@@ -217,6 +234,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">canonical_inputs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">canonical_inputs_export_task_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cancel_requested</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cancel_reason</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finished</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="c1"># logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")</span>
 
 <div class="viewcode-block" id="WorkflowRun.TaskAdded"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.TaskAdded">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskAdded</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
@@ -264,10 +284,44 @@
 <span class="sd">        """</span>
         <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="WorkflowRun.complete_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.complete_workflow">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowCompleted</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">complete_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f"Completing workflow: id={self.id}")</span>
-        <span class="k">pass</span></div>
+<div class="viewcode-block" id="WorkflowRun.complete_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.complete_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">complete_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Complete the workflow, unless it already reached a final state.</span>
+
+<span class="sd">        The refusal is not part of the events, so streams that already contain</span>
+<span class="sd">        two final events still replay; only new transitions are refused.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: False when the workflow was already final and nothing</span>
+<span class="sd">                was recorded.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refuse_second_final_state</span><span class="p">(</span><span class="s2">"complete"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_complete</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowCompleted</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finished</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_refuse_second_final_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wanted</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">finished</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Workflow </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> is already final; "</span>
+                           <span class="sa">f</span><span class="s2">"refusing to </span><span class="si">{</span><span class="n">wanted</span><span class="si">}</span><span class="s2"> it again"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">finished</span>
+
+<div class="viewcode-block" id="WorkflowRun.CancelRequested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.CancelRequested">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">CancelRequested</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Event triggered when someone asks for the workflow to be cancelled.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            reason (str): Why the workflow is cancelled, for the record.</span>
+<span class="sd">        """</span>
+        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span></div>
+
+<div class="viewcode-block" id="WorkflowRun.request_cancel"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.request_cancel">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">CancelRequested</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">request_cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cancel_requested</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cancel_reason</span> <span class="o">=</span> <span class="n">reason</span></div>
 
 <div class="viewcode-block" id="WorkflowRun.WorkflowFailed"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.WorkflowFailed">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">WorkflowFailed</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -278,10 +332,21 @@
 <span class="sd">        """</span>
         <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span></div>
 
-<div class="viewcode-block" id="WorkflowRun.fail_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.fail_workflow">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowFailed</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fail_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="c1"># logger.debug(f"Failing workflow: id={self.id}, error_message={error_message}")</span>
-        <span class="k">pass</span></div></div>
+<div class="viewcode-block" id="WorkflowRun.fail_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowRun.fail_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">fail_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Fail the workflow, unless it already reached a final state.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: False when the workflow was already final and nothing</span>
+<span class="sd">                was recorded.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refuse_second_final_state</span><span class="p">(</span><span class="s2">"fail"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fail</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+    <span class="nd">@event</span><span class="p">(</span><span class="n">WorkflowFailed</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finished</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 
 <div class="viewcode-block" id="Task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">Task</span><span class="p">(</span><span class="n">Aggregate</span><span class="p">):</span>
@@ -298,6 +363,10 @@
 <span class="sd">        results (list): List of results from the task execution.</span>
 <span class="sd">        result_message (str): Message related to the result of the task.</span>
 <span class="sd">        status (str): The current status of the task.</span>
+<span class="sd">        completed (bool): Whether the task was completed.</span>
+<span class="sd">        failed (bool): Whether the task failed.</span>
+<span class="sd">        claimed_by (str): The supervisor that holds the claim, for a launcher.</span>
+<span class="sd">        claimed_at (datetime): When that claim was made or last renewed.</span>
 <span class="sd">    """</span>
     <span class="n">INITIAL_VERSION</span> <span class="o">=</span> <span class="mi">0</span>
 
@@ -335,6 +404,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claimed_by</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claimed_at</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Not logging on aggregates, they get reconstructed so much</span>
         <span class="c1"># logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")</span>
 
@@ -366,6 +439,48 @@
         <span class="c1"># logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">status</span></div>
     
+<div class="viewcode-block" id="Task.LauncherClaimed"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.LauncherClaimed">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">LauncherClaimed</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Event triggered when a supervisor claims (or renews its claim on) a</span>
+<span class="sd">        launcher task.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            owner (str): Identity of the supervisor that holds the claim.</span>
+<span class="sd">            claimed_at (datetime): When the claim was made or last renewed.</span>
+<span class="sd">        """</span>
+        <span class="n">owner</span><span class="p">:</span> <span class="nb">str</span>
+        <span class="n">claimed_at</span><span class="p">:</span> <span class="n">datetime</span></div>
+
+<div class="viewcode-block" id="Task.claim_launcher"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.claim_launcher">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">LauncherClaimed</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">claim_launcher</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">claimed_at</span><span class="p">:</span> <span class="n">datetime</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claimed_by</span> <span class="o">=</span> <span class="n">owner</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claimed_at</span> <span class="o">=</span> <span class="n">claimed_at</span></div>
+
+<div class="viewcode-block" id="Task.LauncherReleased"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.LauncherReleased">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">LauncherReleased</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Event triggered when a supervisor gives its claim up."""</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Task.release_launcher"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.release_launcher">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">LauncherReleased</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">release_launcher</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claimed_by</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claimed_at</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Task.is_claimed_by_other"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.is_claimed_by_other">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_claimed_by_other</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">now</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+                            <span class="n">lease_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether someone else holds a claim that has not expired yet.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            owner (str): The supervisor that wants to claim the task.</span>
+<span class="sd">            now (datetime): The current time (timezone-aware).</span>
+<span class="sd">            lease_seconds (float): How long a claim stays valid.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True when another owner's claim is still within its lease.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">claimed_by</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">claimed_by</span> <span class="o">==</span> <span class="n">owner</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">claimed_at</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">lease_seconds</span></div>
+
 <div class="viewcode-block" id="Task.ProgressUpdated"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.ProgressUpdated">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">ProgressUpdated</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Event triggered when the task's progress is updated.</span>
@@ -428,7 +543,8 @@
 <div class="viewcode-block" id="Task.complete_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.complete_task">[docs]</a>    <span class="nd">@event</span><span class="p">(</span><span class="n">TaskCompleted</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">complete_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="c1"># logger.debug(f"Completing task: id={self.id}, result={result}")</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="n">result</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 <div class="viewcode-block" id="Task.TaskFailed"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.Task.TaskFailed">[docs]</a>    <span class="k">class</span><span class="w"> </span><span class="nc">TaskFailed</span><span class="p">(</span><span class="n">Aggregate</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -443,7 +559,24 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">fail_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="c1"># logger.debug(f"Failing task: id={self.id}, error_message={error_message}")</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">result_message</span> <span class="o">=</span> <span class="n">error_message</span>
-        <span class="k">pass</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failed</span> <span class="o">=</span> <span class="kc">True</span></div></div>
+
+
+<div class="viewcode-block" id="is_launcher_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.is_launcher_task">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_launcher_task</span><span class="p">(</span><span class="n">task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether a task is a launcher queued for a detached supervisor.</span>
+
+<span class="sd">    Works on a Task aggregate and on a Task.TaskCreated event alike, so every</span>
+<span class="sd">    reader (supervisor, views, provenance) applies the same rule.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        task: Anything with ``task_name`` and ``params``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True for a launching script's task that carries the marker.</span>
+<span class="sd">    """</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s2">"params"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s2">"task_name"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_TASK_NAMES</span>
+            <span class="ow">and</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_MARKER</span> <span class="ow">in</span> <span class="n">params</span><span class="p">)</span></div>
 
 
 <span class="c1"># -------------------- APPLICATIONS -------------------- #</span>
@@ -550,6 +683,45 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">id</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.add_launcher_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.add_launcher_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">add_launcher_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
+                          <span class="n">task_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                          <span class="n">task_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                          <span class="n">input_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+                          <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UUID</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Adds the launcher task that queues a workflow for a detached</span>
+<span class="sd">        supervisor: an ordinary task of a launching script, marked as launcher.</span>
+
+<span class="sd">        What goes into ``kwargs`` is up to the caller (the script knows what</span>
+<span class="sd">        its run needs); this only adds the marker, with the script version as</span>
+<span class="sd">        its value, to a copy of it.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The UUID of the workflow.</span>
+<span class="sd">            task_name (str): The launching script, one of</span>
+<span class="sd">                constants.LAUNCHER_TASK_NAMES.</span>
+<span class="sd">            task_version (str): The version of the launching script.</span>
+<span class="sd">            input_data (dict): Input data for the task.</span>
+<span class="sd">            kwargs (dict): Everything the supervisor needs to run the workflow.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            UUID: The UUID of the launcher task.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the task name is not a launching script.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">task_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_TASK_NAMES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2"> cannot launch a detached run; "</span>
+                             <span class="sa">f</span><span class="s2">"expected one of </span><span class="si">{</span><span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_TASK_NAMES</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">launcher_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_MARKER</span><span class="p">:</span> <span class="n">task_version</span><span class="p">}</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_task_to_workflow</span><span class="p">(</span>
+            <span class="n">workflow_id</span><span class="p">,</span> <span class="n">task_name</span><span class="p">,</span> <span class="n">task_version</span><span class="p">,</span> <span class="n">input_data</span><span class="p">,</span> <span class="n">launcher_params</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Queued workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> for a detached "</span>
+                    <span class="sa">f</span><span class="s2">"supervisor (launcher task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">task_id</span></div>
 
 <div class="viewcode-block" id="WorkflowTracker.record_canonical_inputs"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.record_canonical_inputs">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">record_canonical_inputs</span><span class="p">(</span>
@@ -785,7 +957,224 @@
         <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
         <span class="n">task</span><span class="o">.</span><span class="n">update_task_progress</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div></div>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.iter_workflow_tasks"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.iter_workflow_tasks">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">iter_workflow_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Task</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Yields the tasks of a workflow, in the order they were added.</span>
+
+<span class="sd">        Read errors are raised, not hidden: an unreadable history is not an</span>
+<span class="sd">        empty one.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The UUID of the workflow.</span>
+
+<span class="sd">        Yields:</span>
+<span class="sd">            Task: One task aggregate at a time.</span>
+<span class="sd">        """</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="n">workflow</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.find_launcher_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.find_launcher_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">find_launcher_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Task</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Finds the launcher task that queued a workflow for a supervisor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The UUID of the workflow.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Task: The launcher task, or None when the workflow was not</span>
+<span class="sd">                queued for a supervisor.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception: When the workflow or one of its tasks cannot be read.</span>
+<span class="sd">        """</span>
+        <span class="n">launcher</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">task</span> <span class="k">for</span> <span class="n">task</span>
+                         <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_workflow_tasks</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+                         <span class="k">if</span> <span class="n">is_launcher_task</span><span class="p">(</span><span class="n">task</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Launcher of workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">: "</span>
+                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">launcher</span><span class="o">.</span><span class="n">id</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">launcher</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="kc">None</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">launcher</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.claim_launcher_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.claim_launcher_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">claim_launcher_task</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">lease_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">LAUNCHER_CLAIM_LEASE_SECONDS</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Claims a launcher task for a supervisor, atomically.</span>
+
+<span class="sd">        This is a compare-and-set on the task's event stream: the claim is</span>
+<span class="sd">        appended as the next event of the task, and the event store accepts</span>
+<span class="sd">        only one event per position. When two supervisors read the same task</span>
+<span class="sd">        and both try to claim it, one of them loses and gets False.</span>
+
+<span class="sd">        A claim is valid for ``lease_seconds``. The owner renews it by</span>
+<span class="sd">        claiming again; a claim that was not renewed (for example because the</span>
+<span class="sd">        supervisor crashed) can be taken over by any other owner. Renew well</span>
+<span class="sd">        within the lease (the processor renews three times per lease). The</span>
+<span class="sd">        lease compares the claim's timestamp with this process's clock, so</span>
+<span class="sd">        supervisors must have clocks that agree to well within the lease; the</span>
+<span class="sd">        event-store position, not the clock, is what keeps two claims apart.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id (UUID): The launcher task to claim.</span>
+<span class="sd">            owner (str): Identity of the claiming supervisor.</span>
+<span class="sd">            lease_seconds (float, optional): How long a claim stays valid.</span>
+<span class="sd">                Defaults to constants.LAUNCHER_CLAIM_LEASE_SECONDS.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True when the caller now holds the claim.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the task is not a launcher task.</span>
+<span class="sd">        """</span>
+        <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_launcher_task</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> is not a launcher task"</span><span class="p">)</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">is_claimed_by_other</span><span class="p">(</span><span class="n">owner</span><span class="p">,</span> <span class="n">now</span><span class="p">,</span> <span class="n">lease_seconds</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Launcher </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> is claimed by "</span>
+                         <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">claimed_by</span><span class="si">}</span><span class="s2">, not claiming it for </span><span class="si">{</span><span class="n">owner</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">claim_launcher</span><span class="p">(</span><span class="n">owner</span><span class="p">,</span> <span class="n">now</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">EventStoreConflict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_discard_failed_transaction</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Lost the claim on launcher </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> to "</span>
+                        <span class="sa">f</span><span class="s2">"another supervisor; </span><span class="si">{</span><span class="n">owner</span><span class="si">}</span><span class="s2"> does not run it"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] </span><span class="si">{</span><span class="n">owner</span><span class="si">}</span><span class="s2"> claimed launcher </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.release_launcher_task"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.release_launcher_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">release_launcher_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Gives a claim up, so another supervisor can take the run over at once</span>
+<span class="sd">        instead of after the lease has expired.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id (UUID): The launcher task.</span>
+<span class="sd">            owner (str): Identity of the supervisor that holds the claim.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True when the claim was released; False when the owner did</span>
+<span class="sd">                not hold it.</span>
+<span class="sd">        """</span>
+        <span class="n">task</span><span class="p">:</span> <span class="n">Task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">claimed_by</span> <span class="o">!=</span> <span class="n">owner</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] </span><span class="si">{</span><span class="n">owner</span><span class="si">}</span><span class="s2"> does not hold launcher </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> "</span>
+                         <span class="sa">f</span><span class="s2">"(held by </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">claimed_by</span><span class="si">}</span><span class="s2">); nothing to release"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">release_launcher</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">EventStoreConflict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_discard_failed_transaction</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Launcher </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> changed while </span><span class="si">{</span><span class="n">owner</span><span class="si">}</span><span class="s2"> "</span>
+                        <span class="sa">f</span><span class="s2">"released it; leaving the claim to its new owner"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] </span><span class="si">{</span><span class="n">owner</span><span class="si">}</span><span class="s2"> released launcher </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.request_workflow_cancel"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.request_workflow_cancel">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">request_workflow_cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Records that a workflow must be cancelled. Whoever executes the</span>
+<span class="sd">        workflow (the inline script or the detached supervisor) reads this</span>
+<span class="sd">        and stops; asking again changes nothing.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The workflow to cancel.</span>
+<span class="sd">            reason (str): Why, for the record.</span>
+<span class="sd">        """</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">workflow</span><span class="o">.</span><span class="n">cancel_requested</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Cancel of workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> was "</span>
+                         <span class="sa">f</span><span class="s2">"already requested"</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFT] Requesting cancel of workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">: "</span>
+                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">request_cancel</span><span class="p">(</span><span class="n">reason</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
+        <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.is_workflow_cancel_requested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.is_workflow_cancel_requested">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_workflow_cancel_requested</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Whether a cancel was requested for the workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The workflow to check.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True once request_workflow_cancel() was called for it.</span>
+<span class="sd">        """</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">workflow</span><span class="o">.</span><span class="n">cancel_requested</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.is_workflow_finished"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.is_workflow_finished">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_workflow_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Whether the workflow already completed or failed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The workflow to check.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True once the workflow reached a final state.</span>
+<span class="sd">        """</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">workflow</span><span class="o">.</span><span class="n">finished</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.raise_if_cancel_requested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.raise_if_cancel_requested">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">raise_if_cancel_requested</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Stops the caller when a cancel was requested for the workflow. Call it</span>
+<span class="sd">        between the steps of a workflow run.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id (UUID): The workflow that is being run.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowCancelled: When request_workflow_cancel() was called.</span>
+<span class="sd">        """</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">workflow</span><span class="o">.</span><span class="n">cancel_requested</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowCancelled</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> was cancelled: "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">workflow</span><span class="o">.</span><span class="n">cancel_reason</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_discard_failed_transaction</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Roll back after a rejected write, when there is a session."""</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">EngineManager</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"[WFT] No database session to roll back"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WorkflowTracker.commit_open_transaction"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.commit_open_transaction">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">commit_open_transaction</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Commits what was saved on a datastore that leaves the transaction to</span>
+<span class="sd">        its caller (the scoped-session store); other stores commit on save.</span>
+
+<span class="sd">        Use this after ``save()`` for aggregates that are not written through</span>
+<span class="sd">        one of the tracker's own methods.</span>
+<span class="sd">        """</span>
+        <span class="n">scoped_session</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">factory</span><span class="p">,</span> <span class="s2">"datastore"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">"scoped_session"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">scoped_session</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">scoped_session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WorkflowTracker.release_database_connections"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.release_database_connections">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">release_database_connections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Gives this tracker's database connections back, for a thread that is</span>
+<span class="sd">        done with its own tracker.</span>
+<span class="sd">        """</span>
+        <span class="n">datastore</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">factory</span><span class="p">,</span> <span class="s2">"datastore"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="s2">"scoped_session"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">datastore</span><span class="o">.</span><span class="n">scoped_session</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="s2">"engine"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">datastore</span><span class="o">.</span><span class="n">engine</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span></div></div>
 </pre></div>
 
            </div>

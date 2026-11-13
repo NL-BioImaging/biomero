@@ -195,10 +195,13 @@ existing Slurm jobs. Core supplies the persisted state and job monitoring;
 it does not independently restart an entire pipeline. Slurm jobs may continue
 while the worker is unavailable. Recovery requires the tracking database and
 the corresponding input, output and container files to survive.</p>
-<p>Launcher <code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code> is coordination state, not an analysis phase or proof
-that a workflow is still running. Workflow completion is recorded separately.
-The supported supervisor topology is one active supervisor per tracking
-database. A local remote-helper submission lock does not make the whole
+<p>A supervisor’s claim on the launcher task (a <code class="docutils literal notranslate"><span class="pre">LauncherClaimed</span></code> event with an
+owner and a lease) is coordination state, not an analysis phase or proof that a
+workflow is still running; 2.9 betas recorded it as the status <code class="docutils literal notranslate"><span class="pre">CLAIMED</span></code>.
+Workflow completion is recorded separately. The claim keeps two supervisors from
+running the same workflow, but the supported topology is still one active
+supervisor per tracking database: metadata maintenance requests are not
+claimed, and a local remote-helper submission lock does not make the whole
 pipeline safe for multiple supervisors.</p>
 <p><strong>Remote helper interruption.</strong> Core reuses a validated persisted report or
 adopts the recorded Slurm job. Submission intent, job ID and a remote file lock

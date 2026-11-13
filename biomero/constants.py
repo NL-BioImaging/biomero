@@ -27,6 +27,8 @@ FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
+# Name of the workflow task that records one remote shallower (helper) run.
+REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
 # Detached runs: a workflow script queues a run for a supervisor by recording a
 # "launcher" task. Only a task of a launching script that carries the marker
@@ -133,6 +135,8 @@ UNPACKED_MARKER_SUFFIX = ".biomero-unpacked"
 ARCHIVE_READY_SUFFIX = ".biomero-ready"
 ARCHIVE_PARTIAL_SUFFIX = ".biomero-partial"
 ARCHIVE_LOCK_SUFFIX = ".biomero-lock"
+# Files that helper jobs create next to results for locking; never archived.
+LOCK_FILE_PATTERN = f"*{ARCHIVE_LOCK_SUFFIX}"
 SCRIPT_UPDATE_LOCK_SUFFIX = ".biomero-update.lock"
 # Seconds a caller waits for the lock on the canonical shallower manifest.
 MANIFEST_LOCK_WAIT_SECONDS = 30

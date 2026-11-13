@@ -124,12 +124,20 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#module-biomero.remote_shallower">biomero.remote_shallower module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.build_command"><code class="docutils literal notranslate"><span class="pre">build_command()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.HelperJob"><code class="docutils literal notranslate"><span class="pre">HelperJob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.HelperSettings"><code class="docutils literal notranslate"><span class="pre">HelperSettings</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.build_helper_command"><code class="docutils literal notranslate"><span class="pre">build_helper_command()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.completed_receipts"><code class="docutils literal notranslate"><span class="pre">completed_receipts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.helper_job_name"><code class="docutils literal notranslate"><span class="pre">helper_job_name()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.image_spec"><code class="docutils literal notranslate"><span class="pre">image_spec()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.installed_tool_version"><code class="docutils literal notranslate"><span class="pre">installed_tool_version()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.run"><code class="docutils literal notranslate"><span class="pre">run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.parse_batch_report"><code class="docutils literal notranslate"><span class="pre">parse_batch_report()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.publish_or_verify_manifest"><code class="docutils literal notranslate"><span class="pre">publish_or_verify_manifest()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.sha256_of_json"><code class="docutils literal notranslate"><span class="pre">sha256_of_json()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.shallow_workflow_results"><code class="docutils literal notranslate"><span class="pre">shallow_workflow_results()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.validate_installed_tool"><code class="docutils literal notranslate"><span class="pre">validate_installed_tool()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.verify_task_canonical_inputs"><code class="docutils literal notranslate"><span class="pre">verify_task_canonical_inputs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#biomero.remote_shallower.wait_for_helper_job"><code class="docutils literal notranslate"><span class="pre">wait_for_helper_job()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#module-biomero.ssh_recovery">biomero.ssh_recovery module</a><ul>
@@ -344,6 +352,32 @@ containing the Slurm job submission scripts. Optional.</p>
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.bring_listener_uptodate">
 <span class="sig-name descname"><span class="pre">bring_listener_uptodate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">listener</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.bring_listener_uptodate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.bring_listener_uptodate" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.build_sbatch_wrap_command">
+<span class="sig-name descname"><span class="pre">build_sbatch_wrap_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wrapped_command</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.build_sbatch_wrap_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.build_sbatch_wrap_command" title="Permalink to this definition"></a></dt>
+<dd><p>Build an <code class="docutils literal notranslate"><span class="pre">sbatch</span> <span class="pre">--wrap</span></code> command that honours the site defaults.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>wrapped_command</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – The shell command the job runs.</p></li>
+<li><p><strong>job_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Slurm job name.</p></li>
+<li><p><strong>output_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Remote path of the job log; may contain Slurm
+filename patterns such as <code class="docutils literal notranslate"><span class="pre">%j</span></code>.</p></li>
+<li><p><strong>job_params</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em><em>]</em>) – Resource flags; defaults to
+<code class="docutils literal notranslate"><span class="pre">get_job_params()</span></code>, which applies the configured default
+partition and global <code class="docutils literal notranslate"><span class="pre">sbatch_*</span></code> parameters, except the flags
+this method sets itself (<code class="docutils literal notranslate"><span class="pre">SBATCH_WRAP_OWNED_FLAGS</span></code>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> command, printing the job ID on submission.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.check_job_status">
@@ -1030,6 +1064,8 @@ Defaults to 10.</p></li>
 <dt class="sig sig-object py" id="biomero.slurm_client.SlurmClient.get_shallower_job_params">
 <span class="sig-name descname"><span class="pre">get_shallower_job_params</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/slurm_client.html#SlurmClient.get_shallower_job_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.slurm_client.SlurmClient.get_shallower_job_params" title="Permalink to this definition"></a></dt>
 <dd><p>Single-process CPU helper resources, also used for recovery jobs.</p>
+<p>Global <code class="docutils literal notranslate"><span class="pre">sbatch_*</span></code> flags that would break a single-process CPU job
+(<code class="docutils literal notranslate"><span class="pre">SHALLOWER_EXCLUDED_FLAGS</span></code>, GPU and per-task flags) are not added.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -3334,52 +3370,409 @@ subsequent polls continue at the returned cursor.</p>
 <section id="module-biomero.remote_shallower">
 <span id="biomero-remote-shallower-module"></span><h2>biomero.remote_shallower module<a class="headerlink" href="#module-biomero.remote_shallower" title="Permalink to this heading"></a></h2>
 <p>Optional CPU result shallowing before result archiving.</p>
-<p>SlurmClient owns remote execution, image acquisition and scheduling policy;
-SlurmJob owns monitoring. This module coordinates the shallower’s manifest,
-durable submission records, recovery command and receipt validation.</p>
+<p>SlurmClient owns remote execution, image acquisition, job submission and
+scheduling policy; SlurmJob owns monitoring. This module coordinates the
+shallower’s manifest, durable submission records, recovery command and receipt
+validation.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">HelperJob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><span class="pre">Task</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#HelperJob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.HelperJob" title="Permalink to this definition"></a></dt>
+<dd><p>The task, image and remote paths of one helper (shallower) job.</p>
+<p><code class="docutils literal notranslate"><span class="pre">task</span></code> is the snapshot read when the job was started or resumed; read the
+task again with <code class="docutils literal notranslate"><span class="pre">task_id</span></code> where recorded job IDs may have changed.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.image">
+<span class="sig-name descname"><span class="pre">image</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.image" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.manifest_path">
+<span class="sig-name descname"><span class="pre">manifest_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.manifest_path" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 5</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.output_path">
+<span class="sig-name descname"><span class="pre">output_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.output_path" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 4</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.sif_path">
+<span class="sig-name descname"><span class="pre">sif_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.sif_path" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.state_dir">
+<span class="sig-name descname"><span class="pre">state_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.state_dir" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 6</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.task">
+<span class="sig-name descname"><span class="pre">task</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><span class="pre">Task</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.task" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperJob.task_id">
+<span class="sig-name descname"><span class="pre">task_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></em><a class="headerlink" href="#biomero.remote_shallower.HelperJob.task_id" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperSettings">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">HelperSettings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contract_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polling_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lock_wait_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#HelperSettings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.HelperSettings" title="Permalink to this definition"></a></dt>
+<dd><p>Values the entry point can change, threaded to the steps that use them.</p>
+<p>Each value defaults to the module constant of the same meaning.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperSettings.contract_version">
+<span class="sig-name descname"><span class="pre">contract_version</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperSettings.contract_version" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperSettings.lock_wait_seconds">
+<span class="sig-name descname"><span class="pre">lock_wait_seconds</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperSettings.lock_wait_seconds" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperSettings.manifest_schema">
+<span class="sig-name descname"><span class="pre">manifest_schema</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperSettings.manifest_schema" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.remote_shallower.HelperSettings.polling_interval">
+<span class="sig-name descname"><span class="pre">polling_interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></em><a class="headerlink" href="#biomero.remote_shallower.HelperSettings.polling_interval" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+</dd></dl>
+
 <dl class="py function">
-<dt class="sig sig-object py" id="biomero.remote_shallower.build_command">
-<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">build_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_id</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recovery</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#build_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.build_command" title="Permalink to this definition"></a></dt>
-<dd><p>Build shallowing or recovery using the same helper resource policy.</p>
-<p>Paths refer to the remote filesystem. The result directory is writable in
-the container; the canonical input manifest is mounted read-only.</p>
+<dt class="sig sig-object py" id="biomero.remote_shallower.build_helper_command">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">build_helper_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recovery</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contract_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#build_helper_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.build_helper_command" title="Permalink to this definition"></a></dt>
+<dd><p>Build the shallowing or recovery job using one helper resource policy.</p>
+<p>Paths refer to the remote filesystem. The job is submitted through the
+SlurmClient, so the configured site defaults apply.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client holding the configuration.</p></li>
+<li><p><strong>output_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Result directory to shallow.</p></li>
+<li><p><strong>sif_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Path of the helper image.</p></li>
+<li><p><strong>manifest_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Path of the canonical input manifest.</p></li>
+<li><p><strong>task_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – ID of the helper task.</p></li>
+<li><p><strong>recovery</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Build the recovery command instead of the shallowing
+command (default False).</p></li>
+<li><p><strong>image</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>) – Image reference recorded for the task; defaults
+to the configured <code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code>.</p></li>
+<li><p><strong>contract_version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Runtime contract the helper must follow.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The <code class="docutils literal notranslate"><span class="pre">sbatch</span></code> command.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the configured worker count is not positive.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.remote_shallower.completed_receipts">
-<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">completed_receipts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#completed_receipts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.completed_receipts" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">completed_receipts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">CanonicalInputManifest</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">RemoteShallowReceipt</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#completed_receipts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.completed_receipts" title="Permalink to this definition"></a></dt>
 <dd><p>Read persisted helper receipts without contacting the cluster.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client with the workflow tracker.</p></li>
+<li><p><strong>workflow_id</strong> (<em>Any</em>) – ID of the workflow.</p></li>
+<li><p><strong>canonical</strong> (<em>CanonicalInputManifest</em>) – The canonical input manifest the
+receipts must match.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The receipts of completed helper</dt><dd><p>tasks; empty when remote shallowing or workflow tracking is
+disabled.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[RemoteShallowReceipt, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.helper_job_name">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">helper_job_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recovery</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#helper_job_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.helper_job_name" title="Permalink to this definition"></a></dt>
+<dd><p>Keep submission reconciliation specific to one task and operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>task_id</strong> (<em>Any</em>) – ID of the helper task.</p></li>
+<li><p><strong>recovery</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Name the recovery job instead of the shallowing job
+(default False).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The Slurm job name.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.remote_shallower.image_spec">
-<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">image_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#image_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.image_spec" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">image_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#image_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.image_spec" title="Permalink to this definition"></a></dt>
 <dd><p>Describe the configured helper image for SlurmClient image acquisition.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client holding the configuration.</p></li>
+<li><p><strong>image</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>) – Image reference to describe instead of the
+configured <code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The image specification for image acquisition.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If no image is configured, or its digest or version is
+    missing or invalid.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.remote_shallower.installed_tool_version">
-<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">installed_tool_version</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#installed_tool_version"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.installed_tool_version" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">installed_tool_version</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#installed_tool_version"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.installed_tool_version" title="Permalink to this definition"></a></dt>
 <dd><p>Read the installed helper’s version without executing its payload.</p>
 <p>A floating image tag is not a tool version. Persist the OCI version label
 before submission so receipt validation and recovery use a concrete value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client used to run commands.</p></li>
+<li><p><strong>sif_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Remote path of the installed helper image.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The installed tool version.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="biomero.remote_shallower.run">
-<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heartbeat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.run" title="Permalink to this definition"></a></dt>
-<dd><p>Run or resume shallowing and return the validated batch report.</p>
-<p>Disabled/inapplicable shallowing returns None. Missing images raise an
-actionable setup error; only initialization acquires container images.
-A rejected shallowing submission returns an empty-receipt batch so the
-caller can retain full results. Unresolved submission, recovery or report
-validation raises; callers must not archive potentially incomplete output.</p>
+<dt class="sig sig-object py" id="biomero.remote_shallower.parse_batch_report">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">parse_batch_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">report_json</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">CanonicalInputManifest</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><span class="pre">Task</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ShallowBatchReport</span></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#parse_batch_report"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.parse_batch_report" title="Permalink to this definition"></a></dt>
+<dd><p>Parse a helper batch report and check its input, image and tool version.</p>
+<p>When a task is supplied, its recorded image/version and submission own the
+report; current deployment defaults must not invalidate historical results.
+Import the optional schema dependency only when shallowing is used.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client holding the configuration.</p></li>
+<li><p><strong>report_json</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – The JSON batch report written by the helper.</p></li>
+<li><p><strong>canonical</strong> (<em>CanonicalInputManifest</em>) – The canonical input manifest the
+report must match.</p></li>
+<li><p><strong>task</strong> (<em>Optional</em><em>[</em><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><em>Task</em></a><em>]</em>) – The recorded helper task owning the report.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The parsed batch report.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ShallowBatchReport</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the report does not match the configuration, input,
+    task or job.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.publish_or_verify_manifest">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">publish_or_verify_manifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">CanonicalInputManifest</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">submitted</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">lock_wait_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#publish_or_verify_manifest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.publish_or_verify_manifest" title="Permalink to this definition"></a></dt>
+<dd><p>Verify an existing manifest or publish a new one without overwriting.</p>
+<p>A sibling temporary file is fully uploaded before an atomic hard-link
+publishes it under a lock. Readers never see a partly uploaded manifest.
+Existing content is verified, not replaced on resume.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client used to run commands.</p></li>
+<li><p><strong>manifest_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Remote path of the canonical input manifest.</p></li>
+<li><p><strong>canonical</strong> (<em>CanonicalInputManifest</em>) – The canonical input manifest to
+publish or verify.</p></li>
+<li><p><strong>submitted</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Whether the helper job was already submitted, which
+makes a missing manifest an error.</p></li>
+<li><p><strong>lock_wait_seconds</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – How long to wait for the publication lock.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – If the manifest cannot be read or published, or is
+    missing for a submitted job.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If an existing manifest differs from the workflow input.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.sha256_of_json">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">sha256_of_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">payload</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#sha256_of_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.sha256_of_json" title="Permalink to this definition"></a></dt>
+<dd><p>Fingerprint JSON content independently of key order and whitespace.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>payload</strong> (<em>Any</em>) – A JSON-serializable value.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The hex SHA-256 of the canonical JSON encoding.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.shallow_workflow_results">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">shallow_workflow_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">workflow_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">CanonicalInputManifest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heartbeat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contract_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polling_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lock_wait_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ShallowBatchReport</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#shallow_workflow_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.shallow_workflow_results" title="Permalink to this definition"></a></dt>
+<dd><p>Shallow the workflow results on the cluster, or resume that work.</p>
+<p>Only initialization acquires container images. A rejected shallowing
+submission returns an empty-receipt report so the caller can retain full
+results. Callers must not archive potentially incomplete output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client with the workflow tracker.</p></li>
+<li><p><strong>data_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Remote data folder of the workflow results.</p></li>
+<li><p><strong>workflow_id</strong> (<em>Any</em>) – ID of the workflow.</p></li>
+<li><p><strong>canonical</strong> (<em>CanonicalInputManifest</em>) – The canonical input manifest of
+the workflow.</p></li>
+<li><p><strong>heartbeat</strong> (<em>Optional</em><em>[</em><em>Callable</em><em>[</em><em>[</em><em>]</em><em>, </em><em>None</em><em>]</em><em>]</em>) – Callback invoked during job
+waits.</p></li>
+<li><p><strong>contract_version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Runtime contract the helper must follow.</p></li>
+<li><p><strong>manifest_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Shallow manifest schema the helper must emit.</p></li>
+<li><p><strong>polling_interval</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Seconds between job status polls.</p></li>
+<li><p><strong>lock_wait_seconds</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – How long to wait for the manifest lock.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The validated report, or None when</dt><dd><p>shallowing is disabled or inapplicable.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[ShallowBatchReport]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – If the image is missing, the submission or recovery is
+    unresolved or failed, or the report is missing.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the installed tool or the report is invalid.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="biomero.remote_shallower.validate_installed_tool">
-<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">validate_installed_tool</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expected_version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/remote_shallower.html#validate_installed_tool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.validate_installed_tool" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">validate_installed_tool</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sif_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expected_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">runtime_contract</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest_schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#validate_installed_tool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.validate_installed_tool" title="Permalink to this definition"></a></dt>
 <dd><p>Fail closed unless the installed SIF satisfies this runtime contract.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client used to run commands.</p></li>
+<li><p><strong>sif_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Remote path of the installed helper image.</p></li>
+<li><p><strong>expected_version</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>) – Version the image must have; defaults
+to the configured <code class="docutils literal notranslate"><span class="pre">remote_shallower_version</span></code>.</p></li>
+<li><p><strong>runtime_contract</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Runtime contract the image must support.</p></li>
+<li><p><strong>manifest_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Shallow manifest schema the image must emit.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The installed tool version.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the labels or the configured version are invalid.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – If the version, capability schema, runtime contract or
+    manifest schema is not supported.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.verify_task_canonical_inputs">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">verify_task_canonical_inputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.eventsourcing.Task" title="biomero.eventsourcing.Task"><span class="pre">Task</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">canonical</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">CanonicalInputManifest</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#verify_task_canonical_inputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.verify_task_canonical_inputs" title="Permalink to this definition"></a></dt>
+<dd><p>Raise unless the canonical inputs equal those recorded on the task.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>task</strong> (<em>Any</em>) – The recorded helper task.</p></li>
+<li><p><strong>canonical</strong> (<em>Any</em>) – The canonical input manifest of the workflow.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the task recorded a different canonical manifest.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="biomero.remote_shallower.wait_for_helper_job">
+<span class="sig-prename descclassname"><span class="pre">biomero.remote_shallower.</span></span><span class="sig-name descname"><span class="pre">wait_for_helper_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slurm_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><span class="pre">SlurmClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">heartbeat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.15)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polling_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">15</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="_modules/biomero/remote_shallower.html#wait_for_helper_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.remote_shallower.wait_for_helper_job" title="Permalink to this definition"></a></dt>
+<dd><p>Monitor an adopted job without analysis-log or task-status updates.</p>
+<p>The helper task is completed after report validation, not merely because
+its Slurm process exited successfully.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slurm_client</strong> (<a class="reference internal" href="#biomero.slurm_client.SlurmClient" title="biomero.slurm_client.SlurmClient"><em>SlurmClient</em></a>) – The Slurm client used to poll the job.</p></li>
+<li><p><strong>job_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – The Slurm job ID.</p></li>
+<li><p><strong>heartbeat</strong> (<em>Optional</em><em>[</em><em>Callable</em><em>[</em><em>[</em><em>]</em><em>, </em><em>None</em><em>]</em><em>]</em>) – Callback invoked before each
+poll.</p></li>
+<li><p><strong>polling_interval</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Seconds between status polls.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The final state of the Slurm job.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 </section>

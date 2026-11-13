@@ -183,6 +183,16 @@
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="c1"># ``sbatch`` flags that ``build_sbatch_wrap_command`` sets itself, so that</span>
+<span class="c1"># global ``sbatch_*`` settings must not add them.</span>
+<span class="n">SBATCH_WRAP_OWNED_FLAGS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+    <span class="s1">'job-name'</span><span class="p">,</span> <span class="s1">'output'</span><span class="p">,</span> <span class="s1">'error'</span><span class="p">,</span> <span class="s1">'export'</span><span class="p">,</span> <span class="s1">'wrap'</span><span class="p">,</span> <span class="s1">'parsable'</span><span class="p">})</span>
+<span class="c1"># Flags that would break the single-process CPU helper job when set globally.</span>
+<span class="n">SHALLOWER_EXCLUDED_FLAGS</span> <span class="o">=</span> <span class="n">SBATCH_WRAP_OWNED_FLAGS</span> <span class="o">|</span> <span class="nb">frozenset</span><span class="p">({</span>
+    <span class="s1">'array'</span><span class="p">,</span> <span class="s1">'wait'</span><span class="p">,</span> <span class="s1">'quiet'</span><span class="p">,</span> <span class="s1">'ntasks'</span><span class="p">,</span> <span class="s1">'nodes'</span><span class="p">,</span> <span class="s1">'overcommit'</span><span class="p">,</span> <span class="s1">'gres'</span><span class="p">,</span>
+    <span class="s1">'gres-flags'</span><span class="p">,</span> <span class="s1">'cpus-per-gpu'</span><span class="p">,</span> <span class="s1">'mem-per-gpu'</span><span class="p">})</span>
+<span class="n">SHALLOWER_EXCLUDED_FLAG_PREFIXES</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'gpus'</span><span class="p">,</span> <span class="s1">'gpu-'</span><span class="p">,</span> <span class="s1">'ntasks-'</span><span class="p">)</span>
+
 <span class="c1"># Slurm job states after which a job does not change any more. sacct may add</span>
 <span class="c1"># a suffix such as ``CANCELLED+`` or details such as ``CANCELLED by 1000``.</span>
 <span class="n">TERMINAL_JOB_STATES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
@@ -1315,13 +1325,15 @@
              <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">prefix</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SlurmClient.get_shallower_job_params"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_shallower_job_params">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_shallower_job_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Single-process CPU helper resources, also used for recovery jobs."""</span>
-        <span class="n">excluded</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'array'</span><span class="p">,</span> <span class="s1">'output'</span><span class="p">,</span> <span class="s1">'error'</span><span class="p">,</span> <span class="s1">'job-name'</span><span class="p">,</span> <span class="s1">'export'</span><span class="p">,</span> <span class="s1">'wrap'</span><span class="p">,</span>
-                    <span class="s1">'parsable'</span><span class="p">,</span> <span class="s1">'wait'</span><span class="p">,</span> <span class="s1">'quiet'</span><span class="p">,</span> <span class="s1">'ntasks'</span><span class="p">,</span> <span class="s1">'nodes'</span><span class="p">,</span> <span class="s1">'overcommit'</span><span class="p">,</span>
-                    <span class="s1">'gres'</span><span class="p">,</span> <span class="s1">'gres-flags'</span><span class="p">,</span> <span class="s1">'cpus-per-gpu'</span><span class="p">,</span> <span class="s1">'mem-per-gpu'</span><span class="p">}</span>
+<span class="w">        </span><span class="sd">"""Single-process CPU helper resources, also used for recovery jobs.</span>
+
+<span class="sd">        Global ``sbatch_*`` flags that would break a single-process CPU job</span>
+<span class="sd">        (``SHALLOWER_EXCLUDED_FLAGS``, GPU and per-task flags) are not added.</span>
+<span class="sd">        """</span>
+        <span class="n">excluded</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">SHALLOWER_EXCLUDED_FLAGS</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slurm_global_job_params</span><span class="p">:</span>
             <span class="n">flag</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'='</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="s1">'--'</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">flag</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s1">'gpus'</span><span class="p">,</span> <span class="s1">'gpu-'</span><span class="p">,</span> <span class="s1">'ntasks-'</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">flag</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">SHALLOWER_EXCLUDED_FLAG_PREFIXES</span><span class="p">):</span>
                 <span class="n">excluded</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_mem</span><span class="p">:</span>
             <span class="n">excluded</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">'mem-per-cpu'</span><span class="p">)</span>
@@ -1331,6 +1343,37 @@
             <span class="s1">'mem'</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_mem</span><span class="p">,</span>
             <span class="s1">'time'</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_time</span><span class="p">,</span>
         <span class="p">},</span> <span class="n">excluded</span><span class="o">=</span><span class="n">excluded</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlurmClient.build_sbatch_wrap_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.build_sbatch_wrap_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">build_sbatch_wrap_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">wrapped_command</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="o">*</span><span class="p">,</span>
+            <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">output_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">job_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build an ``sbatch --wrap`` command that honours the site defaults.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            wrapped_command (str): The shell command the job runs.</span>
+<span class="sd">            job_name (str): Slurm job name.</span>
+<span class="sd">            output_path (str): Remote path of the job log; may contain Slurm</span>
+<span class="sd">                filename patterns such as ``%j``.</span>
+<span class="sd">            job_params (Optional[List[str]]): Resource flags; defaults to</span>
+<span class="sd">                ``get_job_params()``, which applies the configured default</span>
+<span class="sd">                partition and global ``sbatch_*`` parameters, except the flags</span>
+<span class="sd">                this method sets itself (``SBATCH_WRAP_OWNED_FLAGS``).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The ``sbatch`` command, printing the job ID on submission.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">job_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">job_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_params</span><span class="p">(</span>
+                <span class="n">excluded</span><span class="o">=</span><span class="n">SBATCH_WRAP_OWNED_FLAGS</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"sbatch --parsable --export=NONE "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_params</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                <span class="sa">f</span><span class="s2">"--job-name=</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">job_name</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                <span class="sa">f</span><span class="s2">"--output=</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+                <span class="sa">f</span><span class="s2">"--wrap=</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">wrapped_command</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_image_pull_sbatch_command</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
@@ -1665,7 +1708,17 @@
         <span class="n">converter_specs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_converters</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallow_zarr</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_image</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">.remote_shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">image_spec</span>
-            <span class="n">converter_specs</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">converter_specs</span><span class="p">,</span> <span class="n">image_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">)]</span>
+            <span class="n">spec</span> <span class="o">=</span> <span class="n">image_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Including remote shallower helper image "</span>
+                        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">spec</span><span class="p">[</span><span class="s1">'source'</span><span class="p">]</span><span class="si">}</span><span class="s2"> in Slurm image setup"</span><span class="p">)</span>
+            <span class="n">converter_specs</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">converter_specs</span><span class="p">,</span> <span class="n">spec</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallow_zarr</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Remote shallowing is enabled but "</span>
+                           <span class="s2">"remote_shallower_image is empty; the helper image "</span>
+                           <span class="s2">"is not set up and remote shallowing cannot run"</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"Skipping remote shallower helper image setup: "</span>
+                         <span class="s2">"remote_shallow_zarr is disabled"</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_container_images</span><span class="p">(</span><span class="n">extra_image_specs</span><span class="o">=</span><span class="n">converter_specs</span><span class="p">)</span></div>
 
     <span class="nd">@staticmethod</span>
@@ -2070,13 +2123,13 @@
 <span class="sd">        ``heartbeat`` is a caller-owned no-argument callback invoked during</span>
 <span class="sd">        job waits.</span>
 <span class="sd">        """</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">.remote_shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">run</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.remote_shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">shallow_workflow_results</span>
         <span class="k">if</span> <span class="n">heartbeat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">heartbeat</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">'heartbeat must be callable'</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span>
-                              <span class="n">heartbeat</span><span class="p">),</span> <span class="s2">"remote shallowing"</span><span class="p">,</span>
-            <span class="n">heartbeat</span><span class="o">=</span><span class="n">heartbeat</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">shallow_workflow_results</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">),</span>
+            <span class="s2">"remote shallowing"</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="n">heartbeat</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_remote_shallower_receipts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_remote_shallower_receipts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_remote_shallower_receipts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Read trusted completed receipts from event-sourced helper tasks."""</span>

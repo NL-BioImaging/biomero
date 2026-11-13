@@ -337,6 +337,7 @@
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.slurm_script_path"><code class="docutils literal notranslate"><span class="pre">SlurmClient.slurm_script_path</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.slurm_script_repo"><code class="docutils literal notranslate"><span class="pre">SlurmClient.slurm_script_repo</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.bring_listener_uptodate"><code class="docutils literal notranslate"><span class="pre">SlurmClient.bring_listener_uptodate()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.build_sbatch_wrap_command"><code class="docutils literal notranslate"><span class="pre">SlurmClient.build_sbatch_wrap_command()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.check_job_status"><code class="docutils literal notranslate"><span class="pre">SlurmClient.check_job_status()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.check_remote_commands_available"><code class="docutils literal notranslate"><span class="pre">SlurmClient.check_remote_commands_available()</span></code></a></li>
 <li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.slurm_client.SlurmClient.cleanup_tmp_files"><code class="docutils literal notranslate"><span class="pre">SlurmClient.cleanup_tmp_files()</span></code></a></li>
@@ -605,12 +606,35 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="biomero.html#module-biomero.remote_shallower">biomero.remote_shallower module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.build_command"><code class="docutils literal notranslate"><span class="pre">build_command()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob"><code class="docutils literal notranslate"><span class="pre">HelperJob</span></code></a><ul>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.image"><code class="docutils literal notranslate"><span class="pre">HelperJob.image</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.manifest_path"><code class="docutils literal notranslate"><span class="pre">HelperJob.manifest_path</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.output_path"><code class="docutils literal notranslate"><span class="pre">HelperJob.output_path</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.sif_path"><code class="docutils literal notranslate"><span class="pre">HelperJob.sif_path</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.state_dir"><code class="docutils literal notranslate"><span class="pre">HelperJob.state_dir</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.task"><code class="docutils literal notranslate"><span class="pre">HelperJob.task</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperJob.task_id"><code class="docutils literal notranslate"><span class="pre">HelperJob.task_id</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperSettings"><code class="docutils literal notranslate"><span class="pre">HelperSettings</span></code></a><ul>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperSettings.contract_version"><code class="docutils literal notranslate"><span class="pre">HelperSettings.contract_version</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperSettings.lock_wait_seconds"><code class="docutils literal notranslate"><span class="pre">HelperSettings.lock_wait_seconds</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperSettings.manifest_schema"><code class="docutils literal notranslate"><span class="pre">HelperSettings.manifest_schema</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="biomero.html#biomero.remote_shallower.HelperSettings.polling_interval"><code class="docutils literal notranslate"><span class="pre">HelperSettings.polling_interval</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.build_helper_command"><code class="docutils literal notranslate"><span class="pre">build_helper_command()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.completed_receipts"><code class="docutils literal notranslate"><span class="pre">completed_receipts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.helper_job_name"><code class="docutils literal notranslate"><span class="pre">helper_job_name()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.image_spec"><code class="docutils literal notranslate"><span class="pre">image_spec()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.installed_tool_version"><code class="docutils literal notranslate"><span class="pre">installed_tool_version()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.run"><code class="docutils literal notranslate"><span class="pre">run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.parse_batch_report"><code class="docutils literal notranslate"><span class="pre">parse_batch_report()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.publish_or_verify_manifest"><code class="docutils literal notranslate"><span class="pre">publish_or_verify_manifest()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.sha256_of_json"><code class="docutils literal notranslate"><span class="pre">sha256_of_json()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.shallow_workflow_results"><code class="docutils literal notranslate"><span class="pre">shallow_workflow_results()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.validate_installed_tool"><code class="docutils literal notranslate"><span class="pre">validate_installed_tool()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.verify_task_canonical_inputs"><code class="docutils literal notranslate"><span class="pre">verify_task_canonical_inputs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="biomero.html#biomero.remote_shallower.wait_for_helper_job"><code class="docutils literal notranslate"><span class="pre">wait_for_helper_job()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="biomero.html#module-biomero.ssh_recovery">biomero.ssh_recovery module</a><ul>

@@ -760,8 +760,12 @@ def record_inside_venv(args: argparse.Namespace) -> int:
         "expected": {"aggregates": aggregates, "views": views}}
     args.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = args.output_dir / f"{installed_version}.json"
-    output_path.write_text(json.dumps(history, indent=2) + "\n",
-                           encoding="utf-8")
+    # newline="
+": Windows must not turn the fixture into CRLF.
+    with output_path.open("w", encoding="utf-8", newline="
+") as fixture:
+        fixture.write(json.dumps(history, indent=2) + "
+")
     print(f"Wrote {len(events)} events of {len(aggregates)} aggregates "
           f"to {output_path}")
     return 0

@@ -54,6 +54,8 @@ def test_detached_worker_environment_names_are_stable():
         constants.slurm_env.BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS
         == "BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS"
     )
+
+
 def test_processed_data_folder_environment_name_is_stable():
     assert constants.slurm_env.PROCESSED_DATA_FOLDER == "PROCESSED_DATA_FOLDER"
 
@@ -96,3 +98,13 @@ def test_file_output_target_contract_is_shared_by_workflow_and_results_scripts()
         "input_container",
         "input_parent",
     )
+
+
+def test_script_output_names_are_a_contract_between_scripts():
+    """Producer and reader scripts must agree on these strings."""
+    assert constants.results.MESSAGE_OUTPUT == "Message"
+    assert constants.results.URL_OUTPUT == "URL"
+    assert constants.results.FILE_ANNOTATION_OUTPUT == "File_Annotation"
+    assert constants.results.RESULTS_PATH_OUTPUT == "Results_Path"
+    assert constants.results.CANONICAL_INPUTS_OUTPUT == "Canonical_Inputs"
+    assert constants.results.WORKFLOW_UUID_OUTPUT == "Workflow_UUID"

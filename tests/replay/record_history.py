@@ -89,6 +89,24 @@ TASK_TRANSFER = "_SLURM_Image_Transfer.py"
 TASK_CONVERT = "convert_zarr_to_tiff"
 TASK_RESULTS = "SLURM_Get_Results.py"
 TASK_LAUNCHER = "SLURM_Run_Workflow.py"
+TASK_BATCHED = "SLURM_Run_Workflow_Batched.py"
+TASK_REMOTE_CONVERSION = "SLURM_Remote_Conversion.py"
+TASK_IMPORT = "SLURM_Import_Results.py"
+TASK_FILE_TRANSFER = "_SLURM_File_Transfer.py"
+# Statuses of the import task; the workflow view maps them to phases.
+IMPORT_STATUSES = ("IMPORTING", "IMPORTED", "POSTPROCESSING")
+# User and group of a workflow with an unknown owner, as 2.0.0 wrote.
+UNKNOWN_OWNER = -1
+
+# Labels of the recorded workflows; the replay tests look them up by
+# name. A task label is "<workflow label>.<role>".
+WF_COMPLETED = "completed"
+WF_FAILED = "failed"
+WF_RUNNING = "running"
+WF_BATCHED = "batched"
+WF_LEGACY_OWNER = "legacy_owner"
+WF_CLAIMED = "claimed"
+WF_CANCEL_REQUESTED = "cancel_requested"
 LAUNCHER_SCRIPT_VERSION = "2.9.0"
 LAUNCHER_OWNER = "replay-recorder"
 
@@ -292,20 +310,54 @@ def record_job(tracker: Any, task_id: UUID, job_id: int,
         tracker.update_task_progress(task_id, progress)
 
 
-def record_completed_workflow(tracker: Any, scenario: Dict) -> UUID:
-    """Record a workflow that ran to completion.
+def task_label(workflow_label: str, role: str) -> str:
+    """Label of a task in the scenario registry.
 
     Args:
-        tracker (WorkflowTracker): The release's tracker.
-        scenario (dict): Label registry; receives the IDs recorded here.
+        workflow_label (str): One of the ``WF_*`` labels.
+        role (str): What the task does in that workflow.
 
     Returns:
-        UUID: The ID of the export task, for optional later events.
+        str: ``"<workflow label>.<role>"``.
+    """
+    return f"{workflow_label}.{role}"
+
+
+def register_workflow(scenario: Dict, label: str, workflow_id: UUID) -> None:
+    """Add a workflow to the scenario label registry.
+
+    Args:
+        scenario (dict): The registry.
+        label (str): One of the ``WF_*`` labels.
+        workflow_id (UUID): The recorded workflow.
+    """
+    scenario["workflows"][label] = workflow_id
+
+
+def register_tasks(scenario: Dict, workflow_label: str,
+                   tasks_by_role: Dict[str, UUID]) -> None:
+    """Add the tasks of a workflow to the scenario label registry.
+
+    Args:
+        scenario (dict): The registry.
+        workflow_label (str): One of the ``WF_*`` labels.
+        tasks_by_role (dict): Role to recorded task ID.
+    """
+    for role, task_id in tasks_by_role.items():
+        scenario["tasks"][task_label(workflow_label, role)] = task_id
+
+
+def record_completed_workflow(tracker: Any, scenario: Dict) -> None:
+    """Record a workflow that ran to completion through every pipeline phase.
+
+    Args:
+        tracker (WorkflowTracker): The tracker of the release.
+        scenario (dict): Label registry; receives the IDs recorded here.
     """
     workflow_id = tracker.initiate_workflow(
         "cellpose", "Completed run recorded for replay tests",
         USER_ID, GROUP_ID)
-    scenario["workflows"]["completed"] = workflow_id
+    register_workflow(scenario, WF_COMPLETED, workflow_id)
     tracker.start_workflow(workflow_id)
 
     transfer_id = tracker.add_task_to_workflow(
@@ -322,6 +374,14 @@ def record_completed_workflow(tracker: Any, scenario: Dict) -> UUID:
                ["50%", "100%"])
     tracker.complete_task(convert_id, "Converted")
 
+    remote_conversion_id = tracker.add_task_to_workflow(
+        workflow_id, TASK_REMOTE_CONVERSION, "1.0", {"Image": [101, 102]},
+        {"to": "zarr"})
+    record_job(tracker, remote_conversion_id, 1004,
+               [JOB_STATUS_PENDING, JOB_STATUS_RUNNING, JOB_STATUS_COMPLETED],
+               ["100%"])
+    tracker.complete_task(remote_conversion_id, "Converted remotely")
+
     run_id = tracker.add_task_to_workflow(
         workflow_id, "cellpose", "v1.2.1", {"Image": [101, 102]},
         {"diameter": 30, "model": "cyto"})
@@ -335,26 +395,34 @@ def record_completed_workflow(tracker: Any, scenario: Dict) -> UUID:
         workflow_id, TASK_RESULTS, "1.0", {"Image": [101, 102]},
         {"slurm_job_id": 1002})
     tracker.start_task(results_id)
-    tracker.complete_task(results_id, "Imported 2 results")
+    tracker.complete_task(results_id, "Retrieved 2 results")
+
+    import_id = tracker.add_task_to_workflow(
+        workflow_id, TASK_IMPORT, "1.0", {"Image": [101, 102]},
+        {"slurm_job_id": 1002})
+    tracker.start_task(import_id)
+    for status in IMPORT_STATUSES:
+        tracker.update_task_status(import_id, status)
+    tracker.complete_task(import_id, "Imported 2 results")
     tracker.complete_workflow(workflow_id)
 
-    scenario["tasks"].update({
-        "completed.transfer": transfer_id, "completed.convert": convert_id,
-        "completed.run": run_id, "completed.results": results_id})
-    return transfer_id
+    register_tasks(scenario, WF_COMPLETED, {
+        "transfer": transfer_id, "convert": convert_id,
+        "remote_conversion": remote_conversion_id, "run": run_id,
+        "results": results_id, "import": import_id})
 
 
 def record_failed_workflow(tracker: Any, scenario: Dict) -> None:
     """Record a workflow whose Slurm job failed.
 
     Args:
-        tracker (WorkflowTracker): The release's tracker.
+        tracker (WorkflowTracker): The tracker of the release.
         scenario (dict): Label registry; receives the IDs recorded here.
     """
     workflow_id = tracker.initiate_workflow(
         "cellexpansion", "Failed run recorded for replay tests",
         USER_ID + 1, GROUP_ID)
-    scenario["workflows"]["failed"] = workflow_id
+    register_workflow(scenario, WF_FAILED, workflow_id)
     tracker.start_workflow(workflow_id)
     transfer_id = tracker.add_task_to_workflow(
         workflow_id, TASK_TRANSFER, "1.0", {"Image": [201]}, {})
@@ -370,21 +438,24 @@ def record_failed_workflow(tracker: Any, scenario: Dict) -> None:
     error_message = "Slurm job 1100 ended in state FAILED"
     tracker.fail_task(run_id, error_message)
     tracker.fail_workflow(workflow_id, error_message)
-    scenario["tasks"].update({
-        "failed.transfer": transfer_id, "failed.run": run_id})
+    register_tasks(scenario, WF_FAILED,
+                   {"transfer": transfer_id, "run": run_id})
 
 
 def record_running_workflow(tracker: Any, scenario: Dict) -> None:
     """Record a workflow that is still running, as after a restart.
 
+    The job reports its progress before its status, which makes the workflow
+    view interpolate the workflow progress between 50% and 90%.
+
     Args:
-        tracker (WorkflowTracker): The release's tracker.
+        tracker (WorkflowTracker): The tracker of the release.
         scenario (dict): Label registry; receives the IDs recorded here.
     """
     workflow_id = tracker.initiate_workflow(
         "stardist", "Running run recorded for replay tests",
         USER_ID, GROUP_ID + 1)
-    scenario["workflows"]["running"] = workflow_id
+    register_workflow(scenario, WF_RUNNING, workflow_id)
     tracker.start_workflow(workflow_id)
     transfer_id = tracker.add_task_to_workflow(
         workflow_id, TASK_TRANSFER, "1.0", {"Image": [301]}, {})
@@ -393,13 +464,57 @@ def record_running_workflow(tracker: Any, scenario: Dict) -> None:
 
     run_id = tracker.add_task_to_workflow(
         workflow_id, "stardist", "v2.0.0", {"Image": [301]}, {"prob": 0.5})
-    record_job(tracker, run_id, 1200,
-               [JOB_STATUS_PENDING, JOB_STATUS_RUNNING], ["43%"])
+    record_job(tracker, run_id, 1200, [JOB_STATUS_PENDING], [])
+    tracker.update_task_progress(run_id, "43%")
+    tracker.update_task_status(run_id, JOB_STATUS_RUNNING)
     results_id = tracker.add_task_to_workflow(  # created, never started
         workflow_id, TASK_RESULTS, "1.0", {"Image": [301]}, {})
-    scenario["tasks"].update({
-        "running.transfer": transfer_id, "running.run": run_id,
-        "running.results": results_id})
+    register_tasks(scenario, WF_RUNNING, {
+        "transfer": transfer_id, "run": run_id, "results": results_id})
+
+
+def record_batched_workflow(tracker: Any, scenario: Dict) -> None:
+    """Record a running batched workflow that transfers files.
+
+    Args:
+        tracker (WorkflowTracker): The tracker of the release.
+        scenario (dict): Label registry; receives the IDs recorded here.
+    """
+    workflow_id = tracker.initiate_workflow(
+        "batched", "Batched run recorded for replay tests",
+        USER_ID, GROUP_ID)
+    register_workflow(scenario, WF_BATCHED, workflow_id)
+    tracker.start_workflow(workflow_id)
+    file_transfer_id = tracker.add_task_to_workflow(
+        workflow_id, TASK_FILE_TRANSFER, "1.0", {"File": [11]}, {})
+    tracker.start_task(file_transfer_id)
+    tracker.complete_task(file_transfer_id, "Transferred 1 file")
+    batched_id = tracker.add_task_to_workflow(
+        workflow_id, TASK_BATCHED, "1.0", {"Image": [401, 402]},
+        {"batch": 1})
+    tracker.start_task(batched_id)
+    register_tasks(scenario, WF_BATCHED, {
+        "file_transfer": file_transfer_id, "batched": batched_id})
+
+
+def record_legacy_owner_workflow(tracker: Any, scenario: Dict) -> None:
+    """Record a workflow with the user and group -1 that 2.0.0 wrote.
+
+    Args:
+        tracker (WorkflowTracker): The tracker of the release.
+        scenario (dict): Label registry; receives the IDs recorded here.
+    """
+    workflow_id = tracker.initiate_workflow(
+        "legacy", "Workflow without owner recorded for replay tests",
+        UNKNOWN_OWNER, UNKNOWN_OWNER)
+    register_workflow(scenario, WF_LEGACY_OWNER, workflow_id)
+    tracker.start_workflow(workflow_id)
+    run_id = tracker.add_task_to_workflow(
+        workflow_id, "legacy", "v0.1.0", {"Image": [501]}, {})
+    tracker.start_task(run_id)
+    tracker.complete_task(run_id, "Done")
+    tracker.complete_workflow(workflow_id)
+    register_tasks(scenario, WF_LEGACY_OWNER, {"run": run_id})
 
 
 def record_storage_provenance(tracker: Any, scenario: Dict) -> bool:
@@ -415,7 +530,7 @@ def record_storage_provenance(tracker: Any, scenario: Dict) -> bool:
     if not hasattr(tracker, "record_storage_provenance"):
         return False
     tracker.record_storage_provenance(
-        scenario["tasks"]["completed.results"], "Plate:10",
+        scenario["tasks"][task_label(WF_COMPLETED, "import")], "Plate:10",
         {"storage": "shallow-zarr", "location": "importer"})
     return True
 
@@ -456,8 +571,9 @@ def record_canonical_inputs(tracker: Any, scenario: Dict) -> bool:
         ordinal=0, selected_object_type="Image", selected_object_id=101,
         source=source)
     tracker.record_canonical_inputs(
-        scenario["workflows"]["completed"],
-        scenario["tasks"]["completed.transfer"], [canonical_input])
+        scenario["workflows"][WF_COMPLETED],
+        scenario["tasks"][task_label(WF_COMPLETED, "transfer")],
+        [canonical_input])
     return True
 
 
@@ -498,8 +614,8 @@ def record_claimed_launcher(tracker: Any, scenario: Dict) -> bool:
         tracker.claim_launcher_task(launcher_id, LAUNCHER_OWNER)
     else:
         detached.claim_launcher_task(tracker, launcher_id)
-    scenario["workflows"]["claimed"] = workflow_id
-    scenario["tasks"]["claimed.launcher"] = launcher_id
+    register_workflow(scenario, WF_CLAIMED, workflow_id)
+    register_tasks(scenario, WF_CLAIMED, {"launcher": launcher_id})
     return True
 
 
@@ -520,7 +636,7 @@ def record_cancel_request(tracker: Any, scenario: Dict) -> bool:
         USER_ID, GROUP_ID)
     tracker.start_workflow(workflow_id)
     tracker.request_workflow_cancel(workflow_id, "Cancelled by the user")
-    scenario["workflows"]["cancel_requested"] = workflow_id
+    register_workflow(scenario, WF_CANCEL_REQUESTED, workflow_id)
     return True
 
 
@@ -576,6 +692,8 @@ def record_scenario(tracker: Any) -> Dict:
     record_completed_workflow(tracker, scenario)
     record_failed_workflow(tracker, scenario)
     record_running_workflow(tracker, scenario)
+    record_batched_workflow(tracker, scenario)
+    record_legacy_owner_workflow(tracker, scenario)
     optional_features = {
         "storage_provenance": record_storage_provenance,
         "canonical_inputs": record_canonical_inputs,

@@ -170,7 +170,10 @@ full reset merely to inspect events or aggregates.
 - Missing or incorrect immutable event: fix the command/domain-event producer;
   rebuilding a view cannot repair it.
 - Correct event but incorrect replayed aggregate: fix aggregate event handling
-  or add an upcaster for historical schemas.
+  or, as a last resort, add an upcaster for historical schemas. Never rename or
+  remove events, attributes or aggregates; add new ones, default new constructor
+  parameters and initialise new attributes (see "Event history replay" in
+  `docs/developer/eventsourcing.rst`).
 - Correct aggregate but stale projection: catch up the listener.
 - Correct aggregate and caught-up listener but incorrect projection: fix the
   projection policy, test replay from the beginning, then rebuild the view.

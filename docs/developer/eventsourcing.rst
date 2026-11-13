@@ -31,11 +31,21 @@ Environment
 Versioning aggregates
 ~~~~~~~~~~~~~~~~~~~~~
 
-When changing aggregate or event schemas, keep backward compatibility with stored events:
+Stored events are never rewritten, and every install keeps the events of the
+release it ran, so a change to events or aggregates must replay all of them.
+Prefer a design that needs no change to stored data. When one is unavoidable:
 
-- Bump ``INITIAL_VERSION`` (or class_version) as appropriate.
-- Add ``upcast_vX_vY(state)`` static methods on Aggregate/Event classes to adapt older event snapshots to the new shape.
-- See the eventsourcing docs for versioning patterns.
+- Never rename or remove an event class, an event attribute, an aggregate
+  class or an aggregate attribute: the stored topic names them.
+- Add new events and new aggregates instead of changing existing ones.
+- Give every new constructor parameter a default, and initialise every new
+  aggregate attribute in ``__init__``, so histories written before it still
+  replay.
+- Use an upcaster (``upcast_vX_vY(state)`` with a bumped ``class_version``, see
+  the eventsourcing documentation) only as a last resort.
+- Keep ``tests/unit/test_replay_histories.py`` green; see
+  `Event history replay`_ below. State in the PR and the release notes what
+  changed and whether a downgrade still works.
 
 
 View side
@@ -188,7 +198,9 @@ old history fails in CI instead of in an install.
   persistence libraries it pins, writes the same history as the previous one
   and needs none: 2.0.0 to 2.6.0 write the same events on eventsourcing 9.3,
   2.7.0 to 2.8.3 write them on eventsourcing 9.5, so 2.0.0, 2.8.3 and the
-  2.9 prerelease (new events) are recorded.
+  2.9 prerelease (new events) are recorded. The 2.0.0 and 2.8.3 event streams
+  are identical: they differ only in the library versions that wrote them and
+  in the ``views.py`` of their era.
 
 Inspecting aggregate history
 ----------------------------
@@ -223,6 +235,6 @@ in history even when excluded from the searchable metadata view. See
 Gotchas
 -------
 
-- When changing aggregates, add upcasters so old events can still be rehydrated.
+- When changing aggregates, keep old events replaying: add, never rename or remove, give new parameters defaults and initialise new attributes (see `Versioning aggregates`_ and `Event history replay`_). Upcasters are a last resort.
 - Rebuilding views is safe and preferred over complex data migrations.
 - The rebuild process drops tables, so there will be brief downtime during the operation.

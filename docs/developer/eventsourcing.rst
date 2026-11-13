@@ -50,6 +50,29 @@ Views are updated by ProcessApplications that consume events and persist into BI
 
 These are standard SQLAlchemy models defined in ``biomero.database``. Schema changes are applied via event sourcing system rebuild.
 
+Workflow phase and progress
+---------------------------
+
+``WorkflowProgress`` derives the workflow status and progress shown to users
+from the task that starts or reports a status, with one table
+(``biomero.views.workflow_phase_for``) used for both ``TaskStarted`` (no task
+status yet) and ``StatusUpdated``:
+
+- ``_SLURM_Image_Transfer.py``: ``TRANSFERRING``, 5%
+- ``convert_*`` and ``SLURM_Remote_Conversion.py``: ``CONVERTING``, 25%
+- ``SLURM_Get_Results.py``: ``RETRIEVING``, 90%; ``POSTPROCESSING``, 95% when
+  that is the reported status
+- ``SLURM_Import_Results.py``: ``IMPORTING`` (or the reported status), 90%;
+  95% for ``POSTPROCESSING``
+- ``SLURM_Run_Workflow.py`` and the batched script: ``RUNNING``, 50%
+- any other task (the user's workflow): ``JOB_`` plus the task status, 50%
+
+The progress of a user's workflow task is interpolated between 50% and 90%.
+Before 2.9, a ``StatusUpdated`` of ``SLURM_Remote_Conversion.py`` was shown as
+``JOB_<status>`` at 50%; it is now ``CONVERTING`` at 25%, as it already was
+when the task started. Only rows computed from new events change; replay the
+projections (see below) to correct older rows.
+
 Rebuilding views (reprojection)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -19,7 +19,7 @@ def source():
     tasks = []
     for name, params in [
         ("SLURM_Run_Workflow.py", {"_biomero_detached_launcher": "2.9.0",
-                                 "unused | diameter": 10}),
+                                   "unused | diameter": 10}),
         ("cisegmentation", {"diameter": 0, "enabled": False,
                             "output_settings": {"internal": True}}),
         ("SLURM_Import_Results.py", {"import": True}),
@@ -563,13 +563,62 @@ def test_software_version_is_read_from_the_last_line(source, description, expect
     assert values["Version"] == expected
 
 
-@pytest.mark.parametrize("description", [
-    "Based on cellpose 2.1.1\nno version here", "", None, -1])
-def test_software_version_fallback_is_a_warning_and_ignores_earlier_lines(
-        source, caplog, description):
+def test_software_version_without_a_version_on_the_last_line_warns(
+        source, caplog):
     tracker, wf, _ = source
-    wf.description = description
+    wf.description = "Based on cellpose 2.1.1\nno version here"
     with caplog.at_level("WARNING", logger="biomero.metadata_views"):
         values = render_workflow_metadata(tracker, wf._id)[0].values
     assert values["Version"] == "Unknown"
     assert "No software version on the last line" in caplog.text
+
+
+@pytest.mark.parametrize("description", ["", None, -1])
+def test_software_version_of_a_workflow_without_text_is_unknown_without_a_warning(
+        source, caplog, description):
+    """Core's conversion workflow stores -1 as its description."""
+    tracker, wf, _ = source
+    wf.description = description
+    with caplog.at_level("DEBUG", logger="biomero.metadata_views"):
+        values = render_workflow_metadata(tracker, wf._id)[0].values
+    assert values["Version"] == "Unknown"
+    assert [r for r in caplog.records if r.levelname == "WARNING"] == []
+
+
+def test_two_import_tasks_with_evidence_for_a_target_are_ambiguous():
+    from biomero.metadata_views import advance_import_task_to_storage_evidence
+    evidence = {"storage": "full-zarr"}
+    first, second = uuid4(), uuid4()
+    aggregates = {
+        key: SimpleNamespace(task_name="SLURM_Import_Results.py", version=4,
+                             storage_provenance={"Plate:1": evidence})
+        for key in (first, second)}
+    tracker = SimpleNamespace(repository=SimpleNamespace(
+        get=lambda key, **kwargs: aggregates[key]))
+    with pytest.raises(ValueError, match="unique import-task storage evidence"):
+        advance_import_task_to_storage_evidence(
+            tracker, {str(first): 1, str(second): 1}, "Plate:1")
+
+
+@pytest.mark.parametrize("characters, inline", [(400, True), (401, False)])
+def test_canonical_biocodes_limit_counts_utf8_bytes_not_characters(
+        characters, inline):
+    code = "é" * characters  # two bytes each: 800 and 802 bytes
+    values = storage_metadata_view(
+        {"storage": "shallow-zarr", "source_biocodes": [code]}, "Plate:1")
+    assert (values["Canonical_Biocodes"] == code) is inline
+
+
+@pytest.mark.parametrize("separator", [" | ", "_|_"])
+def test_workflow_name_is_the_part_before_the_first_separator(
+        source, separator):
+    tracker, wf, tasks = source
+    tasks[1].task_name = "SLURM_Run_Workflow.py"
+    tasks[1].params = {
+        "workflows": ["chosen"],
+        f"chosen{separator}group{separator}diameter": 1,
+        f"other{separator}chosen{separator}diameter": 2}
+    params = {key for key in render_workflow_metadata(
+        tracker, wf._id)[1].values if key.startswith("Param_")}
+    assert params == {"Param_workflows",
+                      f"Param_chosen{separator}group{separator}diameter"}

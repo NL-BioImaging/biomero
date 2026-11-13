@@ -15,7 +15,7 @@
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.application import Application
 from eventsourcing.persistence import IntegrityError as EventStoreConflict
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import UUID
 from datetime import datetime, timezone
 from typing import (Any, Dict, Iterator, List, Mapping, Optional, Sequence,
                     Union)
@@ -29,6 +29,12 @@ from biomero.database import EngineManager, retry_on_database_conflict
 
 # Create a logger for this module
 logger = logging.getLogger(__name__)
+
+# What `import biomero` exposes from this module (EngineManager is documented
+# as importable from biomero).
+__all__ = ["EngineManager", "NoOpWorkflowTracker", "ResultDict", "Task",
+           "WorkflowCancelled", "WorkflowInterrupted", "WorkflowRun",
+           "WorkflowTracker", "is_launcher_task"]
 
 # -------------------- DOMAIN MODEL -------------------- #
 
@@ -483,7 +489,7 @@ def is_launcher_task(task) -> bool:
     """Whether a task is a launcher queued for a detached supervisor.
 
     Works on a Task aggregate and on a Task.TaskCreated event alike, so every
-    reader (supervisor, views, provenance) applies the same rule.
+    reader (supervisor, views, metadata views) applies the same rule.
 
     Args:
         task: Anything with ``task_name`` and ``params``.
@@ -586,7 +592,9 @@ class WorkflowTracker(Application):
         Returns:
             UUID: The UUID of the newly added task.
         """
-        logger.debug(f"[WFT] Adding task to workflow: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
+        logger.debug(f"[WFT] Adding task to workflow: "
+                     f"workflow_id={workflow_id}, task_name={task_name}, "
+                     f"task_version={task_version}")
 
         task = Task(workflow_id,
                     task_name,

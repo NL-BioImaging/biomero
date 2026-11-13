@@ -1423,7 +1423,7 @@ def test_job_progress_update_view_table_failed(workflow_tracker_and_job_progress
             job_progress.update_view_table(job_id)
     
     # AND it should log the failure attempts and final failure
-    assert f"Database conflict inserting job progress (will retry): job_id={job_id}" in caplog.text
+    assert f"Database conflict writing [JP] job progress {job_id}" in caplog.text
     assert "Database operation failed after" in caplog.text
 
   
@@ -1731,9 +1731,10 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
     # rollback/integrityerror
     with caplog.at_level("WARNING"):
         workflow_analytics.tasks[task_id]["status"] = None
-        workflow_analytics.update_view_table(task_id)
-    
-    assert f"Database conflict inserting task execution (will retry): task_id={task_id}, error=" in caplog.text
+        with pytest.raises(IntegrityError, match="NOT NULL constraint failed"):
+            workflow_analytics.update_view_table(task_id)
+
+    assert f"Database conflict writing [WFA] task execution {task_id}" in caplog.text
     
 
 def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_analytics):
@@ -2633,57 +2634,113 @@ def test_task_started_and_status_update_agree_on_the_phase(
 
 # ---------------- Review follow-ups: lookups, guards, exports ---------------- #
 
-def test_owner_lookup_does_not_swallow_a_database_outage():
-    """User and group are data, not a cosmetic name: an outage must raise."""
+def _broken_repository():
     from sqlalchemy.exc import OperationalError
-    from biomero.views import resolve_workflow_owner
-    broken = SimpleNamespace(get=unittest.mock.Mock(
+    return SimpleNamespace(get=unittest.mock.Mock(
         side_effect=OperationalError("SELECT", {}, Exception("locked"))))
-    with patch("biomero.views.tracker_repository", return_value=broken):
-        with pytest.raises(OperationalError):
-            resolve_workflow_owner({}, uuid.uuid4())
 
 
-def test_main_task_name_reconstruction_tolerates_a_lookup_outage(
-        workflow_tracker_and_workflow_progress, caplog):
-    """Only the cosmetic main task name falls back, with a [WFP] warning."""
-    from sqlalchemy.exc import OperationalError
+def test_owner_lookup_survives_a_database_outage_with_a_warning(caplog):
+    """The producer's save() must not raise after its event is stored."""
+    from biomero.views import resolve_workflow_owner
+    workflow_id = uuid.uuid4()
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        with caplog.at_level("WARNING", logger="biomero.views"):
+            assert resolve_workflow_owner({}, workflow_id) is None
+    record = next(r for r in caplog.records if "could not be read" in r.message)
+    assert str(workflow_id) in record.message
+    assert record.exc_info is not None and record.levelname == "WARNING"
+
+
+@pytest.mark.parametrize("projection_class", [
+    JobAccounting, WorkflowProgress, WorkflowAnalytics])
+def test_task_lookup_survives_a_database_outage_in_every_projection(
+        projection_class):
+    projection = projection_class()
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        assert projection.resolve_task(uuid.uuid4()) is None
+
+
+def test_main_task_name_falls_back_when_the_tracker_cannot_be_read(
+        workflow_tracker_and_workflow_progress):
     tracker, progress = workflow_tracker_and_workflow_progress
     workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
     progress.tasks.clear()
-    broken = SimpleNamespace(get=unittest.mock.Mock(
-        side_effect=OperationalError("SELECT", {}, Exception("locked"))))
-    with patch("biomero.views.tracker_repository", return_value=broken):
-        with caplog.at_level("WARNING", logger="biomero.views"):
-            name = progress._determine_main_task_name(workflow_id)
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        name = progress._determine_main_task_name(workflow_id)
     assert name == progress.workflows[workflow_id].get("task", "unknown")
-    assert (f"[WFP] Could not reconstruct the tasks of workflow "
-            f"{workflow_id}") in caplog.text
 
 
-def test_first_user_task_name_skips_infrastructure_tasks():
-    from biomero.views import first_user_task_name
-    tasks = [{"task_name": name} for name in (
-        "_SLURM_Image_Transfer.py", "convert_x", "SLURM_Get_Results.py",
-        "my-workflow", "later")]
-    assert first_user_task_name(tasks) == "my-workflow"
-    assert first_user_task_name(tasks[:3]) is None
-    assert first_user_task_name([{"task_name": "convert_only"}]) is None
+def test_view_table_writes_are_really_retried_on_a_conflict(
+        workflow_tracker_and_job_progress):
+    """retry_on_database_conflict is on the method that runs; a conflict is
+    retried and then succeeds."""
+    from biomero.database import JobProgressView
+    _, job_progress = workflow_tracker_and_job_progress
+    job_progress.job_status[7] = {"status": "RUNNING", "progress": "5%"}
+    real_merge = None
+    calls = []
+    session = EngineManager.get_session()
+    real_merge = session.merge
+
+    def flaky_merge(row, *args, **kwargs):
+        calls.append(row)
+        if len(calls) == 1:
+            raise IntegrityError("MERGE", {}, Exception("duplicate key value"))
+        return real_merge(row, *args, **kwargs)
+
+    with patch("biomero.database.time.sleep"),             patch.object(type(session), "merge", side_effect=flaky_merge):
+        job_progress.update_view_table(7)
+    assert len(calls) == 2
+    with EngineManager.get_session() as check:
+        assert check.query(JobProgressView).filter_by(
+            slurm_job_id=7).one().status == "RUNNING"
 
 
-def test_remote_shallower_events_are_committed_and_ignored(
+def test_event_handlers_commit_the_shared_session_after_the_event():
+    from biomero.views import commit_after_event
+    calls = []
+
+    @commit_after_event
+    def handler(self, domain_event, process_event):
+        calls.append("handled")
+        if domain_event == "early":
+            return
+
+    for event_name in ("early", "late"):
+        calls.clear()
+        with patch("biomero.views.EngineManager.commit",
+                   side_effect=lambda: calls.append("commit")):
+            handler(None, event_name, None)
+        assert calls == ["handled", "commit"]
+    assert handler.__name__ == "handler"
+
+
+def test_every_projection_handler_commits_after_the_event():
+    """All handlers are registered through commit_after_event."""
+    from eventsourcing.dispatch import singledispatchmethod  # noqa: F401
+    for projection in (JobAccounting, JobProgress, WorkflowProgress,
+                       WorkflowAnalytics):
+        registry = projection.__dict__["policy"].dispatcher.registry
+        for event_class, handler in registry.items():
+            if event_class is object:
+                continue
+            assert getattr(handler, "__wrapped__", None) is not None, (
+                projection.__name__, event_class)
+
+
+def test_remote_shallower_events_are_ignored(
         workflow_tracker_and_workflow_progress):
     from biomero.constants import REMOTE_SHALLOWER_TASK_NAME
     _, progress = workflow_tracker_and_workflow_progress
     helper = {"task_name": REMOTE_SHALLOWER_TASK_NAME}
-    with patch("biomero.views.EngineManager.commit") as commit:
-        assert progress.skip_remote_shallower(uuid.uuid4(), helper, "X")
-    commit.assert_called_once_with()
-    with patch("biomero.views.EngineManager.commit") as commit:
-        assert not progress.skip_remote_shallower(
-            uuid.uuid4(), {"task_name": "analysis"}, "X")
-        assert not progress.skip_remote_shallower(uuid.uuid4(), None, "X")
-    commit.assert_not_called()
+    assert progress.skip_remote_shallower(uuid.uuid4(), helper, "X")
+    assert not progress.skip_remote_shallower(
+        uuid.uuid4(), {"task_name": "analysis"}, "X")
+    assert not progress.skip_remote_shallower(uuid.uuid4(), None, "X")
 
 
 def test_launcher_rule_needs_the_script_name_and_the_marker():

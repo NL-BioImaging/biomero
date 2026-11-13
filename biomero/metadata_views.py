@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+# Copyright 2024 Torec Luik
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Versioned OMERO key/value views of immutable workflow history.
 
 The event store is the authoritative record of a workflow. This module renders
@@ -21,6 +35,7 @@ from uuid import UUID
 from biomero.constants import (
     IMAGE_IMPORT_SCRIPT,
     IMPORT_RESULTS_SCRIPT,
+    LAUNCHER_MARKER,
     REMOTE_SHALLOWER_TASK_NAME,
     RUN_WF_BATCHED_SCRIPT,
     RUN_WF_SCRIPT,
@@ -58,16 +73,14 @@ WORKFLOW_VERSION_SUFFIX = "_Version"
 # launcher marker (_biomero_).
 WF_PARAMS_PREFIX = "wf_params_"
 WF_FILE_PARAMS_PREFIX = "wf_file_params_"
-BIOMERO_PARAM_PREFIX = "_biomero_"
+# The launcher marker and the other BIOMERO bookkeeping parameters share the
+# leading "_biomero_".
+BIOMERO_PARAM_PREFIX = LAUNCHER_MARKER[:LAUNCHER_MARKER.index("_", 1) + 1]
 EXCLUDED_PARAM_PREFIXES = (
     WF_PARAMS_PREFIX, WF_FILE_PARAMS_PREFIX, BIOMERO_PARAM_PREFIX)
 
 UNKNOWN_SOFTWARE_VERSION = "Unknown"
 SOFTWARE_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+")
-# The scripts store the software version as the last line of the workflow
-# description ("<description>\n<version>"); core's own conversion workflow
-# stores it as the whole description.
-
 STORAGE_SHALLOW_ZARR = "shallow-zarr"
 STORAGE_FULL_ZARR = "full-zarr"
 STORAGE_FORMATS = (STORAGE_SHALLOW_ZARR, STORAGE_FULL_ZARR)
@@ -333,7 +346,7 @@ def load_visible_tasks(
             task = tracker.repository.get(UUID(str(task_id)))
             if is_internal_task(task):
                 logger.debug(f"Skipping internal task {task_id} without a "
-                             f"pinned version in workflow {workflow._id}")
+                             f"pinned version")
                 continue
             raise ValueError(f"Missing historical task version: {task_id}")
         task = load_aggregate(tracker, task_id, aggregate_versions)
@@ -347,9 +360,11 @@ def load_visible_tasks(
 def software_version(description: Any) -> str:
     """Extract the software version from a workflow description.
 
-    Only the last line is searched: a version number earlier in the
-    description (for example "based on cellpose 2.1.1") is not the software
-    version.
+    The scripts store the version as the last line of the description
+    (``"<description>\n<version>"``). Only that line is searched: a
+    version number earlier in the description (for example "based on cellpose
+    2.1.1") is not the software version. Workflows without a text description
+    (core's own conversion workflow stores a number) have no version to find.
 
     Args:
         description: The workflow description, e.g. ``"Segments nuclei\n2.9.0"``.
@@ -358,20 +373,17 @@ def software_version(description: Any) -> str:
         The first ``x.y.z`` version on the last line, else
         ``UNKNOWN_SOFTWARE_VERSION``.
     """
-    lines = str(description or "").strip().splitlines()
-    match = SOFTWARE_VERSION_PATTERN.search(lines[-1]) if lines else None
+    if not isinstance(description, str) or not description.strip():
+        logger.debug(f"No workflow description to read a software version "
+                     f"from: {description!r}")
+        return UNKNOWN_SOFTWARE_VERSION
+    match = SOFTWARE_VERSION_PATTERN.search(
+        description.strip().splitlines()[-1])
     if match is None:
         logger.warning(f"No software version on the last line of the "
                        f"workflow description {description!r}")
         return UNKNOWN_SOFTWARE_VERSION
     return match.group()
-
-
-def storage_evidence_for(task: Any, target_key: Optional[str]) -> Optional[dict]:
-    """Return the storage evidence recorded on a task for a result target.
-
-    """
-    return task.storage_provenance.get(target_key)
 
 
 def make_annotation(
@@ -422,7 +434,7 @@ def task_row_values(task: Any, workflow: Any, workflow_id: Any,
     }
     values.update({f"{PARAM_PREFIX}{name}": str(value)
                    for name, value in view_parameters(task).items()})
-    evidence = storage_evidence_for(task, target_key)
+    evidence = task.storage_provenance.get(target_key)
     if evidence and task.task_name in RESULT_TASK_NAMES:
         values.update(storage_metadata_view(evidence, target_key))
     return values
@@ -629,7 +641,7 @@ def find_storage_evidence(
         latest = tracker.repository.get(UUID(aggregate_id))
         if getattr(latest, "task_name", None) not in RESULT_TASK_NAMES:
             continue
-        evidence = storage_evidence_for(latest, target_key)
+        evidence = latest.storage_provenance.get(target_key)
         if evidence and storage_metadata_view(evidence, target_key):
             found.append(StorageEvidence(aggregate_id, latest, evidence))
     return found
@@ -666,7 +678,7 @@ def advance_import_task_to_storage_evidence(
     candidate = candidates[0]
     pinned_task = tracker.repository.get(
         UUID(candidate.task_id), version=versions[candidate.task_id])
-    previous = storage_evidence_for(pinned_task, target_key)
+    previous = pinned_task.storage_provenance.get(target_key)
     if previous and previous != candidate.evidence:
         raise ValueError(
             "Import snapshot already contains different storage evidence")

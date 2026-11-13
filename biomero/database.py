@@ -48,9 +48,76 @@ logger = logging.getLogger(__name__)
 
 # --------------------- CONCURRENCY HELPERS ---------------------------- #
 
+# Messages (lowercase) of database errors that are concurrency conflicts, and
+# so worth retrying.
+RETRYABLE_CONFLICT_MESSAGES = (
+    "unique constraint",
+    "duplicate key",
+    "concurrent update",
+    "transaction is aborted",
+    "deadlock detected",
+)
+
+# Messages (lowercase) of permanent data validation errors: never retried.
+NON_RETRYABLE_ERROR_MESSAGES = (
+    "not null constraint",
+    "null value in column",
+    "cannot be null",
+)
+
+
+def conflict_exception_types() -> tuple:
+    """Return the exception types that may be a database conflict."""
+    exception_types = [IntegrityError, OperationalError]
+    if EventSourcingIntegrityError:
+        exception_types.append(EventSourcingIntegrityError)
+    if EventSourcingOperationalError:
+        exception_types.append(EventSourcingOperationalError)
+    return tuple(exception_types)
+
+
+def is_eventsourcing_error(error: Exception) -> bool:
+    """Whether an error comes from the event sourcing persistence layer.
+
+    Those are always concurrency conflicts (newer versions may have empty
+    messages) and never data validation errors.
+    """
+    eventsourcing_types = tuple(
+        error_type for error_type in
+        (EventSourcingIntegrityError, EventSourcingOperationalError)
+        if error_type)
+    return isinstance(error, eventsourcing_types)
+
+
+def is_retryable_conflict(error: Exception) -> bool:
+    """Whether a database error is a concurrency conflict worth retrying.
+
+    Args:
+        error: The exception raised by the database operation.
+
+    Returns:
+        False for permanent data validation errors, True for an event
+        sourcing error or a message that names a known conflict.
+    """
+    message = str(error).lower()
+    # For EventSourcing exceptions, also check the underlying cause
+    if getattr(error, "__cause__", None):
+        message += " " + str(error.__cause__).lower()
+    if any(text in message for text in NON_RETRYABLE_ERROR_MESSAGES):
+        logger.debug(f"Non-retryable data validation error: {error}")
+        return False
+    return (is_eventsourcing_error(error)
+            or any(text in message for text in RETRYABLE_CONFLICT_MESSAGES))
+
+
+def backoff_delay(attempt: int, base_delay: float, max_delay: float) -> float:
+    """Return the exponential backoff, with jitter, before the next attempt."""
+    return min(base_delay * (2 ** attempt) + random.uniform(0, 0.1), max_delay)
+
+
 def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
     """Decorator to retry database operations on concurrency conflicts.
-    
+
     Args:
         max_retries: Maximum number of retry attempts
         base_delay: Base delay between retries in seconds
@@ -60,87 +127,30 @@ def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
         @wraps(func)
         def wrapper(*args, **kwargs):
             last_exception = None
-            
-            # Build list of exception types to catch
-            exception_types = [IntegrityError, OperationalError]
-            if EventSourcingIntegrityError:
-                exception_types.append(EventSourcingIntegrityError)
-            if EventSourcingOperationalError:
-                exception_types.append(EventSourcingOperationalError)
-            exception_types = tuple(exception_types)
-            
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
-                except exception_types as e:
-                    last_exception = e
-                    
-                    # Don't retry on the last attempt
-                    if attempt == max_retries:
+                except conflict_exception_types() as error:
+                    last_exception = error
+                    if (attempt == max_retries
+                            or not is_retryable_conflict(error)):
                         break
-                    
-                    # Check if it's a conflict we can retry
-                    error_msg = str(e).lower()
-                    
-                    # For EventSourcing exceptions, also check the underlying cause
-                    if hasattr(e, '__cause__') and e.__cause__:
-                        error_msg += " " + str(e.__cause__).lower()
-                    
-                    # These are retryable concurrency conflicts
-                    retryable_conflicts = [
-                        'unique constraint',
-                        'duplicate key',
-                        'concurrent update',
-                        'transaction is aborted',
-                        'deadlock detected'
-                    ]
-                    
-                    # These are permanent data validation errors - do NOT retry
-                    non_retryable_errors = [
-                        'not null constraint',
-                        'null value in column',
-                        'cannot be null'
-                    ]
-                    
-                    # Check for non-retryable errors first
-                    if any(error in error_msg for error in non_retryable_errors):
-                        logger.debug(f"Non-retryable data validation error: {e}")
-                        break
-                    
-                    # EventSourcing exceptions are always concurrency conflicts
-                    # (newer versions may have empty messages, never data-validation errors)
-                    is_eventsourcing_error = (
-                        (EventSourcingIntegrityError and isinstance(e, EventSourcingIntegrityError)) or
-                        (EventSourcingOperationalError and isinstance(e, EventSourcingOperationalError))
+                    delay = backoff_delay(attempt, base_delay, max_delay)
+                    logger.warning(
+                        f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {error}. "
+                        f"Retrying in {delay:.2f}s..."
                     )
+                    time.sleep(delay)
+                    try:
+                        EngineManager.rollback()
+                    except Exception as rollback_error:
+                        logger.warning(f"Rollback before retry failed: "
+                                       f"{rollback_error}")
 
-                    # Check for retryable conflicts
-                    if any(conflict in error_msg for conflict in retryable_conflicts) or is_eventsourcing_error:
-                        # Calculate exponential backoff with jitter
-                        delay = min(
-                            base_delay * (2 ** attempt) + random.uniform(0, 0.1),
-                            max_delay
-                        )
-                        logger.warning(
-                            f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {e}. "
-                            f"Retrying in {delay:.2f}s..."
-                        )
-                        
-                        time.sleep(delay)
-                        
-                        # Rollback current transaction
-                        try:
-                            EngineManager.rollback()
-                        except:
-                            pass
-                    else:
-                        # Not a retryable error
-                        break
-                        
             # All retries exhausted, raise the last exception
             logger.error(f"Database operation failed after {attempt + 1} attempts (max {max_retries + 1}): {last_exception}")
             raise last_exception
-            
+
         return wrapper
     return decorator
 
@@ -172,6 +182,7 @@ def database_transaction(isolation_level=None):
         except Exception as rollback_error:
             logger.error(f"Error during rollback: {rollback_error}")
         raise
+
 
 # --------------------- VIEWS DB tables/classes ---------------------------- #
 

@@ -96,3 +96,13 @@ def test_file_output_target_contract_is_shared_by_workflow_and_results_scripts()
         "input_container",
         "input_parent",
     )
+
+
+def test_script_output_names_are_a_contract_between_scripts():
+    """Producer and reader scripts must agree on these strings."""
+    assert constants.results.MESSAGE_OUTPUT == "Message"
+    assert constants.results.URL_OUTPUT == "URL"
+    assert constants.results.FILE_ANNOTATION_OUTPUT == "File_Annotation"
+    assert constants.results.RESULTS_PATH_OUTPUT == "Results_Path"
+    assert constants.results.CANONICAL_INPUTS_OUTPUT == "Canonical_Inputs"
+    assert constants.results.WORKFLOW_UUID_OUTPUT == "Workflow_UUID"

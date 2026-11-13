@@ -153,6 +153,43 @@ Resuming reads every task of the workflow once per call, and a run checks for a
 cancel once per poll; both are cheap next to a Slurm poll, but are one read per
 task for a workflow with very many tasks.
 
+Event history replay
+--------------------
+
+Every install keeps the events written by the release it ran, and every later
+release must replay them. This is tested with recorded histories, one per
+release that changed how events are written, so a change that cannot read an
+old history fails in CI instead of in an install.
+
+- ``tests/replay/record_history.py <version>`` installs that release from PyPI
+  into a throwaway virtual environment, runs a scenario with the release's own
+  ``WorkflowTracker`` and SQLite persistence (no Slurm, no OMERO, nothing
+  mocked), and writes ``tests/replay/histories/<version>.json``. The scenario
+  has a completed, a failed and a running workflow, tasks with jobs, status,
+  progress and results, and whatever else that release supports (storage
+  provenance, canonical inputs, a claimed launcher, a cancel request,
+  metadata refresh requests); the script discovers these from the release.
+- A fixture holds the events in log order (originator ID, version, topic and
+  decoded state) and the state the recording release itself sees after
+  replaying them: every aggregate, and the rows of the four view tables.
+- ``tests/unit/test_replay_histories.py`` loads each fixture into a fresh
+  SQLite store and checks, with the current code, that every aggregate
+  replays (at every version) to the recorded state, that the views rebuild
+  with the recorded rows, and that current operations work on old aggregates:
+  completing, failing, cancelling, claiming and extending them.
+- Histories are never edited or re-recorded. A fixture is the proof of what a
+  release wrote; if a test fails, fix the code so the old history replays
+  (new events and attributes only, defaults for new constructor parameters,
+  initialised attributes, an upcaster as a last resort), or plan a migration
+  and state it in the release notes.
+- Each core release records its own history after it is published
+  (``python tests/replay/record_history.py <version>``) and commits the
+  fixture. A release that changes no event class, aggregate, or the
+  persistence libraries it pins, writes the same history as the previous one
+  and needs none: 2.0.0 to 2.6.0 write the same events on eventsourcing 9.3,
+  2.7.0 to 2.8.3 write them on eventsourcing 9.5, so 2.0.0, 2.8.3 and the
+  2.9 prerelease (new events) are recorded.
+
 Inspecting aggregate history
 ----------------------------
 

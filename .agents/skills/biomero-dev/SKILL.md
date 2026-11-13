@@ -247,3 +247,9 @@ Read only the relevant reference before acting:
 Before drafting a stable or beta release body, read the current
 [shared component release-note guide](https://github.com/NL-BioImaging/NL-BIOMERO/blob/master/.agents/skills/omero-biomero-expert/references/component-release-notes.md).
 Keep the format in that single source; do not copy it into this repository.
+
+Each core release records its event history after publishing: run
+`python tests/replay/record_history.py <version>` and commit the fixture
+(skip it when no event class, aggregate or pinned persistence library
+changed). Histories are never edited; the replay tests keep them working
+(see `docs/developer/eventsourcing.rst`, "Event history replay").

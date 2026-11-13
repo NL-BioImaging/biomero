@@ -62,6 +62,16 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
+# ``sbatch`` flags that ``build_sbatch_wrap_command`` sets itself, so that
+# global ``sbatch_*`` settings must not add them.
+SBATCH_WRAP_OWNED_FLAGS = frozenset({
+    'job-name', 'output', 'error', 'export', 'wrap', 'parsable'})
+# Flags that would break the single-process CPU helper job when set globally.
+SHALLOWER_EXCLUDED_FLAGS = SBATCH_WRAP_OWNED_FLAGS | frozenset({
+    'array', 'wait', 'quiet', 'ntasks', 'nodes', 'overcommit', 'gres',
+    'gres-flags', 'cpus-per-gpu', 'mem-per-gpu'})
+SHALLOWER_EXCLUDED_FLAG_PREFIXES = ('gpus', 'gpu-', 'ntasks-')
+
 # Slurm job states after which a job does not change any more. sacct may add
 # a suffix such as ``CANCELLED+`` or details such as ``CANCELLED by 1000``.
 TERMINAL_JOB_STATES = frozenset({
@@ -1194,13 +1204,15 @@ class SlurmClient(Connection):
              if param.startswith(prefix)), None)
 
     def get_shallower_job_params(self):
-        """Single-process CPU helper resources, also used for recovery jobs."""
-        excluded = {'array', 'output', 'error', 'job-name', 'export', 'wrap',
-                    'parsable', 'wait', 'quiet', 'ntasks', 'nodes', 'overcommit',
-                    'gres', 'gres-flags', 'cpus-per-gpu', 'mem-per-gpu'}
+        """Single-process CPU helper resources, also used for recovery jobs.
+
+        Global ``sbatch_*`` flags that would break a single-process CPU job
+        (``SHALLOWER_EXCLUDED_FLAGS``, GPU and per-task flags) are not added.
+        """
+        excluded = set(SHALLOWER_EXCLUDED_FLAGS)
         for raw in self.slurm_global_job_params:
             flag = raw.strip().split('=', 1)[0].removeprefix('--')
-            if flag.startswith(('gpus', 'gpu-', 'ntasks-')):
+            if flag.startswith(SHALLOWER_EXCLUDED_FLAG_PREFIXES):
                 excluded.add(flag)
         if self.remote_shallower_mem:
             excluded.add('mem-per-cpu')
@@ -1210,6 +1222,37 @@ class SlurmClient(Connection):
             'mem': self.remote_shallower_mem,
             'time': self.remote_shallower_time,
         }, excluded=excluded)
+
+    def build_sbatch_wrap_command(
+            self,
+            wrapped_command: str,
+            *,
+            job_name: str,
+            output_path: str,
+            job_params: Optional[List[str]] = None) -> str:
+        """Build an ``sbatch --wrap`` command that honours the site defaults.
+
+        Args:
+            wrapped_command (str): The shell command the job runs.
+            job_name (str): Slurm job name.
+            output_path (str): Remote path of the job log; may contain Slurm
+                filename patterns such as ``%j``.
+            job_params (Optional[List[str]]): Resource flags; defaults to
+                ``get_job_params()``, which applies the configured default
+                partition and global ``sbatch_*`` parameters, except the flags
+                this method sets itself (``SBATCH_WRAP_OWNED_FLAGS``).
+
+        Returns:
+            str: The ``sbatch`` command, printing the job ID on submission.
+        """
+        if job_params is None:
+            job_params = self.get_job_params(
+                excluded=SBATCH_WRAP_OWNED_FLAGS)
+        return (f"sbatch --parsable --export=NONE "
+                f"{' '.join(job_params)} "
+                f"--job-name={shlex.quote(job_name)} "
+                f"--output={shlex.quote(output_path)} "
+                f"--wrap={shlex.quote(wrapped_command)}")
 
     def _build_image_pull_sbatch_command(
             self,
@@ -1544,7 +1587,17 @@ class SlurmClient(Connection):
         converter_specs = self.prepare_converters()
         if self.remote_shallow_zarr and self.remote_shallower_image:
             from .remote_shallower import image_spec
-            converter_specs = [*converter_specs, image_spec(self)]
+            spec = image_spec(self)
+            logger.info(f"Including remote shallower helper image "
+                        f"{spec['source']} in Slurm image setup")
+            converter_specs = [*converter_specs, spec]
+        elif self.remote_shallow_zarr:
+            logger.warning("Remote shallowing is enabled but "
+                           "remote_shallower_image is empty; the helper image "
+                           "is not set up and remote shallowing cannot run")
+        else:
+            logger.debug("Skipping remote shallower helper image setup: "
+                         "remote_shallow_zarr is disabled")
         return self.setup_container_images(extra_image_specs=converter_specs)
 
     @staticmethod
@@ -1949,13 +2002,13 @@ class SlurmClient(Connection):
         ``heartbeat`` is a caller-owned no-argument callback invoked during
         job waits.
         """
-        from .remote_shallower import run
+        from .remote_shallower import shallow_workflow_results
         if heartbeat is not None and not callable(heartbeat):
             raise TypeError('heartbeat must be callable')
         return ssh_recovery.retry(
-            self, lambda: run(self, data_path, workflow_id, canonical_inputs,
-                              heartbeat), "remote shallowing",
-            heartbeat=heartbeat)
+            self, lambda: shallow_workflow_results(
+                self, data_path, workflow_id, canonical_inputs, heartbeat),
+            "remote shallowing", heartbeat=heartbeat)
 
     def get_remote_shallower_receipts(self, workflow_id, canonical_inputs):
         """Read trusted completed receipts from event-sourced helper tasks."""

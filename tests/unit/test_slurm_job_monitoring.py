@@ -63,7 +63,7 @@ def test_public_shallower_passes_callback_unchanged():
     from biomero.slurm_client import SlurmClient
     client = SlurmClient(config_only=True)
     heartbeat = MagicMock()
-    with patch('biomero.remote_shallower.run') as run:
+    with patch('biomero.remote_shallower.shallow_workflow_results') as run:
         client.shallow_results_on_slurm('/data', 'workflow', None,
                                           heartbeat=heartbeat)
     assert run.call_args.args[4] is heartbeat

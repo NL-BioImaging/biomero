@@ -1,11 +1,13 @@
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from biomero import remote_shallower as shallower
+from biomero.constants import REMOTE_SHALLOWER_TASK_NAME
+from biomero.slurm_client import SlurmClient
 from biomero_schema.zarr import CanonicalInputManifest
 
 
@@ -13,7 +15,7 @@ def test_existing_manifest_is_reused_without_upload():
     canonical = CanonicalInputManifest(workflowId=uuid4(), exportTaskId=uuid4())
     client = SimpleNamespace(put=MagicMock(), run_commands=MagicMock(
         return_value=SimpleNamespace(ok=True, stdout=json.dumps(canonical.to_dict()))))
-    shallower._prepare_manifest(client, '/state/canonical.json', canonical,
+    shallower.publish_or_verify_manifest(client, '/state/canonical.json', canonical,
                                  submitted=True)
     client.put.assert_not_called()
 
@@ -23,7 +25,7 @@ def test_missing_manifest_for_submitted_job_is_not_recreated():
         return_value=SimpleNamespace(ok=True, stdout='')))
     canonical = CanonicalInputManifest(workflowId=uuid4(), exportTaskId=uuid4())
     with pytest.raises(RuntimeError, match='manifest'):
-        shallower._prepare_manifest(client, '/state/canonical.json', canonical,
+        shallower.publish_or_verify_manifest(client, '/state/canonical.json', canonical,
                                      submitted=True)
     client.put.assert_not_called()
 
@@ -38,10 +40,10 @@ def test_batch_uses_persisted_image_and_version_not_current_config():
     batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
                                image='helper:1.0', toolVersion='1.0',
                                result='complete', receipts=())
-    assert shallower._batch(client, json.dumps(batch.to_dict()), canonical,
+    assert shallower.parse_batch_report(client, json.dumps(batch.to_dict()), canonical,
                              task=task) == batch
     with pytest.raises(ValueError):
-        shallower._batch(client, json.dumps(batch.to_dict()), canonical,
+        shallower.parse_batch_report(client, json.dumps(batch.to_dict()), canonical,
                           task=SimpleNamespace(params={'image': 'helper:2.0'},
                                                task_version='2.0'))
 
@@ -58,7 +60,7 @@ def test_persisted_receipts_remain_readable_after_config_change():
         schema=1, canonicalInputs=canonical, image='helper:1.0',
         toolVersion='1.0', result='complete', receipts=(receipt,))
     task = SimpleNamespace(
-        id=task_id, task_name=shallower.TASK_NAME, task_version='1.0',
+        id=task_id, task_name=REMOTE_SHALLOWER_TASK_NAME, task_version='1.0',
         params={'image': 'helper:1.0'}, job_ids=[123],
         result_message=json.dumps(batch.to_dict()))
     tracker = MagicMock()
@@ -67,6 +69,11 @@ def test_persisted_receipts_remain_readable_after_config_change():
     client = SimpleNamespace(
         remote_shallow_zarr=True, track_workflows=True, workflowTracker=tracker,
         remote_shallower_image='helper:2.0', remote_shallower_version='2.0')
+    client.get_task = tracker.repository.get
+    client.get_workflow = lambda workflow: tracker.repository.get(
+        UUID(str(workflow)))
+    client.get_workflow_tasks = lambda *args, **kwargs: (
+        SlurmClient.get_workflow_tasks(client, *args, **kwargs))
     assert shallower.completed_receipts(
         client, canonical.workflow_id, canonical) == (receipt,)
     task.job_ids = [999]
@@ -76,7 +83,7 @@ def test_persisted_receipts_remain_readable_after_config_change():
 
 def test_recorded_manifest_hash_rejects_changed_input():
     task = SimpleNamespace(params={
-        'canonical_sha256': shallower._canonical_digest({'inputs': [1]})})
+        'canonical_sha256': shallower.sha256_of_json({'inputs': [1]})})
     with pytest.raises(ValueError, match='manifest'):
-        shallower._check_canonical(
+        shallower.verify_task_canonical_inputs(
             task, SimpleNamespace(to_dict=lambda: {'inputs': [2]}))

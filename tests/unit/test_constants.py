@@ -3,33 +3,6 @@ import pytest
 from biomero import constants
 
 
-def test_qualitative_color_scheme_matches_blueprint():
-    assert constants.QUALITATIVE_COLOR_SCHEME == (
-        "#147EB3",
-        "#29A634",
-        "#D1980B",
-        "#D33D17",
-        "#9D3F9D",
-        "#00A396",
-        "#DB2C6F",
-        "#8EB125",
-        "#946638",
-        "#7961DB",
-    )
-
-
-def test_resolve_workflow_color_is_deterministic_and_override_wins():
-    first = "00000000-0000-0000-0000-000000000000"
-    second = "00000000-0000-0000-0000-000000000001"
-
-    assert constants.resolve_workflow_color("", first) == "#147EB3"
-    assert constants.resolve_workflow_color(None, first) == "#147EB3"
-    assert constants.resolve_workflow_color("", second) == "#29A634"
-    assert constants.resolve_workflow_color("#d33d17", first) == "#D33D17"
-    with pytest.raises(ValueError, match="#RRGGBB"):
-        constants.resolve_workflow_color("red", first)
-
-
 def test_shallow_zarr_feature_flag_is_forwardable_to_omero_scripts():
     assert (
         constants.slurm_env.BIOMERO_SHALLOW_ZARR
@@ -54,6 +27,8 @@ def test_detached_worker_environment_names_are_stable():
         constants.slurm_env.BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS
         == "BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS"
     )
+
+
 def test_processed_data_folder_environment_name_is_stable():
     assert constants.slurm_env.PROCESSED_DATA_FOLDER == "PROCESSED_DATA_FOLDER"
 
@@ -96,6 +71,41 @@ def test_file_output_target_contract_is_shared_by_workflow_and_results_scripts()
         "input_container",
         "input_parent",
     )
+
+
+# The colour helpers shipped in stable 2.8.x and are called by stable scripts;
+# they stay available, deprecated, until the scripts release that drops them.
+
+def test_deprecated_workflow_color_helper_still_works_and_warns():
+    first = "00000000-0000-0000-0000-000000000000"
+    second = "00000000-0000-0000-0000-000000000001"
+
+    with pytest.warns(DeprecationWarning, match="resolve_workflow_color"):
+        resolve = constants.resolve_workflow_color
+    assert resolve("", first) == "#147EB3"
+    assert resolve(None, first) == "#147EB3"
+    assert resolve("", second) == "#29A634"
+    assert resolve("#d33d17", first) == "#D33D17"
+    with pytest.raises(ValueError, match="#RRGGBB"):
+        resolve("red", first)
+
+
+def test_deprecated_color_scheme_still_matches_blueprint_and_warns():
+    with pytest.warns(DeprecationWarning, match="QUALITATIVE_COLOR_SCHEME"):
+        scheme = constants.QUALITATIVE_COLOR_SCHEME
+    assert scheme == (
+        "#147EB3", "#29A634", "#D1980B", "#D33D17", "#9D3F9D",
+        "#00A396", "#DB2C6F", "#8EB125", "#946638", "#7961DB")
+
+
+def test_deprecated_names_can_be_imported_from_the_module():
+    with pytest.warns(DeprecationWarning):
+        from biomero.constants import resolve_workflow_color  # noqa: F401
+
+
+def test_unknown_constant_is_an_attribute_error():
+    with pytest.raises(AttributeError):
+        constants.NO_SUCH_CONSTANT
 
 
 def test_script_output_names_are_a_contract_between_scripts():

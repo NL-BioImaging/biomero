@@ -15,7 +15,7 @@
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.application import Application
 from eventsourcing.persistence import IntegrityError as EventStoreConflict
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import UUID
 from datetime import datetime, timezone
 from typing import (Any, Dict, Iterator, List, Mapping, Optional, Sequence,
                     Union)
@@ -29,6 +29,12 @@ from biomero.database import EngineManager, retry_on_database_conflict
 
 # Create a logger for this module
 logger = logging.getLogger(__name__)
+
+# What `import biomero` exposes from this module (EngineManager is documented
+# as importable from biomero).
+__all__ = ["EngineManager", "NoOpWorkflowTracker", "ResultDict", "Task",
+           "WorkflowCancelled", "WorkflowInterrupted", "WorkflowRun",
+           "WorkflowTracker", "is_launcher_task"]
 
 # -------------------- DOMAIN MODEL -------------------- #
 
@@ -138,13 +144,48 @@ class WorkflowRun(Aggregate):
         canonical_inputs: List[Dict[str, Any]]
 
     @event(CanonicalInputsRecorded)
-    def record_canonical_inputs(
+    def _canonical_inputs_recorded(
         self,
         export_task_id: UUID,
         canonical_inputs: List[Dict[str, Any]],
     ):
         self.canonical_inputs_export_task_id = export_task_id
         self.canonical_inputs = deepcopy(canonical_inputs)
+
+    def record_canonical_inputs(
+        self,
+        export_task_id: UUID,
+        canonical_inputs: List[Dict[str, Any]],
+    ) -> bool:
+        """Record the immutable canonical input snapshot of this workflow.
+
+        Args:
+            export_task_id: The export task of this workflow that used them.
+            canonical_inputs: The wire form of the canonical inputs.
+
+        Returns:
+            True if the snapshot was recorded now, False if exactly this
+            snapshot was already recorded (nothing to save).
+
+        Raises:
+            ValueError: If the export task is not a task of this workflow, or
+                a different snapshot was already recorded.
+        """
+        if export_task_id not in self.tasks:
+            raise ValueError(
+                f"Export task {export_task_id} does not belong to workflow "
+                f"{self.id}"
+            )
+        if self.canonical_inputs_export_task_id is not None:
+            if (self.canonical_inputs_export_task_id == export_task_id
+                    and self.canonical_inputs == canonical_inputs):
+                return False
+            raise ValueError(
+                f"Workflow {self.id} already has an immutable canonical "
+                "input snapshot"
+            )
+        self._canonical_inputs_recorded(export_task_id, canonical_inputs)
+        return True
 
     class WorkflowStarted(Aggregate.Event):
         """
@@ -282,6 +323,10 @@ class Task(Aggregate):
         self.job_ids = []
         self.results = []
         self.result_message = None
+        # Observed storage evidence per result target (see
+        # record_storage_provenance). Streams that predate the event replay
+        # their TaskCreated event through this __init__, so they get it empty.
+        self.storage_provenance = {}
         self.status = None
         self.completed = False
         self.failed = False
@@ -401,8 +446,7 @@ class Task(Aggregate):
 
     @event('StorageProvenanceRecorded')
     def record_storage_provenance(self, target_key: str, evidence: dict):
-        # Old aggregate snapshots need no migration until this event is applied.
-        self.storage_provenance = dict(getattr(self, 'storage_provenance', {}))
+        self.storage_provenance = dict(self.storage_provenance)
         self.storage_provenance[target_key] = deepcopy(evidence)
 
     @event(TaskStarted)
@@ -445,7 +489,7 @@ def is_launcher_task(task) -> bool:
     """Whether a task is a launcher queued for a detached supervisor.
 
     Works on a Task aggregate and on a Task.TaskCreated event alike, so every
-    reader (supervisor, views, provenance) applies the same rule.
+    reader (supervisor, views, metadata views) applies the same rule.
 
     Args:
         task: Anything with ``task_name`` and ``params``.
@@ -503,7 +547,8 @@ class WorkflowTracker(Application):
         update_task_progress: Updates the progress of a task.
     """
 
-    @retry_on_database_conflict(max_retries=10)
+    @retry_on_database_conflict(
+        max_retries=constants.DATABASE_CONFLICT_DEFAULT_RETRIES)
     def initiate_workflow(self,
                           name: str,
                           description: str,
@@ -527,7 +572,7 @@ class WorkflowTracker(Application):
         EngineManager.safe_commit()
         return workflow.id
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def add_task_to_workflow(self,
                              workflow_id: UUID,
                              task_name: str,
@@ -548,7 +593,9 @@ class WorkflowTracker(Application):
         Returns:
             UUID: The UUID of the newly added task.
         """
-        logger.debug(f"[WFT] Adding task to workflow: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
+        logger.debug(f"[WFT] Adding task to workflow: "
+                     f"workflow_id={workflow_id}, task_name={task_name}, "
+                     f"task_version={task_version}")
 
         task = Task(workflow_id,
                     task_name,
@@ -602,7 +649,7 @@ class WorkflowTracker(Application):
                     f"supervisor (launcher task {task_id})")
         return task_id
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def record_canonical_inputs(
         self,
         workflow_id: UUID,
@@ -613,46 +660,22 @@ class WorkflowTracker(Application):
     ) -> None:
         """Records the exact canonical input generations used by a workflow."""
         workflow: WorkflowRun = self.repository.get(workflow_id)
-        if export_task_id not in workflow.tasks:
-            raise ValueError(
-                f"Export task {export_task_id} does not belong to workflow "
-                f"{workflow_id}"
-            )
         manifest = CanonicalInputManifest(
             workflow_id=workflow_id,
             export_task_id=export_task_id,
             inputs=tuple(canonical_inputs),
         )
         wire_inputs = [item.to_dict() for item in manifest.inputs]
-        existing_export_task_id = getattr(
-            workflow, "canonical_inputs_export_task_id", None
-        )
-        existing_inputs = getattr(workflow, "canonical_inputs", [])
-        if existing_export_task_id is not None:
-            if (
-                existing_export_task_id == export_task_id
-                and existing_inputs == wire_inputs
-            ):
-                return
-            raise ValueError(
-                f"Workflow {workflow_id} already has an immutable canonical "
-                "input snapshot"
-            )
-        workflow.record_canonical_inputs(
-            export_task_id,
-            wire_inputs,
-        )
-        self.save(workflow)
-        EngineManager.safe_commit()
+        if workflow.record_canonical_inputs(export_task_id, wire_inputs):
+            self.save(workflow)
+            EngineManager.safe_commit()
 
     def get_canonical_inputs(self, workflow_id: UUID) -> Dict[str, Any]:
         """Returns the canonical input snapshot recorded for a workflow."""
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return {
-            "export_task_id": getattr(
-                workflow, "canonical_inputs_export_task_id", None
-            ),
-            "inputs": deepcopy(getattr(workflow, "canonical_inputs", [])),
+            "export_task_id": workflow.canonical_inputs_export_task_id,
+            "inputs": deepcopy(workflow.canonical_inputs),
         }
 
     def get_canonical_input_manifest(
@@ -671,7 +694,7 @@ class WorkflowTracker(Application):
             inputs=tuple(snapshot["inputs"]),
         )
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def start_workflow(self, workflow_id: UUID):
         """
         Starts the workflow with the given UUID.
@@ -686,7 +709,7 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def complete_workflow(self, workflow_id: UUID):
         """
         Marks the workflow with the given UUID as completed.
@@ -701,7 +724,7 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def fail_workflow(self, workflow_id: UUID, error_message: str):
         """
         Marks the workflow with the given UUID as failed with an error message.
@@ -717,7 +740,7 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def start_task(self, task_id: UUID):
         """
         Starts the task with the given UUID.
@@ -732,7 +755,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def complete_task(self, task_id: UUID, message: str):
         """
         Marks the task with the given UUID as completed with a result message.
@@ -748,7 +771,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def fail_task(self, task_id: UUID, error_message: str):
         """
         Marks the task with the given UUID as failed with an error message.
@@ -764,7 +787,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def add_job_id(self, task_id, slurm_job_id):
         """
         Adds a Slurm job ID to the task with the given UUID.
@@ -780,17 +803,18 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def record_storage_provenance(self, task_id, target_key, evidence):
         """Persist observed storage provenance for an opaque result target."""
+        target_key = str(target_key)
         task = self.repository.get(task_id)
-        if getattr(task, 'storage_provenance', {}).get(target_key) == evidence:
+        if task.storage_provenance.get(target_key) == evidence:
             return
-        task.record_storage_provenance(str(target_key), deepcopy(evidence))
+        task.record_storage_provenance(target_key, deepcopy(evidence))
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def add_result(self, task_id, result):
         """
         Adds a result to the task with the given UUID.
@@ -806,7 +830,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def update_task_status(self, task_id, status):
         """
         Updates the status of the task with the given UUID.
@@ -822,7 +846,7 @@ class WorkflowTracker(Application):
         self.save(task)
         EngineManager.safe_commit()
         
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def update_task_progress(self, task_id, progress):
         """
         Updates the progress of the task with the given UUID.
@@ -958,7 +982,7 @@ class WorkflowTracker(Application):
         logger.debug(f"[WFT] {owner} released launcher {task_id}")
         return True
 
-    @retry_on_database_conflict(max_retries=3)
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def request_workflow_cancel(self, workflow_id: UUID, reason: str) -> None:
         """
         Records that a workflow must be cancelled. Whoever executes the

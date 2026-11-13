@@ -5,7 +5,7 @@ import uuid
 import pytest
 import unittest.mock
 from biomero.eventsourcing import Task, WorkflowTracker
-from biomero.zarr_contracts import CanonicalInput, CanonicalZarrSource, PixelIdentity
+from biomero_schema.zarr import CanonicalInput, CanonicalZarrSource, PixelIdentity
 from biomero.views import JobAccounting, JobProgress, WorkflowAnalytics, WorkflowProgress
 from biomero.database import (
     EngineManager,
@@ -14,7 +14,8 @@ from biomero.database import (
     TaskExecution,
     WorkflowProgressView,
 )
-from biomero.constants import workflow_status as wfs
+from biomero.constants import (
+    DATABASE_CONFLICT_MAX_RETRIES, workflow_status as wfs)
 from uuid import UUID
 import logging
 from types import SimpleNamespace
@@ -111,7 +112,7 @@ def workflow_tracker_and_job_progress():
 
     # Cleanup after tests
     runner.stop()
-    
+
 
 @pytest.fixture
 def workflow_tracker_and_workflow_progress():
@@ -156,11 +157,11 @@ def test_runner():
     assert wft.closing.is_set() is False
     runner.stop()
     assert wft.closing.is_set() is True
-    
+
     # runner.start()
     # wft2 = runner.get(WorkflowTracker)
     # assert wft2.closing.is_set() is False
-    
+
 
 def test_initiate_workflow(workflow_tracker):
     # Initiating a workflow
@@ -272,19 +273,72 @@ def test_record_canonical_inputs_on_workflow(workflow_tracker):
     assert manifest.inputs == (canonical_input,)
 
 
-def test_legacy_workflow_state_without_canonical_fields_is_readable(
+def test_streams_without_the_newer_events_replay_with_empty_defaults(
     workflow_tracker,
 ):
-    """Pre-feature aggregate state behaves as an empty canonical snapshot."""
-    legacy_workflow = SimpleNamespace()
-    with unittest.mock.patch.object(
-        workflow_tracker.repository,
-        "get",
-        return_value=legacy_workflow,
-    ):
-        snapshot = workflow_tracker.get_canonical_inputs(uuid.uuid4())
+    """Workflow and task streams that only hold the original events replay
+    with an empty canonical snapshot and empty storage evidence."""
+    workflow_id = workflow_tracker.initiate_workflow("Legacy", "", 1, 1)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "Export", "1", {}, {})
+    topics = [n.topic.rsplit(".", 1)[-1] for n in
+              workflow_tracker.notification_log.select(start=1, limit=10)]
+    assert "CanonicalInputsRecorded" not in topics
+    assert "StorageProvenanceRecorded" not in topics
 
-    assert snapshot == {"export_task_id": None, "inputs": []}
+    assert workflow_tracker.get_canonical_inputs(workflow_id) == {
+        "export_task_id": None, "inputs": []}
+    assert workflow_tracker.repository.get(task_id).storage_provenance == {}
+
+
+def test_storage_provenance_events_replay_and_old_versions_stay_empty(
+    workflow_tracker,
+):
+    workflow_id = workflow_tracker.initiate_workflow("wf", "", 1, 1)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "SLURM_Import_Results.py", "1", {}, {})
+    before = workflow_tracker.repository.get(task_id).version
+    workflow_tracker.record_storage_provenance(
+        task_id, "Plate:1", {"storage": "full-zarr"})
+    assert workflow_tracker.repository.get(
+        task_id).storage_provenance == {"Plate:1": {"storage": "full-zarr"}}
+    assert workflow_tracker.repository.get(
+        task_id, version=before).storage_provenance == {}
+
+
+def test_storage_provenance_with_a_non_string_target_key_is_recorded_once(
+    workflow_tracker,
+):
+    workflow_id = workflow_tracker.initiate_workflow("wf", "", 1, 1)
+    task_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "SLURM_Import_Results.py", "1", {}, {})
+    evidence = {"storage": "full-zarr"}
+    workflow_tracker.record_storage_provenance(task_id, 7, evidence)
+    version = workflow_tracker.repository.get(task_id).version
+    workflow_tracker.record_storage_provenance(task_id, 7, evidence)
+    task = workflow_tracker.repository.get(task_id)
+    assert task.version == version
+    assert task.storage_provenance == {"7": evidence}
+
+
+def test_canonical_input_invariants_are_enforced_by_the_aggregate(
+    workflow_tracker,
+):
+    """Recording directly on the aggregate cannot bypass the rules."""
+    workflow_id = workflow_tracker.initiate_workflow("wf", "", 1, 1)
+    export_id = workflow_tracker.add_task_to_workflow(
+        workflow_id, "Export", "1", {}, {})
+    workflow = workflow_tracker.repository.get(workflow_id)
+    with pytest.raises(ValueError, match="does not belong"):
+        workflow.record_canonical_inputs(uuid.uuid4(), [])
+    assert workflow.record_canonical_inputs(export_id, [{"a": 1}]) is True
+    assert workflow.record_canonical_inputs(export_id, [{"a": 1}]) is False
+    with pytest.raises(ValueError, match="immutable"):
+        workflow.record_canonical_inputs(export_id, [{"a": 2}])
+    other_export = uuid.uuid4()
+    workflow.tasks.append(other_export)
+    with pytest.raises(ValueError, match="immutable"):
+        workflow.record_canonical_inputs(other_export, [{"a": 1}])
 
 
 def test_workflow_initiated_event_schema_stays_legacy_compatible(
@@ -1120,8 +1174,8 @@ def test_workflow_progress_task_progress_updated(workflow_tracker_and_workflow_p
     # THEN verify internal state in WorkflowProgress
     assert workflow_progress.tasks[task_id]["progress"] == progress
     assert workflow_progress.workflows[workflow_id]["task_progress"] == progress
-    
-   
+
+
 def test_workflow_progress_all_statuses(workflow_tracker_and_workflow_progress):
     # GIVEN a WorkflowTracker event system and workflow progress listener
     workflow_tracker: WorkflowTracker
@@ -1170,7 +1224,7 @@ def test_workflow_progress_all_statuses(workflow_tracker_and_workflow_progress):
     # Assume a task that updates its progress
     task_id = workflow_tracker.add_task_to_workflow(workflow_id, 'some_task', "v1", {"foo": "bar"}, {"bar": "baz"})
     workflow_tracker.update_task_progress(task_id, "43%")  # Simulate a progress update of 43%
-    
+
     # Trigger the status update for the last task
     workflow_tracker.update_task_status(task_id, 'InProgress')
 
@@ -1258,7 +1312,7 @@ def test_job_progress_status_updated(workflow_tracker_and_job_progress):
         assert job_progress_view.slurm_job_id == job_id
         assert job_progress_view.status == status
         assert job_progress_view.progress is None  # No progress set in this test
-        
+
     # Update the task status
     status = "COMPLETED"
     workflow_tracker.update_task_status(task_id, status)
@@ -1311,7 +1365,7 @@ def test_job_progress_progress_updated(workflow_tracker_and_job_progress):
         assert job_progress_view.slurm_job_id == job_id
         assert job_progress_view.status == "UNKNOWN"
         assert job_progress_view.progress == progress
-        
+
     # Update the task progress
     progress = "100%"
     workflow_tracker.update_task_progress(task_id, progress)
@@ -1368,12 +1422,12 @@ def test_job_progress_update_view_table_failed(workflow_tracker_and_job_progress
     with caplog.at_level("WARNING"):
         with pytest.raises(IntegrityError, match="NOT NULL constraint failed"):
             job_progress.update_view_table(job_id)
-    
+
     # AND it should log the failure attempts and final failure
-    assert f"Database conflict inserting job progress (will retry): job_id={job_id}" in caplog.text
+    assert f"Database conflict writing [JP] job progress {job_id}" in caplog.text
     assert "Database operation failed after" in caplog.text
 
-  
+
 def test_wfanalytics_workflow_initiated(workflow_tracker_and_workflow_analytics):
     # GIVEN a WorkflowTracker event system and workflow analytics listener
     workflow_tracker: WorkflowTracker
@@ -1486,8 +1540,8 @@ def test_wfanalytics_task_started_uses_actual_start_time(
         task_execution = session.query(TaskExecution).filter_by(
             task_id=task_id).one()
         assert task_execution.start_time == started_time.replace(tzinfo=None)
-    
-    
+
+
 def test_wfanalytics_task_completed(workflow_tracker_and_workflow_analytics, caplog):
     # GIVEN a WorkflowTracker event system and workflow analytics listener
     workflow_tracker: WorkflowTracker
@@ -1510,7 +1564,7 @@ def test_wfanalytics_task_completed(workflow_tracker_and_workflow_analytics, cap
     assert task_info["task_version"] == "v1"
     assert task_info["status"] == "CREATED"
     assert task_info["start_time"] is not None
-    
+
     # Verify TaskExecution entries using SQLAlchemy
     with EngineManager.get_session() as session:
         task_execution: TaskExecution = session.query(TaskExecution).filter_by(
@@ -1524,11 +1578,11 @@ def test_wfanalytics_task_completed(workflow_tracker_and_workflow_analytics, cap
         assert task_execution.end_time is not None
         assert task_execution.user_id == 1
         assert task_execution.group_id == 2
-        
+
     # THEN
     completed = task_info["end_time"]
     assert f"Task completed: task_id={task_id}, end_time={completed}" in caplog.text
-    
+
 def test_wfanalytics_task_failed(workflow_tracker_and_workflow_analytics, caplog):
     # GIVEN a WorkflowTracker event system and workflow analytics listener
     workflow_tracker: WorkflowTracker
@@ -1554,7 +1608,7 @@ def test_wfanalytics_task_failed(workflow_tracker_and_workflow_analytics, caplog
     assert task_info["start_time"] is not None
     assert task_info["end_time"] is not None
     assert task_info["error_type"] == error_message
-    
+
     # Verify TaskExecution entries using SQLAlchemy
     with EngineManager.get_session() as session:
         task_execution: TaskExecution = session.query(TaskExecution).filter_by(
@@ -1569,7 +1623,7 @@ def test_wfanalytics_task_failed(workflow_tracker_and_workflow_analytics, caplog
         assert task_execution.error_type == error_message
         assert task_execution.user_id == 1
         assert task_execution.group_id == 2
-        
+
     # THEN
     t_failed = task_info["end_time"]
     assert f"Task failed: task_id={task_id}, end_time={t_failed}, error={error_message}" in caplog.text
@@ -1664,7 +1718,7 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
             TaskExecution).filter_by(task_id=task_id).first()
         assert task_execution is not None
         assert task_execution.error_type == "TaskError"
-        
+
     # no-op
     task_id2 = uuid.uuid4()
     workflow_analytics.update_view_table(task_id2)
@@ -1673,15 +1727,16 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
         task_execution: TaskExecution = session.query(
             TaskExecution).filter_by(task_id=task_id2).first()
         assert task_execution is None
-        
-        
+
+
     # rollback/integrityerror
     with caplog.at_level("WARNING"):
         workflow_analytics.tasks[task_id]["status"] = None
-        workflow_analytics.update_view_table(task_id)
-    
-    assert f"Database conflict inserting task execution (will retry): task_id={task_id}, error=" in caplog.text
-    
+        with pytest.raises(IntegrityError, match="NOT NULL constraint failed"):
+            workflow_analytics.update_view_table(task_id)
+
+    assert f"Database conflict writing [WFA] task execution {task_id}" in caplog.text
+
 
 def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_analytics):
     # GIVEN a WorkflowTracker event system and workflow analytics listener
@@ -1696,7 +1751,7 @@ def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_
         workflow_id_1, "task1", "v1", {"foo": "bar"}, {"bar": "baz"})
     task_id2 = workflow_tracker.add_task_to_workflow(
         workflow_id_1, "task1", "v1", {"foo": "bar"}, {"bar": "baz"})
-    
+
     workflow_id_2 = workflow_tracker.initiate_workflow(
         "Test Workflow 2", "Test Description 2", user=2, group=2)
     task_id3 = workflow_tracker.add_task_to_workflow(
@@ -1706,7 +1761,7 @@ def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_
         "Test Workflow 3", "Test Description 3", user=1, group=3)
     task_id4 = workflow_tracker.add_task_to_workflow(
         workflow_id_3, "task3", "v1", {"foo": "bar"}, {"bar": "baz"})
-    
+
     workflow_analytics.update_view_table(task_id1)
     workflow_analytics.update_view_table(task_id2)
     workflow_analytics.update_view_table(task_id3)
@@ -1892,8 +1947,8 @@ def test_wfanalytics_get_average_task_duration_with_filters(workflow_tracker_and
         ("task2", "v1"): 20 * 60   # 20 minutes
     }
     assert result_user_3_group_4 == expected_result_user_3_group_4
-    
-    
+
+
 def test_wfanalytics_get_task_failures_with_filters(workflow_tracker_and_workflow_analytics):
     # GIVEN a WorkflowTracker event system and workflow analytics listener
     workflow_tracker: WorkflowTracker
@@ -2055,10 +2110,10 @@ def test_wfanalytics_get_task_usage_over_time_with_filters(workflow_tracker_and_
 class TestDatabaseRetryMechanism:
     """
     TDD Test Suite for Database Retry Mechanism
-    
+
     These tests demonstrate the exact production scenario that occurred with workflow b048f0c5
     and verify that @retry_on_database_conflict decorators solve concurrent access conflicts.
-    
+
     Test-Driven Development approach:
     1. Tests fail without retry decorators (proving the problem exists)
     2. Tests pass with retry decorators (proving the fix works)
@@ -2074,17 +2129,17 @@ class TestDatabaseRetryMechanism:
         from unittest.mock import patch, Mock, MagicMock
         import psycopg2.errors
         from sqlalchemy.exc import IntegrityError
-        
+
         # GIVEN: WorkflowProgress handler instance and database conflict scenario
         handler_instance = WorkflowProgress()
-        
+
         # Create realistic database constraint violation (production scenario)
         unique_violation = IntegrityError(
             statement="INSERT INTO workflowprogress_tracking ...",
             params=None,
             orig=psycopg2.errors.UniqueViolation('duplicate key value violates unique constraint "workflowprogress_tracking_pkey"')
         )
-        
+
         # Setup required state for WorkflowProgress handler
         handler_instance.workflows = {"test-id-123": {
             "status": "RUNNING", 
@@ -2098,7 +2153,7 @@ class TestDatabaseRetryMechanism:
         handler_instance.tasks = {"some_task": {"workflow_id": "test-id-123", "task_name": "test_task"}}
         # Mock the _determine_main_task_name method
         handler_instance._determine_main_task_name = Mock(return_value="test_main_task")
-        
+
         # WHEN: Database session encounters conflict then succeeds on retry
         with patch('biomero.views.EngineManager.get_session') as mock_get_session:
             # Mock session context manager
@@ -2106,19 +2161,19 @@ class TestDatabaseRetryMechanism:
             mock_session.__enter__ = Mock(return_value=mock_session)
             mock_session.__exit__ = Mock(return_value=None)
             mock_get_session.return_value = mock_session
-            
+
             # Session operations fail once then succeed
             mock_session.merge.side_effect = [unique_violation, None]
             mock_session.commit.side_effect = [None, None]  # Always succeed
-            
+
             caplog.clear()
-            
+
             # Call update_view_table to test retry behavior  
             handler_instance.update_view_table("test-id-123")
-            
+
             # THEN: Retry mechanism activates and eventually succeeds
             assert mock_session.merge.call_count == 2, f"Expected 2 merge calls (1 failure + 1 success), got {mock_session.merge.call_count}"
-            
+
             # Verify retry logging occurred
             warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
             retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
@@ -2134,7 +2189,7 @@ class TestDatabaseRetryMechanism:
         from unittest.mock import Mock
         import psycopg2.errors
         from sqlalchemy.exc import IntegrityError
-        
+
         # GIVEN: Exact error from production logs (workflow b048f0c5)
         production_error = IntegrityError(
             statement='INSERT INTO workflowprogress_tracking (workflow_id, status) VALUES (?, ?)',
@@ -2144,24 +2199,24 @@ class TestDatabaseRetryMechanism:
                 'DETAIL:  Key (workflow_id)=(0bf47c07-7efc-41e7-b011-1fe69782fb06) already exists.'
             )
         )
-        
+
         # WHEN: Function decorated with retry_on_database_conflict fails once then succeeds
         mock_function = Mock()
         mock_function.side_effect = [production_error, "success"]
-        
+
         decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
-        
+
         caplog.clear()
         result = decorated_function()
-        
+
         # THEN: Production scenario resolves with single retry
         assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
         assert result == "success", "Should return success after retry"
-        
+
         # Verify exact production error details logged
         warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
         retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
-        
+
         assert len(retry_logs) == 1, "Should log exactly one retry attempt"
         assert "attempt 1/4:" in retry_logs[0], "Should show correct attempt number"
         assert "workflowprogress_tracking_pkey" in retry_logs[0], "Should log constraint name"
@@ -2178,31 +2233,31 @@ class TestDatabaseRetryMechanism:
         from unittest.mock import Mock
         import psycopg2.errors
         from sqlalchemy.exc import IntegrityError
-        
+
         # GIVEN: Function that always fails with constraint violation
         persistent_error = IntegrityError(
             statement="INSERT INTO test_table ...",
             params=None,
             orig=psycopg2.errors.UniqueViolation('duplicate key value violates unique constraint "test_pkey"')
         )
-        
+
         mock_function = Mock(side_effect=persistent_error)
         decorated_function = retry_on_database_conflict(max_retries=max_retries)(mock_function)
-        
+
         caplog.clear()
-        
+
         # WHEN: Function consistently fails beyond max retries
         with pytest.raises(IntegrityError):
             decorated_function()
-        
+
         # THEN: Exact number of attempts and proper final failure logging
         assert mock_function.call_count == expected_calls, f"Should attempt {expected_calls} times"
-        
+
         warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
         retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
         error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
         final_failure_logs = [msg for msg in error_logs if "Database operation failed after" in msg]
-        
+
         assert len(retry_logs) == max_retries, f"Should log {max_retries} retry attempts"
         assert len(final_failure_logs) == 1, "Should log final failure"
         assert f"after {expected_calls} attempts" in final_failure_logs[0]
@@ -2213,44 +2268,44 @@ class TestDatabaseRetryMechanism:
         from unittest.mock import Mock
         import psycopg2.errors
         from sqlalchemy.exc import IntegrityError
-        
+
         mock_function = Mock()
-        
+
         # Create persistent unique constraint violation
         unique_violation = IntegrityError(
             statement="INSERT INTO workflowprogress_tracking ...",
             params=None,
             orig=psycopg2.errors.UniqueViolation('duplicate key value violates unique constraint "workflowprogress_tracking_pkey"')
         )
-        
+
         # Configure mock to always fail
         mock_function.side_effect = unique_violation
-        
+
         # Apply the retry decorator with 2 max retries
         decorated_function = retry_on_database_conflict(max_retries=2)(mock_function)
-        
+
         caplog.clear()
-        
+
         # Execute and expect the final exception
         with pytest.raises(IntegrityError) as exc_info:
             decorated_function()
-        
+
         # Verify the function was called 3 times (2 retries + 1 original)
         assert mock_function.call_count == 3
-        
+
         # Verify the final exception is the same type
         assert "workflowprogress_tracking_pkey" in str(exc_info.value)
-        
+
         # Check log messages for all attempts
         log_messages = [record.message for record in caplog.records]
         warning_messages = [msg for msg in log_messages if "Database conflict on attempt" in msg]
         error_messages = [msg for msg in log_messages if "Database operation failed after" in msg]
-        
+
         # Should have logged 2 retry attempts
         assert len(warning_messages) == 2
         assert "attempt 1/3:" in warning_messages[0]
         assert "attempt 2/3:" in warning_messages[1]
-        
+
         # Should have logged final failure
         assert len(error_messages) == 1
         assert "Database operation failed after 3 attempts" in error_messages[0]
@@ -2260,30 +2315,30 @@ class TestDatabaseRetryMechanism:
         from biomero.database import retry_on_database_conflict
         from unittest.mock import Mock
         from sqlalchemy.exc import IntegrityError
-        
+
         mock_function = Mock()
-        
+
         # Create a non-retryable error (NULL constraint violation)
         null_violation = IntegrityError(
             statement="INSERT INTO workflowprogress_tracking ...",
             params=None,
             orig=Exception('null value in column "required_field" violates not-null constraint')
         )
-        
+
         mock_function.side_effect = null_violation
-        
+
         # Apply the retry decorator
         decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
-        
+
         caplog.clear()
-        
+
         # Execute and expect immediate failure
         with pytest.raises(IntegrityError):
             decorated_function()
-        
+
         # Verify the function was called only once (no retries)
         assert mock_function.call_count == 1
-        
+
         # Should not have any retry warning messages
         warning_messages = [record.message for record in caplog.records if "Database conflict on attempt" in record.message]
         assert len(warning_messages) == 0
@@ -2293,7 +2348,7 @@ class TestDatabaseRetryMechanism:
         GIVEN: EventSourcing IntegrityError (the production issue that killed threads)
         WHEN: Function decorated with @retry_on_database_conflict encounters this error
         THEN: EventSourcing error is caught and retried successfully (no more thread deaths)
-        
+
         This test covers the specific production scenario from 2025-12-16 where:
         - Thread 24545 died with eventsourcing.persistence.IntegrityError
         - Error was: psycopg2.errors.UniqueViolation in jobprogress_tracking_pkey
@@ -2302,7 +2357,7 @@ class TestDatabaseRetryMechanism:
         from biomero.database import retry_on_database_conflict
         from unittest.mock import Mock
         import psycopg2.errors
-        
+
         # Import the EventSourcing exceptions our decorator now handles
         try:
             from eventsourcing.persistence import IntegrityError as EventSourcingIntegrityError
@@ -2312,7 +2367,7 @@ class TestDatabaseRetryMechanism:
                 def __init__(self, message):
                     self.orig = None
                     super().__init__(message)
-        
+
         # GIVEN: Production EventSourcing IntegrityError with psycopg2 underlying cause
         eventsourcing_error = EventSourcingIntegrityError(
             'duplicate key value violates unique constraint "jobprogress_tracking_pkey"'
@@ -2322,28 +2377,28 @@ class TestDatabaseRetryMechanism:
             'duplicate key value violates unique constraint "jobprogress_tracking_pkey"\n'
             'DETAIL: Key (job_id)=(b048f0c5-workflow-batch-1) already exists.'
         )
-        
+
         # WHEN: Function encounters EventSourcing error then succeeds on retry
         mock_function = Mock()
         mock_function.side_effect = [eventsourcing_error, "success"]
-        
+
         decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
-        
+
         caplog.clear()
         result = decorated_function()
-        
+
         # THEN: EventSourcing error is caught and function retries successfully
         assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
         assert result == "success", "Should return success after retry"
-        
+
         # Verify EventSourcing error is properly logged
         warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
         retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
-        
+
         assert len(retry_logs) == 1, "Should log exactly one retry attempt"
         assert "attempt 1/4:" in retry_logs[0], "Should show correct attempt number"
         assert "jobprogress_tracking_pkey" in retry_logs[0], "Should log constraint name"
-        
+
         # Ensure no ERROR logs (thread should not die)
         error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
         failure_logs = [msg for msg in error_logs if "Database operation failed after" in msg]
@@ -2354,13 +2409,13 @@ class TestDatabaseRetryMechanism:
         GIVEN: EventSourcing OperationalError (another database conflict scenario)
         WHEN: Function decorated with @retry_on_database_conflict encounters this error
         THEN: OperationalError is caught and retried successfully
-        
+
         This covers the OperationalError case from eventsourcing.persistence that we also handle.
         """
         from biomero.database import retry_on_database_conflict
         from unittest.mock import Mock
         import psycopg2.errors
-        
+
         # Import the EventSourcing exceptions our decorator now handles
         try:
             from eventsourcing.persistence import OperationalError as EventSourcingOperationalError
@@ -2370,29 +2425,29 @@ class TestDatabaseRetryMechanism:
                 def __init__(self, message):
                     self.orig = None
                     super().__init__(message)
-        
+
         # GIVEN: EventSourcing OperationalError with database lock conflict
         eventsourcing_op_error = EventSourcingOperationalError('deadlock detected')
         # Add the underlying psycopg2 error as an attribute
         eventsourcing_op_error.orig = psycopg2.errors.OperationalError('deadlock detected')
-        
+
         # WHEN: Function encounters EventSourcing OperationalError then succeeds on retry
         mock_function = Mock()
         mock_function.side_effect = [eventsourcing_op_error, "success"]
-        
+
         decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
-        
+
         caplog.clear()
         result = decorated_function()
-        
+
         # THEN: OperationalError is caught and function retries successfully  
         assert mock_function.call_count == 2, "Should call function twice (initial + 1 retry)"
         assert result == "success", "Should return success after retry"
-        
+
         # Verify OperationalError is properly logged
         warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
         retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
-        
+
         assert len(retry_logs) == 1, "Should log exactly one retry attempt"
         assert "deadlock detected" in retry_logs[0], "Should log operational error details"
 
@@ -2401,14 +2456,14 @@ class TestDatabaseRetryMechanism:
         GIVEN: All EventSourcing exception types our decorator should handle
         WHEN: Each type of exception occurs during database operations
         THEN: All are caught and retried properly (comprehensive regression test)
-        
+
         This is our comprehensive regression test ensuring the enhanced retry decorator
         covers all EventSourcing scenarios that were causing production thread deaths.
         """
         from biomero.database import retry_on_database_conflict
         from unittest.mock import Mock
         import psycopg2.errors
-        
+
         # Import EventSourcing exceptions or create mocks
         try:
             from eventsourcing.persistence import IntegrityError as ESIntegrityError
@@ -2419,19 +2474,19 @@ class TestDatabaseRetryMechanism:
                 def __init__(self, message):
                     self.orig = None
                     super().__init__(message)
-            
+
             class ESOperationalError(Exception):
                 def __init__(self, message):
                     self.orig = None
                     super().__init__(message)
-        
+
         # GIVEN: All EventSourcing exception scenarios from production
         integrity_error = ESIntegrityError('unique constraint violation')
         integrity_error.orig = psycopg2.errors.UniqueViolation('duplicate key')
-        
+
         operational_error = ESOperationalError('database deadlock detected')
         operational_error.orig = psycopg2.errors.OperationalError('deadlock detected')
-        
+
         test_cases = [
             {
                 "name": "EventSourcing IntegrityError",
@@ -2444,27 +2499,484 @@ class TestDatabaseRetryMechanism:
                 "expected_log_content": "database deadlock detected"
             }
         ]
-        
+
         # WHEN/THEN: Each exception type is handled properly
         for test_case in test_cases:
             mock_function = Mock()
             mock_function.side_effect = [test_case["exception"], f"success_{test_case['name']}"]
-            
+
             decorated_function = retry_on_database_conflict(max_retries=3)(mock_function)
-            
+
             caplog.clear()
             result = decorated_function()
-            
+
             # Verify successful retry for each exception type
             assert mock_function.call_count == 2, f"{test_case['name']}: Should retry once and succeed"
             assert result == f"success_{test_case['name']}", f"{test_case['name']}: Should return success"
-            
+
             # Verify proper logging
             warning_logs = [record.message for record in caplog.records if record.levelname == "WARNING"]
             retry_logs = [msg for msg in warning_logs if "Database conflict on attempt" in msg]
-            
+
             assert len(retry_logs) == 1, f"{test_case['name']}: Should log retry attempt"
             assert test_case["expected_log_content"] in retry_logs[0], f"{test_case['name']}: Should log exception details"
-            
+
             # Reset for next test case
             mock_function.reset_mock()
+
+
+
+# ---------------- Projections resolve from the tracker ---------------- #
+
+def test_analytics_owner_does_not_depend_on_the_progress_projection(
+        workflow_tracker_and_workflow_analytics):
+    """User and group come from the tracker, not from another projection's table."""
+    tracker, analytics = workflow_tracker_and_workflow_analytics
+    workflow_id = tracker.initiate_workflow('wf', '', user=7, group=8)
+    task_id = tracker.add_task_to_workflow(workflow_id, 'task', 'v1', {}, {})
+    with EngineManager.get_session() as session:
+        session.query(TaskExecution).filter_by(task_id=task_id).delete()
+        session.commit()
+        assert session.query(WorkflowProgressView).count() == 0
+    analytics.workflows.clear()
+    analytics.tasks.clear()
+    with patch('biomero.views.tracker_repository',
+               return_value=tracker.repository):
+        analytics.update_view_table(task_id)
+    with EngineManager.get_session() as session:
+        row = session.query(TaskExecution).filter_by(task_id=task_id).one()
+        assert (row.user_id, row.group_id) == (7, 8)
+
+
+def test_analytics_warns_when_the_workflow_owner_is_unknown(
+        workflow_tracker_and_workflow_analytics, caplog):
+    tracker, analytics = workflow_tracker_and_workflow_analytics
+    unknown_workflow = uuid.uuid4()
+    task_id = uuid.uuid4()
+    analytics.tasks[task_id] = {
+        'wf_id': unknown_workflow, 'task_name': 'task', 'task_version': 'v1',
+        'start_time': datetime.now(timezone.utc), 'status': 'CREATED'}
+    with patch('biomero.views.tracker_repository',
+               return_value=tracker.repository):
+        with caplog.at_level('WARNING', logger='biomero.views'):
+            analytics.update_view_table(task_id)
+    assert (f'Owner of workflow {unknown_workflow} unknown; task {task_id} '
+            f'is stored without user/group') in caplog.text
+
+
+@pytest.mark.parametrize('projection_class', [
+    JobAccounting, WorkflowProgress, WorkflowAnalytics])
+def test_missing_aggregate_is_a_warning_not_an_exception(
+        workflow_tracker, projection_class, caplog):
+    projection = projection_class()
+    missing = uuid.uuid4()
+    with patch('biomero.views.tracker_repository',
+               return_value=workflow_tracker.repository):
+        with caplog.at_level('WARNING', logger='biomero.views'):
+            assert projection.resolve_task(missing) is None
+    assert f'Task {missing} not found in the workflow tracker' in caplog.text
+
+
+@pytest.mark.parametrize('projection_class', [
+    JobAccounting, WorkflowProgress, WorkflowAnalytics])
+def test_failing_tracker_lookup_is_not_swallowed(projection_class):
+    projection = projection_class()
+    broken = SimpleNamespace(get=unittest.mock.Mock(
+        side_effect=RuntimeError('database down')))
+    with patch('biomero.views.tracker_repository', return_value=broken):
+        with pytest.raises(RuntimeError, match='database down'):
+            projection.resolve_task(uuid.uuid4())
+
+
+# ---------------- Workflow phase of a started/updated task ---------------- #
+
+@pytest.mark.parametrize('task_name, status, expected', [
+    ('_SLURM_Image_Transfer.py', None, (wfs.TRANSFERRING, '5%')),
+    ('_SLURM_Image_Transfer.py', 'RUNNING', (wfs.TRANSFERRING, '5%')),
+    ('convert_x', None, (wfs.CONVERTING, '25%')),
+    ('SLURM_Remote_Conversion.py', None, (wfs.CONVERTING, '25%')),
+    ('SLURM_Remote_Conversion.py', 'RUNNING', (wfs.CONVERTING, '25%')),
+    ('SLURM_Get_Results.py', None, (wfs.RETRIEVING, '90%')),
+    ('SLURM_Get_Results.py', wfs.POSTPROCESSING, (wfs.POSTPROCESSING, '95%')),
+    ('SLURM_Import_Results.py', None, (wfs.IMPORTING, '90%')),
+    ('SLURM_Import_Results.py', wfs.IMPORTED, (wfs.IMPORTED, '90%')),
+    ('SLURM_Import_Results.py', wfs.POSTPROCESSING, (wfs.POSTPROCESSING, '95%')),
+    ('SLURM_Run_Workflow.py', 'ANYTHING', (wfs.RUNNING, '50%')),
+    ('SLURM_Run_Workflow_Batched.py', None, (wfs.RUNNING, '50%')),
+    ('cellpose', None, (wfs.JOB_STATUS + wfs.RUNNING, '50%')),
+    ('cellpose', 'PENDING', (wfs.JOB_STATUS + 'PENDING', '50%')),
+])
+def test_workflow_phase_for_task(task_name, status, expected):
+    from biomero.views import workflow_phase_for
+    assert workflow_phase_for(task_name, status) == expected
+
+
+def test_workflow_phase_interpolates_task_progress_for_user_tasks_only():
+    from biomero.views import workflow_phase_for
+    assert workflow_phase_for('cellpose', 'RUNNING', '50%') == (
+        wfs.JOB_STATUS + 'RUNNING', '70.0%')
+    assert workflow_phase_for('SLURM_Get_Results.py', None, '50%')[1] == '90%'
+
+
+def test_task_started_and_status_update_agree_on_the_phase(
+        workflow_tracker_and_workflow_progress):
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow('wf', '', user=1, group=2)
+    task_id = tracker.add_task_to_workflow(
+        workflow_id, 'SLURM_Remote_Conversion.py', 'v1', {}, {})
+    tracker.start_task(task_id)
+    after_start = (progress.workflows[workflow_id]['status'],
+                   progress.workflows[workflow_id]['progress'])
+    tracker.update_task_status(task_id, 'RUNNING')
+    after_status = (progress.workflows[workflow_id]['status'],
+                    progress.workflows[workflow_id]['progress'])
+    assert after_start == after_status == (wfs.CONVERTING, '25%')
+
+
+# ---------------- Review follow-ups: lookups, guards, exports ---------------- #
+
+def _broken_repository():
+    """A repository failing as the real one does: eventsourcing's
+    OperationalError wrapping the database driver's."""
+    import eventsourcing.persistence as persistence
+    from sqlalchemy.exc import OperationalError
+    return SimpleNamespace(get=unittest.mock.Mock(
+        side_effect=persistence.OperationalError(
+            OperationalError("SELECT", {}, Exception("locked")))))
+
+
+def test_owner_lookup_survives_a_database_outage_with_a_warning(caplog):
+    """The producer's save() must not raise after its event is stored."""
+    from biomero.views import resolve_workflow_owner
+    workflow_id = uuid.uuid4()
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        with caplog.at_level("WARNING", logger="biomero.views"):
+            assert resolve_workflow_owner({}, workflow_id) is None
+    record = next(r for r in caplog.records if "could not be read" in r.message)
+    assert str(workflow_id) in record.message
+    assert record.exc_info is not None and record.levelname == "WARNING"
+
+
+@pytest.mark.parametrize("projection_class", [
+    JobAccounting, WorkflowProgress, WorkflowAnalytics])
+def test_task_lookup_survives_a_database_outage_in_every_projection(
+        projection_class):
+    projection = projection_class()
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        assert projection.resolve_task(uuid.uuid4()) is None
+
+
+def test_main_task_name_falls_back_when_the_tracker_cannot_be_read(
+        workflow_tracker_and_workflow_progress):
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    progress.tasks.clear()
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        name = progress._determine_main_task_name(workflow_id)
+    assert name == progress.workflows[workflow_id].get("task", "unknown")
+
+
+def _prepare_view_write(projection):
+    """Give a projection one pending view row; return its update call."""
+    if isinstance(projection, JobAccounting):
+        return lambda: projection.update_view_table(7, 1, 2, uuid.uuid4())
+    if isinstance(projection, JobProgress):
+        projection.job_status[7] = {"status": "RUNNING", "progress": "5%"}
+        return lambda: projection.update_view_table(7)
+    if isinstance(projection, WorkflowProgress):
+        workflow_id = uuid.uuid4()
+        projection.workflows[workflow_id] = {
+            "status": "RUNNING", "progress": "5%", "user": 1, "group": 2,
+            "name": "wf", "task": "t", "start_time": datetime.now()}
+        projection.tasks[uuid.uuid4()] = {
+            "task_name": "t", "workflow_id": workflow_id}
+        return lambda: projection.update_view_table(workflow_id)
+    task_id = uuid.uuid4()
+    projection.tasks[task_id] = {
+        "task_name": "t", "task_version": "v1", "status": "RUNNING",
+        "start_time": datetime.now()}
+    return lambda: projection.update_view_table(task_id)
+
+
+@pytest.mark.parametrize("projection_class", [
+    JobAccounting, JobProgress, WorkflowProgress, WorkflowAnalytics])
+def test_view_table_writes_are_really_retried_on_a_conflict(
+        projection_class):
+    """A unique-violation on the write is retried, then succeeds, in every
+    projection (the retry is on the method that runs)."""
+    projection = projection_class()
+    write = _prepare_view_write(projection)
+    session = EngineManager.get_session()
+    real_commit = type(session).commit
+    commits = []
+
+    def flaky_commit(self, *args, **kwargs):
+        commits.append(1)
+        if len(commits) == 1:
+            raise IntegrityError(
+                "COMMIT", {}, Exception("unique constraint violated"))
+        return real_commit(self, *args, **kwargs)
+
+    with patch("biomero.database.time.sleep"), \
+            patch.object(type(session), "commit", flaky_commit):
+        write()
+    assert len(commits) == 2
+
+
+@pytest.mark.parametrize("projection_class", [
+    JobAccounting, JobProgress, WorkflowProgress, WorkflowAnalytics])
+def test_an_exhausted_conflict_propagates_after_the_retries(
+        projection_class):
+    projection = projection_class()
+    write = _prepare_view_write(projection)
+    session = EngineManager.get_session()
+    attempts = []
+
+    def always_conflict(self, *args, **kwargs):
+        attempts.append(1)
+        raise IntegrityError("COMMIT", {}, Exception("unique constraint"))
+
+    with patch("biomero.database.time.sleep"), \
+            patch.object(type(session), "commit", always_conflict):
+        with pytest.raises(IntegrityError):
+            write()
+    assert len(attempts) == DATABASE_CONFLICT_MAX_RETRIES + 1
+
+
+def test_event_handlers_commit_the_shared_session_after_the_event():
+    from biomero.views import commit_after_event
+    calls = []
+
+    @commit_after_event
+    def handler(self, domain_event, process_event):
+        calls.append("handled")
+        if domain_event == "early":
+            return
+
+    for event_name in ("early", "late"):
+        calls.clear()
+        with patch("biomero.views.EngineManager.commit",
+                   side_effect=lambda: calls.append("commit")):
+            handler(None, event_name, None)
+        assert calls == ["handled", "commit"]
+    assert handler.__name__ == "handler"
+
+
+def test_every_projection_handler_commits_after_its_event():
+    """Each delivered event is committed by every projection that handles it
+    (counted on the views' own EngineManager, not the tracker's commits)."""
+    from eventsourcing.utils import resolve_topic
+    projections = (JobAccounting, JobProgress, WorkflowProgress,
+                   WorkflowAnalytics)
+    system = System(pipes=[[WorkflowTracker, cls] for cls in projections])
+    runner = SingleThreadedRunner(system)
+    runner.start()
+    try:
+        tracker = runner.get(WorkflowTracker)
+        handled = [set(cls.__dict__["policy"].dispatcher.registry)
+                   for cls in projections]
+        spy = unittest.mock.Mock(wraps=EngineManager)
+        deliveries = {"expected": 0}
+        position = {"next": 1}
+
+        def step(action):
+            """Run a tracker action; return its result and the commits the
+            views made for the events it produced."""
+            commits_before = spy.commit.call_count
+            result = action()
+            for notification in tracker.notification_log.select(
+                    start=position["next"], limit=10):
+                event_class = resolve_topic(notification.topic)
+                deliveries["expected"] += sum(
+                    event_class in registry for registry in handled)
+                position["next"] = notification.id + 1
+            return result, spy.commit.call_count - commits_before
+
+        with patch("biomero.views.EngineManager", spy):
+            commits = []
+            workflow_id, count = step(
+                lambda: tracker.initiate_workflow("wf", "", 1, 2))
+            commits.append(count)
+            task_id, count = step(lambda: tracker.add_task_to_workflow(
+                workflow_id, "analysis", "v1", {}, {}))
+            commits.append(count)
+            for action in (lambda: tracker.start_task(task_id),
+                           lambda: tracker.update_task_status(
+                               task_id, "RUNNING"),
+                           lambda: tracker.update_task_progress(
+                               task_id, "30%"),
+                           lambda: tracker.add_job_id(task_id, 11),
+                           lambda: tracker.complete_task(task_id, "{}"),
+                           lambda: tracker.complete_workflow(workflow_id)):
+                commits.append(step(action)[1])
+        assert all(count > 0 for count in commits), commits
+        assert sum(commits) >= deliveries["expected"] > 0
+    finally:
+        runner.stop()
+
+
+def test_remote_shallower_events_are_ignored(
+        workflow_tracker_and_workflow_progress):
+    from biomero.constants import REMOTE_SHALLOWER_TASK_NAME
+    _, progress = workflow_tracker_and_workflow_progress
+    helper = {"task_name": REMOTE_SHALLOWER_TASK_NAME}
+    assert progress.skip_remote_shallower(uuid.uuid4(), helper, "X")
+    assert not progress.skip_remote_shallower(
+        uuid.uuid4(), {"task_name": "analysis"}, "X")
+    assert not progress.skip_remote_shallower(uuid.uuid4(), None, "X")
+
+
+def test_launcher_rule_needs_the_script_name_and_the_marker():
+    from biomero import constants
+    from biomero.eventsourcing import is_launcher_task
+    marked = {constants.LAUNCHER_MARKER: "2.9.0"}
+    for name in constants.LAUNCHER_TASK_NAMES:
+        assert is_launcher_task(SimpleNamespace(task_name=name, params=marked))
+        assert not is_launcher_task(SimpleNamespace(task_name=name, params={}))
+        assert not is_launcher_task(SimpleNamespace(task_name=name, params=None))
+    assert not is_launcher_task(
+        SimpleNamespace(task_name="analysis", params=marked))
+
+
+def test_import_biomero_exports_the_projections_but_not_their_helpers():
+    import biomero
+    import biomero.views as views
+    for name in ("JobAccounting", "JobProgress", "WorkflowProgress",
+                 "WorkflowAnalytics"):
+        assert getattr(biomero, name) is getattr(views, name)
+    for name in ("get_tracker_aggregate", "resolve_workflow_owner",
+                 "first_user_task_name", "PROGRESS_RUNNING"):
+        assert name in dir(views)
+        assert name not in views.__all__
+        assert not hasattr(biomero, name)
+
+
+def test_commit_and_rollback_without_a_session_do_nothing(caplog):
+    EngineManager.close_engine()
+    with caplog.at_level("DEBUG", logger="biomero.database"):
+        EngineManager.commit()
+        EngineManager.rollback()
+    assert "No database session to commit" in caplog.text
+    assert "No database session to roll back" in caplog.text
+
+
+def test_failed_commit_rolls_back_and_raises_without_logging_a_warning(caplog):
+    session = unittest.mock.Mock()
+    session.commit.side_effect = RuntimeError("boom")
+    with patch.object(EngineManager, "_session", session):
+        with caplog.at_level("WARNING", logger="biomero.database"):
+            with pytest.raises(RuntimeError, match="boom"):
+                EngineManager.commit()
+    session.rollback.assert_called_once_with()
+    assert caplog.text == ""
+
+
+def test_failed_rollback_removes_the_session_and_raises_without_logging(caplog):
+    session = unittest.mock.Mock()
+    session.rollback.side_effect = RuntimeError("stuck")
+    with patch.object(EngineManager, "_session", session):
+        with caplog.at_level("WARNING", logger="biomero.database"):
+            with pytest.raises(RuntimeError, match="stuck"):
+                EngineManager.rollback()
+    session.remove.assert_called_once_with()
+    assert caplog.text == ""
+
+
+def test_stored_event_topics_of_the_aggregates_are_unchanged():
+    """Event classes are persisted by topic; renaming a method must not
+    change them."""
+    from eventsourcing.utils import get_topic
+    from biomero.eventsourcing import WorkflowRun
+    assert get_topic(WorkflowRun.CanonicalInputsRecorded) == (
+        "biomero.eventsourcing:WorkflowRun.CanonicalInputsRecorded")
+    assert get_topic(Task.StorageProvenanceRecorded) == (
+        "biomero.eventsourcing:Task.StorageProvenanceRecorded")
+
+
+def test_producer_save_survives_a_cold_listener_lookup_outage(
+        workflow_tracker_and_workflow_progress, caplog):
+    """The event is stored; the projection's failed lookup must not make the
+    producer's save() raise (a retry would duplicate the work)."""
+    tracker, progress = workflow_tracker_and_workflow_progress
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    task_id = tracker.add_task_to_workflow(workflow_id, "task", "v1", {}, {})
+    progress.tasks.clear()
+    progress.workflows.clear()
+    with patch("biomero.views.tracker_repository",
+               return_value=_broken_repository()):
+        with caplog.at_level("WARNING", logger="biomero.views"):
+            tracker.update_task_status(task_id, "RUNNING")
+    assert "could not be read from the workflow tracker" in caplog.text
+    assert tracker.repository.get(task_id).status == "RUNNING"
+
+
+@pytest.mark.parametrize("projection_class", [WorkflowProgress, WorkflowAnalytics])
+def test_view_table_lookups_survive_a_database_error(projection_class, caplog):
+    from sqlalchemy.exc import OperationalError
+    projection = projection_class()
+    session = EngineManager.get_session()
+    with patch.object(type(session), "query", side_effect=OperationalError(
+            "SELECT", {}, Exception("server closed the connection"))):
+        with caplog.at_level("WARNING", logger="biomero.views"):
+            if projection_class is WorkflowProgress:
+                assert projection.resolve_workflow(uuid.uuid4()) is None
+            else:
+                with patch("biomero.views.tracker_repository",
+                           return_value=SimpleNamespace(get=lambda _id: SimpleNamespace(
+                               workflow_id=None, task_name="t",
+                               task_version="v", created_on=datetime.now(),
+                               status=None, user=1, group=2))):
+                    assert projection.resolve_task(uuid.uuid4()) is not None
+    assert "could not be read from its view table" in caplog.text
+
+
+def test_job_progress_resolves_a_job_registered_before_a_listener_restart(
+        workflow_tracker_and_job_progress):
+    """After a restart the listener has not seen JobIdAdded; later status and
+    progress events must still reach biomero_job_progress_view."""
+    from biomero.database import JobProgressView
+    tracker, job_progress = workflow_tracker_and_job_progress
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    task_id = tracker.add_task_to_workflow(workflow_id, "task", "v1", {}, {})
+    tracker.add_job_id(task_id, 4242)
+    tracker.update_task_status(task_id, "RUNNING")
+    tracker.update_task_progress(task_id, "40%")
+
+    # Model the restarted listener: nothing in memory.
+    job_progress.task_to_job.clear()
+    job_progress.job_status.clear()
+    with patch("biomero.views.tracker_repository",
+               return_value=tracker.repository):
+        tracker.update_task_status(task_id, "COMPLETED")
+
+    with EngineManager.get_session() as session:
+        row = session.query(JobProgressView).filter_by(
+            slurm_job_id=4242).one()
+        assert row.status == "COMPLETED"
+        assert row.progress == "40%"  # kept from the stored row
+
+    job_progress.task_to_job.clear()
+    job_progress.job_status.clear()
+    with patch("biomero.views.tracker_repository",
+               return_value=tracker.repository):
+        tracker.update_task_progress(task_id, "90%")
+    with EngineManager.get_session() as session:
+        row = session.query(JobProgressView).filter_by(
+            slurm_job_id=4242).one()
+        assert (row.status, row.progress) == ("COMPLETED", "90%")
+
+
+def test_job_progress_ignores_events_of_a_task_without_a_job(
+        workflow_tracker_and_job_progress, caplog):
+    tracker, job_progress = workflow_tracker_and_job_progress
+    workflow_id = tracker.initiate_workflow("wf", "", user=1, group=2)
+    task_id = tracker.add_task_to_workflow(workflow_id, "task", "v1", {}, {})
+    with patch("biomero.views.tracker_repository",
+               return_value=tracker.repository):
+        with caplog.at_level("DEBUG", logger="biomero.views"):
+            tracker.update_task_status(task_id, "RUNNING")
+    assert job_progress.job_status == {}
+    assert f"Task {task_id} has no known job" in caplog.text

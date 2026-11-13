@@ -21,10 +21,12 @@ from sqlalchemy import (
     String,
     DateTime,
     event,
+    inspect,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import DBAPIError, OperationalError, IntegrityError
+from biomero.constants import DATABASE_CONFLICT_DEFAULT_RETRIES, slurm_env
 import os
 import threading
 import time
@@ -46,9 +48,78 @@ logger = logging.getLogger(__name__)
 
 # --------------------- CONCURRENCY HELPERS ---------------------------- #
 
-def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
+# Messages (lowercase) of database errors that are concurrency conflicts, and
+# so worth retrying.
+RETRYABLE_CONFLICT_MESSAGES = (
+    "unique constraint",
+    "duplicate key",
+    "concurrent update",
+    "transaction is aborted",
+    "deadlock detected",
+)
+
+# Messages (lowercase) of permanent data validation errors: never retried.
+NON_RETRYABLE_ERROR_MESSAGES = (
+    "not null constraint",
+    "null value in column",
+    "cannot be null",
+)
+
+
+def conflict_exception_types() -> tuple:
+    """Return the exception types that may be a database conflict."""
+    exception_types = [IntegrityError, OperationalError]
+    if EventSourcingIntegrityError:
+        exception_types.append(EventSourcingIntegrityError)
+    if EventSourcingOperationalError:
+        exception_types.append(EventSourcingOperationalError)
+    return tuple(exception_types)
+
+
+def is_eventsourcing_error(error: Exception) -> bool:
+    """Whether an error comes from the event sourcing persistence layer.
+
+    Those are always concurrency conflicts (newer versions may have empty
+    messages) and never data validation errors.
+    """
+    eventsourcing_types = tuple(
+        error_type for error_type in
+        (EventSourcingIntegrityError, EventSourcingOperationalError)
+        if error_type)
+    return isinstance(error, eventsourcing_types)
+
+
+def is_retryable_conflict(error: Exception) -> bool:
+    """Whether a database error is a concurrency conflict worth retrying.
+
+    Args:
+        error (Exception): The exception raised by the database operation.
+
+    Returns:
+        False for permanent data validation errors, True for an event
+        sourcing error or a message that names a known conflict.
+    """
+    message = str(error).lower()
+    # For EventSourcing exceptions, also check the underlying cause
+    if getattr(error, "__cause__", None):
+        message += " " + str(error.__cause__).lower()
+    if any(text in message for text in NON_RETRYABLE_ERROR_MESSAGES):
+        logger.debug(f"Non-retryable data validation error: {error}")
+        return False
+    return (is_eventsourcing_error(error)
+            or any(text in message for text in RETRYABLE_CONFLICT_MESSAGES))
+
+
+def backoff_delay(attempt: int, base_delay: float, max_delay: float) -> float:
+    """Return the exponential backoff, with jitter, before the next attempt."""
+    return min(base_delay * (2 ** attempt) + random.uniform(0, 0.1), max_delay)
+
+
+def retry_on_database_conflict(
+        max_retries=DATABASE_CONFLICT_DEFAULT_RETRIES,
+        base_delay=0.1, max_delay=5.0):
     """Decorator to retry database operations on concurrency conflicts.
-    
+
     Args:
         max_retries: Maximum number of retry attempts
         base_delay: Base delay between retries in seconds
@@ -58,87 +129,30 @@ def retry_on_database_conflict(max_retries=10, base_delay=0.1, max_delay=5.0):
         @wraps(func)
         def wrapper(*args, **kwargs):
             last_exception = None
-            
-            # Build list of exception types to catch
-            exception_types = [IntegrityError, OperationalError]
-            if EventSourcingIntegrityError:
-                exception_types.append(EventSourcingIntegrityError)
-            if EventSourcingOperationalError:
-                exception_types.append(EventSourcingOperationalError)
-            exception_types = tuple(exception_types)
-            
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
-                except exception_types as e:
-                    last_exception = e
-                    
-                    # Don't retry on the last attempt
-                    if attempt == max_retries:
+                except conflict_exception_types() as error:
+                    last_exception = error
+                    if (attempt == max_retries
+                            or not is_retryable_conflict(error)):
                         break
-                    
-                    # Check if it's a conflict we can retry
-                    error_msg = str(e).lower()
-                    
-                    # For EventSourcing exceptions, also check the underlying cause
-                    if hasattr(e, '__cause__') and e.__cause__:
-                        error_msg += " " + str(e.__cause__).lower()
-                    
-                    # These are retryable concurrency conflicts
-                    retryable_conflicts = [
-                        'unique constraint',
-                        'duplicate key',
-                        'concurrent update',
-                        'transaction is aborted',
-                        'deadlock detected'
-                    ]
-                    
-                    # These are permanent data validation errors - do NOT retry
-                    non_retryable_errors = [
-                        'not null constraint',
-                        'null value in column',
-                        'cannot be null'
-                    ]
-                    
-                    # Check for non-retryable errors first
-                    if any(error in error_msg for error in non_retryable_errors):
-                        logger.debug(f"Non-retryable data validation error: {e}")
-                        break
-                    
-                    # EventSourcing exceptions are always concurrency conflicts
-                    # (newer versions may have empty messages, never data-validation errors)
-                    is_eventsourcing_error = (
-                        (EventSourcingIntegrityError and isinstance(e, EventSourcingIntegrityError)) or
-                        (EventSourcingOperationalError and isinstance(e, EventSourcingOperationalError))
+                    delay = backoff_delay(attempt, base_delay, max_delay)
+                    logger.warning(
+                        f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {error}. "
+                        f"Retrying in {delay:.2f}s..."
                     )
+                    time.sleep(delay)
+                    try:
+                        EngineManager.rollback()
+                    except Exception as rollback_error:
+                        logger.warning(f"Rollback before retry failed: "
+                                       f"{rollback_error}")
 
-                    # Check for retryable conflicts
-                    if any(conflict in error_msg for conflict in retryable_conflicts) or is_eventsourcing_error:
-                        # Calculate exponential backoff with jitter
-                        delay = min(
-                            base_delay * (2 ** attempt) + random.uniform(0, 0.1),
-                            max_delay
-                        )
-                        logger.warning(
-                            f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {e}. "
-                            f"Retrying in {delay:.2f}s..."
-                        )
-                        
-                        time.sleep(delay)
-                        
-                        # Rollback current transaction
-                        try:
-                            EngineManager.rollback()
-                        except:
-                            pass
-                    else:
-                        # Not a retryable error
-                        break
-                        
             # All retries exhausted, raise the last exception
             logger.error(f"Database operation failed after {attempt + 1} attempts (max {max_retries + 1}): {last_exception}")
             raise last_exception
-            
+
         return wrapper
     return decorator
 
@@ -170,6 +184,7 @@ def database_transaction(isolation_level=None):
         except Exception as rollback_error:
             logger.error(f"Error during rollback: {rollback_error}")
         raise
+
 
 # --------------------- VIEWS DB tables/classes ---------------------------- #
 
@@ -389,6 +404,29 @@ class EngineManager:
                 cls.close_engine()
         
     @classmethod
+    def _create_tables(cls):
+        """Create the view tables that do not exist yet, and detect fresh installs.
+
+        Concurrent starts can race here, and the loser's DDL may fail although
+        the tables exist afterwards. That is the only failure tolerated: after
+        a database error, every table must exist, otherwise the original error
+        (wrong URL, bad credentials, missing privileges, failed DDL) is raised.
+        """
+        try:
+            Base.metadata.create_all(cls._engine)
+        except DBAPIError as create_error:
+            try:
+                existing = inspect(cls._engine)
+                missing = [name for name in Base.metadata.tables
+                           if not existing.has_table(name)]
+            except DBAPIError:
+                # The check failed too: report the error that started it.
+                raise create_error
+            if missing:
+                raise
+            logger.debug("Lost the race to create the tables; they exist now")
+
+    @classmethod
     def create_scoped_session(cls, sqlalchemy_url: str = None):
         """
         Creates and returns a scoped session for interacting with the
@@ -411,16 +449,16 @@ class EngineManager:
         if cls._engine is None:
             # Note, we only allow sqlalchemy eventsourcing module
             if not sqlalchemy_url:
-                sqlalchemy_url = os.getenv('SQLALCHEMY_URL')
+                sqlalchemy_url = os.getenv(slurm_env.SQLALCHEMY_URL)
             cls._engine = create_engine(sqlalchemy_url)
-            # Setup tables if they don't exist yet, and detect fresh installs.
-            # Concurrent starts can race here, and losing that race is fine:
-            # the tables exist either way.
             try:
-                Base.metadata.create_all(cls._engine)
-            except Exception as e:
-                logger.warning(f"Could not create tables (they may already "
-                               f"exist): {e}")
+                cls._create_tables()
+            except Exception:
+                # Do not keep an engine whose tables are missing: the next
+                # call would skip creating them.
+                cls._engine.dispose()
+                cls._engine = None
+                raise
 
         if cls._session is None:
             # Create a scoped_session object.
@@ -447,9 +485,12 @@ class EngineManager:
         Retrieves the current scoped session, setting one up when needed.
 
         This is a borrowed, thread-scoped session, not a new owned session.
-        Listener reads must not use it as a context manager: Session.__exit__
-        closes it and rolls back any pending producer event transaction.
-        SlurmClient's outer context releases the session when work finishes.
+        Do not use it as a context manager for reads made while an event is
+        being processed: Session.__exit__ closes the session and rolls back
+        the pending producer event transaction. A block that commits before it
+        ends (the views' ``update_view_table``) is safe, because nothing is
+        pending when it closes. SlurmClient's outer context releases the
+        session when work finishes.
 
         Returns:
             Session: The SQLAlchemy session for interacting with the database.
@@ -463,10 +504,13 @@ class EngineManager:
         """
         Commits the current transaction in the scoped session.
         """
+        if cls._session is None:
+            logger.debug("No database session to commit")
+            return
         try:
             cls._session.commit()
-        except Exception as e:
-            logger.warning(f"Database commit failed (will be retried if applicable): {e}")
+        except Exception:
+            # The caller (or retry_on_database_conflict) logs the error.
             cls.rollback()
             raise
     
@@ -475,11 +519,14 @@ class EngineManager:
         """
         Rolls back the current transaction in the scoped session.
         """
+        if cls._session is None:
+            logger.debug("No database session to roll back")
+            return
         try:
             cls._session.rollback()
-        except Exception as e:
-            logger.warning(f"Database rollback failed (forcing session removal): {e}")
-            # Force session removal on rollback failure
+        except Exception:
+            # Force session removal on rollback failure; the error is raised
+            # for the caller to log.
             cls._session.remove()
             raise
     
@@ -495,7 +542,8 @@ class EngineManager:
             cls._session.remove()
     
     @classmethod
-    @retry_on_database_conflict(max_retries=10)
+    @retry_on_database_conflict(
+        max_retries=DATABASE_CONFLICT_DEFAULT_RETRIES)
     def safe_commit(cls):
         """
         Commits the transaction with automatic retry on conflicts.

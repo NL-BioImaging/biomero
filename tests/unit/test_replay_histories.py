@@ -378,10 +378,12 @@ def test_listeners_restarted_on_existing_views_keep_projecting(replayed):
 
     assert workflow_view_status(workflow_id(replayed, WF_RUNNING)) == \
         wfs.JOB_STATUS + "COMPLETED"
-    # The job listener keeps its task-to-job map in memory, so it does not
-    # project the new status of a job registered before the restart; the row
-    # of that job must survive unchanged.
-    assert job_view_row(job_id).progress == "43%"
+    # The job listener resolves the job of a task it has not seen from the
+    # tracker, so the job registered before the restart is projected too and
+    # keeps its stored progress.
+    row = job_view_row(job_id)
+    assert row.status == "COMPLETED"
+    assert row.progress == "43%"
 
 
 def test_running_workflow_can_still_complete(replayed):

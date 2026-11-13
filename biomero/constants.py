@@ -15,6 +15,7 @@
 """This module defines constants for use with BIOMERO (scripts)"""
 
 import re
+import warnings
 from uuid import UUID
 
 # Values that switch a boolean environment setting on (compared lowercase).
@@ -27,6 +28,7 @@ FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
+IMPORT_RESULTS_SCRIPT = "SLURM_Import_Results.py"
 # Name of the workflow task that records one remote shallower (helper) run.
 REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
@@ -43,43 +45,35 @@ LAUNCHER_CLAIM_LEASE_SECONDS = 300
 # no longer written (a claim is its own event), but may exist in stored events.
 LEGACY_CLAIMED_STATUS = "CLAIMED"
 
+# Progress shown in the workflow progress view for each phase of a workflow.
+PROGRESS_STARTED = "0%"
+PROGRESS_TRANSFERRING = "5%"
+PROGRESS_CONVERTING = "25%"
+PROGRESS_RUNNING = "50%"
+PROGRESS_RETRIEVING = "90%"
+PROGRESS_POSTPROCESSING = "95%"
+PROGRESS_DONE = "100%"
+
+# Prefixes (lowercase) of the tasks BIOMERO itself adds around the user's
+# workflow task. The conversion tasks are named convert_<from>_to_<to>.
+CONVERT_TASK_PREFIX = "convert_"
+INFRASTRUCTURE_TASK_PREFIXES = ("_slurm_", "slurm_", CONVERT_TASK_PREFIX)
+
+# Status and task-name placeholders of the views.
+TASK_STATUS_CREATED = "CREATED"
+TASK_STATUS_UNKNOWN = "UNKNOWN"
+UNKNOWN_TASK_NAME = "unknown"
+
+# Attempts of an operation that hit a database conflict (see
+# biomero.database.retry_on_database_conflict).
+DATABASE_CONFLICT_MAX_RETRIES = 3
+# Attempts for the operations that must not give up early (committing the
+# event store; also the default of retry_on_database_conflict).
+DATABASE_CONFLICT_DEFAULT_RETRIES = 10
+
 # Metadata maintenance requests (see biomero.maintenance).
 MAINTENANCE_SCAN_PAGE_SIZE = 100
 MAINTENANCE_RECENT_REQUESTS = 5
-
-# Blueprint qualitative color scheme. Keep these values in Python because the
-# OMERO scripts do not load the Blueprint JavaScript package.
-# https://blueprintjs.com/docs/#core/colors.qualitative-color-schemes
-QUALITATIVE_COLOR_SCHEME = (
-    "#147EB3",  # cerulean3
-    "#29A634",  # forest3
-    "#D1980B",  # gold3
-    "#D33D17",  # vermilion3
-    "#9D3F9D",  # violet3
-    "#00A396",  # turquoise3
-    "#DB2C6F",  # rose3
-    "#8EB125",  # lime3
-    "#946638",  # sepia3
-    "#7961DB",  # indigo3
-)
-
-
-def resolve_workflow_color(color_override, workflow_id):
-    """Return an explicit color.
-
-    Derive the automatic value deterministically from a workflow UUID.
-    """
-    color = str(color_override or "").strip().upper()
-    if color:
-        if not re.fullmatch(r"#[0-9A-F]{6}", color):
-            raise ValueError(
-                "Workflow color must be empty or use #RRGGBB format"
-            )
-        return color
-    return QUALITATIVE_COLOR_SCHEME[
-        UUID(str(workflow_id)).int % len(QUALITATIVE_COLOR_SCHEME)
-    ]
-
 
 # ------------------------------------------------------------
 # Shared constants used across multiple scripts
@@ -416,3 +410,57 @@ class schema_formats:
     BILAYERS = "BILAYERS"
     CWL = "CWL"  # Common Workflow Language
     OPENAPI = "OpenAPI"  # OpenAPI format
+
+
+# ------------------------------------------------------------
+# Deprecated: workflow ROI colour (moved to biomero-scripts)
+# ------------------------------------------------------------
+
+# The colour of a workflow's ROIs is decided by SLURM_Run_Workflow.py in
+# biomero-scripts. These names shipped in stable releases (2.8.x), so they stay
+# available, with a DeprecationWarning, until the scripts release that no
+# longer uses them is out; then they will be removed.
+_BLUEPRINT_COLOR_SCHEME = (
+    "#147EB3",  # cerulean3
+    "#29A634",  # forest3
+    "#D1980B",  # gold3
+    "#D33D17",  # vermilion3
+    "#9D3F9D",  # violet3
+    "#00A396",  # turquoise3
+    "#DB2C6F",  # rose3
+    "#8EB125",  # lime3
+    "#946638",  # sepia3
+    "#7961DB",  # indigo3
+)
+
+
+def _resolve_workflow_color(color_override, workflow_id):
+    """Return an explicit color, or one derived from a workflow UUID."""
+    color = str(color_override or "").strip().upper()
+    if color:
+        if not re.fullmatch(r"#[0-9A-F]{6}", color):
+            raise ValueError(
+                "Workflow color must be empty or use #RRGGBB format"
+            )
+        return color
+    return _BLUEPRINT_COLOR_SCHEME[
+        UUID(str(workflow_id)).int % len(_BLUEPRINT_COLOR_SCHEME)
+    ]
+
+
+_DEPRECATED_NAMES = {
+    "QUALITATIVE_COLOR_SCHEME": _BLUEPRINT_COLOR_SCHEME,
+    "resolve_workflow_color": _resolve_workflow_color,
+}
+
+
+def __getattr__(name):
+    """Serve the deprecated colour names, with a DeprecationWarning."""
+    if name in _DEPRECATED_NAMES:
+        warnings.warn(
+            f"biomero.constants.{name} is deprecated: the workflow color is "
+            f"chosen by SLURM_Run_Workflow.py in biomero-scripts. It will be "
+            f"removed after the scripts release that no longer uses it.",
+            DeprecationWarning, stacklevel=2)
+        return _DEPRECATED_NAMES[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

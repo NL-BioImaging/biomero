@@ -57,7 +57,8 @@ CONVERT_TASK_PREFIX = "convert_"
 
 # A view application only has its own event store, so an aggregate the tracker
 # created is not in it. Since a workflow may now be run by a process that did
-# not create it (see biomero.detached), the views have to be able to look those
+# not create it (a detached supervisor claims launchers, see
+# WorkflowTracker.claim_launcher_task), the views have to be able to look those
 # aggregates up rather than relying on what they saw go past in memory.
 _tracker = None
 
@@ -529,7 +530,9 @@ class WorkflowProgress(ProcessApplication):
             wf_id = task_info["workflow_id"]
             task_name = task_info["task_name"]
 
-            # CLAIMED is supervisor bookkeeping, not workflow execution. The
+            # A claim is its own event now, but 2.9 betas stored it as the
+            # status CLAIMED. That is supervisor bookkeeping, not workflow
+            # execution, and must stay out of the view. The
             # first real task's TaskStarted event will set the visible phase.
             if task_info.get("is_launcher") and status == LEGACY_CLAIMED_STATUS:
                 logger.debug(

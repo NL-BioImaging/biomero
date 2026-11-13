@@ -14,6 +14,9 @@
 # limitations under the License.
 """This module defines constants for use with BIOMERO (scripts)"""
 
+# Values that switch a boolean environment setting on (compared lowercase).
+TRUTHY_VALUES = ("true", "1", "yes", "y", "on")
+
 IMAGE_EXPORT_SCRIPT = "_SLURM_Image_Transfer.py"
 IMAGE_IMPORT_SCRIPT = "SLURM_Get_Results.py"
 CONVERSION_SCRIPT = "SLURM_Remote_Conversion.py"
@@ -21,6 +24,9 @@ FILE_TRANSFER_SCRIPT = "_SLURM_File_Transfer.py"
 RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
+IMPORT_RESULTS_SCRIPT = "SLURM_Import_Results.py"
+# Name of the workflow task that records one remote shallower (helper) run.
+REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
 # Detached runs: a workflow script queues a run for a supervisor by recording a
 # "launcher" task. Only a task of a launching script that carries the marker
@@ -28,13 +34,16 @@ LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
 # one ordinary task per batch under the launching script's name.
 LAUNCHER_MARKER = "_biomero_detached_launcher"
 LAUNCHER_TASK_NAMES = (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
+# How long a supervisor's claim on a launcher task stays valid without being
+# renewed. After that, another supervisor may take the run over.
+LAUNCHER_CLAIM_LEASE_SECONDS = 300
 # Status that 2.9 betas wrote on a launcher task to mark it as claimed. It is
 # no longer written (a claim is its own event), but may exist in stored events.
 LEGACY_CLAIMED_STATUS = "CLAIMED"
 
-IMPORT_RESULTS_SCRIPT = "SLURM_Import_Results.py"
-# Name of the workflow task that records one remote shallower (helper) run.
-REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
+# Metadata maintenance requests (see biomero.maintenance).
+MAINTENANCE_SCAN_PAGE_SIZE = 100
+MAINTENANCE_RECENT_REQUESTS = 5
 
 # ------------------------------------------------------------
 # Shared constants used across multiple scripts
@@ -42,6 +51,60 @@ REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
 # Shared parameter names
 CLEANUP = "Cleanup?"
+
+
+# ------------------------------------------------------------
+# SSH recovery and durable remote operations (biomero core)
+# ------------------------------------------------------------
+
+# Seconds an interrupted SSH operation is retried; 0 means no retries.
+DEFAULT_SSH_RECOVERY_TIMEOUT = 900
+# Upper bound for a native connect/read detection limit, so that a silent
+# stall returns control long before the recovery window ends.
+SSH_DETECTION_LIMIT_SECONDS = 30
+# Exponential backoff between attempts, doubling from the first to the cap.
+SSH_RETRY_INITIAL_DELAY_SECONDS = 1
+SSH_RETRY_MAX_DELAY_SECONDS = 30
+# Fraction of the delay added as random jitter so clients do not retry in
+# lock step after a shared outage.
+SSH_RETRY_JITTER_FRACTION = 0.25
+# How often caller heartbeats run while waiting between attempts.
+SSH_HEARTBEAT_INTERVAL_SECONDS = 10
+# Connection-stage timeouts and TCP keepalive applied when connecting.
+SSH_CONNECT_TIMEOUT_SECONDS = 10
+SSH_BANNER_TIMEOUT_SECONDS = 30
+SSH_AUTH_TIMEOUT_SECONDS = 30
+SSH_KEEPALIVE_SECONDS = 15
+TCP_KEEPALIVE_IDLE_SECONDS = 30
+TCP_KEEPALIVE_INTERVAL_SECONDS = 10
+TCP_KEEPALIVE_PROBES = 3
+TCP_USER_TIMEOUT_MILLISECONDS = 30000
+
+# Lock command template: ``{wait_seconds}``, ``{busy_exit_code}`` and
+# ``{lock_file}`` are filled in; the script to run is appended to the result.
+# Overridable through ``slurm_lock_cmd`` / ``BIOMERO_SLURM_LOCK_CMD``.
+DEFAULT_SLURM_LOCK_CMD = "flock -w {wait_seconds} -E {busy_exit_code} {lock_file}"
+LOCK_WAIT_SECONDS = 5
+# Remote exit codes that carry meaning for the recovery protocol. They sit
+# outside the ranges that sbatch, flock, zip and 7z use for their own errors.
+REMOTE_BUSY_EXIT_CODE = 200
+SUBMISSION_REJECTED_EXIT_CODE = 201
+# The shell's answer when a command, such as the lock command, is not found.
+COMMAND_NOT_FOUND_EXIT_CODE = 127
+
+# Remote marker and receipt files, all next to the data they describe.
+SUBMISSION_STATE_DIRECTORY = ".biomero-recovery"
+SUBMISSION_JOB_NAME_PREFIX = "biomero-"
+UNPACKED_MARKER_SUFFIX = ".biomero-unpacked"
+ARCHIVE_READY_SUFFIX = ".biomero-ready"
+ARCHIVE_PARTIAL_SUFFIX = ".biomero-partial"
+ARCHIVE_LOCK_SUFFIX = ".biomero-lock"
+# Files that helper jobs create next to results for locking; never archived.
+LOCK_FILE_PATTERN = f"*{ARCHIVE_LOCK_SUFFIX}"
+SCRIPT_UPDATE_LOCK_SUFFIX = ".biomero-update.lock"
+# Seconds a caller waits for the lock on the canonical shallower manifest.
+MANIFEST_LOCK_WAIT_SECONDS = 30
+TRANSFER_PARTIAL_SUFFIX = ".biomero-partial"
 
 
 class slurm_env:
@@ -73,6 +136,7 @@ class slurm_env:
     BIOMERO_GPU_GPUS = "BIOMERO_GPU_GPUS"
     BIOMERO_DEFAULT_PARTITION = "BIOMERO_DEFAULT_PARTITION"
     BIOMERO_SLURM_ZIP_CMD = "BIOMERO_SLURM_ZIP_CMD"
+    BIOMERO_SLURM_LOCK_CMD = "BIOMERO_SLURM_LOCK_CMD"
     BIOMERO_IMAGE_PULL_VIA_SBATCH = "BIOMERO_IMAGE_PULL_VIA_SBATCH"
     BIOMERO_PULL_CPUS = "BIOMERO_PULL_CPUS"
     BIOMERO_PULL_MEM = "BIOMERO_PULL_MEM"
@@ -285,6 +349,15 @@ class workflow_status:
     FAILED = "FAILED"
     RUNNING = "RUNNING"
     JOB_STATUS = "JOB_"
+
+
+class metadata_refresh_status:
+    """Lifecycle states of a metadata maintenance request."""
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    DONE = "DONE"
+    FAILED = "FAILED"
+    ACTIVE = (QUEUED, RUNNING)
 
 
 class schema_formats:

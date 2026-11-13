@@ -310,7 +310,9 @@ its request ID connects the initial activity to subsequent progress.
 Use **Slurm Check Setup** for configuration, image acquisition and metadata
 maintenance status. **Slurm Get Update** monitors analysis jobs and retrieves
 `omero-<job-id>.log`. Image acquisition has separate per-task logs under
-`<slurm_script_path>/image-pulls`.
+`<slurm_script_path>/image-pulls`, one folder per Slurm Init submission. Each
+submission removes the folders of earlier submissions that are older than seven
+days; a failed cleanup only logs a warning.
 
 ## Running a workflow
 

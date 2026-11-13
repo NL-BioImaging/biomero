@@ -26,8 +26,9 @@ inputs remains available when new shallowing is disabled; retain their sources
 and reconstruction dependencies.
 
 ``remote_shallow_zarr`` selects where eligible results are normalized. Its
-default is true, so enabling shallow storage prefers the remote CPU helper.
-Set it to false to normalize locally in the importer. It does not itself
+default is false (a missing or empty value too), so shallow storage normalizes
+locally in the importer. Set it to true to prefer the remote CPU helper; the
+demo deployment does so. It does not itself
 enable shallow storage or detached execution. The scripts enforce importer
 and shallow-storage eligibility; core additionally requires workflow tracking
 and a nonempty canonical-input manifest before submitting the helper.
@@ -77,10 +78,13 @@ it does not independently restart an entire pipeline. Slurm jobs may continue
 while the worker is unavailable. Recovery requires the tracking database and
 the corresponding input, output and container files to survive.
 
-Launcher ``CLAIMED`` is coordination state, not an analysis phase or proof
-that a workflow is still running. Workflow completion is recorded separately.
-The supported supervisor topology is one active supervisor per tracking
-database. A local remote-helper submission lock does not make the whole
+A supervisor's claim on the launcher task (a ``LauncherClaimed`` event with an
+owner and a lease) is coordination state, not an analysis phase or proof that a
+workflow is still running; 2.9 betas recorded it as the status ``CLAIMED``.
+Workflow completion is recorded separately. The claim keeps two supervisors from
+running the same workflow, but the supported topology is still one active
+supervisor per tracking database: metadata maintenance requests are not
+claimed, and a local remote-helper submission lock does not make the whole
 pipeline safe for multiple supervisors.
 
 **Remote helper interruption.** Core reuses a validated persisted report or

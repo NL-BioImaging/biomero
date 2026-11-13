@@ -12,56 +12,54 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing
 # permissions and limitations under the License.
-"""Queueing workflow runs for execution outside the requesting session.
+"""The detached-mode setting, and aliases for names that moved.
 
-A BIOMERO workflow run outlives the OMERO session that asks for it: data
-transfer, conversion, Slurm execution and result import together take longer
-than a browser tab or an OMERO session timeout can be relied on to last.
+A BIOMERO workflow run outlives the OMERO session that asks for it, so a
+script can queue the run in a *launcher task* and a supervisor (the OMERO
+processor in NL-BIOMERO) executes it. Core only provides the mechanisms:
 
-Detached mode splits that in two. The OMERO script validates the request,
-starts a workflow in the tracker and records everything the run needs in a
-*launcher task*, then returns. A supervisor elsewhere (the OMERO processor in
-NL-BIOMERO) finds that launcher task and executes the workflow in a background
-thread, driving the very same pipeline the script would have run inline.
+* the launcher marker and rule: ``constants.LAUNCHER_MARKER``,
+  ``WorkflowTracker.add_launcher_task`` and ``eventsourcing.is_launcher_task``;
+* task lookup and the atomic claim: ``WorkflowTracker.find_launcher_task``,
+  ``WorkflowTracker.claim_launcher_task`` and
+  ``WorkflowTracker.release_launcher_task``;
+* cancellation: ``WorkflowTracker.request_workflow_cancel`` and
+  ``SlurmClient.cancel_slurm_jobs``.
 
-This module holds the contract between those two halves: how a launcher task is
-recognized, how it is claimed so that only one worker runs it, and how a run
-that was interrupted can tell what it already did.
+The scripts decide what to record in a launcher task and how to resume a run;
+the supervisor decides which runs to execute. This module holds the one reader
+of the setting that switches the feature on, which the scripts and the
+supervisor all need, plus aliases that keep the names of the 2.9 betas
+working. The aliases are deprecated: use the names above.
 """
 
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+import warnings
 from uuid import UUID
 
 from biomero import constants
 
 logger = logging.getLogger(__name__)
 
-# The launcher marker, its scripts and the claim state live in constants (the
-# marker's value is the version of the script that queued the run). The claim
-# state is kept as the launcher task's status so it survives a restart of the
-# process that owns the worker.
-LAUNCHER_MARKER = constants.LAUNCHER_MARKER
-CLAIMED = constants.LEGACY_CLAIMED_STATUS
-LAUNCHER_TASK_NAMES = constants.LAUNCHER_TASK_NAMES
+# Owner recorded when a caller of the deprecated claim_launcher_task() does not
+# identify itself.
+LEGACY_CLAIM_OWNER = "legacy-supervisor"
 
-# A workflow may accumulate a great many tasks. The launcher is registered
-# immediately after the workflow is started, so only the first few tasks ever
-# need looking at to decide whether a workflow was queued for a supervisor.
-LAUNCHER_SCAN_LIMIT = 10
+# Names that moved out of core, and where they are now.
+MOVED_TO_SCRIPTS = {
+    "register_detached_launcher": "SLURM_Run_Workflow.py",
+    "load_task_history": "SLURM_Run_Workflow.py",
+    "task_completed": "SLURM_Run_Workflow.py",
+    "submitted_job": "SLURM_Run_Workflow.py",
+}
 
-
-def workflow_tracker():
-    """A handle on the workflow tracker's event store.
-
-    The view applications each keep their own event store, so an aggregate the
-    tracker created — here or in another process — can only be read through the
-    tracker's own store. Use this where there is no SlurmClient to borrow one
-    from.
-    """
-    from biomero.eventsourcing import WorkflowTracker
-    return WorkflowTracker()
+# Old constant names and the constants they now come from.
+RENAMED_CONSTANTS = {
+    "LAUNCHER_MARKER": constants.LAUNCHER_MARKER,
+    "LAUNCHER_TASK_NAMES": constants.LAUNCHER_TASK_NAMES,
+    "CLAIMED": constants.LEGACY_CLAIMED_STATUS,
+}
 
 
 def detached_mode_enabled() -> bool:
@@ -71,187 +69,83 @@ def detached_mode_enabled() -> bool:
     OMERO processor running the script, because it requires a supervisor to be
     present: without one, a queued run would never be executed. The variable
     is declared in constants.slurm_env so that the processor forwards it to the
-    script subprocesses it starts, which is where this is read.
-    """
-    return os.getenv(constants.slurm_env.BIOMERO_DETACHED_WORKFLOWS,
-                     "false").lower() in ("1", "true", "yes", "on")
-
-
-def register_detached_launcher(client, tracker, wf_id: UUID,
-                              task_name: str, script_version: str,
-                              selected_workflow_names: List[str],
-                              extra_params: Dict) -> UUID:
-    """Record everything a detached run needs, as a launcher task.
-
-    The task's params are the hand-over to the supervisor: every script input
-    (so the pipeline can read them back through a stand-in client) plus the
-    values the script derived from them.
-
-    Args:
-        client: OMERO script client whose inputs are being recorded.
-        tracker: Workflow tracker to record the task in.
-        wf_id: Workflow the launcher belongs to.
-        task_name: Name of the launching script, from LAUNCHER_TASK_NAMES.
-        script_version: Version of the launching script.
-        selected_workflow_names: Workflows the user actually chose.
-        extra_params: Derived values the pipeline needs (zipfile, group, ...).
+    script subprocesses it starts, which is where this is read. This is the
+    only reader of the variable: callers use this function.
 
     Returns:
-        UUID: The launcher task ID.
+        bool: True when the variable has one of constants.TRUTHY_VALUES.
     """
-    launcher_params = client.getInputs(unwrap=True) or {}
-    launcher_params.update(extra_params)
-    launcher_params["workflows"] = list(selected_workflow_names)
-    launcher_params[LAUNCHER_MARKER] = script_version
-    task_id = tracker.add_task_to_workflow(
-        wf_id,
-        task_name,
-        script_version,
-        launcher_params.get(constants.transfer.IDS),
-        launcher_params
-    )
-    logger.info(f"Queued detached workflow {wf_id} (launcher task {task_id}) "
-                f"for {list(selected_workflow_names)}")
-    return task_id
+    value = os.getenv(constants.slurm_env.BIOMERO_DETACHED_WORKFLOWS, "")
+    enabled = value.strip().lower() in constants.TRUTHY_VALUES
+    logger.debug(f"{constants.slurm_env.BIOMERO_DETACHED_WORKFLOWS}="
+                 f"{value!r}: detached mode "
+                 f"{'enabled' if enabled else 'disabled'}")
+    return enabled
+
+
+# -------------------- deprecated aliases -------------------- #
+
+def _warn_deprecated(old: str, new: str) -> None:
+    warnings.warn(f"biomero.detached.{old} is deprecated; use {new}",
+                  DeprecationWarning, stacklevel=3)
+
+
+def __getattr__(name: str):
+    """Serve the renamed constants, and explain the names that moved away."""
+    if name in RENAMED_CONSTANTS:
+        _warn_deprecated(name, f"biomero.constants (value of {name})")
+        return RENAMED_CONSTANTS[name]
+    if name in MOVED_TO_SCRIPTS:
+        raise AttributeError(
+            f"biomero.detached.{name} moved to biomero-scripts "
+            f"({MOVED_TO_SCRIPTS[name]}); core only keeps the mechanisms. "
+            f"Update biomero-scripts to the version released with this "
+            f"biomero.")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def is_launcher_task(task) -> bool:
-    """Whether a task aggregate is a launcher queued for a supervisor."""
-    params = getattr(task, "params", None) or {}
-    return (getattr(task, "task_name", None) in LAUNCHER_TASK_NAMES
-            and LAUNCHER_MARKER in params)
+    """Deprecated: use biomero.eventsourcing.is_launcher_task."""
+    from biomero.eventsourcing import is_launcher_task as launcher_rule
+    _warn_deprecated("is_launcher_task", "eventsourcing.is_launcher_task")
+    return launcher_rule(task)
+
+
+def workflow_tracker():
+    """Deprecated: use the SlurmClient's ``workflowTracker``."""
+    from biomero.eventsourcing import WorkflowTracker
+    _warn_deprecated("workflow_tracker", "SlurmClient.workflowTracker")
+    return WorkflowTracker()
 
 
 def find_launcher_task(tracker, wf_id: UUID):
-    """The launcher task of a workflow, if it has one.
+    """Deprecated: use ``WorkflowTracker.find_launcher_task``.
 
-    Args:
-        tracker: Workflow tracker to read the aggregates from.
-        wf_id: Workflow to inspect.
-
-    Returns:
-        The launcher Task aggregate, or None when this workflow was not queued
-        for a supervisor (or its tasks cannot be read).
+    Unlike before, read errors are raised instead of reported as "no
+    launcher".
     """
-    try:
-        workflow = tracker.repository.get(wf_id)
-    except Exception as e:
-        logger.warning(f"Could not read workflow {wf_id}: {e}")
-        return None
-    for task_id in getattr(workflow, "tasks", [])[:LAUNCHER_SCAN_LIMIT]:
-        try:
-            task = tracker.repository.get(task_id)
-        except Exception as e:
-            logger.warning(f"Could not read task {task_id}: {e}")
-            continue
-        if is_launcher_task(task):
-            return task
-    return None
+    _warn_deprecated("find_launcher_task",
+                     "WorkflowTracker.find_launcher_task")
+    return tracker.find_launcher_task(wf_id)
 
 
-def claim_launcher_task(tracker, task_id: UUID) -> None:
-    """Mark a launcher task as taken, so no second worker picks it up.
+def claim_launcher_task(tracker, task_id: UUID) -> bool:
+    """Deprecated: use ``WorkflowTracker.claim_launcher_task``.
 
-    The claim is the task's status, which is persisted in the task execution
-    view. A launcher still marked CLAIMED while no worker is running it is
-    therefore recognizable as a leftover from a previous process.
+    Claims the task as a fixed legacy owner, atomically.
     """
-    tracker.update_task_status(task_id, CLAIMED)
+    _warn_deprecated("claim_launcher_task",
+                     "WorkflowTracker.claim_launcher_task")
+    return tracker.claim_launcher_task(task_id, LEGACY_CLAIM_OWNER)
 
 
 def is_claimed(task) -> bool:
-    """Whether a launcher task was already claimed by a worker."""
-    return getattr(task, "status", None) == CLAIMED
+    """Deprecated: whether a launcher task is (or, in a 2.9 beta, was) claimed.
 
-
-def load_task_history(tracker, wf_id: UUID) -> List[Dict]:
-    """Summarize the tasks a workflow already has, to resume an interrupted run.
-
-    Whether a task finished is read from the task execution view rather than
-    from the aggregate: completing a task records a result message and an end
-    time, but leaves ``Task.status`` on the last status it was given (which for
-    a workflow task is a Slurm state).
-
-    Args:
-        tracker: Workflow tracker to read the aggregates from.
-        wf_id: Workflow to inspect.
-
-    Returns:
-        list: One dict per task, with keys ``name``, ``task_id``, ``job_ids``,
-            ``params``, ``completed`` and ``failed``. Empty when the history
-            cannot be read, so that a resumed run simply starts over.
+    A launcher whose status is the legacy CLAIMED, or that has a claim owner,
+    counts as claimed.
     """
-    from biomero.database import EngineManager, TaskExecution
-
-    history: List[Dict] = []
-    try:
-        workflow = tracker.repository.get(wf_id)
-    except Exception as e:
-        logger.warning(f"Could not read workflow {wf_id} for resume: {e}")
-        return history
-    task_ids = list(getattr(workflow, "tasks", []))
-    rows = {}
-    try:
-        with EngineManager.get_session() as session:
-            # Keyed by task: the execution view does not record which workflow
-            # a task belongs to.
-            for row in session.query(TaskExecution).filter(
-                    TaskExecution.task_id.in_(task_ids)).all():
-                rows[row.task_id] = row
-    except Exception as e:
-        logger.warning(f"Could not read task history of {wf_id}: {e}")
-        return history
-    for task_id in task_ids:
-        try:
-            task = tracker.repository.get(task_id)
-        except Exception as e:
-            logger.warning(f"Could not read task {task_id} for resume: {e}")
-            continue
-        row = rows.get(task_id)
-        history.append({
-            "name": task.task_name,
-            "task_id": task_id,
-            "job_ids": list(getattr(task, "job_ids", []) or []),
-            "params": getattr(task, "params", {}) or {},
-            "completed": bool(row is not None and row.end_time is not None
-                              and not row.error_type),
-            "failed": bool(row is not None and row.error_type),
-        })
-    return history
-
-
-def task_completed(history: List[Dict], task_names) -> bool:
-    """Whether one of the named tasks already completed for this workflow."""
-    return any(entry["completed"] and entry["name"] in task_names
-               for entry in history)
-
-
-def submitted_job(history: List[Dict], wf_name: str,
-                  import_task_names=()) -> Optional[Tuple[int, UUID]]:
-    """The Slurm job already submitted for a workflow, if there is one.
-
-    Args:
-        history: Task history from load_task_history().
-        wf_name: Workflow whose Slurm job is wanted.
-        import_task_names: Names of the result-import scripts. A job whose
-            results were already imported counts as not submitted, so that the
-            caller skips the workflow instead of importing it twice.
-
-    Returns:
-        tuple: ``(slurm_job_id, task_id)``, or None when the workflow still
-            has to be submitted.
-    """
-    for entry in history:
-        if entry["name"] != wf_name or not entry["job_ids"]:
-            continue
-        job_id = entry["job_ids"][0]
-        if any(other["completed"]
-               and other["name"] in import_task_names
-               and str(other["params"].get(
-                   constants.results.OUTPUT_SLURM_JOB_ID)) == str(job_id)
-               for other in history):
-            logger.info(f"Results of Slurm job {job_id} were already "
-                        f"imported; nothing left to do for {wf_name}.")
-            continue
-        return int(job_id), entry["task_id"]
-    return None
+    _warn_deprecated("is_claimed", "Task.claimed_by")
+    legacy_status = constants.LEGACY_CLAIMED_STATUS
+    return (getattr(task, "claimed_by", None) is not None
+            or getattr(task, "status", None) == legacy_status)

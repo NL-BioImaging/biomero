@@ -14,8 +14,11 @@
 # limitations under the License.
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.application import Application
+from eventsourcing.persistence import IntegrityError as EventStoreConflict
 from uuid import NAMESPACE_URL, UUID, uuid5
-from typing import Any, Dict, List, Mapping, Sequence, Union
+from datetime import datetime, timezone
+from typing import (Any, Dict, Iterator, List, Mapping, Optional, Sequence,
+                    Union)
 from copy import deepcopy
 from fabric import Result
 import logging
@@ -49,6 +52,19 @@ class ResultDict(dict):
         self['env'] = result.env
         self['stdout'] = result.stdout
         self['stderr'] = result.stderr
+
+
+class WorkflowInterrupted(Exception):
+    """Whoever runs a workflow must stop now, between its steps.
+
+    Deliberately not an ``InterruptedError``: that is an ``OSError``, which
+    ``except OSError`` handlers and the SSH recovery classifier would catch.
+    Stage handlers let it pass; subclasses say why the run stopped.
+    """
+
+
+class WorkflowCancelled(WorkflowInterrupted):
+    """A workflow was asked to cancel: stop, cancel its jobs, fail it."""
 
 
 # When updating Aggregate classes, take care of versioning for compatibility:
@@ -97,6 +113,9 @@ class WorkflowRun(Aggregate):
         self.tasks = []
         self.canonical_inputs = []
         self.canonical_inputs_export_task_id = None
+        self.cancel_requested = False
+        self.cancel_reason = None
+        self.finished = False
         # logger.debug(f"Initializing WorkflowRun: name={name}, description={description}, user={user}, group={group}")
 
     class TaskAdded(Aggregate.Event):
@@ -179,10 +198,44 @@ class WorkflowRun(Aggregate):
         """
         pass
 
+    def complete_workflow(self) -> bool:
+        """Complete the workflow, unless it already reached a final state.
+
+        The refusal is not part of the events, so streams that already contain
+        two final events still replay; only new transitions are refused.
+
+        Returns:
+            bool: False when the workflow was already final and nothing
+                was recorded.
+        """
+        if self._refuse_second_final_state("complete"):
+            return False
+        self._complete()
+        return True
+
     @event(WorkflowCompleted)
-    def complete_workflow(self):
-        # logger.debug(f"Completing workflow: id={self.id}")
-        pass
+    def _complete(self):
+        self.finished = True
+
+    def _refuse_second_final_state(self, wanted: str) -> bool:
+        if self.finished:
+            logger.warning(f"[WFT] Workflow {self.id} is already final; "
+                           f"refusing to {wanted} it again")
+        return self.finished
+
+    class CancelRequested(Aggregate.Event):
+        """
+        Event triggered when someone asks for the workflow to be cancelled.
+
+        Attributes:
+            reason (str): Why the workflow is cancelled, for the record.
+        """
+        reason: str
+
+    @event(CancelRequested)
+    def request_cancel(self, reason: str):
+        self.cancel_requested = True
+        self.cancel_reason = reason
 
     class WorkflowFailed(Aggregate.Event):
         """
@@ -193,10 +246,21 @@ class WorkflowRun(Aggregate):
         """
         error_message: str
 
+    def fail_workflow(self, error_message: str) -> bool:
+        """Fail the workflow, unless it already reached a final state.
+
+        Returns:
+            bool: False when the workflow was already final and nothing
+                was recorded.
+        """
+        if self._refuse_second_final_state("fail"):
+            return False
+        self._fail(error_message)
+        return True
+
     @event(WorkflowFailed)
-    def fail_workflow(self, error_message: str):
-        # logger.debug(f"Failing workflow: id={self.id}, error_message={error_message}")
-        pass
+    def _fail(self, error_message: str):
+        self.finished = True
 
 
 class Task(Aggregate):
@@ -213,6 +277,10 @@ class Task(Aggregate):
         results (list): List of results from the task execution.
         result_message (str): Message related to the result of the task.
         status (str): The current status of the task.
+        completed (bool): Whether the task was completed.
+        failed (bool): Whether the task failed.
+        claimed_by (str): The supervisor that holds the claim, for a launcher.
+        claimed_at (datetime): When that claim was made or last renewed.
     """
     INITIAL_VERSION = 0
 
@@ -254,6 +322,10 @@ class Task(Aggregate):
         # their TaskCreated event through this __init__, so they get it empty.
         self.storage_provenance = {}
         self.status = None
+        self.completed = False
+        self.failed = False
+        self.claimed_by = None
+        self.claimed_at = None
         # Not logging on aggregates, they get reconstructed so much
         # logger.debug(f"Initializing Task: workflow_id={workflow_id}, task_name={task_name}, task_version={task_version}")
 
@@ -285,6 +357,48 @@ class Task(Aggregate):
         # logger.debug(f"Adding status to Task: task_id={self.id}, status={status}")
         self.status = status
     
+    class LauncherClaimed(Aggregate.Event):
+        """
+        Event triggered when a supervisor claims (or renews its claim on) a
+        launcher task.
+
+        Attributes:
+            owner (str): Identity of the supervisor that holds the claim.
+            claimed_at (datetime): When the claim was made or last renewed.
+        """
+        owner: str
+        claimed_at: datetime
+
+    @event(LauncherClaimed)
+    def claim_launcher(self, owner: str, claimed_at: datetime):
+        self.claimed_by = owner
+        self.claimed_at = claimed_at
+
+    class LauncherReleased(Aggregate.Event):
+        """Event triggered when a supervisor gives its claim up."""
+        pass
+
+    @event(LauncherReleased)
+    def release_launcher(self):
+        self.claimed_by = None
+        self.claimed_at = None
+
+    def is_claimed_by_other(self, owner: str, now: datetime,
+                            lease_seconds: float) -> bool:
+        """Whether someone else holds a claim that has not expired yet.
+
+        Args:
+            owner (str): The supervisor that wants to claim the task.
+            now (datetime): The current time (timezone-aware).
+            lease_seconds (float): How long a claim stays valid.
+
+        Returns:
+            bool: True when another owner's claim is still within its lease.
+        """
+        if self.claimed_by is None or self.claimed_by == owner:
+            return False
+        return (now - self.claimed_at).total_seconds() < lease_seconds
+
     class ProgressUpdated(Aggregate.Event):
         """
         Event triggered when the task's progress is updated.
@@ -347,6 +461,7 @@ class Task(Aggregate):
     def complete_task(self, result: str):
         # logger.debug(f"Completing task: id={self.id}, result={result}")
         self.result_message = result
+        self.completed = True
 
     class TaskFailed(Aggregate.Event):
         """
@@ -361,16 +476,14 @@ class Task(Aggregate):
     def fail_task(self, error_message: str):
         # logger.debug(f"Failing task: id={self.id}, error_message={error_message}")
         self.result_message = error_message
-        pass
+        self.failed = True
 
-
-# -------------------- APPLICATIONS -------------------- #
 
 def is_launcher_task(task) -> bool:
     """Whether a task is a launcher queued for a detached supervisor.
 
     Works on a Task aggregate and on a Task.TaskCreated event alike, so every
-    reader (supervisor, views, metadata views) applies the same rule.
+    reader (supervisor, views, provenance) applies the same rule.
 
     Args:
         task: Anything with ``task_name`` and ``params``.
@@ -382,6 +495,8 @@ def is_launcher_task(task) -> bool:
     return (getattr(task, "task_name", None) in constants.LAUNCHER_TASK_NAMES
             and constants.LAUNCHER_MARKER in params)
 
+
+# -------------------- APPLICATIONS -------------------- #
 
 class NoOpWorkflowTracker:
     """
@@ -485,6 +600,45 @@ class WorkflowTracker(Application):
         self.save(workflow)
         EngineManager.safe_commit()
         return task.id
+
+    def add_launcher_task(self,
+                          workflow_id: UUID,
+                          task_name: str,
+                          task_version: str,
+                          input_data: Dict[str, Any],
+                          kwargs: Dict[str, Any]
+                          ) -> UUID:
+        """
+        Adds the launcher task that queues a workflow for a detached
+        supervisor: an ordinary task of a launching script, marked as launcher.
+
+        What goes into ``kwargs`` is up to the caller (the script knows what
+        its run needs); this only adds the marker, with the script version as
+        its value, to a copy of it.
+
+        Args:
+            workflow_id (UUID): The UUID of the workflow.
+            task_name (str): The launching script, one of
+                constants.LAUNCHER_TASK_NAMES.
+            task_version (str): The version of the launching script.
+            input_data (dict): Input data for the task.
+            kwargs (dict): Everything the supervisor needs to run the workflow.
+
+        Returns:
+            UUID: The UUID of the launcher task.
+
+        Raises:
+            ValueError: If the task name is not a launching script.
+        """
+        if task_name not in constants.LAUNCHER_TASK_NAMES:
+            raise ValueError(f"{task_name} cannot launch a detached run; "
+                             f"expected one of {constants.LAUNCHER_TASK_NAMES}")
+        launcher_params = {**kwargs, constants.LAUNCHER_MARKER: task_version}
+        task_id = self.add_task_to_workflow(
+            workflow_id, task_name, task_version, input_data, launcher_params)
+        logger.info(f"[WFT] Queued workflow {workflow_id} for a detached "
+                    f"supervisor (launcher task {task_id})")
+        return task_id
 
     @retry_on_database_conflict(max_retries=3)
     def record_canonical_inputs(
@@ -698,3 +852,220 @@ class WorkflowTracker(Application):
         task.update_task_progress(progress)
         self.save(task)
         EngineManager.safe_commit()
+
+    def iter_workflow_tasks(self, workflow_id: UUID) -> Iterator[Task]:
+        """
+        Yields the tasks of a workflow, in the order they were added.
+
+        Read errors are raised, not hidden: an unreadable history is not an
+        empty one.
+
+        Args:
+            workflow_id (UUID): The UUID of the workflow.
+
+        Yields:
+            Task: One task aggregate at a time.
+        """
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        for task_id in workflow.tasks:
+            yield self.repository.get(task_id)
+
+    def find_launcher_task(self, workflow_id: UUID) -> Optional[Task]:
+        """
+        Finds the launcher task that queued a workflow for a supervisor.
+
+        Args:
+            workflow_id (UUID): The UUID of the workflow.
+
+        Returns:
+            Task: The launcher task, or None when the workflow was not
+                queued for a supervisor.
+
+        Raises:
+            Exception: When the workflow or one of its tasks cannot be read.
+        """
+        launcher = next((task for task
+                         in self.iter_workflow_tasks(workflow_id)
+                         if is_launcher_task(task)), None)
+        logger.debug(f"[WFT] Launcher of workflow {workflow_id}: "
+                     f"{launcher.id if launcher else None}")
+        return launcher
+
+    def claim_launcher_task(
+            self, task_id: UUID, owner: str,
+            lease_seconds: float = constants.LAUNCHER_CLAIM_LEASE_SECONDS
+    ) -> bool:
+        """
+        Claims a launcher task for a supervisor, atomically.
+
+        This is a compare-and-set on the task's event stream: the claim is
+        appended as the next event of the task, and the event store accepts
+        only one event per position. When two supervisors read the same task
+        and both try to claim it, one of them loses and gets False.
+
+        A claim is valid for ``lease_seconds``. The owner renews it by
+        claiming again; a claim that was not renewed (for example because the
+        supervisor crashed) can be taken over by any other owner. Renew well
+        within the lease (the processor renews three times per lease). The
+        lease compares the claim's timestamp with this process's clock, so
+        supervisors must have clocks that agree to well within the lease; the
+        event-store position, not the clock, is what keeps two claims apart.
+
+        Args:
+            task_id (UUID): The launcher task to claim.
+            owner (str): Identity of the claiming supervisor.
+            lease_seconds (float, optional): How long a claim stays valid.
+                Defaults to constants.LAUNCHER_CLAIM_LEASE_SECONDS.
+
+        Returns:
+            bool: True when the caller now holds the claim.
+
+        Raises:
+            ValueError: If the task is not a launcher task.
+        """
+        task: Task = self.repository.get(task_id)
+        if not is_launcher_task(task):
+            raise ValueError(f"Task {task_id} is not a launcher task")
+        now = datetime.now(timezone.utc)
+        if task.is_claimed_by_other(owner, now, lease_seconds):
+            logger.debug(f"[WFT] Launcher {task_id} is claimed by "
+                         f"{task.claimed_by}, not claiming it for {owner}")
+            return False
+        task.claim_launcher(owner, now)
+        try:
+            self.save(task)
+            EngineManager.safe_commit()
+        except EventStoreConflict:
+            self._discard_failed_transaction()
+            logger.info(f"[WFT] Lost the claim on launcher {task_id} to "
+                        f"another supervisor; {owner} does not run it")
+            return False
+        logger.debug(f"[WFT] {owner} claimed launcher {task_id}")
+        return True
+
+    def release_launcher_task(self, task_id: UUID, owner: str) -> bool:
+        """
+        Gives a claim up, so another supervisor can take the run over at once
+        instead of after the lease has expired.
+
+        Args:
+            task_id (UUID): The launcher task.
+            owner (str): Identity of the supervisor that holds the claim.
+
+        Returns:
+            bool: True when the claim was released; False when the owner did
+                not hold it.
+        """
+        task: Task = self.repository.get(task_id)
+        if task.claimed_by != owner:
+            logger.debug(f"[WFT] {owner} does not hold launcher {task_id} "
+                         f"(held by {task.claimed_by}); nothing to release")
+            return False
+        task.release_launcher()
+        try:
+            self.save(task)
+            EngineManager.safe_commit()
+        except EventStoreConflict:
+            self._discard_failed_transaction()
+            logger.info(f"[WFT] Launcher {task_id} changed while {owner} "
+                        f"released it; leaving the claim to its new owner")
+            return False
+        logger.debug(f"[WFT] {owner} released launcher {task_id}")
+        return True
+
+    @retry_on_database_conflict(max_retries=3)
+    def request_workflow_cancel(self, workflow_id: UUID, reason: str) -> None:
+        """
+        Records that a workflow must be cancelled. Whoever executes the
+        workflow (the inline script or the detached supervisor) reads this
+        and stops; asking again changes nothing.
+
+        Args:
+            workflow_id (UUID): The workflow to cancel.
+            reason (str): Why, for the record.
+        """
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        if workflow.cancel_requested:
+            logger.debug(f"[WFT] Cancel of workflow {workflow_id} was "
+                         f"already requested")
+            return
+        logger.debug(f"[WFT] Requesting cancel of workflow {workflow_id}: "
+                     f"{reason}")
+        workflow.request_cancel(reason)
+        self.save(workflow)
+        EngineManager.safe_commit()
+
+    def is_workflow_cancel_requested(self, workflow_id: UUID) -> bool:
+        """
+        Whether a cancel was requested for the workflow.
+
+        Args:
+            workflow_id (UUID): The workflow to check.
+
+        Returns:
+            bool: True once request_workflow_cancel() was called for it.
+        """
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        return workflow.cancel_requested
+
+    def is_workflow_finished(self, workflow_id: UUID) -> bool:
+        """
+        Whether the workflow already completed or failed.
+
+        Args:
+            workflow_id (UUID): The workflow to check.
+
+        Returns:
+            bool: True once the workflow reached a final state.
+        """
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        return workflow.finished
+
+    def raise_if_cancel_requested(self, workflow_id: UUID) -> None:
+        """
+        Stops the caller when a cancel was requested for the workflow. Call it
+        between the steps of a workflow run.
+
+        Args:
+            workflow_id (UUID): The workflow that is being run.
+
+        Raises:
+            WorkflowCancelled: When request_workflow_cancel() was called.
+        """
+        workflow: WorkflowRun = self.repository.get(workflow_id)
+        if workflow.cancel_requested:
+            raise WorkflowCancelled(
+                f"Workflow {workflow_id} was cancelled: "
+                f"{workflow.cancel_reason}")
+
+    @staticmethod
+    def _discard_failed_transaction() -> None:
+        """Roll back after a rejected write, when there is a session."""
+        try:
+            EngineManager.rollback()
+        except AttributeError:
+            logger.debug("[WFT] No database session to roll back")
+
+    def commit_open_transaction(self) -> None:
+        """
+        Commits what was saved on a datastore that leaves the transaction to
+        its caller (the scoped-session store); other stores commit on save.
+
+        Use this after ``save()`` for aggregates that are not written through
+        one of the tracker's own methods.
+        """
+        scoped_session = getattr(
+            getattr(self.factory, "datastore", None), "scoped_session", None)
+        if scoped_session is not None:
+            scoped_session.commit()
+
+    def release_database_connections(self) -> None:
+        """
+        Gives this tracker's database connections back, for a thread that is
+        done with its own tracker.
+        """
+        datastore = getattr(self.factory, "datastore", None)
+        if getattr(datastore, "scoped_session", None) is not None:
+            datastore.scoped_session.remove()
+        elif getattr(datastore, "engine", None) is not None:
+            datastore.engine.dispose()

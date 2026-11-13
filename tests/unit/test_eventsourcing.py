@@ -1058,8 +1058,9 @@ def test_workflow_progress_task_started_persists_phase(
         assert workflow_view.progress == "25%"
 
 
+@pytest.mark.parametrize("claim", ["legacy_status", "claim_event"])
 def test_workflow_progress_ignores_detached_launcher_claim(
-        workflow_tracker_and_workflow_progress):
+        workflow_tracker_and_workflow_progress, claim):
     workflow_tracker, workflow_progress = (
         workflow_tracker_and_workflow_progress)
     workflow_id = workflow_tracker.initiate_workflow(
@@ -1072,7 +1073,11 @@ def test_workflow_progress_ignores_detached_launcher_claim(
         {"_biomero_detached_launcher": "v1"},
     )
 
-    workflow_tracker.update_task_status(launcher_id, "CLAIMED")
+    if claim == "legacy_status":
+        # How the 2.9 betas recorded a claim.
+        workflow_tracker.update_task_status(launcher_id, "CLAIMED")
+    else:
+        assert workflow_tracker.claim_launcher_task(launcher_id, "supervisor")
 
     assert workflow_progress.workflows[workflow_id]["status"] == (
         wfs.INITIALIZING)
@@ -2693,13 +2698,6 @@ def test_launcher_rule_needs_the_script_name_and_the_marker():
         SimpleNamespace(task_name="analysis", params=marked))
 
 
-def test_launcher_constants_are_shared_with_the_detached_module():
-    from biomero import constants, detached
-    assert detached.LAUNCHER_MARKER == constants.LAUNCHER_MARKER
-    assert detached.CLAIMED == constants.LEGACY_CLAIMED_STATUS == "CLAIMED"
-    assert detached.LAUNCHER_TASK_NAMES == constants.LAUNCHER_TASK_NAMES
-
-
 def test_import_biomero_exports_the_projections_but_not_their_helpers():
     import biomero
     import biomero.views as views
@@ -2742,3 +2740,14 @@ def test_failed_rollback_removes_the_session_and_raises_without_logging(caplog):
                 EngineManager.rollback()
     session.remove.assert_called_once_with()
     assert caplog.text == ""
+
+
+def test_stored_event_topics_of_the_aggregates_are_unchanged():
+    """Event classes are persisted by topic; renaming a method must not
+    change them."""
+    from eventsourcing.utils import get_topic
+    from biomero.eventsourcing import WorkflowRun
+    assert get_topic(WorkflowRun.CanonicalInputsRecorded) == (
+        "biomero.eventsourcing:WorkflowRun.CanonicalInputsRecorded")
+    assert get_topic(Task.StorageProvenanceRecorded) == (
+        "biomero.eventsourcing:Task.StorageProvenanceRecorded")

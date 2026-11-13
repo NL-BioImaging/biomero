@@ -11,7 +11,10 @@ from threading import Barrier
 
 import pytest
 
-from biomero.remote_shallower import _prepare_manifest, _submit_once
+from biomero import ssh_recovery
+from biomero.remote_shallower import (
+    publish_or_verify_manifest, _submit_helper_job)
+from biomero.slurm_client import SlurmClient
 
 
 pytestmark = pytest.mark.skipif(
@@ -20,6 +23,8 @@ pytestmark = pytest.mark.skipif(
 
 
 class LocalRemoteClient:
+    slurm_lock_cmd = SlurmClient._DEFAULT_SLURM_LOCK_CMD
+
     def __init__(self, environment=None):
         self.environment = dict(os.environ, **(environment or {}))
         self.uploads = []
@@ -29,20 +34,30 @@ class LocalRemoteClient:
                                 executable='/bin/sh', capture_output=True,
                                 text=True, env=self.environment, timeout=10)
         return SimpleNamespace(ok=result.returncode == 0, stdout=result.stdout,
-                               stderr=result.stderr)
+                               stderr=result.stderr,
+                               exited=result.returncode)
 
     def put(self, stream, path):
         self.uploads.append(path)
         Path(path).write_text(stream.read(), encoding='utf-8')
 
 
+def slurm_client_running_locally(environment=None):
+    """A SlurmClient whose commands run in the local shell (no recovery)."""
+    local = LocalRemoteClient(environment)
+    client = SlurmClient(config_only=True, ssh_recovery_timeout=0)
+    client.run_commands = lambda commands, **kwargs: local.run_commands(
+        commands, **kwargs)
+    return client
+
+
 def test_manifest_is_published_once_and_not_rewritten(tmp_path):
     client = LocalRemoteClient()
     manifest = tmp_path / 'canonical.json'
     canonical = SimpleNamespace(to_dict=lambda: {'inputs': [1]})
-    _prepare_manifest(client, str(manifest), canonical, submitted=False)
+    publish_or_verify_manifest(client, str(manifest), canonical, submitted=False)
     original = manifest.stat()
-    _prepare_manifest(client, str(manifest), canonical, submitted=True)
+    publish_or_verify_manifest(client, str(manifest), canonical, submitted=True)
     assert len(client.uploads) == 1
     assert client.uploads[0] != str(manifest)
     assert manifest.stat().st_ino == original.st_ino
@@ -57,7 +72,7 @@ def test_missing_manifest_after_intent_is_never_recreated(tmp_path, marker):
     manifest = tmp_path / 'canonical.json'
     canonical = SimpleNamespace(to_dict=lambda: {'inputs': [1]})
     with pytest.raises(RuntimeError, match='manifest'):
-        _prepare_manifest(LocalRemoteClient(), str(manifest), canonical,
+        publish_or_verify_manifest(LocalRemoteClient(), str(manifest), canonical,
                           submitted=False)
     assert not manifest.exists()
     assert not list(tmp_path.glob('*.tmp'))
@@ -72,7 +87,7 @@ def test_interrupted_upload_does_not_publish_partial_manifest(tmp_path):
     manifest = tmp_path / 'canonical.json'
     canonical = SimpleNamespace(to_dict=lambda: {'inputs': [1]})
     with pytest.raises(OSError, match='interrupted'):
-        _prepare_manifest(InterruptedClient(), str(manifest), canonical,
+        publish_or_verify_manifest(InterruptedClient(), str(manifest), canonical,
                           submitted=False)
     assert not manifest.exists()
     assert not list(tmp_path.glob('*.tmp'))
@@ -90,7 +105,7 @@ def test_concurrent_publishers_cannot_overwrite_a_different_manifest(tmp_path):
 
     def publish(value):
         try:
-            _prepare_manifest(ConcurrentClient(), str(manifest),
+            publish_or_verify_manifest(ConcurrentClient(), str(manifest),
                               SimpleNamespace(to_dict=lambda: {'value': value}),
                               submitted=False)
             return value
@@ -118,8 +133,9 @@ def test_recovery_reconciliation_uses_only_its_own_name(tmp_path):
     squeue.chmod(0o755)
     state = str(tmp_path / 'recovery')
     Path(state + '.intent').write_text('2026-01-01T00:00:00')
-    client = LocalRemoteClient({'PATH': str(fake_bin) + ':' + os.environ['PATH']})
-    assert _submit_once(client, 'exit 99', state,
+    client = slurm_client_running_locally(
+        {'PATH': str(fake_bin) + ':' + os.environ['PATH']})
+    assert _submit_helper_job(client, 'exit 99', state,
                         job_name='biomero-recovery-task') == 124
     assert Path(state + '.job').read_text().strip() == '124'
 
@@ -135,10 +151,11 @@ def test_old_unresolved_recovery_intent_is_not_resubmitted(tmp_path):
     squeue.chmod(0o755)
     state = str(tmp_path / 'recovery')
     Path(state + '.intent').write_text('2026-01-01T00:00:00')
-    client = LocalRemoteClient({'PATH': str(fake_bin) + ':' + os.environ['PATH']})
+    client = slurm_client_running_locally(
+        {'PATH': str(fake_bin) + ':' + os.environ['PATH']})
     marker = tmp_path / 'should-not-submit'
-    with pytest.raises(RuntimeError, match='unresolved'):
-        _submit_once(client, f'touch {marker}', state,
+    with pytest.raises(ssh_recovery.RemoteOperationStillPending):
+        _submit_helper_job(client, f'touch {marker}', state,
                      job_name='biomero-recovery-task')
     assert not Path(state + '.job').exists()
     assert not marker.exists()

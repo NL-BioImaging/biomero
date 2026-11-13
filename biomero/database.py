@@ -28,8 +28,10 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.exc import DBAPIError, OperationalError, IntegrityError
 from biomero.constants import slurm_env
 import os
+import threading
 import time
 import random
+import weakref
 from contextlib import contextmanager
 from functools import wraps
 
@@ -319,6 +321,15 @@ def _receive_after_create(target, connection, tables, **kw):
         CREATED_ANY_TABLES = True
     
 
+class EngineHolder:
+    """Identity token of one user of the database engine.
+
+    Users (``SlurmClient`` instances) cannot be compared or hashed by value
+    (Fabric connections are equal when their host is), so each owns a token.
+    """
+    __slots__ = ("__weakref__",)
+
+
 class EngineManager:
     """
     Manages the SQLAlchemy engine and session lifecycle.
@@ -327,10 +338,57 @@ class EngineManager:
         _engine: The SQLAlchemy engine used to connect to the database.
         _scoped_session_topic: The topic of the scoped session.
         _session: The scoped session used for database operations.
+        _holders: The live ``EngineHolder`` tokens that acquired the engine.
+            Weakly referenced, so a holder that is garbage collected without
+            releasing does not keep the engine alive.
     """
     _engine = None
     _scoped_session_topic = None
     _session = None
+    _holders = weakref.WeakSet()
+    _holders_lock = threading.Lock()
+
+    @classmethod
+    def acquire(cls, holder: EngineHolder, sqlalchemy_url: str = None) -> str:
+        """Create the scoped session for ``holder`` and register it as a user.
+
+        Creating the engine and registering the holder happen under one lock,
+        so a holder that exits meanwhile cannot dispose an engine that this
+        one is about to use.
+
+        Args:
+            holder (EngineHolder): The token of the new user.
+            sqlalchemy_url (str, optional): The SQLAlchemy database URL; see
+                ``create_scoped_session``.
+
+        Returns:
+            str: The topic of the scoped session adapter class.
+        """
+        with cls._holders_lock:
+            topic = cls.create_scoped_session(sqlalchemy_url=sqlalchemy_url)
+            cls._holders.add(holder)
+            return topic
+
+    @classmethod
+    def release(cls, holder: EngineHolder):
+        """Unregister ``holder``; dispose the engine with the last holder.
+
+        While other holders remain (the workflow supervisor runs several
+        clients), only this thread's session is removed. Deciding and
+        disposing happen under the lock of ``acquire``. Releasing a holder
+        twice, or one that never acquired, is harmless.
+
+        Args:
+            holder (EngineHolder): The token of the user that is done.
+        """
+        with cls._holders_lock:
+            cls._holders.discard(holder)
+            if cls._holders:
+                logger.debug("Other holders use the database engine; "
+                             "releasing only this thread's session")
+                cls.remove_session()
+            else:
+                cls.close_engine()
         
     @classmethod
     def _create_tables(cls):

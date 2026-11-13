@@ -138,8 +138,8 @@ Installing the Python package does not install the helper image on Slurm.
 For a deployment using shallow Zarr:
 
 1. Enable the importer integration and `BIOMERO_SHALLOW_ZARR=true`. Remote
-   shallowing is preferred when enabled; `BIOMERO_REMOTE_SHALLOW_ZARR=false`
-   selects local importer shallowing instead.
+   shallowing is enabled with `BIOMERO_REMOTE_SHALLOW_ZARR=true`; without it,
+   shallowing runs locally in the importer.
 2. Prefer a pinned `remote_shallower_image` in the `[SLURM]` section of
    `slurm-config.ini`; the fallback is `cellularimagingcf/biomero-shallower:latest`.
    Core reads the installed image's tool version unless `remote_shallower_version`
@@ -487,7 +487,7 @@ The `slurm-config.ini` file is a configuration file used by the `biomero` Python
 
 [**SSH**]: This section contains SSH settings, including the alias for the SLURM SSH connection (host). Additional SSH configuration can be specified in the user's SSH config file or in `/etc/fabric.yml`.
 
-[**SLURM**]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (`slurm_data_path`), container image files (`slurm_images_path`), converter images (`slurm_converters_path`), and Slurm job scripts (`slurm_script_path`). It also includes optional behavior flags and overrides such as `slurm_data_bind_path`, `slurm_conversion_partition`, `sacct_start_time`, `sacct_days_ago`, `env_file_submission`, `inject_gpu_flag`, `gpu_partition`, `gpu_gres`, `slurm_zip_cmd`, and the advanced `slurm_script_repo` setting.
+[**SLURM**]: This section includes settings specific to Slurm. It defines the paths on the SLURM entrypoint for storing data files (`slurm_data_path`), container image files (`slurm_images_path`), converter images (`slurm_converters_path`), and Slurm job scripts (`slurm_script_path`). It also includes optional behavior flags and overrides such as `slurm_data_bind_path`, `slurm_conversion_partition`, `sacct_start_time`, `sacct_days_ago`, `env_file_submission`, `inject_gpu_flag`, `gpu_partition`, `gpu_gres`, `slurm_zip_cmd`, `slurm_lock_cmd`, and the advanced `slurm_script_repo` setting.
 
 [**MODELS**]: This section is used to define different model settings. Each model has a unique key and requires corresponding values for `<key>_repo` (repository containing the descriptor.json file, which will describe parameters and where to find the image), and `<key>_job` (jobscript name and location in the `slurm_script_repo`). The example shows settings for several segmentation models, including Cellpose, Stardist, CellProfiler, DeepCell, and ImageJ.
 

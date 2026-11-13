@@ -38,11 +38,11 @@ Environment Variable Lookup Table
    * - ``BIOMERO_SLURM_CONFIG_FILE``
      - —
      - filesystem path
-     - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths
+     - Enables authoritative-file mode; only this ini file is read instead of merging the default config paths (an ignored explicit config file or a missing authoritative file is logged as a warning)
    * - ``BIOMERO_SSH_RECOVERY_TIMEOUT``
      - ``[SLURM] ssh_recovery_timeout``
      - nonnegative integer seconds
-     - Recovery window for replay-safe SSH operations; default ``900`` allows 15 minutes, including absent/empty configuration. Explicit ``0`` disables recovery. Runtime; no Slurm Init required. Submission/archive recovery requires flock and durable writable HPC storage.
+     - Recovery window for replay-safe SSH operations; default ``900`` allows 15 minutes, including absent/empty configuration. The same code runs for every value: ``0`` means no retries. Runtime; no Slurm Init required. Submission/archive recovery requires the lock command (``slurm_lock_cmd``), ``sacct`` and durable writable HPC storage.
    * - ``BIOMERO_DETACHED_WORKFLOWS``
      - not applicable
      - boolean
@@ -140,6 +140,10 @@ Environment Variable Lookup Table
      - string
      - Overrides the ZIP command used on the cluster; ``zip`` selects Info-ZIP
        and its matching ``unzip`` command, while other values use 7-Zip syntax
+   * - ``BIOMERO_SLURM_LOCK_CMD``
+     - ``slurm_lock_cmd``
+     - string template
+     - Overrides the lock command used on the cluster for submissions, extraction and archive creation; placeholders ``{wait_seconds}``, ``{busy_exit_code}``, ``{lock_file}``
    * - ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
      - ``analytics_rebuild_start_time``
      - string date
@@ -211,6 +215,14 @@ Environment Variable Lookup Table
      - integer or empty
      - unset
      - Relative history window; takes precedence over ``sacct_start_time``
+   * - ``job_status_attempts``
+     - integer
+     - ``5``
+     - How many times the job status check asks ``sacct`` while it returns no rows (a new job can take a while to appear) before failing
+   * - ``job_status_retry_seconds``
+     - integer
+     - ``3``
+     - Seconds to wait between those attempts
    * - ``env_file_submission``
      - boolean
      - ``false``
@@ -272,6 +284,10 @@ Environment Variable Lookup Table
      - ``$(command -v 7z || command -v 7za)``
      - Command used for ZIP creation and extraction on the HPC. Set to ``zip``
        to use the Info-ZIP ``zip``/``unzip`` pair.
+   * - ``slurm_lock_cmd``
+     - string template or empty
+     - ``flock -w {wait_seconds} -E {busy_exit_code} {lock_file}``
+     - Command that locks a file on the HPC before a script that must not run twice at once; checked during Slurm setup (WARNING if missing). See :ref:`ssh-recovery`.
    * - ``analytics_rebuild_start_time``
      - string date or empty
      - unset
@@ -300,8 +316,8 @@ The boolean and integer fallback rules below apply to options resolved by
 contract. ``BIOMERO_SHALLOW_ZARR`` is enabled only by the case-insensitive
 literal value ``true``; an absent or different value leaves the opt-in feature
 disabled. ``BIOMERO_DETACHED_WORKFLOWS`` accepts the case-insensitive values
-``1``, ``true``, ``yes`` and ``on``; it is disabled when absent or set to any
-other value.
+``1``, ``true``, ``yes``, ``y`` and ``on``; it is disabled when absent or set
+to any other value.
 
 Detached worker supervisor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -315,7 +331,8 @@ Detached worker supervisor
 
 The four detached variable names are centralized in
 ``biomero.constants.slurm_env`` and form one deployment contract. The workflow
-scripts and worker both read ``BIOMERO_DETACHED_WORKFLOWS``. The three
+scripts and worker both read ``BIOMERO_DETACHED_WORKFLOWS``, always through
+``biomero.detached.detached_mode_enabled()``. The three
 supervisor settings are consumed only by deployments that provide a detached
 workflow supervisor, such as the NL-BIOMERO ``biomeroworker`` container; they
 do not configure ``SlurmClient`` and do not need entries in
@@ -421,6 +438,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_APPTAINER_TMPDIR``
 * ``BIOMERO_APPTAINER_CACHEDIR``
 * ``BIOMERO_SLURM_ZIP_CMD``
+* ``BIOMERO_SLURM_LOCK_CMD``
 * ``BIOMERO_ANALYTICS_REBUILD_START_TIME``
 * ``BIOMERO_ANALYTICS_REBUILD_DAYS_AGO``
 * ``GPU_PARTITION``
@@ -432,10 +450,10 @@ Optional result shallower
 --------------------------
 
 The administrator-only CPU helper runs before result ZIP creation. All options
-are in ``[SLURM]``; environment values override ini values. Shallow Zarr remains
-opt-in; when enabled, remote shallowing is the default. Set
-``remote_shallow_zarr=false`` or ``BIOMERO_REMOTE_SHALLOW_ZARR=false`` to use
-local importer shallowing instead, for example to avoid extra Slurm costs.
+are in ``[SLURM]``; environment values override ini values. Remote shallowing
+is off unless you set ``remote_shallow_zarr=true`` (or
+``BIOMERO_REMOTE_SHALLOW_ZARR=true``); a missing or empty value keeps the local
+importer shallowing. Shallow Zarr itself must be enabled separately.
 The helper requests no GPU; workers
 set CPUs per task. Shallowing and recovery share conversion's resource
 merging: the helper partition overrides ``slurm_default_partition``, which
@@ -479,7 +497,7 @@ available until those tasks finish. Resource settings remain configurable.
      - Default
      - Environment variable
    * - ``remote_shallow_zarr``
-     - ``true`` (shallow Zarr must be enabled separately)
+     - ``false`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
    * - ``remote_shallower_image``
      - ``cellularimagingcf/biomero-shallower:latest``; prefer an ini pin
@@ -535,9 +553,11 @@ SSH Recovery
 ``[SLURM] ssh_recovery_timeout`` (environment
 ``BIOMERO_SSH_RECOVERY_TIMEOUT``) is the recovery window in seconds per
 interruption, starting at the first failure rather than operation start. Default:
-``900`` (15 minutes), also for absent or empty configuration. Explicit ``0``
-disables recovery. This applies to inline and detached workflows; expiry remains
-a terminal failure. For dependencies, submission reconciliation and limits, see
+``900`` (15 minutes), also for absent or empty configuration. The same code runs
+for every value: ``0`` means no retries. This applies to inline and detached
+workflows; expiry remains a terminal failure. The setting lives in ``[SLURM]``
+because it also governs the submission, extraction and archive operations on the
+cluster. For dependencies, submission reconciliation and limits, see
 :ref:`the SSH recovery section <ssh-recovery>` in :doc:`slurm-configuration`.
 
 Native connection/channel and short-read detection normally uses at most 30

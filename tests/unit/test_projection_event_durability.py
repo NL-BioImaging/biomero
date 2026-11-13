@@ -7,9 +7,9 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from biomero import SlurmClient
-from biomero.constants import RUN_WF_SCRIPT, workflow_status as wfs
+from biomero.constants import (LAUNCHER_MARKER, LEGACY_CLAIMED_STATUS,
+                               RUN_WF_SCRIPT, workflow_status as wfs)
 from biomero.database import EngineManager, TaskExecution, WorkflowProgressView
-from biomero.detached import CLAIMED, LAUNCHER_MARKER, find_launcher_task
 import biomero.views as views
 
 
@@ -99,7 +99,9 @@ def test_cold_client_terminal_event_survives_projection_rebuild(
         'durability fixture', 'no HPC submission', 1, 1)
     task_id = initial.workflowTracker.add_task_to_workflow(
         workflow_id, RUN_WF_SCRIPT, 'test', [], {LAUNCHER_MARKER: 'test'})
-    initial.workflowTracker.update_task_status(task_id, CLAIMED)
+    # A 2.9 beta stored its claim as a status; the current one is an event.
+    initial.workflowTracker.update_task_status(task_id, LEGACY_CLAIMED_STATUS)
+    assert initial.workflowTracker.claim_launcher_task(task_id, 'supervisor')
     before = events(observer, workflow_id)
     EngineManager.remove_session()
     cold = make_client(full)
@@ -116,7 +118,7 @@ def test_cold_client_terminal_event_survives_projection_rebuild(
     cold.initialize_analytics_system(reset_tables=True)
     assert events(observer, workflow_id) == expected
     assert workflow_status(observer, workflow_id) == expected_status
-    assert find_launcher_task(cold.workflowTracker, workflow_id).id == task_id
+    assert cold.workflowTracker.find_launcher_task(workflow_id).id == task_id
     # The detached supervisor discovers candidates with this projection filter.
     with observer.connect() as connection:
         candidates = connection.execute(WorkflowProgressView.__table__.select().where(

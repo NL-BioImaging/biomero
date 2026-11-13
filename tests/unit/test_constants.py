@@ -106,3 +106,13 @@ def test_deprecated_names_can_be_imported_from_the_module():
 def test_unknown_constant_is_an_attribute_error():
     with pytest.raises(AttributeError):
         constants.NO_SUCH_CONSTANT
+
+
+def test_script_output_names_are_a_contract_between_scripts():
+    """Producer and reader scripts must agree on these strings."""
+    assert constants.results.MESSAGE_OUTPUT == "Message"
+    assert constants.results.URL_OUTPUT == "URL"
+    assert constants.results.FILE_ANNOTATION_OUTPUT == "File_Annotation"
+    assert constants.results.RESULTS_PATH_OUTPUT == "Results_Path"
+    assert constants.results.CANONICAL_INPUTS_OUTPUT == "Canonical_Inputs"
+    assert constants.results.WORKFLOW_UUID_OUTPUT == "Workflow_UUID"

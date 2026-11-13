@@ -1,0 +1,2391 @@
+{
+  "format": 1,
+  "biomero_version": "2.0.0",
+  "recorded_on": "2026-11-13",
+  "recorded_with": {
+    "python": "3.12.2",
+    "eventsourcing": "9.3.0",
+    "eventsourcing_sqlalchemy": "0.9",
+    "sqlalchemy": "2.0.32"
+  },
+  "scenario": {
+    "workflows": {
+      "completed": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "failed": "e6623408-17ec-40a6-8a58-ad7670da971e",
+      "running": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+      "batched": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+      "legacy_owner": "702682ae-df79-4478-b819-02454c236a19"
+    },
+    "tasks": {
+      "completed.transfer": "9c67d03d-23d6-46e3-a763-3000b08605eb",
+      "completed.convert": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "completed.remote_conversion": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "completed.run": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "completed.results": "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+      "completed.import": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "failed.transfer": "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+      "failed.run": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "running.transfer": "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+      "running.run": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "running.results": "bbe01abb-d40e-4f80-82cd-68ba16279f3c",
+      "batched.file_transfer": "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+      "batched.batched": "defd4a7a-d458-418c-99f0-0a7b1beec78a",
+      "legacy_owner.run": "c694b03f-85dc-47aa-a5de-dd04784d81d5"
+    },
+    "metadata_refreshes": {},
+    "features": []
+  },
+  "events": [
+    {
+      "notification_id": 1,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowInitiated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.717779+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:WorkflowRun",
+        "name": "cellpose",
+        "description": "Completed run recorded for replay tests",
+        "user": 1,
+        "group": 3
+      }
+    },
+    {
+      "notification_id": 2,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.794249+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 3,
+      "originator_id": "9c67d03d-23d6-46e3-a763-3000b08605eb",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.816526+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "acc110b9e0e24138b80540b945b09daf"
+        },
+        "task_name": "_SLURM_Image_Transfer.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            101,
+            102
+          ]
+        },
+        "params": {
+          "Folder": "/data/input"
+        }
+      }
+    },
+    {
+      "notification_id": 4,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.864565+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "9c67d03d23d646e3a7633000b08605eb"
+        }
+      }
+    },
+    {
+      "notification_id": 5,
+      "originator_id": "9c67d03d-23d6-46e3-a763-3000b08605eb",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.917154+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 6,
+      "originator_id": "9c67d03d-23d6-46e3-a763-3000b08605eb",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.941211+00:00"
+        },
+        "result": "Exported 2 images"
+      }
+    },
+    {
+      "notification_id": 7,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:54.975004+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "acc110b9e0e24138b80540b945b09daf"
+        },
+        "task_name": "convert_zarr_to_tiff",
+        "task_version": "v0.9.1",
+        "input_data": {
+          "Image": [
+            101,
+            102
+          ]
+        },
+        "params": {
+          "to": "tiff"
+        }
+      }
+    },
+    {
+      "notification_id": 8,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.020922+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "16fe91c2019740ce98dd832fa905da85"
+        }
+      }
+    },
+    {
+      "notification_id": 9,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.075743+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 10,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.JobIdAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.097467+00:00"
+        },
+        "job_id": 1001
+      }
+    },
+    {
+      "notification_id": 11,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:Task.ResultAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.141617+00:00"
+        },
+        "result": {
+          "command": "sbatch job.sh",
+          "env": {},
+          "stdout": "Submitted batch job 1001\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "notification_id": 12,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.164152+00:00"
+        },
+        "status": "PENDING"
+      }
+    },
+    {
+      "notification_id": 13,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.231872+00:00"
+        },
+        "status": "RUNNING"
+      }
+    },
+    {
+      "notification_id": 14,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 6,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.291933+00:00"
+        },
+        "status": "COMPLETED"
+      }
+    },
+    {
+      "notification_id": 15,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 7,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.352018+00:00"
+        },
+        "progress": "50%"
+      }
+    },
+    {
+      "notification_id": 16,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 8,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.403144+00:00"
+        },
+        "progress": "100%"
+      }
+    },
+    {
+      "notification_id": 17,
+      "originator_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+      "originator_version": 9,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.547737+00:00"
+        },
+        "result": "Converted"
+      }
+    },
+    {
+      "notification_id": 18,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.585626+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "acc110b9e0e24138b80540b945b09daf"
+        },
+        "task_name": "SLURM_Remote_Conversion.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            101,
+            102
+          ]
+        },
+        "params": {
+          "to": "zarr"
+        }
+      }
+    },
+    {
+      "notification_id": 19,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.628626+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "0c60fd1d50e24661a196278d4ba97561"
+        }
+      }
+    },
+    {
+      "notification_id": 20,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.681908+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 21,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.JobIdAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.702453+00:00"
+        },
+        "job_id": 1004
+      }
+    },
+    {
+      "notification_id": 22,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:Task.ResultAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.744648+00:00"
+        },
+        "result": {
+          "command": "sbatch job.sh",
+          "env": {},
+          "stdout": "Submitted batch job 1004\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "notification_id": 23,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.765684+00:00"
+        },
+        "status": "PENDING"
+      }
+    },
+    {
+      "notification_id": 24,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.829058+00:00"
+        },
+        "status": "RUNNING"
+      }
+    },
+    {
+      "notification_id": 25,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 6,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.885444+00:00"
+        },
+        "status": "COMPLETED"
+      }
+    },
+    {
+      "notification_id": 26,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 7,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.941101+00:00"
+        },
+        "progress": "100%"
+      }
+    },
+    {
+      "notification_id": 27,
+      "originator_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+      "originator_version": 8,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:55.985234+00:00"
+        },
+        "result": "Converted remotely"
+      }
+    },
+    {
+      "notification_id": 28,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.017285+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "acc110b9e0e24138b80540b945b09daf"
+        },
+        "task_name": "cellpose",
+        "task_version": "v1.2.1",
+        "input_data": {
+          "Image": [
+            101,
+            102
+          ]
+        },
+        "params": {
+          "diameter": 30,
+          "model": "cyto"
+        }
+      }
+    },
+    {
+      "notification_id": 29,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.059968+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "34f21b0a646c411a9a3af8d02bb9e207"
+        }
+      }
+    },
+    {
+      "notification_id": 30,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.113259+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 31,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.JobIdAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.133845+00:00"
+        },
+        "job_id": 1002
+      }
+    },
+    {
+      "notification_id": 32,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:Task.ResultAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.174931+00:00"
+        },
+        "result": {
+          "command": "sbatch job.sh",
+          "env": {},
+          "stdout": "Submitted batch job 1002\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "notification_id": 33,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.195459+00:00"
+        },
+        "status": "PENDING"
+      }
+    },
+    {
+      "notification_id": 34,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.254580+00:00"
+        },
+        "status": "RUNNING"
+      }
+    },
+    {
+      "notification_id": 35,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 6,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.307881+00:00"
+        },
+        "status": "COMPLETED"
+      }
+    },
+    {
+      "notification_id": 36,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 7,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.363260+00:00"
+        },
+        "progress": "10%"
+      }
+    },
+    {
+      "notification_id": 37,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 8,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.409198+00:00"
+        },
+        "progress": "60%"
+      }
+    },
+    {
+      "notification_id": 38,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 9,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.451831+00:00"
+        },
+        "progress": "100%"
+      }
+    },
+    {
+      "notification_id": 39,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 10,
+      "topic": "biomero.eventsourcing:Task.JobIdAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.497788+00:00"
+        },
+        "job_id": 1003
+      }
+    },
+    {
+      "notification_id": 40,
+      "originator_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+      "originator_version": 11,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.538853+00:00"
+        },
+        "result": "Job 1002 completed"
+      }
+    },
+    {
+      "notification_id": 41,
+      "originator_id": "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.568894+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "acc110b9e0e24138b80540b945b09daf"
+        },
+        "task_name": "SLURM_Get_Results.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            101,
+            102
+          ]
+        },
+        "params": {
+          "slurm_job_id": 1002
+        }
+      }
+    },
+    {
+      "notification_id": 42,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 6,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.612500+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "bdc9760739164ecc85efee8c625f5305"
+        }
+      }
+    },
+    {
+      "notification_id": 43,
+      "originator_id": "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.661423+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 44,
+      "originator_id": "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.683477+00:00"
+        },
+        "result": "Retrieved 2 results"
+      }
+    },
+    {
+      "notification_id": 45,
+      "originator_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.714405+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "acc110b9e0e24138b80540b945b09daf"
+        },
+        "task_name": "SLURM_Import_Results.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            101,
+            102
+          ]
+        },
+        "params": {
+          "slurm_job_id": 1002
+        }
+      }
+    },
+    {
+      "notification_id": 46,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 7,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.756939+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "c47c8e74c09044f2b17c3f3678753658"
+        }
+      }
+    },
+    {
+      "notification_id": 47,
+      "originator_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.809549+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 48,
+      "originator_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.830583+00:00"
+        },
+        "status": "IMPORTING"
+      }
+    },
+    {
+      "notification_id": 49,
+      "originator_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.883584+00:00"
+        },
+        "status": "IMPORTED"
+      }
+    },
+    {
+      "notification_id": 50,
+      "originator_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.937162+00:00"
+        },
+        "status": "POSTPROCESSING"
+      }
+    },
+    {
+      "notification_id": 51,
+      "originator_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:56.995546+00:00"
+        },
+        "result": "Imported 2 results"
+      }
+    },
+    {
+      "notification_id": 52,
+      "originator_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+      "originator_version": 8,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.028088+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 53,
+      "originator_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowInitiated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.060795+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:WorkflowRun",
+        "name": "cellexpansion",
+        "description": "Failed run recorded for replay tests",
+        "user": 2,
+        "group": 3
+      }
+    },
+    {
+      "notification_id": 54,
+      "originator_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.113701+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 55,
+      "originator_id": "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.132718+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "e662340817ec40a68a58ad7670da971e"
+        },
+        "task_name": "_SLURM_Image_Transfer.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            201
+          ]
+        },
+        "params": {}
+      }
+    },
+    {
+      "notification_id": 56,
+      "originator_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.175340+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "e630668a0c8f4e8d8db8153d30d2ffad"
+        }
+      }
+    },
+    {
+      "notification_id": 57,
+      "originator_id": "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.225882+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 58,
+      "originator_id": "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.245167+00:00"
+        },
+        "result": "Exported 1 image"
+      }
+    },
+    {
+      "notification_id": 59,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.273231+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "e662340817ec40a68a58ad7670da971e"
+        },
+        "task_name": "cellexpansion",
+        "task_version": "v1.0.0",
+        "input_data": {
+          "Image": [
+            201
+          ]
+        },
+        "params": {
+          "expansion": 5
+        }
+      }
+    },
+    {
+      "notification_id": 60,
+      "originator_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.314452+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "37119b691a5c40418839410541d2d16f"
+        }
+      }
+    },
+    {
+      "notification_id": 61,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.363819+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 62,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.JobIdAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.384203+00:00"
+        },
+        "job_id": 1100
+      }
+    },
+    {
+      "notification_id": 63,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:Task.ResultAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.426249+00:00"
+        },
+        "result": {
+          "command": "sbatch job.sh",
+          "env": {},
+          "stdout": "Submitted batch job 1100\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "notification_id": 64,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.446258+00:00"
+        },
+        "status": "PENDING"
+      }
+    },
+    {
+      "notification_id": 65,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.502969+00:00"
+        },
+        "status": "RUNNING"
+      }
+    },
+    {
+      "notification_id": 66,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 6,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.557453+00:00"
+        },
+        "status": "FAILED"
+      }
+    },
+    {
+      "notification_id": 67,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 7,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.616745+00:00"
+        },
+        "progress": "20%"
+      }
+    },
+    {
+      "notification_id": 68,
+      "originator_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+      "originator_version": 8,
+      "topic": "biomero.eventsourcing:Task.TaskFailed",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.663802+00:00"
+        },
+        "error_message": "Slurm job 1100 ended in state FAILED"
+      }
+    },
+    {
+      "notification_id": 69,
+      "originator_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowFailed",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.696403+00:00"
+        },
+        "error_message": "Slurm job 1100 ended in state FAILED"
+      }
+    },
+    {
+      "notification_id": 70,
+      "originator_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowInitiated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.728037+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:WorkflowRun",
+        "name": "stardist",
+        "description": "Running run recorded for replay tests",
+        "user": 1,
+        "group": 4
+      }
+    },
+    {
+      "notification_id": 71,
+      "originator_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.780502+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 72,
+      "originator_id": "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.799024+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "1952147f1cf448d49154cbbbd53f1ec2"
+        },
+        "task_name": "_SLURM_Image_Transfer.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            301
+          ]
+        },
+        "params": {}
+      }
+    },
+    {
+      "notification_id": 73,
+      "originator_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.843086+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "8141a0ee7bbe4590ada9c15bd5825668"
+        }
+      }
+    },
+    {
+      "notification_id": 74,
+      "originator_id": "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.894199+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 75,
+      "originator_id": "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.915139+00:00"
+        },
+        "result": "Exported 1 image"
+      }
+    },
+    {
+      "notification_id": 76,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.945672+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "1952147f1cf448d49154cbbbd53f1ec2"
+        },
+        "task_name": "stardist",
+        "task_version": "v2.0.0",
+        "input_data": {
+          "Image": [
+            301
+          ]
+        },
+        "params": {
+          "prob": 0.5
+        }
+      }
+    },
+    {
+      "notification_id": 77,
+      "originator_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:57.990967+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "311bbd8ba87a4f4092cbf487b57c016e"
+        }
+      }
+    },
+    {
+      "notification_id": 78,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.040851+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 79,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.JobIdAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.062044+00:00"
+        },
+        "job_id": 1200
+      }
+    },
+    {
+      "notification_id": 80,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:Task.ResultAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.103749+00:00"
+        },
+        "result": {
+          "command": "sbatch job.sh",
+          "env": {},
+          "stdout": "Submitted batch job 1200\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "notification_id": 81,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.125522+00:00"
+        },
+        "status": "PENDING"
+      }
+    },
+    {
+      "notification_id": 82,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 5,
+      "topic": "biomero.eventsourcing:Task.ProgressUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.182388+00:00"
+        },
+        "progress": "43%"
+      }
+    },
+    {
+      "notification_id": 83,
+      "originator_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+      "originator_version": 6,
+      "topic": "biomero.eventsourcing:Task.StatusUpdated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.224643+00:00"
+        },
+        "status": "RUNNING"
+      }
+    },
+    {
+      "notification_id": 84,
+      "originator_id": "bbe01abb-d40e-4f80-82cd-68ba16279f3c",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.276458+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "1952147f1cf448d49154cbbbd53f1ec2"
+        },
+        "task_name": "SLURM_Get_Results.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            301
+          ]
+        },
+        "params": {}
+      }
+    },
+    {
+      "notification_id": 85,
+      "originator_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+      "originator_version": 4,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.318973+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "bbe01abbd40e4f8082cd68ba16279f3c"
+        }
+      }
+    },
+    {
+      "notification_id": 86,
+      "originator_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowInitiated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.367512+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:WorkflowRun",
+        "name": "batched",
+        "description": "Batched run recorded for replay tests",
+        "user": 1,
+        "group": 3
+      }
+    },
+    {
+      "notification_id": 87,
+      "originator_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.423400+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 88,
+      "originator_id": "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.444435+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "469dcdd772c84ecaa128b0f05e870027"
+        },
+        "task_name": "_SLURM_File_Transfer.py",
+        "task_version": "1.0",
+        "input_data": {
+          "File": [
+            11
+          ]
+        },
+        "params": {}
+      }
+    },
+    {
+      "notification_id": 89,
+      "originator_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.488822+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "8f394f276b4d443ea4ab1dfb0039a565"
+        }
+      }
+    },
+    {
+      "notification_id": 90,
+      "originator_id": "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.545141+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 91,
+      "originator_id": "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.567804+00:00"
+        },
+        "result": "Transferred 1 file"
+      }
+    },
+    {
+      "notification_id": 92,
+      "originator_id": "defd4a7a-d458-418c-99f0-0a7b1beec78a",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.597915+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "469dcdd772c84ecaa128b0f05e870027"
+        },
+        "task_name": "SLURM_Run_Workflow_Batched.py",
+        "task_version": "1.0",
+        "input_data": {
+          "Image": [
+            401,
+            402
+          ]
+        },
+        "params": {
+          "batch": 1
+        }
+      }
+    },
+    {
+      "notification_id": 93,
+      "originator_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.639456+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "defd4a7ad458418c99f00a7b1beec78a"
+        }
+      }
+    },
+    {
+      "notification_id": 94,
+      "originator_id": "defd4a7a-d458-418c-99f0-0a7b1beec78a",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.688785+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 95,
+      "originator_id": "702682ae-df79-4478-b819-02454c236a19",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowInitiated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.709949+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:WorkflowRun",
+        "name": "legacy",
+        "description": "Workflow without owner recorded for replay tests",
+        "user": -1,
+        "group": -1
+      }
+    },
+    {
+      "notification_id": 96,
+      "originator_id": "702682ae-df79-4478-b819-02454c236a19",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.766780+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 97,
+      "originator_id": "c694b03f-85dc-47aa-a5de-dd04784d81d5",
+      "originator_version": 0,
+      "topic": "biomero.eventsourcing:Task.TaskCreated",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.787341+00:00"
+        },
+        "originator_topic": "biomero.eventsourcing:Task",
+        "workflow_id": {
+          "_type_": "uuid_hex",
+          "_data_": "702682aedf794478b81902454c236a19"
+        },
+        "task_name": "legacy",
+        "task_version": "v0.1.0",
+        "input_data": {
+          "Image": [
+            501
+          ]
+        },
+        "params": {}
+      }
+    },
+    {
+      "notification_id": 98,
+      "originator_id": "702682ae-df79-4478-b819-02454c236a19",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:WorkflowRun.TaskAdded",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.828667+00:00"
+        },
+        "task_id": {
+          "_type_": "uuid_hex",
+          "_data_": "c694b03f85dc47aaa5dedd04784d81d5"
+        }
+      }
+    },
+    {
+      "notification_id": 99,
+      "originator_id": "c694b03f-85dc-47aa-a5de-dd04784d81d5",
+      "originator_version": 1,
+      "topic": "biomero.eventsourcing:Task.TaskStarted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.883376+00:00"
+        }
+      }
+    },
+    {
+      "notification_id": 100,
+      "originator_id": "c694b03f-85dc-47aa-a5de-dd04784d81d5",
+      "originator_version": 2,
+      "topic": "biomero.eventsourcing:Task.TaskCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.902905+00:00"
+        },
+        "result": "Done"
+      }
+    },
+    {
+      "notification_id": 101,
+      "originator_id": "702682ae-df79-4478-b819-02454c236a19",
+      "originator_version": 3,
+      "topic": "biomero.eventsourcing:WorkflowRun.WorkflowCompleted",
+      "state": {
+        "timestamp": {
+          "_type_": "datetime_iso",
+          "_data_": "2026-11-13T13:57:58.938878+00:00"
+        }
+      }
+    }
+  ],
+  "expected": {
+    "aggregates": {
+      "acc110b9-e0e2-4138-b805-40b945b09daf": {
+        "class": "WorkflowRun",
+        "version": 8,
+        "state": {
+          "id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "version": 8,
+          "created_on": "2026-11-13T13:57:54.717779+00:00",
+          "modified_on": "2026-11-13T13:57:57.028088+00:00",
+          "name": "cellpose",
+          "description": "Completed run recorded for replay tests",
+          "user": 1,
+          "group": 3,
+          "tasks": [
+            "9c67d03d-23d6-46e3-a763-3000b08605eb",
+            "16fe91c2-0197-40ce-98dd-832fa905da85",
+            "0c60fd1d-50e2-4661-a196-278d4ba97561",
+            "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+            "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+            "c47c8e74-c090-44f2-b17c-3f3678753658"
+          ]
+        }
+      },
+      "9c67d03d-23d6-46e3-a763-3000b08605eb": {
+        "class": "Task",
+        "version": 2,
+        "state": {
+          "id": "9c67d03d-23d6-46e3-a763-3000b08605eb",
+          "version": 2,
+          "created_on": "2026-11-13T13:57:54.816526+00:00",
+          "modified_on": "2026-11-13T13:57:54.941211+00:00",
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "task_name": "_SLURM_Image_Transfer.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              101,
+              102
+            ]
+          },
+          "params": {
+            "Folder": "/data/input"
+          },
+          "job_ids": [],
+          "results": [],
+          "result_message": "Exported 2 images",
+          "status": null
+        }
+      },
+      "16fe91c2-0197-40ce-98dd-832fa905da85": {
+        "class": "Task",
+        "version": 9,
+        "state": {
+          "id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+          "version": 9,
+          "created_on": "2026-11-13T13:57:54.975004+00:00",
+          "modified_on": "2026-11-13T13:57:55.547737+00:00",
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "task_name": "convert_zarr_to_tiff",
+          "task_version": "v0.9.1",
+          "input_data": {
+            "Image": [
+              101,
+              102
+            ]
+          },
+          "params": {
+            "to": "tiff"
+          },
+          "job_ids": [
+            1001
+          ],
+          "results": [
+            {
+              "command": "sbatch job.sh",
+              "env": {},
+              "stdout": "Submitted batch job 1001\n",
+              "stderr": ""
+            }
+          ],
+          "result_message": "Converted",
+          "status": "COMPLETED",
+          "progress": "100%"
+        }
+      },
+      "0c60fd1d-50e2-4661-a196-278d4ba97561": {
+        "class": "Task",
+        "version": 8,
+        "state": {
+          "id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+          "version": 8,
+          "created_on": "2026-11-13T13:57:55.585626+00:00",
+          "modified_on": "2026-11-13T13:57:55.985234+00:00",
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "task_name": "SLURM_Remote_Conversion.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              101,
+              102
+            ]
+          },
+          "params": {
+            "to": "zarr"
+          },
+          "job_ids": [
+            1004
+          ],
+          "results": [
+            {
+              "command": "sbatch job.sh",
+              "env": {},
+              "stdout": "Submitted batch job 1004\n",
+              "stderr": ""
+            }
+          ],
+          "result_message": "Converted remotely",
+          "status": "COMPLETED",
+          "progress": "100%"
+        }
+      },
+      "34f21b0a-646c-411a-9a3a-f8d02bb9e207": {
+        "class": "Task",
+        "version": 11,
+        "state": {
+          "id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+          "version": 11,
+          "created_on": "2026-11-13T13:57:56.017285+00:00",
+          "modified_on": "2026-11-13T13:57:56.538853+00:00",
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "task_name": "cellpose",
+          "task_version": "v1.2.1",
+          "input_data": {
+            "Image": [
+              101,
+              102
+            ]
+          },
+          "params": {
+            "diameter": 30,
+            "model": "cyto"
+          },
+          "job_ids": [
+            1002,
+            1003
+          ],
+          "results": [
+            {
+              "command": "sbatch job.sh",
+              "env": {},
+              "stdout": "Submitted batch job 1002\n",
+              "stderr": ""
+            }
+          ],
+          "result_message": "Job 1002 completed",
+          "status": "COMPLETED",
+          "progress": "100%"
+        }
+      },
+      "bdc97607-3916-4ecc-85ef-ee8c625f5305": {
+        "class": "Task",
+        "version": 2,
+        "state": {
+          "id": "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+          "version": 2,
+          "created_on": "2026-11-13T13:57:56.568894+00:00",
+          "modified_on": "2026-11-13T13:57:56.683477+00:00",
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "task_name": "SLURM_Get_Results.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              101,
+              102
+            ]
+          },
+          "params": {
+            "slurm_job_id": 1002
+          },
+          "job_ids": [],
+          "results": [],
+          "result_message": "Retrieved 2 results",
+          "status": null
+        }
+      },
+      "c47c8e74-c090-44f2-b17c-3f3678753658": {
+        "class": "Task",
+        "version": 5,
+        "state": {
+          "id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+          "version": 5,
+          "created_on": "2026-11-13T13:57:56.714405+00:00",
+          "modified_on": "2026-11-13T13:57:56.995546+00:00",
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "task_name": "SLURM_Import_Results.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              101,
+              102
+            ]
+          },
+          "params": {
+            "slurm_job_id": 1002
+          },
+          "job_ids": [],
+          "results": [],
+          "result_message": "Imported 2 results",
+          "status": "POSTPROCESSING"
+        }
+      },
+      "e6623408-17ec-40a6-8a58-ad7670da971e": {
+        "class": "WorkflowRun",
+        "version": 4,
+        "state": {
+          "id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+          "version": 4,
+          "created_on": "2026-11-13T13:57:57.060795+00:00",
+          "modified_on": "2026-11-13T13:57:57.696403+00:00",
+          "name": "cellexpansion",
+          "description": "Failed run recorded for replay tests",
+          "user": 2,
+          "group": 3,
+          "tasks": [
+            "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+            "37119b69-1a5c-4041-8839-410541d2d16f"
+          ]
+        }
+      },
+      "e630668a-0c8f-4e8d-8db8-153d30d2ffad": {
+        "class": "Task",
+        "version": 2,
+        "state": {
+          "id": "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+          "version": 2,
+          "created_on": "2026-11-13T13:57:57.132718+00:00",
+          "modified_on": "2026-11-13T13:57:57.245167+00:00",
+          "workflow_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+          "task_name": "_SLURM_Image_Transfer.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              201
+            ]
+          },
+          "params": {},
+          "job_ids": [],
+          "results": [],
+          "result_message": "Exported 1 image",
+          "status": null
+        }
+      },
+      "37119b69-1a5c-4041-8839-410541d2d16f": {
+        "class": "Task",
+        "version": 8,
+        "state": {
+          "id": "37119b69-1a5c-4041-8839-410541d2d16f",
+          "version": 8,
+          "created_on": "2026-11-13T13:57:57.273231+00:00",
+          "modified_on": "2026-11-13T13:57:57.663802+00:00",
+          "workflow_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+          "task_name": "cellexpansion",
+          "task_version": "v1.0.0",
+          "input_data": {
+            "Image": [
+              201
+            ]
+          },
+          "params": {
+            "expansion": 5
+          },
+          "job_ids": [
+            1100
+          ],
+          "results": [
+            {
+              "command": "sbatch job.sh",
+              "env": {},
+              "stdout": "Submitted batch job 1100\n",
+              "stderr": ""
+            }
+          ],
+          "result_message": "Slurm job 1100 ended in state FAILED",
+          "status": "FAILED",
+          "progress": "20%"
+        }
+      },
+      "1952147f-1cf4-48d4-9154-cbbbd53f1ec2": {
+        "class": "WorkflowRun",
+        "version": 4,
+        "state": {
+          "id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+          "version": 4,
+          "created_on": "2026-11-13T13:57:57.728037+00:00",
+          "modified_on": "2026-11-13T13:57:58.318973+00:00",
+          "name": "stardist",
+          "description": "Running run recorded for replay tests",
+          "user": 1,
+          "group": 4,
+          "tasks": [
+            "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+            "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+            "bbe01abb-d40e-4f80-82cd-68ba16279f3c"
+          ]
+        }
+      },
+      "8141a0ee-7bbe-4590-ada9-c15bd5825668": {
+        "class": "Task",
+        "version": 2,
+        "state": {
+          "id": "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+          "version": 2,
+          "created_on": "2026-11-13T13:57:57.799024+00:00",
+          "modified_on": "2026-11-13T13:57:57.915139+00:00",
+          "workflow_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+          "task_name": "_SLURM_Image_Transfer.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              301
+            ]
+          },
+          "params": {},
+          "job_ids": [],
+          "results": [],
+          "result_message": "Exported 1 image",
+          "status": null
+        }
+      },
+      "311bbd8b-a87a-4f40-92cb-f487b57c016e": {
+        "class": "Task",
+        "version": 6,
+        "state": {
+          "id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+          "version": 6,
+          "created_on": "2026-11-13T13:57:57.945672+00:00",
+          "modified_on": "2026-11-13T13:57:58.224643+00:00",
+          "workflow_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+          "task_name": "stardist",
+          "task_version": "v2.0.0",
+          "input_data": {
+            "Image": [
+              301
+            ]
+          },
+          "params": {
+            "prob": 0.5
+          },
+          "job_ids": [
+            1200
+          ],
+          "results": [
+            {
+              "command": "sbatch job.sh",
+              "env": {},
+              "stdout": "Submitted batch job 1200\n",
+              "stderr": ""
+            }
+          ],
+          "result_message": null,
+          "status": "RUNNING",
+          "progress": "43%"
+        }
+      },
+      "bbe01abb-d40e-4f80-82cd-68ba16279f3c": {
+        "class": "Task",
+        "version": 0,
+        "state": {
+          "id": "bbe01abb-d40e-4f80-82cd-68ba16279f3c",
+          "version": 0,
+          "created_on": "2026-11-13T13:57:58.276458+00:00",
+          "modified_on": "2026-11-13T13:57:58.276458+00:00",
+          "workflow_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+          "task_name": "SLURM_Get_Results.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              301
+            ]
+          },
+          "params": {},
+          "job_ids": [],
+          "results": [],
+          "result_message": null,
+          "status": null
+        }
+      },
+      "469dcdd7-72c8-4eca-a128-b0f05e870027": {
+        "class": "WorkflowRun",
+        "version": 3,
+        "state": {
+          "id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+          "version": 3,
+          "created_on": "2026-11-13T13:57:58.367512+00:00",
+          "modified_on": "2026-11-13T13:57:58.639456+00:00",
+          "name": "batched",
+          "description": "Batched run recorded for replay tests",
+          "user": 1,
+          "group": 3,
+          "tasks": [
+            "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+            "defd4a7a-d458-418c-99f0-0a7b1beec78a"
+          ]
+        }
+      },
+      "8f394f27-6b4d-443e-a4ab-1dfb0039a565": {
+        "class": "Task",
+        "version": 2,
+        "state": {
+          "id": "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+          "version": 2,
+          "created_on": "2026-11-13T13:57:58.444435+00:00",
+          "modified_on": "2026-11-13T13:57:58.567804+00:00",
+          "workflow_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+          "task_name": "_SLURM_File_Transfer.py",
+          "task_version": "1.0",
+          "input_data": {
+            "File": [
+              11
+            ]
+          },
+          "params": {},
+          "job_ids": [],
+          "results": [],
+          "result_message": "Transferred 1 file",
+          "status": null
+        }
+      },
+      "defd4a7a-d458-418c-99f0-0a7b1beec78a": {
+        "class": "Task",
+        "version": 1,
+        "state": {
+          "id": "defd4a7a-d458-418c-99f0-0a7b1beec78a",
+          "version": 1,
+          "created_on": "2026-11-13T13:57:58.597915+00:00",
+          "modified_on": "2026-11-13T13:57:58.688785+00:00",
+          "workflow_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+          "task_name": "SLURM_Run_Workflow_Batched.py",
+          "task_version": "1.0",
+          "input_data": {
+            "Image": [
+              401,
+              402
+            ]
+          },
+          "params": {
+            "batch": 1
+          },
+          "job_ids": [],
+          "results": [],
+          "result_message": null,
+          "status": null
+        }
+      },
+      "702682ae-df79-4478-b819-02454c236a19": {
+        "class": "WorkflowRun",
+        "version": 3,
+        "state": {
+          "id": "702682ae-df79-4478-b819-02454c236a19",
+          "version": 3,
+          "created_on": "2026-11-13T13:57:58.709949+00:00",
+          "modified_on": "2026-11-13T13:57:58.938878+00:00",
+          "name": "legacy",
+          "description": "Workflow without owner recorded for replay tests",
+          "user": -1,
+          "group": -1,
+          "tasks": [
+            "c694b03f-85dc-47aa-a5de-dd04784d81d5"
+          ]
+        }
+      },
+      "c694b03f-85dc-47aa-a5de-dd04784d81d5": {
+        "class": "Task",
+        "version": 2,
+        "state": {
+          "id": "c694b03f-85dc-47aa-a5de-dd04784d81d5",
+          "version": 2,
+          "created_on": "2026-11-13T13:57:58.787341+00:00",
+          "modified_on": "2026-11-13T13:57:58.902905+00:00",
+          "workflow_id": "702682ae-df79-4478-b819-02454c236a19",
+          "task_name": "legacy",
+          "task_version": "v0.1.0",
+          "input_data": {
+            "Image": [
+              501
+            ]
+          },
+          "params": {},
+          "job_ids": [],
+          "results": [],
+          "result_message": "Done",
+          "status": null
+        }
+      }
+    },
+    "views": {
+      "biomero_job_view": [
+        {
+          "slurm_job_id": 1001,
+          "user": 1,
+          "group": 3,
+          "task_id": "16fe91c2-0197-40ce-98dd-832fa905da85"
+        },
+        {
+          "slurm_job_id": 1002,
+          "user": 1,
+          "group": 3,
+          "task_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207"
+        },
+        {
+          "slurm_job_id": 1003,
+          "user": 1,
+          "group": 3,
+          "task_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207"
+        },
+        {
+          "slurm_job_id": 1004,
+          "user": 1,
+          "group": 3,
+          "task_id": "0c60fd1d-50e2-4661-a196-278d4ba97561"
+        },
+        {
+          "slurm_job_id": 1100,
+          "user": 2,
+          "group": 3,
+          "task_id": "37119b69-1a5c-4041-8839-410541d2d16f"
+        },
+        {
+          "slurm_job_id": 1200,
+          "user": 1,
+          "group": 4,
+          "task_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e"
+        }
+      ],
+      "biomero_job_progress_view": [
+        {
+          "slurm_job_id": 1001,
+          "status": "COMPLETED",
+          "progress": "100%"
+        },
+        {
+          "slurm_job_id": 1002,
+          "status": "COMPLETED",
+          "progress": "100%"
+        },
+        {
+          "slurm_job_id": 1004,
+          "status": "COMPLETED",
+          "progress": "100%"
+        },
+        {
+          "slurm_job_id": 1100,
+          "status": "FAILED",
+          "progress": "20%"
+        },
+        {
+          "slurm_job_id": 1200,
+          "status": "RUNNING",
+          "progress": "43%"
+        }
+      ],
+      "biomero_workflow_progress_view": [
+        {
+          "workflow_id": "1952147f-1cf4-48d4-9154-cbbbd53f1ec2",
+          "status": "JOB_RUNNING",
+          "progress": "67.2%",
+          "user": 1,
+          "group": 4,
+          "name": "stardist",
+          "task": "stardist",
+          "main_task_name": "stardist",
+          "start_time": "2026-11-13T13:57:57.728037"
+        },
+        {
+          "workflow_id": "469dcdd7-72c8-4eca-a128-b0f05e870027",
+          "status": "INITIALIZING",
+          "progress": "0%",
+          "user": 1,
+          "group": 3,
+          "name": "batched",
+          "task": null,
+          "main_task_name": null,
+          "start_time": "2026-11-13T13:57:58.367512"
+        },
+        {
+          "workflow_id": "702682ae-df79-4478-b819-02454c236a19",
+          "status": "DONE",
+          "progress": "100%",
+          "user": -1,
+          "group": -1,
+          "name": "legacy",
+          "task": "legacy",
+          "main_task_name": "legacy",
+          "start_time": "2026-11-13T13:57:58.709949"
+        },
+        {
+          "workflow_id": "acc110b9-e0e2-4138-b805-40b945b09daf",
+          "status": "DONE",
+          "progress": "100%",
+          "user": 1,
+          "group": 3,
+          "name": "cellpose",
+          "task": "SLURM_Import_Results.py",
+          "main_task_name": "cellpose",
+          "start_time": "2026-11-13T13:57:54.717779"
+        },
+        {
+          "workflow_id": "e6623408-17ec-40a6-8a58-ad7670da971e",
+          "status": "FAILED",
+          "progress": "50%",
+          "user": 2,
+          "group": 3,
+          "name": "cellexpansion",
+          "task": "cellexpansion",
+          "main_task_name": "cellexpansion",
+          "start_time": "2026-11-13T13:57:57.060795"
+        }
+      ],
+      "biomero_task_execution": [
+        {
+          "task_id": "0c60fd1d-50e2-4661-a196-278d4ba97561",
+          "task_name": "SLURM_Remote_Conversion.py",
+          "task_version": "1.0",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "COMPLETED",
+          "start_time": "2026-11-13T13:57:55.585626",
+          "end_time": "2026-11-13T13:57:55.985234",
+          "error_type": null
+        },
+        {
+          "task_id": "16fe91c2-0197-40ce-98dd-832fa905da85",
+          "task_name": "convert_zarr_to_tiff",
+          "task_version": "v0.9.1",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "COMPLETED",
+          "start_time": "2026-11-13T13:57:54.975004",
+          "end_time": "2026-11-13T13:57:55.547737",
+          "error_type": null
+        },
+        {
+          "task_id": "311bbd8b-a87a-4f40-92cb-f487b57c016e",
+          "task_name": "stardist",
+          "task_version": "v2.0.0",
+          "user_id": 1,
+          "group_id": 4,
+          "status": "RUNNING",
+          "start_time": "2026-11-13T13:57:57.945672",
+          "end_time": null,
+          "error_type": null
+        },
+        {
+          "task_id": "34f21b0a-646c-411a-9a3a-f8d02bb9e207",
+          "task_name": "cellpose",
+          "task_version": "v1.2.1",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "COMPLETED",
+          "start_time": "2026-11-13T13:57:56.017285",
+          "end_time": "2026-11-13T13:57:56.538853",
+          "error_type": null
+        },
+        {
+          "task_id": "37119b69-1a5c-4041-8839-410541d2d16f",
+          "task_name": "cellexpansion",
+          "task_version": "v1.0.0",
+          "user_id": 2,
+          "group_id": 3,
+          "status": "FAILED",
+          "start_time": "2026-11-13T13:57:57.273231",
+          "end_time": "2026-11-13T13:57:57.663802",
+          "error_type": "Slurm job 1100 ended in state FAILED"
+        },
+        {
+          "task_id": "8141a0ee-7bbe-4590-ada9-c15bd5825668",
+          "task_name": "_SLURM_Image_Transfer.py",
+          "task_version": "1.0",
+          "user_id": 1,
+          "group_id": 4,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:57.799024",
+          "end_time": "2026-11-13T13:57:57.915139",
+          "error_type": null
+        },
+        {
+          "task_id": "8f394f27-6b4d-443e-a4ab-1dfb0039a565",
+          "task_name": "_SLURM_File_Transfer.py",
+          "task_version": "1.0",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:58.444435",
+          "end_time": "2026-11-13T13:57:58.567804",
+          "error_type": null
+        },
+        {
+          "task_id": "9c67d03d-23d6-46e3-a763-3000b08605eb",
+          "task_name": "_SLURM_Image_Transfer.py",
+          "task_version": "1.0",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:54.816526",
+          "end_time": "2026-11-13T13:57:54.941211",
+          "error_type": null
+        },
+        {
+          "task_id": "bbe01abb-d40e-4f80-82cd-68ba16279f3c",
+          "task_name": "SLURM_Get_Results.py",
+          "task_version": "1.0",
+          "user_id": null,
+          "group_id": null,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:58.276458",
+          "end_time": null,
+          "error_type": null
+        },
+        {
+          "task_id": "bdc97607-3916-4ecc-85ef-ee8c625f5305",
+          "task_name": "SLURM_Get_Results.py",
+          "task_version": "1.0",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:56.568894",
+          "end_time": "2026-11-13T13:57:56.683477",
+          "error_type": null
+        },
+        {
+          "task_id": "c47c8e74-c090-44f2-b17c-3f3678753658",
+          "task_name": "SLURM_Import_Results.py",
+          "task_version": "1.0",
+          "user_id": 1,
+          "group_id": 3,
+          "status": "POSTPROCESSING",
+          "start_time": "2026-11-13T13:57:56.714405",
+          "end_time": "2026-11-13T13:57:56.995546",
+          "error_type": null
+        },
+        {
+          "task_id": "c694b03f-85dc-47aa-a5de-dd04784d81d5",
+          "task_name": "legacy",
+          "task_version": "v0.1.0",
+          "user_id": -1,
+          "group_id": -1,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:58.787341",
+          "end_time": "2026-11-13T13:57:58.902905",
+          "error_type": null
+        },
+        {
+          "task_id": "defd4a7a-d458-418c-99f0-0a7b1beec78a",
+          "task_name": "SLURM_Run_Workflow_Batched.py",
+          "task_version": "1.0",
+          "user_id": null,
+          "group_id": null,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:58.597915",
+          "end_time": null,
+          "error_type": null
+        },
+        {
+          "task_id": "e630668a-0c8f-4e8d-8db8-153d30d2ffad",
+          "task_name": "_SLURM_Image_Transfer.py",
+          "task_version": "1.0",
+          "user_id": 2,
+          "group_id": 3,
+          "status": "CREATED",
+          "start_time": "2026-11-13T13:57:57.132718",
+          "end_time": "2026-11-13T13:57:57.245167",
+          "error_type": null
+        }
+      ]
+    }
+  }
+}

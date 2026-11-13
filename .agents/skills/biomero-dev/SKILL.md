@@ -247,3 +247,21 @@ Read only the relevant reference before acting:
 Before drafting a stable or beta release body, read the current
 [shared component release-note guide](https://github.com/NL-BioImaging/NL-BIOMERO/blob/master/.agents/skills/omero-biomero-expert/references/component-release-notes.md).
 Keep the format in that single source; do not copy it into this repository.
+
+## Release step: record the event history
+
+Each core release adds its event history to the replay tests, so that later
+releases keep replaying what installs of this one stored. The mechanism is in
+`docs/developer/eventsourcing.rst` ("Event history replay").
+
+- Run `python tests/replay/record_history.py <version>` and commit the
+  fixture through a PR. The script installs the release from PyPI, so record
+  only after the release is published.
+- Skip the step only when
+  `git diff <previous-tag> -- biomero/eventsourcing.py biomero/maintenance.py pyproject.toml`
+  is empty.
+- Stable 2.9.0 must be recorded: it adds `LauncherClaimed`, `LauncherReleased`
+  and `CancelRequested`.
+- Never edit or re-record a fixture. A change to events or aggregates must keep
+  `test_replay_histories` green; a break that slipped through is caught at the
+  next release's recording.

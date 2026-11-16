@@ -11,6 +11,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing
+# permissions and limitations under the License.
 """Settings for where BIOMERO stores its files.
 
 The folder that holds imported workflow results is a deployment setting, like
@@ -33,7 +34,8 @@ def read_analyzed_data_folder() -> str:
     The environment is read on every call, so a changed value applies to new
     runs only. This is the only reader of the variable: callers use this
     function. The name must be a single folder name, because anything else
-    would put results outside BIOMERO's own folder.
+    would put results outside BIOMERO's own folder. Surrounding whitespace is
+    removed; an empty or whitespace-only value counts as unset.
 
     Returns:
         str: The value of ANALYZED_DATA_FOLDER when it is exactly one folder
@@ -61,10 +63,10 @@ def _is_single_folder_name(value: str) -> bool:
         value (str): The candidate name.
 
     Returns:
-        bool: False for separators (``/`` or a backslash), ``.``, ``..`` and
-            absolute paths (including Windows drive paths).
+        bool: False when the value contains ``/`` or a backslash (which also
+            excludes absolute paths), or is ``.`` or ``..``. Any other value
+            is a legal folder name, including ``C:`` on Linux.
     """
     has_separator = "/" in value or "\\" in value
     is_relative_marker = value in {".", ".."}
-    has_drive = len(value) > 1 and value[1] == ":"
-    return not (has_separator or is_relative_marker or has_drive)
+    return not (has_separator or is_relative_marker)

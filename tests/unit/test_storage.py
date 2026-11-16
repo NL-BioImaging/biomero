@@ -21,10 +21,23 @@ def test_empty_returns_default_without_warning(monkeypatch, caplog, value):
     assert not caplog.records
 
 
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_default_is_logged_at_debug(monkeypatch, caplog, value):
+    if value is None:
+        monkeypatch.delenv(VARIABLE, raising=False)
+    else:
+        monkeypatch.setenv(VARIABLE, value)
+    with caplog.at_level(logging.DEBUG, logger="biomero.storage"):
+        storage.read_analyzed_data_folder()
+    assert [record.levelno for record in caplog.records] == [logging.DEBUG]
+    assert VARIABLE in caplog.records[0].getMessage()
+
+
 @pytest.mark.parametrize("value, expected", [
     (".results", ".results"),
     ("  analyzed  ", "analyzed"),
     ("my.folder", "my.folder"),
+    ("C:", "C:"),
 ])
 def test_valid_single_folder_name_is_used(monkeypatch, caplog, value,
                                           expected):
@@ -35,7 +48,7 @@ def test_valid_single_folder_name_is_used(monkeypatch, caplog, value,
 
 
 @pytest.mark.parametrize("value", [
-    "a/b", "/abs", "..\\x", "a\\b", ".", "..", "../x", "C:\\data", "C:",
+    "a/b", "/abs", "..\\x", "a\\b", ".", "..", "../x", "C:\\data",
 ])
 def test_invalid_value_warns_and_returns_default(monkeypatch, caplog, value):
     monkeypatch.setenv(VARIABLE, value)

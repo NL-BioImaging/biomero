@@ -74,7 +74,7 @@ Environment Variable Lookup Table
    * - ``ANALYZED_DATA_FOLDER``
      - not applicable
      - folder name
-     - Name of the folder under a group's storage that holds imported workflow results (``<group folder>/<name>/<workflow>/<timestamp>``); defaults to ``.analyzed`` when unset or empty. Read by the BIOMERO scripts on ``biomeroworker``.
+     - Name of the folder under a group's storage that holds imported workflow results (``<group folder>/<name>/<workflow>/<timestamp>``); surrounding whitespace is removed; defaults to ``.analyzed`` when unset, empty or whitespace-only, or invalid (contains ``/`` or ``\``, or is ``.`` or ``..``; logged as a warning). Read by the BIOMERO scripts on ``biomeroworker``.
    * - ``BIOMERO_SACCT_START_TIME``
      - ``sacct_start_time``
      - string date
@@ -370,8 +370,10 @@ workflow results, as ``<group folder>/<ANALYZED_DATA_FOLDER>/<workflow>/<timesta
 It is optional and defaults to ``.analyzed``. It is read by the BIOMERO scripts on
 ``biomeroworker`` through ``biomero.storage.read_analyzed_data_folder``, every time
 a script needs it, not from ``slurm-config.ini``. The value must be exactly one folder
-name: a value with ``/`` or ``\``, ``.``, ``..`` or an absolute path is ignored with a
-warning in the log, and the default is used. NL-BIOMERO's processor forwards names
+name. Surrounding whitespace is removed, and an empty or whitespace-only value counts
+as unset (the default is used, without a warning). A value that contains ``/`` or ``\``,
+or is ``.`` or ``..``, is invalid: it is ignored with a warning in the log and the
+default is used. NL-BIOMERO's processor forwards names
 registered in ``biomero.constants.slurm_env`` to OMERO script subprocesses, so set the
 variable in the ``biomeroworker`` environment. Changing it affects new runs only:
 existing results keep their stored absolute paths and are neither moved nor renamed.

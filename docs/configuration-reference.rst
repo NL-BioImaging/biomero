@@ -376,7 +376,10 @@ or is ``.`` or ``..``, is invalid: it is ignored with a warning in the log and t
 default is used. NL-BIOMERO's processor forwards names
 registered in ``biomero.constants.slurm_env`` to OMERO script subprocesses, so set the
 variable in the ``biomeroworker`` environment. Changing it affects new runs only:
-existing results keep their stored absolute paths and are neither moved nor renamed.
+existing results keep their stored paths and are neither moved nor renamed. Change it
+only while no workflows are running: a run in progress looks for its earlier import
+attempt and lock folder under the current name, so a change mid-run can leave a
+partial result folder under the old name.
 
 Boolean parsing
 ~~~~~~~~~~~~~~~

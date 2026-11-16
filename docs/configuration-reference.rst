@@ -71,6 +71,10 @@ Environment Variable Lookup Table
      - not applicable
      - subfolder name
      - Importer-library setting for new preprocessing outputs and canonical Zarr copies; defaults to ``.processed`` when unset. For a custom folder with ``BIOMERO_SHALLOW_ZARR=true``, set the same value on ``biomeroworker`` as on the importer container. No worker setting is needed when shallow-Zarr is disabled.
+   * - ``ANALYZED_DATA_FOLDER``
+     - not applicable
+     - folder name
+     - Name of the folder under a group's storage that holds imported workflow results (``<group folder>/<name>/<workflow>/<timestamp>``); defaults to ``.analyzed`` when unset or empty. Read by the BIOMERO scripts on ``biomeroworker``.
    * - ``BIOMERO_SACCT_START_TIME``
      - ``sacct_start_time``
      - string date
@@ -361,6 +365,17 @@ environment, and its BIOMERO and importer libraries must support this setting.
 Existing canonical locations are read from stored metadata; changing the variable
 neither relocates existing data nor rewrites those references.
 
+``ANALYZED_DATA_FOLDER`` names the folder where the BIOMERO scripts store imported
+workflow results, as ``<group folder>/<ANALYZED_DATA_FOLDER>/<workflow>/<timestamp>``.
+It is optional and defaults to ``.analyzed``. It is read by the BIOMERO scripts on
+``biomeroworker`` through ``biomero.storage.read_analyzed_data_folder``, every time
+a script needs it, not from ``slurm-config.ini``. The value must be exactly one folder
+name: a value with ``/`` or ``\``, ``.``, ``..`` or an absolute path is ignored with a
+warning in the log, and the default is used. NL-BIOMERO's processor forwards names
+registered in ``biomero.constants.slurm_env`` to OMERO script subprocesses, so set the
+variable in the ``biomeroworker`` environment. Changing it affects new runs only:
+existing results keep their stored absolute paths and are neither moved nor renamed.
+
 Boolean parsing
 ~~~~~~~~~~~~~~~
 
@@ -425,6 +440,7 @@ If you are looking for a specific name, try searching the docs for any of these 
 * ``BIOMERO_SUPERVISOR_STARTUP_GRACE_SECONDS``
 * ``BIOMERO_SHALLOW_ZARR``
 * ``PROCESSED_DATA_FOLDER``
+* ``ANALYZED_DATA_FOLDER``
 * ``BIOMERO_SACCT_START_DAYS_AGO``
 * ``BIOMERO_ENV_FILE_SUBMISSION``
 * ``BIOMERO_INJECT_GPU_FLAG``

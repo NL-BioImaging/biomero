@@ -42,6 +42,13 @@ biomero.detached module
    :members: detached_mode_enabled
    :show-inheritance:
 
+biomero.storage module
+----------------------
+
+.. automodule:: biomero.storage
+   :members:
+   :show-inheritance:
+
 biomero.maintenance module
 --------------------------
 

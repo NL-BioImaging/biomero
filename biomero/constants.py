@@ -156,6 +156,7 @@ class slurm_env:
     )
     BIOMERO_SHALLOW_ZARR = "BIOMERO_SHALLOW_ZARR"
     PROCESSED_DATA_FOLDER = "PROCESSED_DATA_FOLDER"
+    ANALYZED_DATA_FOLDER = "ANALYZED_DATA_FOLDER"
     SQLALCHEMY_URL = "SQLALCHEMY_URL"
     BIOMERO_SACCT_START_TIME = "BIOMERO_SACCT_START_TIME"
     BIOMERO_SACCT_START_DAYS_AGO = "BIOMERO_SACCT_START_DAYS_AGO"
@@ -244,6 +245,10 @@ class workflow:
 
 
 class results:
+    # Folder in a group's storage that holds imported workflow results, used
+    # unless the ANALYZED_DATA_FOLDER setting names another one.
+    DEFAULT_ANALYZED_DATA_FOLDER = ".analyzed"
+
     # ------------------------------------------------------------
     # SLURM_Get_Results script constants
     # ------------------------------------------------------------

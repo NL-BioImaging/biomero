@@ -33,6 +33,11 @@ def test_processed_data_folder_environment_name_is_stable():
     assert constants.slurm_env.PROCESSED_DATA_FOLDER == "PROCESSED_DATA_FOLDER"
 
 
+def test_analyzed_data_folder_environment_name_and_default_are_stable():
+    assert constants.slurm_env.ANALYZED_DATA_FOLDER == "ANALYZED_DATA_FOLDER"
+    assert constants.results.DEFAULT_ANALYZED_DATA_FOLDER == ".analyzed"
+
+
 def test_shallow_reconstruction_transfer_input_is_stable():
     assert (
         constants.transfer.RECONSTRUCT_SHALLOW_ZARR

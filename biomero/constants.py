@@ -29,6 +29,9 @@ RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
 IMPORT_RESULTS_SCRIPT = "SLURM_Import_Results.py"
+# Admin script that records a cancel request for a workflow. OMERO.biomero
+# launches it by this name (with the ``cancel_workflow`` params below).
+CANCEL_WORKFLOW_SCRIPT = "SLURM_Cancel_Workflow.py"
 # Name of the workflow task that records one remote shallower (helper) run.
 REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
@@ -405,6 +408,22 @@ class file_transfer:
     PARAM_SLOT = "Param_Slot"
     FOLDER = "Folder_Name"
     FORMAT = "Allowed_Formats"
+    # Output: absolute Slurm path of the transferred file. Set by
+    # _SLURM_File_Transfer.py, read by SLURM_Run_Workflow.py.
+    SLURM_PATH_OUTPUT = "Slurm_Path"
+
+
+class cancel_workflow:
+    """Params of the cancel script (``CANCEL_WORKFLOW_SCRIPT``).
+
+    SLURM_Cancel_Workflow.py declares them; OMERO.biomero launches the script
+    with them. Its ``Message`` output is ``results.MESSAGE_OUTPUT``.
+    """
+
+    # UUID of the workflow to cancel.
+    WORKFLOW_ID = "Workflow_ID"
+    # Optional text recorded as the reason the workflow failed.
+    REASON = "Reason"
 
 
 class workflow_status:

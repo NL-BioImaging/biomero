@@ -35,7 +35,8 @@ REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 # Detached runs: a workflow script queues a run for a supervisor by recording a
 # "launcher" task. Only a task of a launching script that carries the marker
 # key in its params is a launcher; the batched script, for instance, also adds
-# one ordinary task per batch under the launching script's name.
+# one ordinary task per batch under the launching script's name. The other
+# params a launcher carries are named in ``launcher_params`` below.
 LAUNCHER_MARKER = "_biomero_detached_launcher"
 LAUNCHER_TASK_NAMES = (RUN_WF_SCRIPT, RUN_WF_BATCHED_SCRIPT)
 # How long a supervisor's claim on a launcher task stays valid without being
@@ -180,6 +181,35 @@ class slurm_env:
     GPU_PARTITION = "GPU_PARTITION"
     GPU_GRES = "GPU_GRES"
     GPU_GPUS = "GPU_GPUS"
+
+
+class launcher_params:
+    """Names of the params a detached launcher task carries besides its inputs.
+
+    The workflow scripts (``register_detached_launcher`` in
+    SLURM_Run_Workflow.py and ``register_detached_batches`` in
+    SLURM_Run_Workflow_Batched.py) write them into the params of the launcher
+    task; the detached supervisor (the NL-BIOMERO processor) and the scripts'
+    pipeline read them back. The params are stored in the event store, so the
+    string values are a persisted contract and must not change.
+    """
+
+    # Names of the workflows the user chose to run.
+    WORKFLOWS = "workflows"
+    # Resolved output options, as {option name: selected}.
+    SELECTED_OUTPUT = "selected_output"
+    # ID of the OMERO group the run belongs to.
+    GROUP = "group"
+    # Batched runs only: the item IDs of each batch.
+    BATCHES = "batches"
+    # Batched runs only: the inputs each batch child starts from.
+    BASE_INPUTS = "base_inputs"
+    # Batched runs only: the data type of the items after batching.
+    EFFECTIVE_TYPE = "effective_type"
+    # Resolved output choices (e.g. original_pixels_not_required). The
+    # launcher carries them and SLURM_Run_Workflow.py records the same key on
+    # the Slurm task, which SLURM_Import_Results.py reads.
+    OUTPUT_SETTINGS = "output_settings"
 
 
 class conversion:

@@ -20,6 +20,7 @@ processor in NL-BIOMERO) executes it. Core only provides the mechanisms:
 
 * the launcher marker and rule: ``constants.LAUNCHER_MARKER``,
   ``WorkflowTracker.add_launcher_task`` and ``eventsourcing.is_launcher_task``;
+* the names of the params a launcher task carries: ``constants.launcher_params``;
 * task lookup and the atomic claim: ``WorkflowTracker.find_launcher_task``,
   ``WorkflowTracker.claim_launcher_task`` and
   ``WorkflowTracker.release_launcher_task``;

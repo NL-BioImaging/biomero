@@ -116,3 +116,13 @@ def test_script_output_names_are_a_contract_between_scripts():
     assert constants.results.RESULTS_PATH_OUTPUT == "Results_Path"
     assert constants.results.CANONICAL_INPUTS_OUTPUT == "Canonical_Inputs"
     assert constants.results.WORKFLOW_UUID_OUTPUT == "Workflow_UUID"
+
+
+def test_launcher_param_names_are_a_persisted_contract():
+    """Launcher task params are stored in the event store: values must not change."""
+    assert constants.launcher_params.WORKFLOWS == "workflows"
+    assert constants.launcher_params.SELECTED_OUTPUT == "selected_output"
+    assert constants.launcher_params.GROUP == "group"
+    assert constants.launcher_params.BATCHES == "batches"
+    assert constants.launcher_params.BASE_INPUTS == "base_inputs"
+    assert constants.launcher_params.EFFECTIVE_TYPE == "effective_type"

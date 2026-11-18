@@ -145,3 +145,12 @@ def test_names_already_shared_stay_pinned():
     assert constants.results.TASK_ID == "Task_ID"
     assert constants.results.OUTPUT_SLURM_JOB_ID == "SLURM Job Id"
     assert constants.results.OUTPUT_COMPLETED_JOB == "Completed Job"
+
+
+def test_metadata_annotation_keys_are_stored_in_omero():
+    """Map annotation keys written by core and scripts, read by OMERO.biomero."""
+    assert constants.metadata_keys.WORKFLOW_ID == "Workflow_ID"
+    assert constants.metadata_keys.JOB_ID == "Job_ID"
+    assert constants.metadata_keys.TASK_ID == "Task_ID"
+    assert constants.metadata_keys.BATCH_SUPERVISOR_WORKFLOW_ID == (
+        "Batch_Supervisor_Workflow_ID")

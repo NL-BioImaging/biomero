@@ -413,6 +413,24 @@ class file_transfer:
     SLURM_PATH_OUTPUT = "Slurm_Path"
 
 
+class metadata_keys:
+    """Keys of the OMERO map annotations that describe a workflow run.
+
+    Core writes them (``biomero.metadata_views``) and so do the scripts that
+    import results (SLURM_Get_Results.py, SLURM_Import_Results.py,
+    SLURM_Init_environment.py); the scripts and OMERO.biomero read them back
+    to find a workflow's annotations. They are stored in OMERO, so the
+    string values must not change.
+    """
+
+    WORKFLOW_ID = "Workflow_ID"
+    JOB_ID = "Job_ID"
+    TASK_ID = "Task_ID"
+    # Written by SLURM_Run_Workflow_Batched.py on the batch supervisor's
+    # annotation (namespace biomero/workflow/batch); read by OMERO.biomero.
+    BATCH_SUPERVISOR_WORKFLOW_ID = "Batch_Supervisor_Workflow_ID"
+
+
 class cancel_workflow:
     """Params of the cancel script (``CANCEL_WORKFLOW_SCRIPT``).
 
@@ -420,7 +438,9 @@ class cancel_workflow:
     with them. Its ``Message`` output is ``results.MESSAGE_OUTPUT``.
     """
 
-    # UUID of the workflow to cancel.
+    # UUID of the workflow to cancel. Same string as
+    # ``metadata_keys.WORKFLOW_ID``, but a different contract: that one is an
+    # annotation key, this one a script parameter.
     WORKFLOW_ID = "Workflow_ID"
     # Optional text recorded as the reason the workflow failed.
     REASON = "Reason"

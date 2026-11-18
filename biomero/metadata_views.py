@@ -39,6 +39,7 @@ from biomero.constants import (
     REMOTE_SHALLOWER_TASK_NAME,
     RUN_WF_BATCHED_SCRIPT,
     RUN_WF_SCRIPT,
+    metadata_keys,
 )
 from biomero.eventsourcing import is_launcher_task
 
@@ -408,7 +409,7 @@ def workflow_row_values(workflow: Any, workflow_id: Any,
                         tasks: Sequence[Any]) -> Dict[str, Any]:
     """Return the key/values of the workflow annotation."""
     return {
-        "Workflow_ID": str(workflow_id),
+        metadata_keys.WORKFLOW_ID: str(workflow_id),
         "Name": workflow.name,
         "Version": software_version(workflow.description),
         "Created_On": workflow._created_on.isoformat(),
@@ -424,7 +425,7 @@ def task_row_values(task: Any, workflow: Any, workflow_id: Any,
     Result tasks also get the storage facts recorded for ``target_key``.
     """
     values = {
-        "Task_ID": str(task._id), "Workflow_ID": str(workflow_id),
+        metadata_keys.TASK_ID: str(task._id), metadata_keys.WORKFLOW_ID: str(workflow_id),
         "Workflow_Name": workflow.name, "Name": task.task_name,
         "Version": task.task_version,
         "Created_On": task._created_on.isoformat(),
@@ -446,8 +447,8 @@ def job_row_values(task: Any, job_id: Any, workflow_id: Any) -> Dict[str, Any]:
     Legacy ``v0`` layout: a task has one result message and one first result
     (command and environment), so every job of the task repeats them.
     """
-    values = {"Job_ID": str(job_id), "Task_ID": str(task._id),
-              "Workflow_ID": str(workflow_id),
+    values = {metadata_keys.JOB_ID: str(job_id), metadata_keys.TASK_ID: str(task._id),
+              metadata_keys.WORKFLOW_ID: str(workflow_id),
               "Result_Message": task.result_message}
     first_result = task.results[0] if task.results else {}
     if "command" in first_result:
@@ -534,7 +535,7 @@ def belongs_to_workflow_view(row: MetadataAnnotation, workflow_id: Any) -> bool:
     """Whether an annotation is a view row of the given workflow."""
     in_view_namespace = (row.namespace == NAMESPACE
                          or row.namespace.startswith(TASK_NAMESPACE_PREFIX))
-    return in_view_namespace and row.values.get("Workflow_ID") == str(workflow_id)
+    return in_view_namespace and row.values.get(metadata_keys.WORKFLOW_ID) == str(workflow_id)
 
 
 def versions_with_timestamp(tracker: Any, aggregate_id: str,
@@ -614,9 +615,9 @@ def resolve_metadata_versions(
     for row in annotations:
         if not belongs_to_workflow_view(row, workflow_id):
             continue
-        if "Job_ID" in row.values:
+        if metadata_keys.JOB_ID in row.values:
             continue
-        aggregate_id = row.values.get("Task_ID", str(workflow_id))
+        aggregate_id = row.values.get(metadata_keys.TASK_ID, str(workflow_id))
         version = snapshot_version(tracker, aggregate_id, row.values)
         if versions.get(aggregate_id, version) != version:
             raise ValueError(f"Conflicting snapshots: {aggregate_id}")
@@ -699,7 +700,7 @@ def advance_import_task_to_storage_evidence(
 def annotation_identity(
         row: MetadataAnnotation) -> Tuple[str, Optional[str], Optional[str]]:
     """Return what identifies a view row: namespace, task ID and job ID."""
-    return (row.namespace, row.values.get("Task_ID"), row.values.get("Job_ID"))
+    return (row.namespace, row.values.get(metadata_keys.TASK_ID), row.values.get(metadata_keys.JOB_ID))
 
 
 def stale_keys(tracker: Any, existing: Mapping[str, Any],
@@ -721,7 +722,7 @@ def stale_keys(tracker: Any, existing: Mapping[str, Any],
         The keys to drop from the stored row.
     """
     stale = {f"{PARAM_PREFIX}{OUTPUT_SETTINGS_PARAM}"} & set(existing)
-    task_id = existing.get("Task_ID")
+    task_id = existing.get(metadata_keys.TASK_ID)
     if task_id is None:
         return stale
     task_params = None
@@ -782,7 +783,7 @@ def plan_unexpected_row(
     Raises:
         ValueError: If the row does not belong to an internal task.
     """
-    task_id = row.values.get("Task_ID")
+    task_id = row.values.get(metadata_keys.TASK_ID)
     if task_id and is_internal_task(tracker.repository.get(UUID(task_id))):
         logger.info(f"Unlinking annotation of internal task {task_id} "
                     f"({row.namespace}) in workflow {workflow_id}")

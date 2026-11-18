@@ -29,6 +29,9 @@ RUN_WF_SCRIPT = "SLURM_Run_Workflow.py"
 RUN_WF_BATCHED_SCRIPT = "SLURM_Run_Workflow_Batched.py"
 LABELS_TO_ROIS_SCRIPT = "Labels2Rois.py"
 IMPORT_RESULTS_SCRIPT = "SLURM_Import_Results.py"
+# Admin script that records a cancel request for a workflow. OMERO.biomero
+# launches it by this name (with the ``cancel_workflow`` params below).
+CANCEL_WORKFLOW_SCRIPT = "SLURM_Cancel_Workflow.py"
 # Name of the workflow task that records one remote shallower (helper) run.
 REMOTE_SHALLOWER_TASK_NAME = "_SLURM_Remote_Shallower"
 
@@ -405,6 +408,42 @@ class file_transfer:
     PARAM_SLOT = "Param_Slot"
     FOLDER = "Folder_Name"
     FORMAT = "Allowed_Formats"
+    # Output: absolute Slurm path of the transferred file. Set by
+    # _SLURM_File_Transfer.py, read by SLURM_Run_Workflow.py.
+    SLURM_PATH_OUTPUT = "Slurm_Path"
+
+
+class metadata_keys:
+    """Keys of the OMERO map annotations that describe a workflow run.
+
+    Core writes them (``biomero.metadata_views``) and so do the scripts that
+    import results (SLURM_Get_Results.py, SLURM_Import_Results.py,
+    SLURM_Init_environment.py); the scripts and OMERO.biomero read them back
+    to find a workflow's annotations. They are stored in OMERO, so the
+    string values must not change.
+    """
+
+    WORKFLOW_ID = "Workflow_ID"
+    JOB_ID = "Job_ID"
+    TASK_ID = "Task_ID"
+    # Written by SLURM_Run_Workflow_Batched.py on the batch supervisor's
+    # annotation (namespace biomero/workflow/batch); read by OMERO.biomero.
+    BATCH_SUPERVISOR_WORKFLOW_ID = "Batch_Supervisor_Workflow_ID"
+
+
+class cancel_workflow:
+    """Params of the cancel script (``CANCEL_WORKFLOW_SCRIPT``).
+
+    SLURM_Cancel_Workflow.py declares them; OMERO.biomero launches the script
+    with them. Its ``Message`` output is ``results.MESSAGE_OUTPUT``.
+    """
+
+    # UUID of the workflow to cancel. Same string as
+    # ``metadata_keys.WORKFLOW_ID``, but a different contract: that one is an
+    # annotation key, this one a script parameter.
+    WORKFLOW_ID = "Workflow_ID"
+    # Optional text recorded as the reason the workflow failed.
+    REASON = "Reason"
 
 
 class workflow_status:

@@ -127,3 +127,30 @@ def test_launcher_param_names_are_a_persisted_contract():
     assert constants.launcher_params.BASE_INPUTS == "base_inputs"
     assert constants.launcher_params.EFFECTIVE_TYPE == "effective_type"
     assert constants.launcher_params.OUTPUT_SETTINGS == "output_settings"
+
+
+def test_script_names_that_components_launch_are_stable():
+    assert constants.IMPORT_RESULTS_SCRIPT == "SLURM_Import_Results.py"
+    assert constants.CANCEL_WORKFLOW_SCRIPT == "SLURM_Cancel_Workflow.py"
+
+
+def test_file_transfer_output_and_cancel_params_are_a_contract():
+    assert constants.file_transfer.SLURM_PATH_OUTPUT == "Slurm_Path"
+    assert constants.cancel_workflow.WORKFLOW_ID == "Workflow_ID"
+    assert constants.cancel_workflow.REASON == "Reason"
+
+
+def test_names_already_shared_stay_pinned():
+    """Used by several scripts; scripts take them from here, not literals."""
+    assert constants.results.TASK_ID == "Task_ID"
+    assert constants.results.OUTPUT_SLURM_JOB_ID == "SLURM Job Id"
+    assert constants.results.OUTPUT_COMPLETED_JOB == "Completed Job"
+
+
+def test_metadata_annotation_keys_are_stored_in_omero():
+    """Map annotation keys written by core and scripts, read by OMERO.biomero."""
+    assert constants.metadata_keys.WORKFLOW_ID == "Workflow_ID"
+    assert constants.metadata_keys.JOB_ID == "Job_ID"
+    assert constants.metadata_keys.TASK_ID == "Task_ID"
+    assert constants.metadata_keys.BATCH_SUPERVISOR_WORKFLOW_ID == (
+        "Batch_Supervisor_Workflow_ID")

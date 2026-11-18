@@ -126,3 +126,4 @@ def test_launcher_param_names_are_a_persisted_contract():
     assert constants.launcher_params.BATCHES == "batches"
     assert constants.launcher_params.BASE_INPUTS == "base_inputs"
     assert constants.launcher_params.EFFECTIVE_TYPE == "effective_type"
+    assert constants.launcher_params.OUTPUT_SETTINGS == "output_settings"

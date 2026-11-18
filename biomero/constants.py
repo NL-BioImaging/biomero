@@ -206,6 +206,10 @@ class launcher_params:
     BASE_INPUTS = "base_inputs"
     # Batched runs only: the data type of the items after batching.
     EFFECTIVE_TYPE = "effective_type"
+    # Resolved output choices (e.g. original_pixels_not_required). The
+    # launcher carries them and SLURM_Run_Workflow.py records the same key on
+    # the Slurm task, which SLURM_Import_Results.py reads.
+    OUTPUT_SETTINGS = "output_settings"
 
 
 class conversion:

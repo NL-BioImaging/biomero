@@ -140,6 +140,17 @@ else
     fail_task 69 "Apptainer or Singularity is required on the compute node"
 fi
 
+# --mksquashfs-args exists only in Apptainer 1.4+; older Apptainer and
+# SingularityCE reject it, so pass it only when the runtime lists it.
+mksquashfs_args=()
+runtime_version=$("$container_runtime" --version 2>/dev/null | head -n 1)
+if "$container_runtime" build --help 2>&1 | grep -q -- '--mksquashfs-args'; then
+    mksquashfs_args=(--mksquashfs-args "-processors ${SLURM_CPUS_PER_TASK:-${BIOMERO_PULL_CPUS:-1}}")
+    echo "Using $container_runtime (${runtime_version:-unknown version}): parallel squashfs build enabled (${mksquashfs_args[*]})"
+else
+    echo "Using $container_runtime (${runtime_version:-unknown version}): --mksquashfs-args not supported, building squashfs single-threaded"
+fi
+
 # A rerun can race with another initializer; only trust a SIF that inspection accepts.
 if [ -s "$destination" ] && \
         "$container_runtime" inspect "$destination" >/dev/null 2>&1; then
@@ -174,14 +185,14 @@ if [ "$source_type" = "registry" ]; then
     # Native registry resolution is the portable preflight. The runtime reads
     # the OCI manifest before downloading, extracting, and converting layers.
     run_with_retry build "$container_runtime" build --force --disable-cache \
-        --mksquashfs-args "-processors ${SLURM_CPUS_PER_TASK:-${BIOMERO_PULL_CPUS:-1}}" \
+        "${mksquashfs_args[@]}" \
         "$local_sif" "$registry_ref"
     rc=$?
 else
     [ -r "$source" ] || fail_task 66 "converter definition is missing or unreadable"
     source=$(readlink -f -- "$source") || fail_task 66 "unable to resolve converter definition"
     run_with_retry build build_from_definition "$container_runtime" build --force --disable-cache \
-        --mksquashfs-args "-processors ${SLURM_CPUS_PER_TASK:-${BIOMERO_PULL_CPUS:-1}}" \
+        "${mksquashfs_args[@]}" \
         "$local_sif" "$source"
     rc=$?
 fi

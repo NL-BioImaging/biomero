@@ -155,9 +155,11 @@ def commit_after_event(handler: Callable) -> Callable:
     """Decorator for event handlers: commit the shared session afterwards.
 
     The projections write through the producer's scoped session; the handler
-    ends the notification by committing it, whichever way it returns. A
-    database error at that commit is logged as a WARNING and not raised (the
-    session is rolled back): the producer's event is already stored.
+    ends the notification by committing it, whichever way it returns.
+    ``EngineManager.commit`` rolls the session back when the commit fails. Any
+    database error at that commit, conflicts and ``IntegrityError`` included,
+    is logged as a WARNING and not raised, because the wrapper is not under
+    ``retry_on_database_conflict`` and the producer's event is already stored.
     """
     @wraps(handler)
     def wrapper(self, domain_event, process_event):
@@ -190,16 +192,11 @@ def write_view_row(description: str, write: Callable) -> None:
         try:
             write(session)
             session.commit()
-        except IntegrityError as error:
-            session.rollback()
-            logger.warning(f"Database conflict writing {description}: "
-                           f"{error}")
-            raise
         except LOOKUP_ERRORS as error:
             rollback_view_session(f"writing {description}")
-            if is_retryable_conflict(error):
-                logger.warning(f"Database conflict writing {description}: "
-                               f"{error}")
+            if isinstance(error, IntegrityError) or is_retryable_conflict(
+                    error):
+                # retry_on_database_conflict logs the conflict.
                 raise
             logger.warning(f"Could not write {description} to its view "
                            f"table; the view misses this write until it is "

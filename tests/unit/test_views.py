@@ -9,8 +9,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 import biomero.views as views
 from biomero.constants import RUN_WF_SCRIPT
 from biomero.database import EngineManager, JobView
-from .test_projection_event_durability import (  # noqa: F401
-    events, tracking_database)
+from .test_projection_event_durability import events
 
 
 def test_dropped_view_table_does_not_fail_the_producer_save(
@@ -61,9 +60,11 @@ def test_write_view_row_still_raises_integrity_error(monkeypatch):
         'unique constraint'))
     monkeypatch.setattr(EngineManager, 'get_session',
                         classmethod(lambda cls: session))
+    rollback = MagicMock()
+    monkeypatch.setattr(EngineManager, 'rollback', rollback)
     with pytest.raises(IntegrityError):
         views.write_view_row('job 1', lambda s: s.merge(JobView()))
-    session.rollback.assert_called_once()
+    rollback.assert_called_once()
 
 
 def test_failed_rollback_in_write_view_row_does_not_raise(

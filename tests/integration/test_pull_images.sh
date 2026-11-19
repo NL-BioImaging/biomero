@@ -132,8 +132,10 @@ if grep -q -- 'mksquashfs' "$legacy_dir/runtime-args"; then
     exit 1
 fi
 test -s "$legacy_dir/shared/imagej_v1.sif"
-grep -q $'workflow	imagej	v1	READY	0	built and validated'     "$legacy_dir/status/status-0.status"
-grep -q -- '--mksquashfs-args not supported, building squashfs single-threaded'     "$legacy_dir/job.log"
+grep -q $'workflow\timagej\tv1\tREADY\t0\tbuilt and validated' \
+    "$legacy_dir/status/status-0.status"
+grep -q -- '--mksquashfs-args not supported, building squashfs single-threaded' \
+    "$legacy_dir/job.log"
 
 permanent_dir="$test_root/permanent"
 if run_task "$permanent_dir" permanent; then

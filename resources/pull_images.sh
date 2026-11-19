@@ -185,14 +185,14 @@ if [ "$source_type" = "registry" ]; then
     # Native registry resolution is the portable preflight. The runtime reads
     # the OCI manifest before downloading, extracting, and converting layers.
     run_with_retry build "$container_runtime" build --force --disable-cache \
-        "${mksquashfs_args[@]}" \
+        ${mksquashfs_args[@]+"${mksquashfs_args[@]}"} \
         "$local_sif" "$registry_ref"
     rc=$?
 else
     [ -r "$source" ] || fail_task 66 "converter definition is missing or unreadable"
     source=$(readlink -f -- "$source") || fail_task 66 "unable to resolve converter definition"
     run_with_retry build build_from_definition "$container_runtime" build --force --disable-cache \
-        "${mksquashfs_args[@]}" \
+        ${mksquashfs_args[@]+"${mksquashfs_args[@]}"} \
         "$local_sif" "$source"
     rc=$?
 fi

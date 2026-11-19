@@ -450,7 +450,9 @@ class EngineManager:
             # Note, we only allow sqlalchemy eventsourcing module
             if not sqlalchemy_url:
                 sqlalchemy_url = os.getenv(slurm_env.SQLALCHEMY_URL)
-            cls._engine = create_engine(sqlalchemy_url)
+            # pool_pre_ping detects a stale pooled connection at checkout and
+            # replaces it, instead of failing the first statement.
+            cls._engine = create_engine(sqlalchemy_url, pool_pre_ping=True)
             try:
                 cls._create_tables()
             except Exception:

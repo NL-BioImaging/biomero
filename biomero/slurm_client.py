@@ -1562,15 +1562,14 @@ class SlurmClient(Connection):
                 image = descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
 
-    def setup_slurm(self, helper_image: Optional[str] = None) -> Optional[int]:
+    def setup_slurm(self) -> Optional[int]:
         """Create the cluster setup and return the image array job ID.
 
-        Args:
-            helper_image (Optional[str]): The remote shallower helper image to
-                install next to the workflow and converter images, as
-                ``repository:tag``. The caller names it (BIOMERO core does not
-                know the shallower package). Only used when
-                ``remote_shallow_zarr`` is enabled.
+        The remote shallower helper image is not part of this setup: its
+        caller names it. A caller that wants it adds
+        ``remote_shallower.image_spec(client, image)`` to the specifications
+        it passes to ``setup_container_images(extra_image_specs=...)``, as the
+        Slurm Init script does.
 
         Returns:
             Optional[int]: The Slurm array job ID, or None if nothing was
@@ -1582,19 +1581,6 @@ class SlurmClient(Connection):
         self.setup_directories()
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
-        if self.remote_shallow_zarr and helper_image:
-            from .remote_shallower import image_spec
-            spec = image_spec(self, image=helper_image)
-            logger.info(f"Including remote shallower helper image "
-                        f"{spec['source']} in Slurm image setup")
-            converter_specs = [*converter_specs, spec]
-        elif self.remote_shallow_zarr:
-            logger.warning("Remote shallowing is enabled but no helper image "
-                           "was given to setup_slurm; the helper image is not "
-                           "set up and remote shallowing cannot run")
-        else:
-            logger.debug("Skipping remote shallower helper image setup: "
-                         "remote_shallow_zarr is disabled")
         return self.setup_container_images(extra_image_specs=converter_specs)
 
     @staticmethod

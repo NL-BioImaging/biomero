@@ -9,6 +9,7 @@ validation.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import io
 import json
 import logging
@@ -74,6 +75,11 @@ SUBMISSION_MARKER_SUFFIXES = (
 POLLING_INTERVAL_SECONDS = 15
 COMPLETED_STATE = "COMPLETED"
 
+# Where callers find the helper image: the installed shallower names the image
+# of its own version. Core loads this by name when asked and never imports the
+# shallower package otherwise.
+HELPER_IMAGE_PROVIDER = "biomero_shallower.capabilities:helper_image"
+
 # Image acquisition specification and file naming.
 IMAGE_KIND = "result-shallower"
 IMAGE_NAME = "biomero-shallower"
@@ -123,6 +129,34 @@ class HelperJob(NamedTuple):
     output_path: str
     manifest_path: str
     state_dir: str
+
+
+def resolve_helper_image(
+        provider: str = HELPER_IMAGE_PROVIDER) -> Optional[str]:
+    """Ask the installed shallower package for its helper image.
+
+    Shared by the scripts that install, check or run the helper, so they
+    agree on the image and on how a failure is reported: one WARNING, then
+    None, because remote shallowing is enabled but cannot run.
+
+    Args:
+        provider (str): The function that names the image, as
+            ``module:function``.
+
+    Returns:
+        Optional[str]: The helper image as ``repository:tag``, or None if the
+            package is not installed or names no image (for example a
+            development version).
+    """
+    module_name, _, function_name = provider.partition(":")
+    try:
+        module = importlib.import_module(module_name)
+        return getattr(module, function_name)()
+    except (ImportError, AttributeError, ValueError, RuntimeError) as error:
+        logger.warning(f"Remote shallowing is enabled but {provider} names no "
+                       f"helper image ({error!r}); the helper image cannot be "
+                       "installed or run and results stay full")
+        return None
 
 
 def image_spec(slurm_client: SlurmClient, image: str) -> Dict[str, str]:
@@ -882,11 +916,46 @@ def _helper_image_missing_message(image_specification: Dict[str, str]) -> str:
     Returns:
         str: The message for the log or the exception.
     """
-    return (f'Remote shallower image missing or invalid: '
-            f'{image_specification["destination"]}. '
+    return (f"Remote shallower image missing or invalid: "
+            f"{image_specification['destination']}. "
             "Ask an administrator to run SLURM_Init_environment and verify "
             "image setup with SLURM_check_setup; images are never installed "
             "during a workflow.")
+
+
+def _recorded_image_spec(slurm_client: SlurmClient, image: str,
+                         existing_task: Optional[Task]) -> Dict[str, str]:
+    """Describe the helper image, at the image path a resumed task recorded.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client holding the configuration.
+        image (str): The helper image reference to describe.
+        existing_task (Optional[Task]): The recorded helper task, if any.
+
+    Returns:
+        Dict[str, str]: The image specification.
+    """
+    image_specification = image_spec(slurm_client, image)
+    if existing_task:
+        image_specification["destination"] = existing_task.params.get(
+            TASK_PARAM_SIF, image_specification["destination"])
+    return image_specification
+
+
+def _helper_image_is_installed(slurm_client: SlurmClient,
+                               image_specification: Dict[str, str]) -> bool:
+    """Tell whether the helper image is installed and valid on the cluster.
+
+    Args:
+        slurm_client (SlurmClient): The Slurm client used to inspect images.
+        image_specification (Dict[str, str]): The helper image specification.
+
+    Returns:
+        bool: True if the image is installed.
+    """
+    ready, pending = slurm_client._partition_existing_images(
+        [image_specification])
+    return bool(ready) and not pending
 
 
 def _start_or_resume_helper(
@@ -919,15 +988,11 @@ def _start_or_resume_helper(
         RuntimeError: If a resumed task's image is missing or the installed
             tool does not satisfy the runtime contract.
     """
-    if existing_task:
-        image = existing_task.params[TASK_PARAM_IMAGE]
-    image_specification = image_spec(slurm_client, image)
-    if existing_task:
-        image_specification["destination"] = existing_task.params.get(
-            TASK_PARAM_SIF, image_specification["destination"])
-    ready, pending = slurm_client._partition_existing_images(
-        [image_specification])
-    if pending or not ready:
+    helper_image = (existing_task.params[TASK_PARAM_IMAGE] if existing_task
+                    else image)
+    image_specification = _recorded_image_spec(
+        slurm_client, helper_image, existing_task)
+    if not _helper_image_is_installed(slurm_client, image_specification):
         missing_message = _helper_image_missing_message(image_specification)
         if existing_task:
             raise RuntimeError(missing_message)
@@ -949,18 +1014,18 @@ def _start_or_resume_helper(
         task_id = tracker.add_task_to_workflow(
             UUID(str(workflow_id)), REMOTE_SHALLOWER_TASK_NAME,
             installed_version, data_path,
-            {TASK_PARAM_IMAGE: image,
+            {TASK_PARAM_IMAGE: helper_image,
              TASK_PARAM_CONTRACT: settings.contract_version,
              TASK_PARAM_SIF: image_specification["destination"],
              TASK_PARAM_CANONICAL_SHA256: sha256_of_json(canonical.to_dict())})
         tracker.start_task(task_id)
         task = slurm_client.get_task(task_id)
         logger.info(f"Started remote shallower task {task_id} (workflow "
-                    f"{workflow_id}, image {image}, tool version "
+                    f"{workflow_id}, image {helper_image}, tool version "
                     f"{installed_version}, {len(canonical.inputs)} inputs)")
     state_dir = posixpath.join(data_path, STATE_DIRNAME, str(task.id))
     return HelperJob(
-        task_id=task.id, task=task, image=image,
+        task_id=task.id, task=task, image=helper_image,
         sif_path=task.params.get(
             TASK_PARAM_SIF, image_specification["destination"]),
         output_path=posixpath.join(data_path, RESULTS_SUBPATH),

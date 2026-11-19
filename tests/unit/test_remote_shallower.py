@@ -59,8 +59,7 @@ def test_helper_image_is_not_configurable(key):
         SlurmClient(config_only=True, **{key: 'registry/helper:0.1.0'})
 
 
-def test_setup_installs_the_helper_image_the_caller_gives():
-    from biomero.remote_shallower import image_spec
+def test_setup_slurm_leaves_the_helper_image_to_the_caller(caplog):
     client = SlurmClient(config_only=True, remote_shallow_zarr=True)
     client.validate = MagicMock(return_value=True)
     client.setup_directories = MagicMock()
@@ -68,10 +67,38 @@ def test_setup_installs_the_helper_image_the_caller_gives():
     client.prepare_converters = MagicMock(return_value=[{'kind': 'converter'}])
     client.setup_container_images = MagicMock(return_value=42)
     client.check_remote_commands_available = MagicMock(return_value=[])
-    assert client.setup_slurm(helper_image='registry/helper:0.1.0') == 42
+    with caplog.at_level('DEBUG'):
+        assert client.setup_slurm() == 42
     client.setup_container_images.assert_called_once_with(
-        extra_image_specs=[{'kind': 'converter'},
-                           image_spec(client, 'registry/helper:0.1.0')])
+        extra_image_specs=[{'kind': 'converter'}])
+    assert not [r for r in caplog.records if 'helper image' in r.getMessage()]
+
+
+def test_resolve_helper_image_returns_the_providers_image():
+    from biomero.remote_shallower import resolve_helper_image
+    assert resolve_helper_image(
+        f'{__name__}:_provide_image') == 'registry/helper:1'
+
+
+def _provide_image():
+    return 'registry/helper:1'
+
+
+def _provide_nothing():
+    raise ValueError('development version')
+
+
+@pytest.mark.parametrize('provider', [
+    f'{__name__}:_provide_nothing',
+    'not_an_installed_package_xyz:helper_image',
+    f'{__name__}:no_such_function',
+])
+def test_resolve_helper_image_warns_once_and_returns_none(caplog, provider):
+    from biomero.remote_shallower import resolve_helper_image
+    with caplog.at_level('DEBUG'):
+        assert resolve_helper_image(provider) is None
+    assert [r.levelname for r in caplog.records] == ['WARNING']
+    assert provider in caplog.records[0].getMessage()
 
 
 def test_tool_version_is_read_from_installed_image_labels():
@@ -212,31 +239,6 @@ def test_internal_locks_are_always_excluded(executable, expected,
     client = SlurmClient(config_only=True, slurm_zip_cmd=executable,
                          remote_shallow_zarr=remote_shallow_zarr)
     assert expected in client.get_zip_command('/data', 'results')
-
-
-@pytest.mark.parametrize('enabled,image,level,expected', [
-    (True, 'registry/helper:0.1.0', 'INFO',
-     'Including remote shallower helper image'),
-    (False, 'registry/helper:0.1.0', 'DEBUG',
-     'Skipping remote shallower helper image'),
-    (True, None, 'WARNING', 'no helper image was given'),
-])
-def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, level,
-                                                expected):
-    client = SlurmClient(config_only=True, remote_shallow_zarr=enabled,
-                         slurm_converters_path='/sifs')
-    client.validate = MagicMock(return_value=True)
-    client.setup_directories = MagicMock()
-    client.setup_job_scripts = MagicMock()
-    client.prepare_converters = MagicMock(return_value=[])
-    client.setup_container_images = MagicMock(return_value=None)
-    client.check_remote_commands_available = MagicMock(
-        return_value=[])
-    with caplog.at_level('DEBUG', logger='biomero.slurm_client'):
-        client.setup_slurm(helper_image=image)
-    levels = [record.levelname for record in caplog.records
-              if expected in record.getMessage()]
-    assert levels == [level]
 
 
 def test_sbatch_wrap_command_applies_site_defaults():

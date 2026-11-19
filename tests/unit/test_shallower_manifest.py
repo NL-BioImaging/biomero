@@ -47,6 +47,20 @@ def test_batch_uses_the_image_and_version_recorded_on_the_task():
                             task_version='2.0'))
 
 
+def test_batch_of_another_image_is_rejected_even_with_the_same_version():
+    ShallowBatchReport = pytest.importorskip(
+        'biomero_schema.shallower').ShallowBatchReport
+    canonical = CanonicalInputManifest(workflowId=uuid4(), exportTaskId=uuid4())
+    batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
+                               image='helper:1.0', toolVersion='1.0',
+                               result='complete', receipts=())
+    with pytest.raises(ValueError, match='does not match'):
+        shallower.parse_batch_report(
+            json.dumps(batch.to_dict()), canonical,
+            SimpleNamespace(params={'image': 'other/helper:1.0'},
+                            task_version='1.0'))
+
+
 def test_persisted_receipts_remain_readable_after_config_change():
     schema = pytest.importorskip('biomero_schema.shallower')
     canonical = CanonicalInputManifest(workflowId=uuid4(), exportTaskId=uuid4())

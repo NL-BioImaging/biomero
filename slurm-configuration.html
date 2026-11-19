@@ -421,6 +421,11 @@ to limit metadata and I/O pressure on shared storage.</p></li>
 <li><p>Each compute task auto-detects <code class="docutils literal notranslate"><span class="pre">apptainer</span></code> first and then <code class="docutils literal notranslate"><span class="pre">singularity</span></code>.
 The selected runtime resolves the OCI manifest as the first phase of its
 native build, so no separate registry utility is required.</p></li>
+<li><p>Apptainer 1.4 or newer is recommended: it supports <code class="docutils literal notranslate"><span class="pre">--mksquashfs-args</span></code>,
+which lets BIOMERO build the SquashFS image with all allocated CPUs. Each
+task checks <code class="docutils literal notranslate"><span class="pre">build</span> <span class="pre">--help</span></code> and logs whether the option is used, together
+with the runtime name and version. Older Apptainer releases and
+SingularityCE do not support the option and build single-threaded.</p></li>
 <li><p>Permanent manifest, authentication, and reference errors fail immediately;
 classified transient registry and network errors are retried.</p></li>
 <li><p>Each task writes its own <code class="docutils literal notranslate"><span class="pre">pull-image-%A_%a.log</span></code> and structured status.</p></li>

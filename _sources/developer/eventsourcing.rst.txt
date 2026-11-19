@@ -60,6 +60,8 @@ Views are updated by ProcessApplications that consume events and persist into BI
 
 These are standard SQLAlchemy models defined in ``biomero.database``. Schema changes are applied via event sourcing system rebuild.
 
+Views run inside the producer's ``save()``, so a view that cannot be updated must not fail the workflow after its event is stored. A database error while looking up or writing a view row (a missing table, a lost connection) is logged as a WARNING with its traceback, the shared session is rolled back, and the view misses that event until it is rebuilt (see below). A write conflict (``IntegrityError`` or a retryable conflict) is still raised so that ``retry_on_database_conflict`` can retry it. The engine uses ``pool_pre_ping`` so that stale pooled connections are replaced at checkout.
+
 Workflow phase and progress
 ---------------------------
 

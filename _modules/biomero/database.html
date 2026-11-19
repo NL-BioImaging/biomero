@@ -571,7 +571,9 @@
             <span class="c1"># Note, we only allow sqlalchemy eventsourcing module</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">sqlalchemy_url</span><span class="p">:</span>
                 <span class="n">sqlalchemy_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">slurm_env</span><span class="o">.</span><span class="n">SQLALCHEMY_URL</span><span class="p">)</span>
-            <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">sqlalchemy_url</span><span class="p">)</span>
+            <span class="c1"># pool_pre_ping detects a stale pooled connection at checkout and</span>
+            <span class="c1"># replaces it, instead of failing the first statement.</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">sqlalchemy_url</span><span class="p">,</span> <span class="n">pool_pre_ping</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">cls</span><span class="o">.</span><span class="n">_create_tables</span><span class="p">()</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>

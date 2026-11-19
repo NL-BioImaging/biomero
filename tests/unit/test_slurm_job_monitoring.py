@@ -56,7 +56,8 @@ def test_public_shallower_has_no_connection_argument():
     client = SlurmClient(config_only=True)
     with pytest.raises(TypeError, match='omero_conn'):
         client.shallow_results_on_slurm(
-            '/data', 'workflow', None, omero_conn=MagicMock())
+            '/data', 'workflow', None, helper_image='registry/helper:0.1.0',
+            omero_conn=MagicMock())
 
 
 def test_public_shallower_passes_callback_unchanged():
@@ -64,9 +65,11 @@ def test_public_shallower_passes_callback_unchanged():
     client = SlurmClient(config_only=True)
     heartbeat = MagicMock()
     with patch('biomero.remote_shallower.shallow_workflow_results') as run:
-        client.shallow_results_on_slurm('/data', 'workflow', None,
-                                          heartbeat=heartbeat)
+        client.shallow_results_on_slurm(
+            '/data', 'workflow', None, helper_image='registry/helper:0.1.0',
+            heartbeat=heartbeat)
     assert run.call_args.args[4] is heartbeat
+    assert run.call_args.kwargs['image'] == 'registry/helper:0.1.0'
 
 
 def test_adopted_job_calls_heartbeat_without_analysis_progress():

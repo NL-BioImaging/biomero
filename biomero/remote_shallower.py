@@ -125,26 +125,23 @@ class HelperJob(NamedTuple):
     state_dir: str
 
 
-def image_spec(slurm_client: SlurmClient, *,
-               image: Optional[str] = None) -> Dict[str, str]:
-    """Describe the configured helper image for SlurmClient image acquisition.
+def image_spec(slurm_client: SlurmClient, image: str) -> Dict[str, str]:
+    """Describe the helper image for SlurmClient image acquisition.
 
     Args:
         slurm_client (SlurmClient): The Slurm client holding the configuration.
-        image (Optional[str]): Image reference to describe instead of the
-            configured ``remote_shallower_image``.
+        image (str): The helper image reference the caller selected, as
+            ``repository:tag`` or ``repository@sha256:<digest>``.
 
     Returns:
         Dict[str, str]: The image specification for image acquisition.
 
     Raises:
-        ValueError: If no image is configured, or its digest or version is
+        ValueError: If no image is given, or its digest or version is
             missing or invalid.
     """
-    image = image if image is not None else slurm_client.remote_shallower_image
     if not image:
-        raise ValueError("Configure remote_shallower_image in [SLURM] before "
-                         "initializing remote shallowing")
+        raise ValueError("No remote shallower helper image given")
     image = image.removeprefix("docker://")
     if "@sha256:" in image:
         source, digest = image.split("@sha256:", 1)
@@ -222,8 +219,8 @@ def _version_from_labels(labels: Dict[str, Any]) -> str:
             raise ValueError("Empty version")
         Version(version.strip())
     except (InvalidVersion, KeyError, TypeError, ValueError) as error:
-        raise ValueError("Installed helper has no usable OCI version label; "
-                         "set remote_shallower_version explicitly") from error
+        raise ValueError("Installed helper has no usable OCI version label"
+                         ) from error
     return version.strip()
 
 
@@ -275,31 +272,30 @@ def _parse_capability_label(labels: Dict[str, Any], name: str, *,
         raise ValueError(f"Installed shallower has invalid {label}") from error
 
 
-def _check_configured_version(actual_version: str,
-                              configured_version: Optional[str]) -> None:
-    """Raise unless the installed version equals the configured one, if any.
+def _check_expected_version(actual_version: str,
+                            expected_version: Optional[str]) -> None:
+    """Raise unless the installed version equals the expected one, if any.
 
     Args:
         actual_version (str): The installed tool version.
-        configured_version (Optional[str]): The expected version, if any.
+        expected_version (Optional[str]): The expected version, if any.
 
     Raises:
-        ValueError: If the configured version is not a valid version.
+        ValueError: If the expected version is not a valid version.
         RuntimeError: If the versions differ.
     """
-    if not configured_version:
+    if not expected_version:
         return
     try:
-        versions_equal = Version(actual_version) == Version(configured_version)
+        versions_equal = Version(actual_version) == Version(expected_version)
     except InvalidVersion as error:
         raise ValueError(
-            f"Invalid configured remote_shallower_version: "
-            f"{configured_version}"
+            f"Invalid expected remote shallower version: {expected_version}"
         ) from error
     if not versions_equal:
         raise RuntimeError(
             f"Installed remote Shallower {actual_version} does not match "
-            f"configured version {configured_version}; run SLURM Init "
+            f"expected version {expected_version}; run SLURM Init "
             "and verify the selected helper image")
 
 
@@ -345,8 +341,8 @@ def validate_installed_tool(slurm_client: SlurmClient, sif_path: str, *,
     Args:
         slurm_client (SlurmClient): The Slurm client used to run commands.
         sif_path (str): Remote path of the installed helper image.
-        expected_version (Optional[str]): Version the image must have; defaults
-            to the configured ``remote_shallower_version``.
+        expected_version (Optional[str]): Version the image must have, for
+            example the version recorded on a resumed task; defaults to any.
         runtime_contract (int): Runtime contract the image must support.
         manifest_schema (int): Shallow manifest schema the image must emit.
 
@@ -354,24 +350,19 @@ def validate_installed_tool(slurm_client: SlurmClient, sif_path: str, *,
         str: The installed tool version.
 
     Raises:
-        ValueError: If the labels or the configured version are invalid.
+        ValueError: If the labels or the expected version are invalid.
         RuntimeError: If the version, capability schema, runtime contract or
             manifest schema is not supported.
     """
     labels = _installed_labels(slurm_client, sif_path)
     actual_version = _version_from_labels(labels)
-    configured_version = (
-        expected_version
-        if expected_version is not None
-        else slurm_client.remote_shallower_version
-    )
-    _check_configured_version(actual_version, configured_version)
+    _check_expected_version(actual_version, expected_version)
     _check_capabilities(
         labels, actual_version, runtime_contract, manifest_schema)
     logger.debug(f"Installed remote shallower {actual_version} at {sif_path} "
                  f"satisfies runtime contract {runtime_contract} and "
-                 f"manifest schema {manifest_schema} (configured version: "
-                 f"{configured_version or 'any'})")
+                 f"manifest schema {manifest_schema} (expected version: "
+                 f"{expected_version or 'any'})")
     return actual_version
 
 
@@ -438,7 +429,7 @@ def _build_container_command(worker_count: int, output_path: str,
 
 def build_helper_command(slurm_client: SlurmClient, output_path: str,
                          sif_path: str, manifest_path: str, task_id: str, *,
-                         recovery: bool = False, image: Optional[str] = None,
+                         image: str, recovery: bool = False,
                          contract_version: int = REQUIRED_RUNTIME_CONTRACT
                          ) -> str:
     """Build the shallowing or recovery job using one helper resource policy.
@@ -452,10 +443,9 @@ def build_helper_command(slurm_client: SlurmClient, output_path: str,
         sif_path (str): Path of the helper image.
         manifest_path (str): Path of the canonical input manifest.
         task_id (str): ID of the helper task.
+        image (str): Image reference recorded for the task.
         recovery (bool): Build the recovery command instead of the shallowing
             command (default False).
-        image (Optional[str]): Image reference recorded for the task; defaults
-            to the configured ``remote_shallower_image``.
         contract_version (int): Runtime contract the helper must follow.
 
     Returns:
@@ -464,7 +454,6 @@ def build_helper_command(slurm_client: SlurmClient, output_path: str,
     Raises:
         ValueError: If the configured worker count is not positive.
     """
-    image = image if image is not None else slurm_client.remote_shallower_image
     worker_count = slurm_client.remote_shallower_workers
     if (isinstance(worker_count, bool) or not isinstance(worker_count, int)
             or worker_count < 1):
@@ -514,21 +503,19 @@ def verify_task_canonical_inputs(
         raise ValueError("Canonical manifest differs from the recorded task")
 
 
-def parse_batch_report(slurm_client: SlurmClient, report_json: str,
-                       canonical: CanonicalInputManifest, *,
-                       task: Optional[Task] = None) -> ShallowBatchReport:
+def parse_batch_report(report_json: str, canonical: CanonicalInputManifest,
+                       task: Task) -> ShallowBatchReport:
     """Parse a helper batch report and check its input, image and tool version.
 
-    When a task is supplied, its recorded image/version and submission own the
-    report; current deployment defaults must not invalidate historical results.
-    Import the optional schema dependency only when shallowing is used.
+    The task's recorded image, version and submission own the report; the
+    helper installed now must not invalidate historical results. Import the
+    optional schema dependency only when shallowing is used.
 
     Args:
-        slurm_client (SlurmClient): The Slurm client holding the configuration.
         report_json (str): The JSON batch report written by the helper.
         canonical (CanonicalInputManifest): The canonical input manifest the
             report must match.
-        task (Optional[Task]): The recorded helper task owning the report.
+        task (Task): The recorded helper task owning the report.
 
     Returns:
         ShallowBatchReport: The parsed batch report.
@@ -539,25 +526,20 @@ def parse_batch_report(slurm_client: SlurmClient, report_json: str,
     """
     from biomero_schema.shallower import ShallowBatchReport
     batch = ShallowBatchReport.from_dict(json.loads(report_json))
-    expected_image = (task.params[TASK_PARAM_IMAGE] if task
-                      else slurm_client.remote_shallower_image)
-    expected_version = (task.task_version if task
-                        else slurm_client.remote_shallower_version)
     if (batch.canonical_inputs != canonical
-            or batch.image != expected_image
-            or batch.tool_version != expected_version):
+            or batch.image != task.params[TASK_PARAM_IMAGE]
+            or batch.tool_version != task.task_version):
         raise ValueError(
             "Result shallower report does not match configuration/input")
     if any(receipt.image != batch.image
            or receipt.tool_version != batch.tool_version
            for receipt in batch.receipts):
         raise ValueError("Inconsistent helper receipts")
-    if task is not None:
-        verify_task_canonical_inputs(task, canonical)
-        if any(receipt.task_id != task.id or not task.job_ids
-               or int(receipt.slurm_job_id) != int(task.job_ids[0])
-               for receipt in batch.receipts):
-            raise ValueError("Report belongs to a different helper task/job")
+    verify_task_canonical_inputs(task, canonical)
+    if any(receipt.task_id != task.id or not task.job_ids
+           or int(receipt.slurm_job_id) != int(task.job_ids[0])
+           for receipt in batch.receipts):
+        raise ValueError("Report belongs to a different helper task/job")
     return batch
 
 
@@ -731,8 +713,7 @@ def completed_receipts(
             workflow_id, task_name=REMOTE_SHALLOWER_TASK_NAME):
         if task.result_message:
             receipts.extend(parse_batch_report(
-                slurm_client, task.result_message, canonical,
-                task=task).receipts)
+                task.result_message, canonical, task).receipts)
     logger.debug(f"Read {len(receipts)} remote shallower receipts for "
                  f"workflow {workflow_id}")
     return tuple(receipts)
@@ -850,8 +831,7 @@ def _adopt_report_of_finished_job(
     if not (found.ok and found.stdout.strip()):
         return None
     try:
-        batch = parse_batch_report(
-            slurm_client, found.stdout, canonical, task=task)
+        batch = parse_batch_report(found.stdout, canonical, task)
     except (ValueError, KeyError):
         # Partial/stale report: poll the recorded job instead.
         logger.warning(f"Existing shallower report {report_path} was rejected "
@@ -886,43 +866,40 @@ def _reuse_recorded_outcome(
     if shallower_already_completed:
         logger.info(f"Remote shallower task {task.id} already completed; "
                     "reusing its receipts")
-        return parse_batch_report(
-            slurm_client, task.result_message, canonical, task=task)
+        return parse_batch_report(task.result_message, canonical, task)
     if helper_job_was_submitted:
         return _adopt_report_of_finished_job(
             slurm_client, task, data_path, canonical)
     return None
 
 
-def _ensure_image_installed(slurm_client: SlurmClient,
-                            image_specification: Dict[str, str]) -> None:
-    """Raise unless the helper image is installed; only Init acquires images.
+def _helper_image_missing_message(image_specification: Dict[str, str]) -> str:
+    """Explain that the helper image is not installed and how to install it.
 
     Args:
-        slurm_client (SlurmClient): The Slurm client used to inspect images.
         image_specification (Dict[str, str]): The helper image specification.
 
-    Raises:
-        RuntimeError: If the image is missing or invalid.
+    Returns:
+        str: The message for the log or the exception.
     """
-    ready, pending = slurm_client._partition_existing_images(
-        [image_specification])
-    if pending or not ready:
-        raise RuntimeError(
-            f'Remote shallower image missing or invalid: '
+    return (f'Remote shallower image missing or invalid: '
             f'{image_specification["destination"]}. '
-            "Run SLURM_Init_environment and verify image setup with "
-            "SLURM_check_setup before retrying.")
+            "Ask an administrator to run SLURM_Init_environment and verify "
+            "image setup with SLURM_check_setup; images are never installed "
+            "during a workflow.")
 
 
 def _start_or_resume_helper(
         slurm_client: SlurmClient, workflow_id: Any, data_path: str,
         canonical: CanonicalInputManifest, existing_task: Optional[Task],
-        settings: HelperSettings) -> HelperJob:
+        image: str, settings: HelperSettings) -> Optional[HelperJob]:
     """Validate the installed helper and start, or resume, its tracked task.
 
     A resumed task keeps the image, version and image path it recorded, so a
-    configuration change does not invalidate historical results.
+    newer helper image does not invalidate historical results. When a new task
+    finds the helper image not installed, it is not started: the caller keeps
+    the full results. A resumed task never falls back, because its helper job
+    may already have changed the results.
 
     Args:
         slurm_client (SlurmClient): The Slurm client with the workflow tracker.
@@ -931,24 +908,33 @@ def _start_or_resume_helper(
         canonical (CanonicalInputManifest): The canonical input manifest of
             the workflow.
         existing_task (Optional[Task]): The recorded helper task, if any.
+        image (str): The helper image the caller selected for a new task.
         settings (HelperSettings): The contract and schema versions to require.
 
     Returns:
-        HelperJob: The task with its image and remote paths.
+        Optional[HelperJob]: The task with its image and remote paths, or None
+            when a new task cannot start because the image is not installed.
 
     Raises:
-        RuntimeError: If the image is missing or the installed tool does not
-            satisfy the runtime contract.
+        RuntimeError: If a resumed task's image is missing or the installed
+            tool does not satisfy the runtime contract.
     """
-    image = (existing_task.params[TASK_PARAM_IMAGE] if existing_task
-             else slurm_client.remote_shallower_image)
-    image_specification = image_spec(slurm_client, image=image)
+    if existing_task:
+        image = existing_task.params[TASK_PARAM_IMAGE]
+    image_specification = image_spec(slurm_client, image)
     if existing_task:
         image_specification["destination"] = existing_task.params.get(
             TASK_PARAM_SIF, image_specification["destination"])
-    _ensure_image_installed(slurm_client, image_specification)
-    expected_version = (existing_task.task_version if existing_task
-                        else slurm_client.remote_shallower_version)
+    ready, pending = slurm_client._partition_existing_images(
+        [image_specification])
+    if pending or not ready:
+        missing_message = _helper_image_missing_message(image_specification)
+        if existing_task:
+            raise RuntimeError(missing_message)
+        logger.warning(f"{missing_message} Workflow {workflow_id} keeps its "
+                       "full results.")
+        return None
+    expected_version = existing_task.task_version if existing_task else None
     installed_version = validate_installed_tool(
         slurm_client, image_specification["destination"],
         expected_version=expected_version,
@@ -1171,7 +1157,7 @@ def _complete_from_report(
             f"Missing shallower report for task {helper.task_id}; cannot "
             "archive safely")
     task = slurm_client.get_task(helper.task_id)
-    batch = parse_batch_report(slurm_client, report.stdout, canonical, task=task)
+    batch = parse_batch_report(report.stdout, canonical, task)
     slurm_client.workflowTracker.complete_task(
         helper.task_id, json.dumps(batch.to_dict()))
     logger.info(f"Remote shallower task {helper.task_id} completed with "
@@ -1182,7 +1168,7 @@ def _complete_from_report(
 def shallow_workflow_results(
         slurm_client: SlurmClient, data_path: str, workflow_id: Any,
         canonical: CanonicalInputManifest,
-        heartbeat: Optional[Callable[[], None]] = None, *,
+        heartbeat: Optional[Callable[[], None]] = None, *, image: str,
         contract_version: int = REQUIRED_RUNTIME_CONTRACT,
         manifest_schema: int = REQUIRED_MANIFEST_SCHEMA,
         polling_interval: int = POLLING_INTERVAL_SECONDS,
@@ -1191,7 +1177,8 @@ def shallow_workflow_results(
     """Shallow the workflow results on the cluster, or resume that work.
 
     Only initialization acquires container images. A rejected shallowing
-    submission returns an empty-receipt report so the caller can retain full
+    submission returns an empty-receipt report, and a helper image that is not
+    installed returns None with a WARNING, so the caller retains the full
     results. Callers must not archive potentially incomplete output.
 
     Args:
@@ -1202,6 +1189,8 @@ def shallow_workflow_results(
             the workflow.
         heartbeat (Optional[Callable[[], None]]): Callback invoked during job
             waits.
+        image (str): The helper image (``repository:tag``) the caller selected
+            and Slurm Init installed.
         contract_version (int): Runtime contract the helper must follow.
         manifest_schema (int): Shallow manifest schema the helper must emit.
         polling_interval (int): Seconds between job status polls.
@@ -1209,11 +1198,12 @@ def shallow_workflow_results(
 
     Returns:
         Optional[ShallowBatchReport]: The validated report, or None when
-            shallowing is disabled or inapplicable.
+            shallowing is disabled, inapplicable or the helper image is not
+            installed.
 
     Raises:
-        RuntimeError: If the image is missing, the submission or recovery is
-            unresolved or failed, or the report is missing.
+        RuntimeError: If a resumed task's image is missing, the submission or
+            recovery is unresolved or failed, or the report is missing.
         ValueError: If the installed tool or the report is invalid.
     """
     if not _shallowing_applies(slurm_client, workflow_id, canonical):
@@ -1229,7 +1219,9 @@ def shallow_workflow_results(
             return recorded_batch
     helper = _start_or_resume_helper(
         slurm_client, workflow_id, data_path, canonical, existing_task,
-        settings)
+        image, settings)
+    if helper is None:
+        return None
     _prepare_remote_state(slurm_client, helper, canonical, settings)
     job_id = _submit_or_adopt_helper_job(slurm_client, helper, settings)
     if job_id is None:

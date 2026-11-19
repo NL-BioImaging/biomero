@@ -30,22 +30,21 @@ def test_missing_manifest_for_submitted_job_is_not_recreated():
     client.put.assert_not_called()
 
 
-def test_batch_uses_persisted_image_and_version_not_current_config():
+def test_batch_uses_the_image_and_version_recorded_on_the_task():
     ShallowBatchReport = pytest.importorskip(
         'biomero_schema.shallower').ShallowBatchReport
     canonical = CanonicalInputManifest(workflowId=uuid4(), exportTaskId=uuid4())
     task = SimpleNamespace(params={'image': 'helper:1.0'}, task_version='1.0')
-    client = SimpleNamespace(remote_shallower_image='helper:2.0',
-                             remote_shallower_version='2.0')
     batch = ShallowBatchReport(schema=1, canonicalInputs=canonical,
                                image='helper:1.0', toolVersion='1.0',
                                result='complete', receipts=())
-    assert shallower.parse_batch_report(client, json.dumps(batch.to_dict()), canonical,
-                             task=task) == batch
+    assert shallower.parse_batch_report(
+        json.dumps(batch.to_dict()), canonical, task) == batch
     with pytest.raises(ValueError):
-        shallower.parse_batch_report(client, json.dumps(batch.to_dict()), canonical,
-                          task=SimpleNamespace(params={'image': 'helper:2.0'},
-                                               task_version='2.0'))
+        shallower.parse_batch_report(
+            json.dumps(batch.to_dict()), canonical,
+            SimpleNamespace(params={'image': 'helper:2.0'},
+                            task_version='2.0'))
 
 
 def test_persisted_receipts_remain_readable_after_config_change():
@@ -67,8 +66,7 @@ def test_persisted_receipts_remain_readable_after_config_change():
     tracker.repository.get.side_effect = lambda key: (
         SimpleNamespace(tasks=[task_id]) if key == canonical.workflow_id else task)
     client = SimpleNamespace(
-        remote_shallow_zarr=True, track_workflows=True, workflowTracker=tracker,
-        remote_shallower_image='helper:2.0', remote_shallower_version='2.0')
+        remote_shallow_zarr=True, track_workflows=True, workflowTracker=tracker)
     client.get_task = tracker.repository.get
     client.get_workflow = lambda workflow: tracker.repository.get(
         UUID(str(workflow)))

@@ -9,8 +9,14 @@ from biomero.slurm_client import SlurmClient
 from biomero_schema.zarr import CanonicalInputManifest
 from biomero.constants import REMOTE_SHALLOWER_TASK_NAME as TASK_NAME
 from biomero.remote_shallower import (
-    POLLING_INTERVAL_SECONDS, shallow_workflow_results as run,
-    completed_receipts)
+    POLLING_INTERVAL_SECONDS, shallow_workflow_results, completed_receipts)
+
+HELPER_IMAGE = 'helper:0.1.0'
+
+
+def run(client, *args, image=HELPER_IMAGE, **kwargs):
+    """Run shallowing with the helper image the caller selects."""
+    return shallow_workflow_results(client, *args, image=image, **kwargs)
 
 
 def client_fixture(*, jobs=(123,), terminal=False):
@@ -34,8 +40,7 @@ def client_fixture(*, jobs=(123,), terminal=False):
         'org.biomeroproject.shallower.manifest-schemas': '2',
     }}}})
     client = SimpleNamespace(remote_shallow_zarr=True, track_workflows=True,
-                             workflowTracker=tracker, remote_shallower_image='helper:0.1.0',
-                             remote_shallower_version='0.1.0', remote_shallower_workers=1,
+                             workflowTracker=tracker, remote_shallower_workers=1,
                              remote_shallower_partition=None, slurm_global_job_params=[],
                              get_shallower_job_params=lambda: ['--cpus-per-task=1'],
                              slurm_converters_path='/sifs', put=MagicMock(),
@@ -87,18 +92,16 @@ def test_resume_rejects_changed_manifest_before_polling():
     client.put.assert_not_called()
 
 
-def test_resume_recovery_uses_recorded_image_after_configuration_change():
+def test_resume_recovery_uses_recorded_image_after_helper_upgrade():
     client, workflow_id, canonical, batch = client_fixture()
-    client.remote_shallower_image = 'new-helper:2.0.0'
-    client.remote_shallower_version = '2.0.0'
     with patch('biomero.remote_shallower.parse_batch_report', return_value=batch), \
          patch('biomero.remote_shallower._submit_helper_job', return_value=124) as submit, \
          patch('biomero.remote_shallower.wait_for_helper_job', side_effect=['FAILED', 'COMPLETED']):
-        run(client, '/data', workflow_id, canonical)
+        run(client, '/data', workflow_id, canonical,
+            image='new-helper:2.0.0')
     command = submit.call_args.args[1]
     assert '--image helper:0.1.0' in command
     assert 'new-helper' not in command
-    assert client.remote_shallower_image == 'new-helper:2.0.0'
 
 
 def test_resume_adopts_existing_job_without_submission():
@@ -202,15 +205,29 @@ def test_runtime_uses_ready_image_without_pulling():
     client._submit_image_pull_array.assert_not_called()
 
 
-def test_missing_image_requires_initialization_without_pulling():
+def test_missing_image_keeps_full_results_and_warns_to_run_init(caplog):
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []
     client._submit_image_pull_array = MagicMock(return_value=9)
     client._partition_existing_images = MagicMock(return_value=([], [1]))
-    with pytest.raises(RuntimeError, match='SLURM_Init_environment'):
-        run(client, '/data', workflow_id, canonical)
+    with caplog.at_level('DEBUG', logger='biomero.remote_shallower'):
+        assert run(client, '/data', workflow_id, canonical) is None
+    warnings = [record.getMessage() for record in caplog.records
+                if record.levelname == 'WARNING']
+    assert len(warnings) == 1
+    assert 'SLURM_Init_environment' in warnings[0]
+    assert 'full results' in warnings[0]
     client._submit_image_pull_array.assert_not_called()
     client.workflowTracker.add_task_to_workflow.assert_not_called()
+    client.run_commands.assert_not_called()
+
+
+def test_missing_image_of_started_task_is_an_error_not_a_fallback():
+    """A recorded helper job may already have changed the results."""
+    client, workflow_id, canonical, _ = client_fixture()
+    client._partition_existing_images = MagicMock(return_value=([], [1]))
+    with pytest.raises(RuntimeError, match='SLURM_Init_environment'):
+        run(client, '/data', workflow_id, canonical)
 
 
 def test_incompatible_installed_tool_stops_before_task_or_submission():
@@ -219,7 +236,7 @@ def test_incompatible_installed_tool_stops_before_task_or_submission():
     incompatible_labels = {
         'org.opencontainers.image.version': '0.1.0b3',
         'org.biomeroproject.shallower.capability-schema': '1',
-        'org.biomeroproject.shallower.runtime-contracts': '1',
+        'org.biomeroproject.shallower.runtime-contracts': '2',
         'org.biomeroproject.shallower.manifest-schemas': '2',
     }
 
@@ -227,7 +244,7 @@ def test_incompatible_installed_tool_stops_before_task_or_submission():
         'biomero.remote_shallower._installed_labels',
         return_value=incompatible_labels,
     ), patch('biomero.remote_shallower._submit_helper_job') as submit:
-        with pytest.raises(RuntimeError, match='does not match configured'):
+        with pytest.raises(RuntimeError, match='runtime contract 1'):
             run(client, '/data', workflow_id, canonical)
 
     submit.assert_not_called()
@@ -239,7 +256,6 @@ def test_incompatible_installed_tool_stops_before_task_or_submission():
 def test_new_task_records_discovered_receipt_version_before_submission():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []
-    client.remote_shallower_version = None
     with patch('biomero.remote_shallower.validate_installed_tool', return_value='9.2.1'), \
          patch('biomero.remote_shallower.publish_or_verify_manifest'), \
          patch('biomero.remote_shallower._submit_helper_job', side_effect=RuntimeError('stop before submit')):
@@ -251,7 +267,6 @@ def test_new_task_records_discovered_receipt_version_before_submission():
 def test_missing_discovered_version_does_not_create_task():
     client, workflow_id, canonical, _ = client_fixture(jobs=())
     client.workflowTracker.repository.get(workflow_id).tasks = []
-    client.remote_shallower_version = None
     with patch('biomero.remote_shallower.validate_installed_tool', side_effect=ValueError('missing version')), \
          pytest.raises(ValueError, match='missing version'):
         run(client, '/data', workflow_id, canonical)

@@ -433,7 +433,6 @@ class SlurmClient(Connection):
     _DEFAULT_SLURM_DATA_PATH = "my-scratch/data"
     _DEFAULT_SLURM_IMAGES_PATH = "my-scratch/singularity_images/workflows"
     _DEFAULT_SLURM_CONVERTERS_PATH = "my-scratch/singularity_images/converters"
-    _DEFAULT_REMOTE_SHALLOWER_IMAGE = "cellularimagingcf/biomero-shallower:latest"
     _DEFAULT_SLURM_GIT_SCRIPT_PATH = "slurm-scripts"
     _DEFAULT_SACCT_START_TIME = "2023-01-01"
     _DEFAULT_SLURM_ZIP_CMD = "$(command -v 7z || command -v 7za)"
@@ -479,10 +478,6 @@ class SlurmClient(Connection):
             slurm_env.BIOMERO_SSH_RECOVERY_TIMEOUT],
         ("SLURM", "remote_shallow_zarr"): [
             slurm_env.BIOMERO_REMOTE_SHALLOW_ZARR],
-        ("SLURM", "remote_shallower_image"): [
-            slurm_env.BIOMERO_REMOTE_SHALLOWER_IMAGE],
-        ("SLURM", "remote_shallower_version"): [
-            slurm_env.BIOMERO_REMOTE_SHALLOWER_VERSION],
         ("SLURM", "remote_shallower_workers"): [
             slurm_env.BIOMERO_REMOTE_SHALLOWER_WORKERS],
         ("SLURM", "remote_shallower_partition"): [
@@ -782,8 +777,6 @@ class SlurmClient(Connection):
                  image_pull_concurrency: int = 1,
                  image_pull_partition: str = None,
                  remote_shallow_zarr: bool = False,
-                 remote_shallower_image: str = _DEFAULT_REMOTE_SHALLOWER_IMAGE,
-                 remote_shallower_version: str = None,
                  remote_shallower_workers: int = 1,
                  remote_shallower_partition: str = None,
                  remote_shallower_mem: str = None,
@@ -909,14 +902,6 @@ class SlurmClient(Connection):
                 locally. Defaults to False (local shallowing); a missing or
                 empty setting leaves it off. Environment:
                 BIOMERO_REMOTE_SHALLOW_ZARR.
-            remote_shallower_image (str, optional): Administrator remote-shallower
-                image reference; defaults to our helper's latest tag. Pin a
-                release in slurm-config.ini for reproducible deployment.
-                Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.
-            remote_shallower_version (str, optional): Administrator remote-shallower
-                expected receipt version; default None (read the installed
-                image's OCI version label before recording a new task).
-                Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.
             remote_shallower_workers (int, optional): Administrator remote-shallower
                 setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.
             remote_shallower_partition (str, optional): Administrator remote-shallower
@@ -1061,8 +1046,6 @@ class SlurmClient(Connection):
         self.slurm_model_use_gpu = slurm_model_use_gpu or {}
         self.slurm_data_bind_path = slurm_data_bind_path
         self.remote_shallow_zarr = remote_shallow_zarr
-        self.remote_shallower_image = remote_shallower_image
-        self.remote_shallower_version = remote_shallower_version
         self.remote_shallower_workers = self._at_least_one(
             "remote_shallower_workers", remote_shallower_workers)
         self.remote_shallower_partition = remote_shallower_partition
@@ -1579,24 +1562,36 @@ class SlurmClient(Connection):
                 image = descriptor['container-image']['image']
                 self.slurm_model_images[workflow] = image
 
-    def setup_slurm(self) -> Optional[int]:
-        """Create the cluster setup and return the image array job ID."""
+    def setup_slurm(self, helper_image: Optional[str] = None) -> Optional[int]:
+        """Create the cluster setup and return the image array job ID.
+
+        Args:
+            helper_image (Optional[str]): The remote shallower helper image to
+                install next to the workflow and converter images, as
+                ``repository:tag``. The caller names it (BIOMERO core does not
+                know the shallower package). Only used when
+                ``remote_shallow_zarr`` is enabled.
+
+        Returns:
+            Optional[int]: The Slurm array job ID, or None if nothing was
+                submitted to Slurm.
+        """
         if not self.validate():
             raise SSHException("Failure in connecting to Slurm cluster")
         self.check_remote_commands_available()
         self.setup_directories()
         self.setup_job_scripts()
         converter_specs = self.prepare_converters()
-        if self.remote_shallow_zarr and self.remote_shallower_image:
+        if self.remote_shallow_zarr and helper_image:
             from .remote_shallower import image_spec
-            spec = image_spec(self)
+            spec = image_spec(self, image=helper_image)
             logger.info(f"Including remote shallower helper image "
                         f"{spec['source']} in Slurm image setup")
             converter_specs = [*converter_specs, spec]
         elif self.remote_shallow_zarr:
-            logger.warning("Remote shallowing is enabled but "
-                           "remote_shallower_image is empty; the helper image "
-                           "is not set up and remote shallowing cannot run")
+            logger.warning("Remote shallowing is enabled but no helper image "
+                           "was given to setup_slurm; the helper image is not "
+                           "set up and remote shallowing cannot run")
         else:
             logger.debug("Skipping remote shallower helper image setup: "
                          "remote_shallow_zarr is disabled")
@@ -1994,12 +1989,17 @@ class SlurmClient(Connection):
         return result_dict
 
     def shallow_results_on_slurm(self, data_path, workflow_id, canonical_inputs,
-                                   *, heartbeat=None):
+                                 *, helper_image, heartbeat=None):
         """Run/adopt optional CPU shallowing before result archiving.
 
         The whole run is repeated within the SSH recovery window after a lost
         connection, so every step inside it must be safe to repeat: it adopts
         the recorded job or submits through ``submit_job_once``.
+
+        ``helper_image`` is the helper image (``repository:tag``) that Slurm
+        Init installed; the caller names it. When it is not installed, the
+        results stay full and a WARNING tells the administrator to run Slurm
+        Init; images are never installed during a workflow.
 
         ``heartbeat`` is a caller-owned no-argument callback invoked during
         job waits.
@@ -2009,7 +2009,8 @@ class SlurmClient(Connection):
             raise TypeError('heartbeat must be callable')
         return ssh_recovery.retry(
             self, lambda: shallow_workflow_results(
-                self, data_path, workflow_id, canonical_inputs, heartbeat),
+                self, data_path, workflow_id, canonical_inputs, heartbeat,
+                image=helper_image),
             "remote shallowing", heartbeat=heartbeat)
 
     def get_remote_shallower_receipts(self, workflow_id, canonical_inputs):
@@ -2255,23 +2256,6 @@ class SlurmClient(Connection):
             default=False,
             env_vars=cls._CONFIG_ENV_VARS[("SLURM", "remote_shallow_zarr")],
             value_type=bool,
-        )
-        remote_shallower_image = cls._get_config_value(
-            configs,
-            section="SLURM",
-            option="remote_shallower_image",
-            default=cls._DEFAULT_REMOTE_SHALLOWER_IMAGE,
-            env_vars=cls._CONFIG_ENV_VARS[("SLURM", "remote_shallower_image")],
-            empty_is_none=True,
-        )
-        remote_shallower_version = cls._get_config_value(
-            configs,
-            section="SLURM",
-            option="remote_shallower_version",
-            default=None,
-            env_vars=cls._CONFIG_ENV_VARS[
-                ("SLURM", "remote_shallower_version")],
-            empty_is_none=True,
         )
         remote_shallower_workers = cls._get_config_value(
             configs,
@@ -2634,8 +2618,6 @@ class SlurmClient(Connection):
                    config_only=config_only,
                    slurm_data_bind_path=slurm_data_bind_path,
                    remote_shallow_zarr=remote_shallow_zarr,
-                   remote_shallower_image=remote_shallower_image,
-                   remote_shallower_version=remote_shallower_version,
                    remote_shallower_workers=remote_shallower_workers,
                    remote_shallower_partition=remote_shallower_partition,
                    remote_shallower_mem=remote_shallower_mem,

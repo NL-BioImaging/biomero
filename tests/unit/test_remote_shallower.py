@@ -100,7 +100,8 @@ def test_resolve_helper_image_returns_the_installed_shallowers_image():
 def test_resolve_helper_image_warns_once_and_returns_none(caplog, capabilities):
     from biomero.remote_shallower import resolve_helper_image
     with patch.dict(sys.modules,
-                    {'biomero_shallower.capabilities': capabilities}),             caplog.at_level('DEBUG'):
+                    {'biomero_shallower.capabilities': capabilities}), \
+            caplog.at_level('DEBUG'):
         assert resolve_helper_image() is None
     assert [r.levelname for r in caplog.records] == ['WARNING']
     assert 'results stay full' in caplog.records[0].getMessage()

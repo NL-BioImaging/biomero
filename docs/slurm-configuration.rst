@@ -835,8 +835,8 @@ OMERO.biomero admin interface exposes them when shallow storage is enabled;
 environment overrides still take precedence over values saved to the ini file.
 
 The helper image is not a configuration option. The caller names it: core
-installs the image given to ``SlurmClient.setup_slurm(helper_image=...)`` (or
-passed as an extra image specification to ``setup_container_images``) and runs
+installs the image passed as an extra image specification to
+``SlurmClient.setup_container_images(extra_image_specs=...)`` and runs
 the image given to ``SlurmClient.shallow_results_on_slurm(helper_image=...)``.
 The ``SLURM_Init_environment`` script asks the installed biomero-shallower
 package for its own helper image, through

@@ -64,6 +64,11 @@ jobs:
     - name: Test image pull worker
       if: runner.os == 'Linux' && matrix.python-version == '3.11'
       run: bash tests/integration/test_pull_images.sh
+    - name: Test image pull worker on old bash (CentOS 7, bash 4.2)
+      if: runner.os == 'Linux' && matrix.python-version == '3.11'
+      run: |
+        docker run --rm -v "$PWD:/src:ro" centos:7 \
+          bash -c 'cp -r /src /work && bash /work/tests/integration/test_pull_images.sh'
     - name: Coveralls GitHub Action
       if: matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
       continue-on-error: true

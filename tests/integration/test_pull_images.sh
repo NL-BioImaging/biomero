@@ -14,11 +14,28 @@ cat > "$fake_bin/apptainer" <<'EOF'
 if [ -n "${FAKE_RUNTIME_NAME:-}" ]; then
     basename "$0" > "$FAKE_RUNTIME_NAME"
 fi
+# FAKE_MKSQUASHFS=unsupported mimics Apptainer < 1.4 and SingularityCE.
+mksquashfs_supported() { [ "${FAKE_MKSQUASHFS:-supported}" = supported ]; }
 case $1 in
+    --version)
+        echo "$(basename "$0") version fake-1.0"
+        ;;
     inspect)
         [ -s "$2" ]
         ;;
     build)
+        if [ "${2:-}" = --help ]; then
+            echo 'Usage: build [build options...] <image path> <build spec>'
+            echo '    --force   delete and overwrite an existing container'
+            if mksquashfs_supported; then
+                echo '    --mksquashfs-args string   arguments for mksquashfs'
+            fi
+            exit 0
+        fi
+        if ! mksquashfs_supported && [[ " $* " == *" --mksquashfs-args "* ]]; then
+            echo 'FATAL: unknown flag: --mksquashfs-args' >&2
+            exit 2
+        fi
         count_file=${FAKE_BUILD_COUNT:?}
         count=0
         [ ! -f "$count_file" ] || count=$(cat "$count_file")
@@ -85,7 +102,8 @@ run_task() {
     SLURM_ARRAY_JOB_ID=100 \
     SLURM_ARRAY_TASK_ID=0 \
     SLURM_TMPDIR="$case_dir/slurm-tmp" \
-        bash "$runner" "$case_dir/manifest.tsv" "$case_dir/status"
+        bash "$runner" "$case_dir/manifest.tsv" "$case_dir/status" 2>&1 \
+        | tee "$case_dir/job.log"
 }
 
 success_dir="$test_root/success"
@@ -97,6 +115,27 @@ grep -q $'workflow\timagej\tv1\tREADY\t0\tbuilt and validated' \
     "$success_dir/status/status-0.status"
 test -z "$(find "$success_dir/slurm-tmp" -mindepth 1 -print -quit)"
 test -z "$(find "$success_dir/shared" -name '*.partial.*' -print -quit)"
+
+grep -q 'parallel squashfs build enabled' "$success_dir/job.log"
+grep -q 'apptainer (apptainer version fake-1.0)' "$success_dir/job.log"
+
+cpu_dir="$test_root/cpus"
+SLURM_CPUS_PER_TASK=4 run_task "$cpu_dir" success
+grep -q -- '--mksquashfs-args -processors 4' "$cpu_dir/runtime-args"
+test -s "$cpu_dir/shared/imagej_v1.sif"
+
+legacy_dir="$test_root/legacy runtime"
+FAKE_MKSQUASHFS=unsupported run_task "$legacy_dir" success
+test "$(cat "$legacy_dir/build-count")" = 1
+if grep -q -- 'mksquashfs' "$legacy_dir/runtime-args"; then
+    echo 'unsupported --mksquashfs-args was passed to the runtime' >&2
+    exit 1
+fi
+test -s "$legacy_dir/shared/imagej_v1.sif"
+grep -q $'workflow\timagej\tv1\tREADY\t0\tbuilt and validated' \
+    "$legacy_dir/status/status-0.status"
+grep -q -- '--mksquashfs-args not supported, building squashfs single-threaded' \
+    "$legacy_dir/job.log"
 
 permanent_dir="$test_root/permanent"
 if run_task "$permanent_dir" permanent; then
@@ -178,6 +217,7 @@ case \$1 in
         [ -s "\$2" ]
         ;;
     build)
+        [ "\${2:-}" != --help ] || exit 0
         echo 'INFO: Starting build...'
         touch "$started_marker"
         while [ ! -f "$continue_marker" ]; do

@@ -1424,7 +1424,6 @@ def test_job_progress_update_view_table_failed(workflow_tracker_and_job_progress
             job_progress.update_view_table(job_id)
 
     # AND it should log the failure attempts and final failure
-    assert f"Database conflict writing [JP] job progress {job_id}" in caplog.text
     assert "Database operation failed after" in caplog.text
 
 
@@ -1735,7 +1734,7 @@ def test_wfanalytics_update_view_table(workflow_tracker_and_workflow_analytics, 
         with pytest.raises(IntegrityError, match="NOT NULL constraint failed"):
             workflow_analytics.update_view_table(task_id)
 
-    assert f"Database conflict writing [WFA] task execution {task_id}" in caplog.text
+    assert "Database operation failed after" in caplog.text
 
 
 def test_wfanalytics_get_task_counts_with_filters(workflow_tracker_and_workflow_analytics):

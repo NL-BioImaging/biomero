@@ -48,10 +48,16 @@ Remote result lifecycle
 
 After analysis and before archiving, the result script calls
 ``SlurmClient.shallow_results_on_slurm(data_path, workflow_id,
-canonical_inputs, heartbeat=...)``. Core:
+canonical_inputs, helper_image=..., heartbeat=...)``. The caller names the
+helper image that Slurm Init installed (core does not know the shallower
+package). Core:
 
 1. Locates or creates the ``_SLURM_Remote_Shallower`` task for that result path.
-2. Checks the installed helper image and publishes the canonical manifest.
+2. Checks the installed helper image and publishes the canonical manifest. If a
+   new task finds the image not installed, core logs a WARNING asking the
+   administrator to run Slurm Init and the caller keeps the full results; a
+   task that already started raises instead, because its job may have changed
+   the results.
 3. Submits or adopts a CPU Slurm job and monitors it through ``SlurmJob``.
 4. Validates the report against the canonical inputs, task/job identity,
    container reference and tool version before completing the helper task.

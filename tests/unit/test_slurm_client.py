@@ -2615,8 +2615,6 @@ def test_from_config(mock_ConfigParser,
         config_only=config_only,
         slurm_data_bind_path=mv,
         remote_shallow_zarr=False,
-        remote_shallower_image=mv,
-        remote_shallower_version=mv,
         remote_shallower_workers=1,
         remote_shallower_partition=mv,
         remote_shallower_mem=mv,
@@ -3461,7 +3459,8 @@ def test_shallower_scheduler_precedence(slurm_client, dedicated, default, expect
         ' --output=wrong', ' --ntasks=8']
     for recovery in (False, True):
         command = build_helper_command(slurm_client, '/out', '/helper.sif', '/manifest',
-                                str(uuid4()), recovery=recovery)
+                                str(uuid4()), image='registry/helper:0.1.0',
+                                recovery=recovery)
         assert f'--partition={expected}' in command
         assert command.count('--partition=') == 1
         for flag in ('--constraint=fast', '--reservation=reserved',
@@ -3479,7 +3478,8 @@ def test_shallower_resource_overrides(slurm_client):
     slurm_client.remote_shallower_time = '03:00:00'
     slurm_client.slurm_global_job_params = [' --mem=4G', ' --time=01:00:00',
                                           ' --mem-per-cpu=1G']
-    command = build_helper_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()))
+    command = build_helper_command(slurm_client, '/out', '/helper.sif', '/manifest', str(uuid4()),
+                                   image='registry/helper:0.1.0')
     assert '--mem=8G' in command and '--mem=4G' not in command
     assert '--mem-per-cpu' not in command
     assert '--time=03:00:00' in command and '--time=01:00:00' not in command
@@ -4335,20 +4335,6 @@ def test_remote_shallow_can_opt_in(slurm_client_from_config_factory):
     assert slurm_client_from_config_factory(
         config_values={'remote_shallow_zarr': 'true'},
         env_values={'BIOMERO_REMOTE_SHALLOW_ZARR': 'false'}).remote_shallow_zarr is False
-
-
-def test_remote_shallower_release_is_selected_by_config(slurm_client_from_config_factory):
-    client = slurm_client_from_config_factory(config_values={
-        'remote_shallower_image': '', 'remote_shallower_version': '',
-    })
-    assert client.remote_shallower_image == SlurmClient._DEFAULT_REMOTE_SHALLOWER_IMAGE
-    assert client.remote_shallower_version is None
-    client = slurm_client_from_config_factory(config_values={
-        'remote_shallower_image': 'registry/helper:release',
-        'remote_shallower_version': '9.1.0',
-    })
-    assert client.remote_shallower_image == 'registry/helper:release'
-    assert client.remote_shallower_version == '9.1.0'
 
 
 def test_default_partition_parsed_from_config(slurm_client_from_config_factory):
@@ -5724,7 +5710,6 @@ def test_remote_shallower_partition_empty_means_unset(
 def test_every_config_env_var_is_registered_in_one_place():
     """The 2.9 settings use the same registry as the older ones."""
     for option in ("ssh_recovery_timeout", "remote_shallow_zarr",
-                   "remote_shallower_image", "remote_shallower_version",
                    "remote_shallower_workers", "remote_shallower_partition",
                    "remote_shallower_mem", "remote_shallower_time"):
         assert ("SLURM", option) in SlurmClient._CONFIG_ENV_VARS

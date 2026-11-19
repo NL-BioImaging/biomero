@@ -140,20 +140,13 @@ For a deployment using shallow Zarr:
 1. Enable the importer integration and `BIOMERO_SHALLOW_ZARR=true`. Remote
    shallowing is enabled with `BIOMERO_REMOTE_SHALLOW_ZARR=true`; without it,
    shallowing runs locally in the importer.
-2. Prefer a pinned `remote_shallower_image` in the `[SLURM]` section of
-   `slurm-config.ini`; the fallback is `cellularimagingcf/biomero-shallower:latest`.
-   Core reads the installed image's tool version unless `remote_shallower_version`
-   is explicitly set. See the [sample configuration](resources/slurm-config.ini)
-   for the maintained release selection.
-3. Set the importer's `BIOMERO_REMOTE_SHALLOWER_IMAGE` and
-   `BIOMERO_REMOTE_SHALLOWER_VERSION` to the same values for receipt validation.
-   On the worker, these environment variables can also override the ini settings.
-4. Run **Slurm Init** to acquire the configured image, then **Slurm Check Setup**
-   to verify it before submitting an analysis. Workflow execution does not
-   download a missing image.
+2. Run **Slurm Init** to install the helper image, then **Slurm Check Setup**
+   to verify it before submitting an analysis. The image is not configured:
+   Slurm Init takes it from the installed `biomero-shallower` package and passes
+   it to core. Workflow execution does not download a missing image; the
+   workflow keeps its full results and logs a warning to run Slurm Init.
 
-The configured or default image must be acquired before use. For deployment settings and
-resource configuration, see the [remote shallower installation guide](https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement).
+For deployment settings and resource configuration, see the [remote shallower installation guide](https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement).
 
 ## Slurm Requirements
 Note: This library has only been tested on Slurm versions 21.08.6 and 22.05.09 !

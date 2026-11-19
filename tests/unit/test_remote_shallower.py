@@ -1,5 +1,6 @@
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import sys
+from types import ModuleType, SimpleNamespace
+from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 import shlex
 
@@ -11,20 +12,20 @@ from biomero.slurm_client import SlurmClient
 def test_default_is_disabled_without_remote_calls():
     client = SlurmClient(config_only=True)
     client.run_commands = MagicMock()
-    assert client.shallow_results_on_slurm('/data', uuid4(), None) is None
+    assert client.shallow_results_on_slurm(
+        '/data', uuid4(), None, helper_image='registry/helper:0.1.0') is None
     client.run_commands.assert_not_called()
     assert client.get_shallower_job_params() == ['--cpus-per-task=1']
 
 
 def test_shallower_is_cpu_only_and_quotes_paths():
     client = SlurmClient(config_only=True, remote_shallow_zarr=True,
-                         remote_shallower_image='registry/helper:0.1.0',
                          remote_shallower_partition='cpu',
                          slurm_global_job_params=[' --gres=gpu:1', ' --gpus=1', ' --mem=4G'])
     from biomero.remote_shallower import build_helper_command
     command = build_helper_command(
         client, '/scratch/path with spaces', '/sif/helper.sif',
-        '/state/input.json', str(uuid4()))
+        '/state/input.json', str(uuid4()), image='registry/helper:0.1.0')
     assert '--gres' not in command
     assert '--gpus' not in command
     assert '--partition=cpu' in command
@@ -33,25 +34,33 @@ def test_shallower_is_cpu_only_and_quotes_paths():
     assert 'normalize-tree' in command
 
 
-def test_latest_image_can_be_selected_in_configuration():
+def test_image_spec_describes_the_image_the_caller_gives():
     from biomero.remote_shallower import image_spec
-    client = SimpleNamespace(remote_shallower_image='registry/helper:latest',
-                             slurm_converters_path='/images')
-    spec = image_spec(client)
+    client = SimpleNamespace(slurm_converters_path='/images')
+    spec = image_spec(client, 'registry/helper:0.1.0-beta.11')
     assert spec['source'] == 'registry/helper'
-    assert spec['version'] == 'latest'
+    assert spec['version'] == '0.1.0-beta.11'
+    assert spec['destination'].startswith('/images/shallower-')
 
 
-def test_default_helper_image_is_latest():
+@pytest.mark.parametrize('image', ['', None])
+def test_image_spec_requires_an_image(image):
     from biomero.remote_shallower import image_spec
-    client = SlurmClient(config_only=True)
-    assert client.remote_shallower_image == 'cellularimagingcf/biomero-shallower:latest'
-    assert client.remote_shallower_version is None
-    assert image_spec(client)['version'] == 'latest'
+    client = SimpleNamespace(slurm_converters_path='/images')
+    with pytest.raises(ValueError, match='No remote shallower helper image'):
+        image_spec(client, image)
 
 
-def test_setup_without_helper_configuration_acquires_default_helper():
-    from biomero.remote_shallower import image_spec
+@pytest.mark.parametrize('key', ['remote_shallower_image',
+                                 'remote_shallower_version'])
+def test_helper_image_is_not_configurable(key):
+    """The caller names the helper image; the INI and constructor do not."""
+    assert not hasattr(SlurmClient(config_only=True), key)
+    with pytest.raises(TypeError):
+        SlurmClient(config_only=True, **{key: 'registry/helper:0.1.0'})
+
+
+def test_setup_slurm_leaves_the_helper_image_to_the_caller(caplog):
     client = SlurmClient(config_only=True, remote_shallow_zarr=True)
     client.validate = MagicMock(return_value=True)
     client.setup_directories = MagicMock()
@@ -59,9 +68,43 @@ def test_setup_without_helper_configuration_acquires_default_helper():
     client.prepare_converters = MagicMock(return_value=[{'kind': 'converter'}])
     client.setup_container_images = MagicMock(return_value=42)
     client.check_remote_commands_available = MagicMock(return_value=[])
-    assert client.setup_slurm() == 42
+    with caplog.at_level('DEBUG'):
+        assert client.setup_slurm() == 42
     client.setup_container_images.assert_called_once_with(
-        extra_image_specs=[{'kind': 'converter'}, image_spec(client)])
+        extra_image_specs=[{'kind': 'converter'}])
+    assert not [r for r in caplog.records if 'helper image' in r.getMessage()]
+
+
+def _fake_capabilities(**attributes):
+    capabilities = ModuleType('biomero_shallower.capabilities')
+    for name, value in attributes.items():
+        setattr(capabilities, name, value)
+    return capabilities
+
+
+def test_resolve_helper_image_returns_the_installed_shallowers_image():
+    from biomero.remote_shallower import resolve_helper_image
+    capabilities = _fake_capabilities(
+        helper_image=Mock(return_value='registry/helper:1'))
+    with patch.dict(sys.modules,
+                    {'biomero_shallower.capabilities': capabilities}):
+        assert resolve_helper_image() == 'registry/helper:1'
+
+
+@pytest.mark.parametrize('capabilities', [
+    _fake_capabilities(helper_image=Mock(side_effect=ValueError('dev'))),
+    _fake_capabilities(helper_image=Mock(side_effect=RuntimeError('no repo'))),
+    _fake_capabilities(),  # a shallower without helper_image()
+    None,  # the package is not installed
+], ids=['value-error', 'runtime-error', 'no-function', 'not-installed'])
+def test_resolve_helper_image_warns_once_and_returns_none(caplog, capabilities):
+    from biomero.remote_shallower import resolve_helper_image
+    with patch.dict(sys.modules,
+                    {'biomero_shallower.capabilities': capabilities}), \
+            caplog.at_level('DEBUG'):
+        assert resolve_helper_image() is None
+    assert [r.levelname for r in caplog.records] == ['WARNING']
+    assert 'results stay full' in caplog.records[0].getMessage()
 
 
 def test_tool_version_is_read_from_installed_image_labels():
@@ -76,7 +119,7 @@ def test_tool_version_is_read_from_installed_image_labels():
     assert "'/images/helper image.sif'" in command
 
 
-def test_runtime_capabilities_and_configured_version_are_enforced():
+def test_runtime_capabilities_and_expected_version_are_enforced():
     import json
     from biomero.remote_shallower import validate_installed_tool
     labels = {
@@ -88,14 +131,15 @@ def test_runtime_capabilities_and_configured_version_are_enforced():
             'schema-1-to-2,schema-1-path-only-labels'),
     }
     client = SimpleNamespace(
-        remote_shallower_version='0.1.0-beta.4',
         run_commands=MagicMock(return_value=SimpleNamespace(
             ok=True,
             stdout=json.dumps({'data': {'attributes': {'labels': labels}}}),
         )),
     )
 
-    assert validate_installed_tool(client, '/images/helper.sif') == '0.1.0b4'
+    assert validate_installed_tool(
+        client, '/images/helper.sif',
+        expected_version='0.1.0-beta.4') == '0.1.0b4'
 
 
 @pytest.mark.parametrize(
@@ -126,7 +170,6 @@ def test_runtime_capabilities_fail_closed(removed, changed, error):
     if changed:
         labels[changed[0]] = changed[1]
     client = SimpleNamespace(
-        remote_shallower_version=None,
         run_commands=MagicMock(return_value=SimpleNamespace(
             ok=True,
             stdout=json.dumps({'data': {'attributes': {'labels': labels}}}),
@@ -147,19 +190,19 @@ def test_runtime_rejects_installed_version_mismatch():
         'org.biomeroproject.shallower.manifest-schemas': '2',
     }
     client = SimpleNamespace(
-        remote_shallower_version='0.1.0b4',
         run_commands=MagicMock(return_value=SimpleNamespace(
             ok=True,
             stdout=json.dumps({'data': {'attributes': {'labels': labels}}}),
         )),
     )
 
-    with pytest.raises(RuntimeError, match='does not match configured'):
-        validate_installed_tool(client, '/images/helper.sif')
+    with pytest.raises(RuntimeError, match='does not match expected'):
+        validate_installed_tool(
+            client, '/images/helper.sif', expected_version='0.1.0b4')
 
 
 @pytest.mark.parametrize('output', ['{}', 'not json'])
-def test_missing_tool_version_requires_explicit_configuration(output):
+def test_missing_tool_version_is_rejected(output):
     from biomero.remote_shallower import installed_tool_version
     client = SimpleNamespace(run_commands=MagicMock(return_value=SimpleNamespace(
         ok=True, stdout=output)))
@@ -169,13 +212,13 @@ def test_missing_tool_version_requires_explicit_configuration(output):
 
 def test_shallowing_and_recovery_have_distinct_job_names():
     from biomero.remote_shallower import build_helper_command
-    client = SlurmClient(config_only=True, remote_shallower_image='helper:latest')
+    client = SlurmClient(config_only=True)
     task_id = str(uuid4())
     names = []
     for recovery in (False, True):
         command = build_helper_command(
             client, '/out', '/helper.sif', '/manifest', task_id,
-            recovery=recovery)
+            image='helper:0.1.0', recovery=recovery)
         names.append(next(arg for arg in shlex.split(command)
                           if arg.startswith('--job-name=')))
     assert names[0] == '--job-name=biomero-shallower-' + task_id
@@ -202,32 +245,6 @@ def test_internal_locks_are_always_excluded(executable, expected,
     client = SlurmClient(config_only=True, slurm_zip_cmd=executable,
                          remote_shallow_zarr=remote_shallow_zarr)
     assert expected in client.get_zip_command('/data', 'results')
-
-
-@pytest.mark.parametrize('enabled,image,level,expected', [
-    (True, 'registry/helper:0.1.0', 'INFO',
-     'Including remote shallower helper image'),
-    (False, 'registry/helper:0.1.0', 'DEBUG',
-     'Skipping remote shallower helper image'),
-    (True, '', 'WARNING', 'remote_shallower_image is empty'),
-])
-def test_setup_slurm_logs_helper_image_decision(caplog, enabled, image, level,
-                                                expected):
-    client = SlurmClient(config_only=True, remote_shallow_zarr=enabled,
-                         remote_shallower_image=image,
-                         slurm_converters_path='/sifs')
-    client.validate = MagicMock(return_value=True)
-    client.setup_directories = MagicMock()
-    client.setup_job_scripts = MagicMock()
-    client.prepare_converters = MagicMock(return_value=[])
-    client.setup_container_images = MagicMock(return_value=None)
-    client.check_remote_commands_available = MagicMock(
-        return_value=[])
-    with caplog.at_level('DEBUG', logger='biomero.slurm_client'):
-        client.setup_slurm()
-    levels = [record.levelname for record in caplog.records
-              if expected in record.getMessage()]
-    assert levels == [level]
 
 
 def test_sbatch_wrap_command_applies_site_defaults():
@@ -269,7 +286,6 @@ def test_workflow_tasks_are_read_once_and_filtered():
 
 HELPER_CLIENT_SETTINGS = dict(
     config_only=True, remote_shallow_zarr=True,
-    remote_shallower_image='registry/helper:0.1.0',
     remote_shallower_workers=2, remote_shallower_partition='cpu',
     slurm_default_partition='gpu', slurm_global_job_params=[' --account=lab'])
 GOLDEN_HELPER_COMMAND = (

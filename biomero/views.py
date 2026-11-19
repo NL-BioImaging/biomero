@@ -28,7 +28,7 @@ from biomero.eventsourcing import (
     WorkflowRun, Task, WorkflowTracker, is_launcher_task)
 from biomero.database import (
     EngineManager, JobView, TaskExecution, JobProgressView,
-    WorkflowProgressView, retry_on_database_conflict)
+    WorkflowProgressView, is_retryable_conflict, retry_on_database_conflict)
 from biomero.constants import (
     CONVERSION_SCRIPT,
     CONVERT_TASK_PREFIX,
@@ -81,6 +81,25 @@ def tracker_repository():
     return _tracker.repository
 
 
+def rollback_view_session(description: str) -> None:
+    """Roll the shared session back after a failed view operation.
+
+    Without it the next use of the scoped session raises
+    ``PendingRollbackError``. A rollback that fails too (the connection is
+    gone) is logged, not raised: view handlers run inside the producer's
+    ``save()``, which must not raise after its event is stored.
+
+    Args:
+        description (str): What failed, for the log message.
+    """
+    try:
+        EngineManager.rollback()
+        logger.debug(f"Rolled back the view session after {description}")
+    except Exception:
+        logger.warning(f"Rollback of the view session after {description} "
+                       f"failed; the session was removed", exc_info=True)
+
+
 def get_tracker_aggregate(aggregate_id: UUID, kind: str) -> Optional[Any]:
     """Look an aggregate up in the workflow tracker.
 
@@ -88,7 +107,9 @@ def get_tracker_aggregate(aggregate_id: UUID, kind: str) -> Optional[Any]:
     traceback for the latter) and reported as None: projections run inside the
     producer's ``save()``, which would otherwise raise after its event is
     already stored (and a retry could then duplicate the work). Programming
-    errors still propagate.
+    errors still propagate. The tracker reads through its own connection, so
+    the shared session (which holds the producer's pending event) is left
+    alone: rolling it back here would discard that event.
 
     Args:
         aggregate_id (UUID): ID of the workflow or task.
@@ -112,7 +133,7 @@ def first_view_row(query: Callable, description: str) -> Optional[Any]:
     """Look a row up in a view table through the producer's shared session.
 
     Like ``get_tracker_aggregate``, a database error is a WARNING with the
-    traceback and the lookup reports None.
+    traceback, the session is rolled back and the lookup reports None.
 
     Args:
         query (Callable): Function that takes the session and returns the row.
@@ -126,6 +147,7 @@ def first_view_row(query: Callable, description: str) -> Optional[Any]:
     except LOOKUP_ERRORS:
         logger.warning(f"{description} could not be read from its view "
                        f"table", exc_info=True)
+        rollback_view_session(f"reading {description}")
         return None
 
 
@@ -133,20 +155,32 @@ def commit_after_event(handler: Callable) -> Callable:
     """Decorator for event handlers: commit the shared session afterwards.
 
     The projections write through the producer's scoped session; the handler
-    ends the notification by committing it, whichever way it returns.
+    ends the notification by committing it, whichever way it returns. A
+    database error at that commit is logged as a WARNING and not raised (the
+    session is rolled back): the producer's event is already stored.
     """
     @wraps(handler)
     def wrapper(self, domain_event, process_event):
         handler(self, domain_event, process_event)
-        EngineManager.commit()
+        try:
+            EngineManager.commit()
+        except LOOKUP_ERRORS:
+            logger.warning(f"Could not commit the view update for "
+                           f"{type(domain_event).__name__}; the view misses "
+                           f"this event until it is rebuilt", exc_info=True)
     return wrapper
 
 
 def write_view_row(description: str, write: Callable) -> None:
     """Write to a view table and commit.
 
-    A conflicting write is rolled back and re-raised, so that the caller's
-    ``retry_on_database_conflict`` can retry it.
+    A conflicting write (an ``IntegrityError``, or a database error that
+    ``is_retryable_conflict``) is rolled back and re-raised, so that the
+    caller's ``retry_on_database_conflict`` can retry it. Any other database
+    error (a missing table, a lost connection) is a WARNING with the
+    traceback and is not raised: view writes run inside the producer's
+    ``save()``, which must not raise after its event is stored. The view then
+    misses this write until it is rebuilt.
 
     Args:
         description (str): What is written, for the log.
@@ -161,6 +195,15 @@ def write_view_row(description: str, write: Callable) -> None:
             logger.warning(f"Database conflict writing {description}: "
                            f"{error}")
             raise
+        except LOOKUP_ERRORS as error:
+            rollback_view_session(f"writing {description}")
+            if is_retryable_conflict(error):
+                logger.warning(f"Database conflict writing {description}: "
+                               f"{error}")
+                raise
+            logger.warning(f"Could not write {description} to its view "
+                           f"table; the view misses this write until it is "
+                           f"rebuilt", exc_info=True)
 
 
 def resolve_workflow_owner(workflows: Dict[UUID, dict],

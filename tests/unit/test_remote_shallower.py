@@ -1,5 +1,6 @@
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import sys
+from types import ModuleType, SimpleNamespace
+from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 import shlex
 
@@ -74,31 +75,35 @@ def test_setup_slurm_leaves_the_helper_image_to_the_caller(caplog):
     assert not [r for r in caplog.records if 'helper image' in r.getMessage()]
 
 
-def test_resolve_helper_image_returns_the_providers_image():
+def _fake_capabilities(**attributes):
+    capabilities = ModuleType('biomero_shallower.capabilities')
+    for name, value in attributes.items():
+        setattr(capabilities, name, value)
+    return capabilities
+
+
+def test_resolve_helper_image_returns_the_installed_shallowers_image():
     from biomero.remote_shallower import resolve_helper_image
-    assert resolve_helper_image(
-        f'{__name__}:_provide_image') == 'registry/helper:1'
+    capabilities = _fake_capabilities(
+        helper_image=Mock(return_value='registry/helper:1'))
+    with patch.dict(sys.modules,
+                    {'biomero_shallower.capabilities': capabilities}):
+        assert resolve_helper_image() == 'registry/helper:1'
 
 
-def _provide_image():
-    return 'registry/helper:1'
-
-
-def _provide_nothing():
-    raise ValueError('development version')
-
-
-@pytest.mark.parametrize('provider', [
-    f'{__name__}:_provide_nothing',
-    'not_an_installed_package_xyz:helper_image',
-    f'{__name__}:no_such_function',
-])
-def test_resolve_helper_image_warns_once_and_returns_none(caplog, provider):
+@pytest.mark.parametrize('capabilities', [
+    _fake_capabilities(helper_image=Mock(side_effect=ValueError('dev'))),
+    _fake_capabilities(helper_image=Mock(side_effect=RuntimeError('no repo'))),
+    _fake_capabilities(),  # a shallower without helper_image()
+    None,  # the package is not installed
+], ids=['value-error', 'runtime-error', 'no-function', 'not-installed'])
+def test_resolve_helper_image_warns_once_and_returns_none(caplog, capabilities):
     from biomero.remote_shallower import resolve_helper_image
-    with caplog.at_level('DEBUG'):
-        assert resolve_helper_image(provider) is None
+    with patch.dict(sys.modules,
+                    {'biomero_shallower.capabilities': capabilities}),             caplog.at_level('DEBUG'):
+        assert resolve_helper_image() is None
     assert [r.levelname for r in caplog.records] == ['WARNING']
-    assert provider in caplog.records[0].getMessage()
+    assert 'results stay full' in caplog.records[0].getMessage()
 
 
 def test_tool_version_is_read_from_installed_image_labels():

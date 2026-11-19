@@ -834,9 +834,12 @@ installs the image given to ``SlurmClient.setup_slurm(helper_image=...)`` (or
 passed as an extra image specification to ``setup_container_images``) and runs
 the image given to ``SlurmClient.shallow_results_on_slurm(helper_image=...)``.
 The ``SLURM_Init_environment`` script asks the installed biomero-shallower
-package for its own helper image, so the image always matches that package
-and receipt validation by the importer. Core does not import
-biomero-shallower. Initialization reuses an already valid SIF; it does not
+package for its own helper image, through
+``biomero.remote_shallower.resolve_helper_image()``, so the image always
+matches that package and receipt validation by the importer. Core imports
+biomero-shallower only inside that function, so core works without it; the
+function logs a WARNING and returns ``None`` if the package is missing or
+names no image. Initialization reuses an already valid SIF; it does not
 refresh that file merely because the registry tag moved. Core reads the
 installed SIF's OCI version label and records it before submitting a new task;
 a missing version label stops the task. Existing tasks retain their recorded

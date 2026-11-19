@@ -9,7 +9,6 @@ validation.
 from __future__ import annotations
 
 import hashlib
-import importlib
 import io
 import json
 import logging
@@ -75,11 +74,6 @@ SUBMISSION_MARKER_SUFFIXES = (
 POLLING_INTERVAL_SECONDS = 15
 COMPLETED_STATE = "COMPLETED"
 
-# Where callers find the helper image: the installed shallower names the image
-# of its own version. Core loads this by name when asked and never imports the
-# shallower package otherwise.
-HELPER_IMAGE_PROVIDER = "biomero_shallower.capabilities:helper_image"
-
 # Image acquisition specification and file naming.
 IMAGE_KIND = "result-shallower"
 IMAGE_NAME = "biomero-shallower"
@@ -131,31 +125,27 @@ class HelperJob(NamedTuple):
     state_dir: str
 
 
-def resolve_helper_image(
-        provider: str = HELPER_IMAGE_PROVIDER) -> Optional[str]:
+def resolve_helper_image() -> Optional[str]:
     """Ask the installed shallower package for its helper image.
 
     Shared by the scripts that install, check or run the helper, so they
     agree on the image and on how a failure is reported: one WARNING, then
-    None, because remote shallowing is enabled but cannot run.
-
-    Args:
-        provider (str): The function that names the image, as
-            ``module:function``.
+    None, because remote shallowing is enabled but cannot run. The package is
+    imported here, not at module level, so core works without it.
 
     Returns:
         Optional[str]: The helper image as ``repository:tag``, or None if the
             package is not installed or names no image (for example a
             development version).
     """
-    module_name, _, function_name = provider.partition(":")
     try:
-        module = importlib.import_module(module_name)
-        return getattr(module, function_name)()
-    except (ImportError, AttributeError, ValueError, RuntimeError) as error:
-        logger.warning(f"Remote shallowing is enabled but {provider} names no "
-                       f"helper image ({error!r}); the helper image cannot be "
-                       "installed or run and results stay full")
+        from biomero_shallower.capabilities import helper_image
+        return helper_image()
+    except (ImportError, ValueError, RuntimeError) as error:
+        logger.warning(f"Remote shallowing is enabled but the installed "
+                       f"biomero-shallower names no helper image "
+                       f"({error!r}); the helper image cannot be installed "
+                       "or run and results stay full")
         return None
 
 

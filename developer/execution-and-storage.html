@@ -168,10 +168,16 @@ snapshot, not infer it from current feature flags.</p>
 <h2>Remote result lifecycle<a class="headerlink" href="#remote-result-lifecycle" title="Permalink to this heading"></a></h2>
 <p>After analysis and before archiving, the result script calls
 <code class="docutils literal notranslate"><span class="pre">SlurmClient.shallow_results_on_slurm(data_path,</span> <span class="pre">workflow_id,</span>
-<span class="pre">canonical_inputs,</span> <span class="pre">heartbeat=...)</span></code>. Core:</p>
+<span class="pre">canonical_inputs,</span> <span class="pre">helper_image=...,</span> <span class="pre">heartbeat=...)</span></code>. The caller names the
+helper image that Slurm Init installed (core does not know the shallower
+package). Core:</p>
 <ol class="arabic simple">
 <li><p>Locates or creates the <code class="docutils literal notranslate"><span class="pre">_SLURM_Remote_Shallower</span></code> task for that result path.</p></li>
-<li><p>Checks the installed helper image and publishes the canonical manifest.</p></li>
+<li><p>Checks the installed helper image and publishes the canonical manifest. If a
+new task finds the image not installed, core logs a WARNING asking the
+administrator to run Slurm Init and the caller keeps the full results; a
+task that already started raises instead, because its job may have changed
+the results.</p></li>
 <li><p>Submits or adopts a CPU Slurm job and monitors it through <code class="docutils literal notranslate"><span class="pre">SlurmJob</span></code>.</p></li>
 <li><p>Validates the report against the canonical inputs, task/job identity,
 container reference and tool version before completing the helper task.</p></li>

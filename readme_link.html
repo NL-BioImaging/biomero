@@ -352,20 +352,13 @@ For a deployment using shallow Zarr:</p>
 <li><p>Enable the importer integration and <code class="docutils literal notranslate"><span class="pre">BIOMERO_SHALLOW_ZARR=true</span></code>. Remote
 shallowing is enabled with <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOW_ZARR=true</span></code>; without it,
 shallowing runs locally in the importer.</p></li>
-<li><p>Prefer a pinned <code class="docutils literal notranslate"><span class="pre">remote_shallower_image</span></code> in the <code class="docutils literal notranslate"><span class="pre">[SLURM]</span></code> section of
-<code class="docutils literal notranslate"><span class="pre">slurm-config.ini</span></code>; the fallback is <code class="docutils literal notranslate"><span class="pre">cellularimagingcf/biomero-shallower:latest</span></code>.
-Core reads the installed image’s tool version unless <code class="docutils literal notranslate"><span class="pre">remote_shallower_version</span></code>
-is explicitly set. See the <a class="reference internal" href="#resources/slurm-config.ini"><span class="xref myst">sample configuration</span></a>
-for the maintained release selection.</p></li>
-<li><p>Set the importer’s <code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_IMAGE</span></code> and
-<code class="docutils literal notranslate"><span class="pre">BIOMERO_REMOTE_SHALLOWER_VERSION</span></code> to the same values for receipt validation.
-On the worker, these environment variables can also override the ini settings.</p></li>
-<li><p>Run <strong>Slurm Init</strong> to acquire the configured image, then <strong>Slurm Check Setup</strong>
-to verify it before submitting an analysis. Workflow execution does not
-download a missing image.</p></li>
+<li><p>Run <strong>Slurm Init</strong> to install the helper image, then <strong>Slurm Check Setup</strong>
+to verify it before submitting an analysis. The image is not configured:
+Slurm Init takes it from the installed <code class="docutils literal notranslate"><span class="pre">biomero-shallower</span></code> package and passes
+it to core. Workflow execution does not download a missing image; the
+workflow keeps its full results and logs a warning to run Slurm Init.</p></li>
 </ol>
-<p>The configured or default image must be acquired before use. For deployment settings and
-resource configuration, see the <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement">remote shallower installation guide</a>.</p>
+<p>For deployment settings and resource configuration, see the <a class="reference external" href="https://nl-bioimaging.github.io/NL-BIOMERO/master/sysadmin/remote-shallower.html#requirements-and-enablement">remote shallower installation guide</a>.</p>
 </section>
 </section>
 <section id="slurm-requirements">

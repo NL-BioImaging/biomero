@@ -554,7 +554,6 @@
     <span class="n">_DEFAULT_SLURM_DATA_PATH</span> <span class="o">=</span> <span class="s2">"my-scratch/data"</span>
     <span class="n">_DEFAULT_SLURM_IMAGES_PATH</span> <span class="o">=</span> <span class="s2">"my-scratch/singularity_images/workflows"</span>
     <span class="n">_DEFAULT_SLURM_CONVERTERS_PATH</span> <span class="o">=</span> <span class="s2">"my-scratch/singularity_images/converters"</span>
-    <span class="n">_DEFAULT_REMOTE_SHALLOWER_IMAGE</span> <span class="o">=</span> <span class="s2">"cellularimagingcf/biomero-shallower:latest"</span>
     <span class="n">_DEFAULT_SLURM_GIT_SCRIPT_PATH</span> <span class="o">=</span> <span class="s2">"slurm-scripts"</span>
     <span class="n">_DEFAULT_SACCT_START_TIME</span> <span class="o">=</span> <span class="s2">"2023-01-01"</span>
     <span class="n">_DEFAULT_SLURM_ZIP_CMD</span> <span class="o">=</span> <span class="s2">"$(command -v 7z || command -v 7za)"</span>
@@ -600,10 +599,6 @@
             <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_SSH_RECOVERY_TIMEOUT</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallow_zarr"</span><span class="p">):</span> <span class="p">[</span>
             <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_REMOTE_SHALLOW_ZARR</span><span class="p">],</span>
-        <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallower_image"</span><span class="p">):</span> <span class="p">[</span>
-            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_REMOTE_SHALLOWER_IMAGE</span><span class="p">],</span>
-        <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallower_version"</span><span class="p">):</span> <span class="p">[</span>
-            <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_REMOTE_SHALLOWER_VERSION</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallower_workers"</span><span class="p">):</span> <span class="p">[</span>
             <span class="n">slurm_env</span><span class="o">.</span><span class="n">BIOMERO_REMOTE_SHALLOWER_WORKERS</span><span class="p">],</span>
         <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallower_partition"</span><span class="p">):</span> <span class="p">[</span>
@@ -903,8 +898,6 @@
                  <span class="n">image_pull_concurrency</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
                  <span class="n">image_pull_partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">remote_shallow_zarr</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                 <span class="n">remote_shallower_image</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_DEFAULT_REMOTE_SHALLOWER_IMAGE</span><span class="p">,</span>
-                 <span class="n">remote_shallower_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">remote_shallower_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
                  <span class="n">remote_shallower_partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">remote_shallower_mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1030,14 +1023,6 @@
 <span class="sd">                locally. Defaults to False (local shallowing); a missing or</span>
 <span class="sd">                empty setting leaves it off. Environment:</span>
 <span class="sd">                BIOMERO_REMOTE_SHALLOW_ZARR.</span>
-<span class="sd">            remote_shallower_image (str, optional): Administrator remote-shallower</span>
-<span class="sd">                image reference; defaults to our helper's latest tag. Pin a</span>
-<span class="sd">                release in slurm-config.ini for reproducible deployment.</span>
-<span class="sd">                Environment: BIOMERO_REMOTE_SHALLOWER_IMAGE.</span>
-<span class="sd">            remote_shallower_version (str, optional): Administrator remote-shallower</span>
-<span class="sd">                expected receipt version; default None (read the installed</span>
-<span class="sd">                image's OCI version label before recording a new task).</span>
-<span class="sd">                Environment: BIOMERO_REMOTE_SHALLOWER_VERSION.</span>
 <span class="sd">            remote_shallower_workers (int, optional): Administrator remote-shallower</span>
 <span class="sd">                setting; default 1. Environment: BIOMERO_REMOTE_SHALLOWER_WORKERS.</span>
 <span class="sd">            remote_shallower_partition (str, optional): Administrator remote-shallower</span>
@@ -1182,8 +1167,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_use_gpu</span> <span class="o">=</span> <span class="n">slurm_model_use_gpu</span> <span class="ow">or</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_bind_path</span> <span class="o">=</span> <span class="n">slurm_data_bind_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallow_zarr</span> <span class="o">=</span> <span class="n">remote_shallow_zarr</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_image</span> <span class="o">=</span> <span class="n">remote_shallower_image</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_version</span> <span class="o">=</span> <span class="n">remote_shallower_version</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_workers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_at_least_one</span><span class="p">(</span>
             <span class="s2">"remote_shallower_workers"</span><span class="p">,</span> <span class="n">remote_shallower_workers</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_partition</span> <span class="o">=</span> <span class="n">remote_shallower_partition</span>
@@ -1701,26 +1684,24 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">slurm_model_images</span><span class="p">[</span><span class="n">workflow</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span></div>
 
 <div class="viewcode-block" id="SlurmClient.setup_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.setup_slurm">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">"""Create the cluster setup and return the image array job ID."""</span>
+<span class="w">        </span><span class="sd">"""Create the cluster setup and return the image array job ID.</span>
+
+<span class="sd">        The remote shallower helper image is not part of this setup: its</span>
+<span class="sd">        caller names it. A caller that wants it adds</span>
+<span class="sd">        ``remote_shallower.image_spec(client, image)`` to the specifications</span>
+<span class="sd">        it passes to ``setup_container_images(extra_image_specs=...)``, as the</span>
+<span class="sd">        Slurm Init script does.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[int]: The Slurm array job ID, or None if nothing was</span>
+<span class="sd">                submitted to Slurm.</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">():</span>
             <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span><span class="s2">"Failure in connecting to Slurm cluster"</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_remote_commands_available</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setup_directories</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setup_job_scripts</span><span class="p">()</span>
         <span class="n">converter_specs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_converters</span><span class="p">()</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallow_zarr</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallower_image</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">.remote_shallower</span><span class="w"> </span><span class="kn">import</span> <span class="n">image_spec</span>
-            <span class="n">spec</span> <span class="o">=</span> <span class="n">image_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Including remote shallower helper image "</span>
-                        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">spec</span><span class="p">[</span><span class="s1">'source'</span><span class="p">]</span><span class="si">}</span><span class="s2"> in Slurm image setup"</span><span class="p">)</span>
-            <span class="n">converter_specs</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">converter_specs</span><span class="p">,</span> <span class="n">spec</span><span class="p">]</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_shallow_zarr</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Remote shallowing is enabled but "</span>
-                           <span class="s2">"remote_shallower_image is empty; the helper image "</span>
-                           <span class="s2">"is not set up and remote shallowing cannot run"</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"Skipping remote shallower helper image setup: "</span>
-                         <span class="s2">"remote_shallow_zarr is disabled"</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_container_images</span><span class="p">(</span><span class="n">extra_image_specs</span><span class="o">=</span><span class="n">converter_specs</span><span class="p">)</span></div>
 
     <span class="nd">@staticmethod</span>
@@ -2115,12 +2096,17 @@
         <span class="k">return</span> <span class="n">result_dict</span></div>
 
 <div class="viewcode-block" id="SlurmClient.shallow_results_on_slurm"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.shallow_results_on_slurm">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">shallow_results_on_slurm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span>
-                                   <span class="o">*</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                                 <span class="o">*</span><span class="p">,</span> <span class="n">helper_image</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Run/adopt optional CPU shallowing before result archiving.</span>
 
 <span class="sd">        The whole run is repeated within the SSH recovery window after a lost</span>
 <span class="sd">        connection, so every step inside it must be safe to repeat: it adopts</span>
 <span class="sd">        the recorded job or submits through ``submit_job_once``.</span>
+
+<span class="sd">        ``helper_image`` is the helper image (``repository:tag``) that Slurm</span>
+<span class="sd">        Init installed; the caller names it. When it is not installed, the</span>
+<span class="sd">        results stay full and a WARNING tells the administrator to run Slurm</span>
+<span class="sd">        Init; images are never installed during a workflow.</span>
 
 <span class="sd">        ``heartbeat`` is a caller-owned no-argument callback invoked during</span>
 <span class="sd">        job waits.</span>
@@ -2130,7 +2116,8 @@
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">'heartbeat must be callable'</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">shallow_workflow_results</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">),</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="n">data_path</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">,</span>
+                <span class="n">image</span><span class="o">=</span><span class="n">helper_image</span><span class="p">),</span>
             <span class="s2">"remote shallowing"</span><span class="p">,</span> <span class="n">heartbeat</span><span class="o">=</span><span class="n">heartbeat</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_remote_shallower_receipts"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_remote_shallower_receipts">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_remote_shallower_receipts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">,</span> <span class="n">canonical_inputs</span><span class="p">):</span>
@@ -2376,23 +2363,6 @@
             <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallow_zarr"</span><span class="p">)],</span>
             <span class="n">value_type</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">remote_shallower_image</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
-            <span class="n">configs</span><span class="p">,</span>
-            <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
-            <span class="n">option</span><span class="o">=</span><span class="s2">"remote_shallower_image"</span><span class="p">,</span>
-            <span class="n">default</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_DEFAULT_REMOTE_SHALLOWER_IMAGE</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallower_image"</span><span class="p">)],</span>
-            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">remote_shallower_version</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
-            <span class="n">configs</span><span class="p">,</span>
-            <span class="n">section</span><span class="o">=</span><span class="s2">"SLURM"</span><span class="p">,</span>
-            <span class="n">option</span><span class="o">=</span><span class="s2">"remote_shallower_version"</span><span class="p">,</span>
-            <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">env_vars</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_CONFIG_ENV_VARS</span><span class="p">[</span>
-                <span class="p">(</span><span class="s2">"SLURM"</span><span class="p">,</span> <span class="s2">"remote_shallower_version"</span><span class="p">)],</span>
-            <span class="n">empty_is_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">remote_shallower_workers</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_config_value</span><span class="p">(</span>
             <span class="n">configs</span><span class="p">,</span>
@@ -2755,8 +2725,6 @@
                    <span class="n">config_only</span><span class="o">=</span><span class="n">config_only</span><span class="p">,</span>
                    <span class="n">slurm_data_bind_path</span><span class="o">=</span><span class="n">slurm_data_bind_path</span><span class="p">,</span>
                    <span class="n">remote_shallow_zarr</span><span class="o">=</span><span class="n">remote_shallow_zarr</span><span class="p">,</span>
-                   <span class="n">remote_shallower_image</span><span class="o">=</span><span class="n">remote_shallower_image</span><span class="p">,</span>
-                   <span class="n">remote_shallower_version</span><span class="o">=</span><span class="n">remote_shallower_version</span><span class="p">,</span>
                    <span class="n">remote_shallower_workers</span><span class="o">=</span><span class="n">remote_shallower_workers</span><span class="p">,</span>
                    <span class="n">remote_shallower_partition</span><span class="o">=</span><span class="n">remote_shallower_partition</span><span class="p">,</span>
                    <span class="n">remote_shallower_mem</span><span class="o">=</span><span class="n">remote_shallower_mem</span><span class="p">,</span>

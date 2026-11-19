@@ -786,8 +786,11 @@ Only ``SLURM_Init_environment`` acquires the shallower image. Verify setup with
 ``SLURM_check_setup`` before running workflows. In that script integration,
 acquisition requires ``IMPORTER_ENABLED=true``, ``BIOMERO_SHALLOW_ZARR=true`` and
 the remote preference enabled. Runtime shallowing validates the
-installed image and raises a setup error if it is missing or invalid; it never
-downloads an image or silently falls back because setup is incomplete.
+installed image. It never downloads an image. When a new shallowing finds the
+helper image not installed, the workflow keeps its full results and core logs a
+WARNING asking the administrator to run ``SLURM_Init_environment``. A task that
+already started and then finds its image missing raises a setup error instead,
+because its helper job may already have changed the results.
 
 Shallowing and recovery have distinct submission identities. Recorded job
 IDs remain authoritative when resuming older tasks; an unresolved pre-upgrade
@@ -811,12 +814,6 @@ available until those tasks finish. Resource settings remain configurable.
    * - ``remote_shallow_zarr``
      - ``false`` (shallow Zarr must be enabled separately)
      - ``BIOMERO_REMOTE_SHALLOW_ZARR``
-   * - ``remote_shallower_image``
-     - ``cellularimagingcf/biomero-shallower:latest``; prefer an ini pin
-     - ``BIOMERO_REMOTE_SHALLOWER_IMAGE``
-   * - ``remote_shallower_version``
-     - Unset; read the installed image's OCI version label
-     - ``BIOMERO_REMOTE_SHALLOWER_VERSION``
    * - ``remote_shallower_workers``
      - ``1``
      - ``BIOMERO_REMOTE_SHALLOWER_WORKERS``
@@ -830,30 +827,28 @@ available until those tasks finish. Resource settings remain configurable.
      - Unset (inherit global time limit)
      - ``BIOMERO_REMOTE_SHALLOWER_TIME``
 
-Prefer a versioned tag or immutable digest and matching importer/schema/shallower
-versions. Importer enablement, existing shallow capability, and workflow tracking
+Importer enablement, existing shallow capability, and workflow tracking
 are required. Safe failures fall back to full transfer and local import;
 unresolved recovery preserves results and pauses retrieval. These options are
 administrator settings, not scientific workflow parameters. A compatible
 OMERO.biomero admin interface exposes them when shallow storage is enabled;
 environment overrides still take precedence over values saved to the ini file.
 
-Core falls back to our helper's ``:latest`` tag. Prefer an image pin in
-``[SLURM]``; refer to ``resources/slurm-config.ini`` for the maintained
-release selection. When ``remote_shallower_version`` is unset, core reads the
-installed SIF's OCI version label and records it before submitting a new task.
-An explicit value overrides discovery and must match the Python package
-version written into receipts, including any normalized prerelease suffix.
-Existing tasks retain their recorded version for recovery.
-
-An explicit ``:latest`` image tag is accepted, as with configured converters,
-but is not a reproducible release pin. Initialization reuses an already valid
-SIF; it does not refresh that file merely because the registry tag moved.
-Keep any explicit expected tool version consistent with the installed image.
-Initialization acquires the configured or default image. Missing version
-labels require an explicit tool-version setting; receipt validation is not
-disabled. Importer trust configuration must still match the selected image and
-actual tool version.
+The helper image is not a configuration option. The caller names it: core
+installs the image passed as an extra image specification to
+``SlurmClient.setup_container_images(extra_image_specs=...)`` and runs
+the image given to ``SlurmClient.shallow_results_on_slurm(helper_image=...)``.
+The ``SLURM_Init_environment`` script asks the installed biomero-shallower
+package for its own helper image, through
+``biomero.remote_shallower.resolve_helper_image()``, so the image always
+matches that package and receipt validation by the importer. Core imports
+biomero-shallower only inside that function, so core works without it; the
+function logs a WARNING and returns ``None`` if the package is missing or
+names no image. Initialization reuses an already valid SIF; it does not
+refresh that file merely because the registry tag moved. Core reads the
+installed SIF's OCI version label and records it before submitting a new task;
+a missing version label stops the task. Existing tasks retain their recorded
+image and tool version for recovery.
 
 For recovery behavior and component responsibilities, see
 :doc:`developer/execution-and-storage`.

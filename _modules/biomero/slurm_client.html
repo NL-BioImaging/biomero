@@ -168,7 +168,8 @@
     <span class="n">ARCHIVE_PARTIAL_SUFFIX</span><span class="p">,</span> <span class="n">ARCHIVE_READY_SUFFIX</span><span class="p">,</span> <span class="n">ARCHIVE_LOCK_SUFFIX</span><span class="p">,</span>
     <span class="n">SCRIPT_UPDATE_LOCK_SUFFIX</span><span class="p">,</span> <span class="n">TCP_KEEPALIVE_IDLE_SECONDS</span><span class="p">,</span>
     <span class="n">TCP_KEEPALIVE_INTERVAL_SECONDS</span><span class="p">,</span> <span class="n">TCP_KEEPALIVE_PROBES</span><span class="p">,</span>
-    <span class="n">TCP_USER_TIMEOUT_MILLISECONDS</span><span class="p">,</span> <span class="n">UNPACKED_MARKER_SUFFIX</span><span class="p">)</span>
+    <span class="n">TCP_USER_TIMEOUT_MILLISECONDS</span><span class="p">,</span> <span class="n">TRANSFER_PARTIAL_SUFFIX</span><span class="p">,</span>
+    <span class="n">UNPACKED_MARKER_SUFFIX</span><span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero</span><span class="w"> </span><span class="kn">import</span> <span class="n">ssh_recovery</span><span class="p">,</span> <span class="n">remote_scripts</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">biomero.eventsourcing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">WorkflowTracker</span><span class="p">,</span> <span class="n">NoOpWorkflowTracker</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">WorkflowRun</span><span class="p">)</span>
@@ -3488,8 +3489,7 @@
                 <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">retry</span><span class="p">(</span>
                     <span class="bp">self</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">"mkdir -p </span><span class="se">\"</span><span class="si">{</span><span class="n">job_dir</span><span class="si">}</span><span class="se">\"</span><span class="s2">"</span><span class="p">),</span>
                     <span class="s2">"prepare job script directory"</span><span class="p">)</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">atomic_put</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span> <span class="n">full_path</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_publish_job_script</span><span class="p">(</span><span class="n">job_script</span><span class="p">,</span> <span class="n">full_path</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_update_slurm_scripts_command</span><span class="p">()</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Updating Slurm job scripts on Slurm"</span><span class="p">)</span>
@@ -3499,6 +3499,49 @@
                 <span class="n">cmd</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slurm_script_path</span><span class="si">}{</span><span class="n">SCRIPT_UPDATE_LOCK_SUFFIX</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
                 <span class="s2">"update job script repository"</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_publish_job_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_script</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                            <span class="n">full_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TransferResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Upload a generated job script under its final name.</span>
+
+<span class="sd">        Concurrent workflows regenerate and publish the same script, so each</span>
+<span class="sd">        publication stages its upload under its own name: with a shared</span>
+<span class="sd">        staging file one upload would truncate or rename the other's. The</span>
+<span class="sd">        name is chosen once, so the retries of this publication reuse it. The</span>
+<span class="sd">        last rename wins, which is fine because the content is the same.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_script (str): The script content.</span>
+<span class="sd">            full_path (str): The final remote path of the script.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            TransferResult: The result of the upload.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception: Whatever the upload raised, after its staging file was</span>
+<span class="sd">                removed (best effort).</span>
+<span class="sd">        """</span>
+        <span class="n">partial_suffix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">TRANSFER_PARTIAL_SUFFIX</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ssh_recovery</span><span class="o">.</span><span class="n">atomic_put</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">job_script</span><span class="p">),</span> <span class="n">full_path</span><span class="p">,</span>
+                <span class="n">partial_suffix</span><span class="o">=</span><span class="n">partial_suffix</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># Nobody reuses a unique staging name, so it would stay forever.</span>
+            <span class="n">partial</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">full_path</span><span class="si">}{</span><span class="n">partial_suffix</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">removal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">"rm -f -- </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">partial</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                                   <span class="n">hide</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">removal</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Removed staging file of failed job script "</span>
+                                <span class="sa">f</span><span class="s2">"upload: </span><span class="si">{</span><span class="n">partial</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not remove staging file "</span>
+                                   <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">partial</span><span class="si">}</span><span class="s2">: exit code </span><span class="si">{</span><span class="n">removal</span><span class="o">.</span><span class="n">exited</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not remove staging file </span><span class="si">{</span><span class="n">partial</span><span class="si">}</span><span class="s2">: "</span>
+                               <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">raise</span>
 
 <div class="viewcode-block" id="SlurmClient.get_workflow"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_workflow">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkflowRun</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Read a workflow from the workflow tracker.</span>

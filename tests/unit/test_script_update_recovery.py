@@ -1,5 +1,6 @@
 """Script preparation must recover without publishing a partial executable."""
 import io
+import shlex
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -166,3 +167,124 @@ def test_closed_sftp_after_upload_preserves_script_and_recovers(
     assert attempts == [PARTIAL, PARTIAL]
     client.close.assert_called_once()
     sftp.chmod.assert_called_once_with(PARTIAL, 0o750)
+
+
+class _RemoteScripts:
+    """In-memory remote folder behind the client's put, sftp and run."""
+
+    def __init__(self, client, during_first_put=None):
+        self.files = {}
+        self.put_targets = []
+        self.removed = []
+        self._during_first_put = during_first_put
+        sftp = Mock()
+        sftp.stat.side_effect = self._stat
+        sftp.posix_rename.side_effect = self._rename
+        client.sftp = Mock(return_value=sftp)
+        client.put = self._put
+        client.run = Mock(side_effect=self._run)
+
+    def _stat(self, path):
+        if path not in self.files:
+            raise FileNotFoundError(path)
+        return SimpleNamespace(st_size=len(self.files[path]),
+                               st_mode=0o100750)
+
+    def _rename(self, source, destination):
+        self.files[destination] = self.files.pop(source)
+
+    def _put(self, *, local, remote):
+        self.put_targets.append(remote)
+        self.files[remote] = local.read().encode()
+        if len(self.put_targets) == 1 and self._during_first_put:
+            # A second workflow publishes the same script right now.
+            self._during_first_put()
+        return SimpleNamespace(remote=remote)
+
+    def _run(self, command, **kwargs):
+        if command.startswith('rm -f'):
+            self.removed.append(command)
+            _, _, *paths = shlex.split(command)
+            for path in paths:
+                self.files.pop(path, None)
+        return Result(connection=None, exited=0)
+
+
+@pytest.fixture
+def script_client(slurm_client, recovery_clock):
+    client = slurm_client
+    client.ssh_recovery_timeout = 900
+    client.close = Mock()
+    client.slurm_script_path = '/jobs'
+    client.slurm_model_jobs = {'workflow': 'work.sh'}
+    client.get_workflow_parameters = Mock(return_value={})
+    client.generic_descriptor_from_github = Mock(return_value={})
+    client.workflow_params_to_subs = Mock(return_value={})
+    client.workflow_template_subs = Mock(return_value={})
+    client.generate_slurm_job_for_workflow = Mock(return_value=SCRIPT)
+    return client
+
+
+def test_concurrent_publications_of_one_script_do_not_share_staging(
+        script_client):
+    client = script_client
+    remote = _RemoteScripts(
+        client, lambda: client.update_slurm_scripts(generate_jobs=True))
+    client.update_slurm_scripts(generate_jobs=True)
+    assert len(remote.put_targets) == 2
+    assert len(set(remote.put_targets)) == 2
+    assert all(target.startswith('/jobs/work.sh.biomero-partial-')
+               for target in remote.put_targets)
+    # Both succeeded, the script is complete and no staging file is left.
+    assert remote.files == {'/jobs/work.sh': SCRIPT.encode()}
+
+
+def test_failed_publication_removes_its_own_staging_file(script_client):
+    client = script_client
+    remote = _RemoteScripts(client)
+    remote.files['/jobs/work.sh'] = b'previous'
+    sftp = client.sftp.return_value
+    sftp.posix_rename.side_effect = PermissionError('read-only folder')
+    with pytest.raises(PermissionError):
+        client.update_slurm_scripts(generate_jobs=True)
+    staging = remote.put_targets[0]
+    assert remote.removed == [f"rm -f -- {shlex.quote(staging)}"]
+    # Only the staging file went; the published script is untouched.
+    assert remote.files == {'/jobs/work.sh': b'previous'}
+
+
+def test_failed_cleanup_does_not_hide_the_upload_error(script_client):
+    client = script_client
+    remote = _RemoteScripts(client)
+    sftp = client.sftp.return_value
+    sftp.posix_rename.side_effect = PermissionError('read-only folder')
+    prepare_directory = client.run
+
+    def run(command, **kwargs):
+        if command.startswith('rm -f'):
+            raise EOFError('connection is gone')
+        return prepare_directory(command, **kwargs)
+
+    client.run = run
+    with pytest.raises(PermissionError, match='read-only folder'):
+        client.update_slurm_scripts(generate_jobs=True)
+    assert len(remote.put_targets) == 1
+
+
+def test_staging_name_is_stable_across_retries_of_one_publication(
+        script_client):
+    client = script_client
+    remote = _RemoteScripts(client)
+    sftp = client.sftp.return_value
+    renames = []
+
+    def drop_first_rename(source, destination):
+        renames.append(source)
+        if len(renames) == 1:
+            raise EOFError('connection dropped')
+        remote._rename(source, destination)
+
+    sftp.posix_rename.side_effect = drop_first_rename
+    client.update_slurm_scripts(generate_jobs=True)
+    assert len(remote.put_targets) == 2
+    assert len(set(remote.put_targets)) == 1

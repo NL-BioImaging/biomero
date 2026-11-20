@@ -46,6 +46,7 @@ from biomero.constants import (
     SUBMISSION_REJECTED_EXIT_CODE, SUBMISSION_STATE_DIRECTORY,
     ARCHIVE_PARTIAL_SUFFIX, ARCHIVE_READY_SUFFIX, ARCHIVE_LOCK_SUFFIX,
     SCRIPT_UPDATE_LOCK_SUFFIX, TCP_KEEPALIVE_IDLE_SECONDS,
+    TRANSFER_PARTIAL_SUFFIX,
     TCP_KEEPALIVE_INTERVAL_SECONDS, TCP_KEEPALIVE_PROBES,
     TCP_USER_TIMEOUT_MILLISECONDS, UNPACKED_MARKER_SUFFIX)
 from biomero import ssh_recovery, remote_scripts
@@ -3367,8 +3368,7 @@ class SlurmClient(Connection):
                 ssh_recovery.retry(
                     self, lambda: self.run(f"mkdir -p \"{job_dir}\""),
                     "prepare job script directory")
-                result = ssh_recovery.atomic_put(
-                    self, io.StringIO(job_script), full_path)
+                result = self._publish_job_script(job_script, full_path)
         else:
             cmd = self.get_update_slurm_scripts_command()
             logger.info("Updating Slurm job scripts on Slurm")
@@ -3378,6 +3378,45 @@ class SlurmClient(Connection):
                 cmd, f"{self.slurm_script_path}{SCRIPT_UPDATE_LOCK_SUFFIX}",
                 "update job script repository", env=env)
         return result
+
+    def _publish_job_script(self, job_script: str,
+                            full_path: str) -> TransferResult:
+        """Upload a generated job script under its final name.
+
+        Concurrent workflows regenerate and publish the same script, so each
+        publication stages its upload under its own name: with a shared
+        staging file one upload would truncate or rename the other's. The
+        name is chosen once, so the retries of this publication reuse it. The
+        last rename wins, which is fine because the content is the same.
+
+        Args:
+            job_script (str): The script content.
+            full_path (str): The final remote path of the script.
+
+        Returns:
+            TransferResult: The result of the upload.
+
+        Raises:
+            Exception: Whatever the upload raised, after its staging file was
+                removed (best effort).
+        """
+        partial_suffix = f"{TRANSFER_PARTIAL_SUFFIX}-{uuid4().hex}"
+        try:
+            return ssh_recovery.atomic_put(
+                self, io.StringIO(job_script), full_path,
+                partial_suffix=partial_suffix)
+        except Exception:
+            # Nobody reuses a unique staging name, so it would stay forever.
+            partial = f"{full_path}{partial_suffix}"
+            try:
+                self.run(f"rm -f {shlex.quote(partial)}", hide=True,
+                         warn=True)
+                logger.info(f"Removed staging file of failed job script "
+                            f"upload: {partial}")
+            except Exception as cleanup_error:
+                logger.warning(f"Could not remove staging file {partial}: "
+                               f"{cleanup_error}")
+            raise
 
     def get_workflow(self, workflow_id: Any) -> WorkflowRun:
         """Read a workflow from the workflow tracker.

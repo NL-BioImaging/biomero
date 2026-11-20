@@ -46,9 +46,9 @@ from biomero.constants import (
     SUBMISSION_REJECTED_EXIT_CODE, SUBMISSION_STATE_DIRECTORY,
     ARCHIVE_PARTIAL_SUFFIX, ARCHIVE_READY_SUFFIX, ARCHIVE_LOCK_SUFFIX,
     SCRIPT_UPDATE_LOCK_SUFFIX, TCP_KEEPALIVE_IDLE_SECONDS,
-    TRANSFER_PARTIAL_SUFFIX,
     TCP_KEEPALIVE_INTERVAL_SECONDS, TCP_KEEPALIVE_PROBES,
-    TCP_USER_TIMEOUT_MILLISECONDS, UNPACKED_MARKER_SUFFIX)
+    TCP_USER_TIMEOUT_MILLISECONDS, TRANSFER_PARTIAL_SUFFIX,
+    UNPACKED_MARKER_SUFFIX)
 from biomero import ssh_recovery, remote_scripts
 from biomero.eventsourcing import (
     WorkflowTracker, NoOpWorkflowTracker, Task, WorkflowRun)
@@ -3409,10 +3409,14 @@ class SlurmClient(Connection):
             # Nobody reuses a unique staging name, so it would stay forever.
             partial = f"{full_path}{partial_suffix}"
             try:
-                self.run(f"rm -f {shlex.quote(partial)}", hide=True,
-                         warn=True)
-                logger.info(f"Removed staging file of failed job script "
-                            f"upload: {partial}")
+                removal = self.run(f"rm -f -- {shlex.quote(partial)}",
+                                   hide=True, warn=True)
+                if removal.ok:
+                    logger.info(f"Removed staging file of failed job script "
+                                f"upload: {partial}")
+                else:
+                    logger.warning(f"Could not remove staging file "
+                                   f"{partial}: exit code {removal.exited}")
             except Exception as cleanup_error:
                 logger.warning(f"Could not remove staging file {partial}: "
                                f"{cleanup_error}")

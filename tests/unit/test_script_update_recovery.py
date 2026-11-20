@@ -1,5 +1,6 @@
 """Script preparation must recover without publishing a partial executable."""
 import io
+import shlex
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -203,8 +204,9 @@ class _RemoteScripts:
     def _run(self, command, **kwargs):
         if command.startswith('rm -f'):
             self.removed.append(command)
-            self.files = {name: content for name, content in
-                          self.files.items() if name not in command}
+            _, _, *paths = shlex.split(command)
+            for path in paths:
+                self.files.pop(path, None)
         return Result(connection=None, exited=0)
 
 
@@ -237,16 +239,36 @@ def test_concurrent_publications_of_one_script_do_not_share_staging(
     assert remote.files == {'/jobs/work.sh': SCRIPT.encode()}
 
 
-def test_failed_publication_removes_its_own_staging_file(
-        script_client, monkeypatch):
+def test_failed_publication_removes_its_own_staging_file(script_client):
     client = script_client
     remote = _RemoteScripts(client)
+    remote.files['/jobs/work.sh'] = b'previous'
     sftp = client.sftp.return_value
     sftp.posix_rename.side_effect = PermissionError('read-only folder')
     with pytest.raises(PermissionError):
         client.update_slurm_scripts(generate_jobs=True)
-    assert remote.files == {}
-    assert len(remote.removed) == 1
+    staging = remote.put_targets[0]
+    assert remote.removed == [f"rm -f -- {shlex.quote(staging)}"]
+    # Only the staging file went; the published script is untouched.
+    assert remote.files == {'/jobs/work.sh': b'previous'}
+
+
+def test_failed_cleanup_does_not_hide_the_upload_error(script_client):
+    client = script_client
+    remote = _RemoteScripts(client)
+    sftp = client.sftp.return_value
+    sftp.posix_rename.side_effect = PermissionError('read-only folder')
+    prepare_directory = client.run
+
+    def run(command, **kwargs):
+        if command.startswith('rm -f'):
+            raise EOFError('connection is gone')
+        return prepare_directory(command, **kwargs)
+
+    client.run = run
+    with pytest.raises(PermissionError, match='read-only folder'):
+        client.update_slurm_scripts(generate_jobs=True)
+    assert len(remote.put_targets) == 1
 
 
 def test_staging_name_is_stable_across_retries_of_one_publication(

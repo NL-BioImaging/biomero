@@ -68,9 +68,10 @@ TASK_STATUS_CREATED = "CREATED"
 TASK_STATUS_UNKNOWN = "UNKNOWN"
 UNKNOWN_TASK_NAME = "unknown"
 
-# Attempts of an operation that hit a database conflict (see
-# biomero.database.retry_on_database_conflict).
-DATABASE_CONFLICT_MAX_RETRIES = 3
+# Attempts of an operation that hit a database conflict or a dropped connection
+# (see biomero.database.retry_on_database_conflict). With the backoff, 8 retries
+# span about 16 seconds, enough for a database restart.
+DATABASE_CONFLICT_MAX_RETRIES = 8
 # Attempts for the operations that must not give up early (committing the
 # event store; also the default of retry_on_database_conflict).
 DATABASE_CONFLICT_DEFAULT_RETRIES = 10

@@ -1017,6 +1017,7 @@ class WorkflowTracker(Application):
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return workflow.cancel_requested
 
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def is_workflow_finished(self, workflow_id: UUID) -> bool:
         """
         Whether the workflow already completed or failed.
@@ -1030,6 +1031,7 @@ class WorkflowTracker(Application):
         workflow: WorkflowRun = self.repository.get(workflow_id)
         return workflow.finished
 
+    @retry_on_database_conflict(max_retries=constants.DATABASE_CONFLICT_MAX_RETRIES)
     def raise_if_cancel_requested(self, workflow_id: UUID) -> None:
         """
         Stops the caller when a cancel was requested for the workflow. Call it

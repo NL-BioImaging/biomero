@@ -527,6 +527,8 @@ class SlurmClient(Connection):
     # The job's current state at the controller; empty or an error once the
     # job left the queue.
     _QUEUE_STATE_CMD = "squeue -h -j {slurm_job_id} -o %T"
+    # squeue's error for a job ID the controller no longer knows.
+    _UNKNOWN_JOB_ERROR = "Invalid job id specified"
     # --user restricts the cancel to jobs of the account running it, expanded
     # on the remote side like the other commands' $USER.
     _CANCEL_JOBS_CMD = 'scancel --user="$USER" {slurm_job_ids}'
@@ -4251,46 +4253,47 @@ class SlurmClient(Connection):
                            f"{result.stderr or result.stdout}")
         return result
 
-    def find_requeued_job_state(
-            self, slurm_job_id: int,
-            recheck_seconds: float = REQUEUE_RECHECK_SECONDS
-    ) -> Optional[str]:
+    def find_requeued_job_state(self, slurm_job_id: int) -> Optional[str]:
         """Return the state of a job that Slurm requeued, or None.
 
         After NODE_FAIL or PREEMPTED, Slurm can requeue a job under the same
         job ID, while sacct may still report the ended attempt. squeue shows
         the job's current state; the requeue can lag a little behind, so the
-        job is asked about once more after ``recheck_seconds``.
+        job is asked about once more after ``REQUEUE_RECHECK_SECONDS``.
 
         Args:
             slurm_job_id (int): The job ID.
-            recheck_seconds (float): Seconds to wait before asking once more.
 
         Returns:
             Optional[str]: The queue state (e.g. ``PENDING``), or None if the
-                job is not queued or running again.
-        """
-        queue_state = self._get_active_queue_state(slurm_job_id)
-        if queue_state is None:
-            logger.debug(f"Job {slurm_job_id} is not requeued (yet); asking "
-                         f"again in {recheck_seconds}s")
-            timesleep.sleep(recheck_seconds)
-            queue_state = self._get_active_queue_state(slurm_job_id)
-        return queue_state
+                job ended or left the queue.
 
-    def _get_active_queue_state(self, slurm_job_id: int) -> Optional[str]:
-        """Return the job's state in squeue if it has not ended, else None."""
+        Raises:
+            SSHException: If squeue failed for another reason (for example an
+                unreachable controller), which says nothing about the job.
+        """
         queue_state_cmd = self._QUEUE_STATE_CMD.format(
             slurm_job_id=slurm_job_id)
-        # warn: squeue fails for a job that already left the queue.
-        result = self.run_commands_read_only([queue_state_cmd], warn=True)
-        if not result.ok:
-            logger.debug(f"squeue does not know job {slurm_job_id}: "
-                         f"{result.stderr or result.stdout}")
-            return None
-        active_states = [state for state in result.stdout.split()
-                         if not SlurmJob.is_terminal(state)]
-        return active_states[0] if active_states else None
+        for check in range(2):
+            if check:
+                logger.debug(f"Job {slurm_job_id} is not requeued (yet); "
+                             f"asking again in {REQUEUE_RECHECK_SECONDS}s")
+                timesleep.sleep(REQUEUE_RECHECK_SECONDS)
+            # warn: squeue fails for a job that already left the queue.
+            result = self.run_commands_read_only([queue_state_cmd], warn=True)
+            if result.ok:
+                active_states = [state for state in result.stdout.split()
+                                 if not SlurmJob.is_terminal(state)]
+                if active_states:
+                    return active_states[0]
+                continue
+            squeue_error = f"{result.stderr or ''}{result.stdout or ''}"
+            if self._UNKNOWN_JOB_ERROR not in squeue_error:
+                raise SSHException(
+                    f"squeue could not tell whether job {slurm_job_id} was "
+                    f"requeued: {squeue_error.strip()}")
+            logger.debug(f"squeue no longer knows job {slurm_job_id}")
+        return None
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """

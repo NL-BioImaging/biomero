@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from fabric import Result
+from paramiko import SSHException
 
 from biomero.eventsourcing import NoOpWorkflowTracker
 from .test_slurm_client import slurm_client, set_env_vars  # noqa: F401
@@ -102,6 +103,21 @@ def test_a_node_failed_job_is_resumed_only_when_slurm_requeued_it(
         connection=None, exited=0, stdout=queue_state))
     with patch('biomero.slurm_client.timesleep.sleep'):
         assert (new_task(client, workflow_id) == task_id) is resumed
+
+
+def test_an_unreachable_controller_never_starts_a_second_run(tracked):
+    """Without an answer about the job, resuming must not submit again."""
+    client, workflow_id = tracked
+    task_id = new_task(client, workflow_id)
+    client.workflowTracker.add_job_id(task_id, 42)
+    client.workflowTracker.update_task_status(task_id, 'NODE_FAIL')
+    client.run_commands_read_only = MagicMock(return_value=Result(
+        connection=None, exited=1,
+        stderr='slurm_load_jobs error: Unable to contact slurm controller'))
+    with patch('biomero.slurm_client.timesleep.sleep'), \
+            pytest.raises(SSHException):
+        new_task(client, workflow_id)
+    assert len(client.get_workflow_tasks(workflow_id)) == 1
 
 
 def test_a_failed_task_is_not_resumed_even_if_its_job_was_requeued(tracked):

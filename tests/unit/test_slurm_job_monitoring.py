@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from paramiko import SSHException
 
 from biomero.slurm_client import REQUEUE_RECHECK_SECONDS, SlurmJob
 from .test_slurm_client import slurm_client, set_env_vars  # noqa: F401
@@ -158,16 +159,19 @@ def node_failed_client(slurm_client):
     return slurm_client
 
 
-@pytest.mark.parametrize('ended_state', ['NODE_FAIL', 'PREEMPTED'])
+@pytest.mark.parametrize('ended_state,queue_state', [
+    ('NODE_FAIL', 'PENDING'), ('PREEMPTED', 'PENDING'),
+    ('NODE_FAIL', 'REQUEUE_HOLD')])
 def test_a_job_requeued_after_it_ended_is_followed_to_completion(
-        node_failed_client, ended_state, caplog):
+        node_failed_client, ended_state, queue_state, caplog):
     """Slurm requeues the job under the same ID; sacct still shows the
     ended attempt, squeue the requeued one. No new job is submitted."""
     client = node_failed_client
     client.check_job_status.side_effect = [
         ({7: state}, MagicMock(ok=True))
         for state in (ended_state, 'RUNNING', 'COMPLETED')]
-    client.run_commands_read_only.return_value = squeue_result('PENDING\n')
+    client.run_commands_read_only.return_value = squeue_result(
+        f'{queue_state}\n')
     job = SlurmJob.from_job_id(7)
     with patch('biomero.slurm_client.timesleep.sleep'), \
             caplog.at_level('INFO', logger='biomero.slurm_client'):
@@ -238,3 +242,32 @@ def test_other_final_states_do_not_ask_for_a_requeue(node_failed_client, state):
                                        update_task=False) == state
     client.run_commands_read_only.assert_not_called()
     sleep.assert_not_called()
+
+
+def test_a_stale_node_fail_on_every_poll_keeps_waiting(node_failed_client):
+    """sacct may report the ended attempt for several polls."""
+    client = node_failed_client
+    client.check_job_status.side_effect = [
+        ({7: state}, MagicMock(ok=True))
+        for state in ('NODE_FAIL', 'NODE_FAIL', 'COMPLETED')]
+    client.run_commands_read_only.return_value = squeue_result('RUNNING\n')
+    job = SlurmJob.from_job_id(7)
+    with patch('biomero.slurm_client.timesleep.sleep'):
+        assert job.wait_for_completion(client, track_progress=False,
+                                       update_task=False) == 'COMPLETED'
+    assert client.run_commands_read_only.call_count == 2
+
+
+def test_an_unreachable_controller_does_not_end_a_node_failed_job(
+        node_failed_client):
+    """A squeue error other than an unknown job says nothing about it."""
+    client = node_failed_client
+    client.check_job_status.return_value = ({7: 'NODE_FAIL'}, MagicMock(ok=True))
+    client.run_commands_read_only.return_value = squeue_result(
+        'slurm_load_jobs error: Unable to contact slurm controller', ok=False)
+    job = SlurmJob.from_job_id(7)
+    with patch('biomero.slurm_client.timesleep.sleep'), \
+            pytest.raises(SSHException, match='Unable to contact'):
+        job.wait_for_completion(client, track_progress=False,
+                                update_task=False)
+    assert job.job_state != 'NODE_FAIL'

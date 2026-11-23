@@ -2261,6 +2261,31 @@ class TestDatabaseRetryMechanism:
         assert len(final_failure_logs) == 1, "Should log final failure"
         assert f"after {expected_calls} attempts" in final_failure_logs[0]
 
+    def test_retry_logs_identify_an_error_without_message(self, caplog):
+        """
+        GIVEN: A conflict whose message is empty (eventsourcing raises its
+            IntegrityError without arguments)
+        WHEN: retry_on_database_conflict retries and finally gives up
+        THEN: The retry and failure logs name the error type
+        """
+        from biomero.database import retry_on_database_conflict
+        from unittest.mock import Mock
+        from eventsourcing.persistence import IntegrityError
+
+        mock_function = Mock(side_effect=IntegrityError())
+        decorated_function = retry_on_database_conflict(
+            max_retries=1, base_delay=0)(mock_function)
+
+        with pytest.raises(IntegrityError):
+            decorated_function()
+
+        logs = [record.message for record in caplog.records
+                if "Database conflict on attempt" in record.message
+                or "Database operation failed after" in record.message]
+        assert len(logs) == 2
+        assert all("eventsourcing.persistence.IntegrityError" in log
+                   for log in logs)
+
     def test_retry_decorator_fails_after_max_attempts_with_logs(self, caplog):
         """Test that retry decorator fails after max attempts and logs final failure."""
         from biomero.database import retry_on_database_conflict

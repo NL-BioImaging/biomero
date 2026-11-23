@@ -81,7 +81,6 @@ WF_FAILED = "failed"
 WF_RUNNING = "running"
 WF_CLAIMED = "claimed"
 WF_BATCHED = "batched"
-FINAL_WORKFLOW_STATUSES = (wfs.DONE, wfs.FAILED)
 
 # The recording script writes aggregate bookkeeping under public names; this
 # maps them back to the aggregate attributes.
@@ -237,7 +236,7 @@ def has_feature(replayed: Dict, feature: str) -> bool:
 def compared_columns(table_name: str, row: Dict) -> Tuple[str, ...]:
     """The columns of a view row that must match the recorded row."""
     columns = VIEW_MODELS[table_name][1]
-    if table_name == WORKFLOW_VIEW and row["status"] in FINAL_WORKFLOW_STATUSES:
+    if table_name == WORKFLOW_VIEW and row["status"] in wfs.FINAL:
         return columns + (FINISHED_ONLY_COLUMN,)
     return columns
 
@@ -354,7 +353,7 @@ def test_unfinished_workflows_show_their_last_task(replayed):
     rebuild_views(replayed)
     tracker = replayed["tracker"]
     unfinished = [row for row in view_rows(WORKFLOW_VIEW)
-                  if row["status"] not in FINAL_WORKFLOW_STATUSES]
+                  if row["status"] not in wfs.FINAL]
     assert unfinished
     for row in unfinished:
         workflow = tracker.repository.get(UUID(row["workflow_id"]))

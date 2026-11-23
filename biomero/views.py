@@ -17,7 +17,8 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 from uuid import UUID
 
 from eventsourcing.application import AggregateNotFoundError
-from eventsourcing.persistence import PersistenceError
+from eventsourcing.persistence import PersistenceError, Tracking
+from eventsourcing.persistence import IntegrityError as EventStoreConflict
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.system import ProcessApplication
 from eventsourcing.dispatch import singledispatchmethod
@@ -290,7 +291,55 @@ def first_user_task_name(task_infos: Iterable[dict]) -> Optional[str]:
 # ------------------- View Listener Applications ------------------ #
 
 
-class JobAccounting(ProcessApplication):
+class ViewProjection(ProcessApplication):
+    """Base of the view projections: skips events another process projected.
+
+    Every process with a ``SlurmClient`` runs its own copy of each projection
+    inside the producer's ``save()``, and all copies share one tracking
+    position per projection in the database. Event sourcing raises its
+    ``IntegrityError`` when a copy records an event that another copy already
+    recorded; out of ``save()``, that would fail the producer's command
+    although its event is stored. An event whose position is already recorded
+    is therefore skipped, before or (if another process recorded it in the
+    meantime) after handling it, as ``bring_listener_uptodate`` does when
+    catching up. A conflict while the position is not recorded still raises.
+    """
+
+    def process_event(self, domain_event: Any, tracking: Tracking) -> None:
+        """Project an event unless another process already projected it.
+
+        Args:
+            domain_event (Any): The event to project.
+            tracking (Tracking): Position of the event in the leader's log.
+
+        Raises:
+            EventStoreConflict: If recording the position conflicts although
+                no process has recorded it.
+        """
+        if self.is_already_projected(tracking):
+            self.log_already_projected(domain_event, tracking)
+            return
+        try:
+            super().process_event(domain_event, tracking)
+        except EventStoreConflict:
+            if not self.is_already_projected(tracking):
+                raise
+            self.log_already_projected(domain_event, tracking)
+
+    def is_already_projected(self, tracking: Tracking) -> bool:
+        """Whether this projection's tracking position includes the event."""
+        return self.recorder.has_tracking_id(
+            tracking.application_name, tracking.notification_id)
+
+    def log_already_projected(self, domain_event: Any,
+                              tracking: Tracking) -> None:
+        """Log that an event is skipped because it is already projected."""
+        logger.debug(f"[{self.name}] Skipping {type(domain_event).__name__} "
+                     f"(notification {tracking.notification_id}): already "
+                     f"projected by another process")
+
+
+class JobAccounting(ViewProjection):
     def __init__(self, *args, **kwargs):
         ProcessApplication.__init__(self, *args, **kwargs)
 
@@ -459,7 +508,7 @@ class JobAccounting(ProcessApplication):
                 return None
 
 
-class WorkflowProgress(ProcessApplication):
+class WorkflowProgress(ViewProjection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -713,9 +762,15 @@ class WorkflowProgress(ProcessApplication):
         workflow_info = self.workflows[wf_id]
         # Determine the main user-facing task name
         main_task_name = self._determine_main_task_name(wf_id)
-        write_view_row(
-            f"[WFP] workflow progress {wf_id}",
-            lambda session: session.merge(WorkflowProgressView(
+
+        def write(session):
+            # Locked (where the database supports it) until the commit, so a
+            # final state that another process writes meanwhile is not lost.
+            existing_row = session.query(WorkflowProgressView).filter_by(
+                workflow_id=wf_id).with_for_update().first()
+            if self.keep_final_row(wf_id, existing_row):
+                return
+            session.merge(WorkflowProgressView(
                 workflow_id=wf_id,
                 status=workflow_info["status"],
                 progress=workflow_info["progress"],
@@ -724,8 +779,39 @@ class WorkflowProgress(ProcessApplication):
                 name=workflow_info["name"],
                 task=workflow_info["task"],
                 main_task_name=main_task_name,
-                start_time=workflow_info["start_time"])))
-        logger.debug(f"[WFP] Inserted wf progress in view table: wf_id={wf_id} wf_info={workflow_info}")
+                start_time=workflow_info["start_time"]))
+
+        write_view_row(f"[WFP] workflow progress {wf_id}", write)
+        logger.debug(f"[WFP] Wrote wf progress to view table: wf_id={wf_id} wf_info={workflow_info}")
+
+    def keep_final_row(self, wf_id: UUID,
+                       existing_row: Optional[WorkflowProgressView]) -> bool:
+        """Whether to keep a final row rather than write a non-final status.
+
+        A process that lags behind can still handle an older task event after
+        another process projected the workflow's completion or failure. That
+        event must not reopen the workflow in the view; the cached state takes
+        the row's final state over instead.
+
+        Args:
+            wf_id (UUID): ID of the workflow.
+            existing_row (Optional[WorkflowProgressView]): The workflow's
+                current row, if any.
+
+        Returns:
+            True if the row is final and the cached status is not, so the row
+            is kept.
+        """
+        workflow_info = self.workflows[wf_id]
+        if (existing_row is None or existing_row.status not in wfs.FINAL
+                or workflow_info["status"] in wfs.FINAL):
+            return False
+        logger.debug(f"[WFP] Keeping final status {existing_row.status} of "
+                     f"workflow {wf_id}: not replacing it with "
+                     f"{workflow_info['status']} from an older event")
+        workflow_info["status"] = existing_row.status
+        workflow_info["progress"] = existing_row.progress
+        return True
 
     def _determine_main_task_name(self, wf_id):
         """Determine the main user-facing task name for a workflow."""
@@ -755,7 +841,7 @@ class WorkflowProgress(ProcessApplication):
         return self.workflows[wf_id].get("task", UNKNOWN_TASK_NAME)
 
 
-class JobProgress(ProcessApplication):
+class JobProgress(ViewProjection):
     def __init__(self, *args, **kwargs):
         ProcessApplication.__init__(self, *args, **kwargs)
 
@@ -878,7 +964,7 @@ class JobProgress(ProcessApplication):
 #     logger.debug(f"Parameters: {parameters}")
 
 
-class WorkflowAnalytics(ProcessApplication):
+class WorkflowAnalytics(ViewProjection):
     def __init__(self, *args, **kwargs):
         ProcessApplication.__init__(self, *args, **kwargs)
 

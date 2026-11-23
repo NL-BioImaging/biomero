@@ -62,6 +62,8 @@ These are standard SQLAlchemy models defined in ``biomero.database``. Schema cha
 
 Views run inside the producer's ``save()``, so a view that cannot be updated must not fail the workflow after its event is stored. A database error while looking up or writing a view row (a missing table, a lost connection) is logged as a WARNING with its traceback, the shared session is rolled back, and the view misses that event until it is rebuilt (see below). A write conflict (``IntegrityError`` or a retryable conflict) is still raised so that ``retry_on_database_conflict`` can retry it. The engine uses ``pool_pre_ping`` so that stale pooled connections are replaced at checkout.
 
+Every process with a ``SlurmClient`` (scripts, batch children, the detached worker) runs its own copy of the views, and the copies share one tracking position per view. A view therefore skips an event whose position another process has already recorded, before handling it or when recording its position conflicts, and logs that at DEBUG. A recording conflict for a position that nobody recorded is still raised. Because a lagging process can still handle an older task event after another process projected the workflow's end, ``WorkflowProgress`` reads the workflow's row with a lock (where the database supports it) and never replaces a ``DONE`` or ``FAILED`` row with a running status.
+
 Workflow phase and progress
 ---------------------------
 

@@ -723,9 +723,8 @@ def test_run_commands_logs_the_command_at_the_requested_level(
 
 def test_a_finished_task_with_a_plus_suffixed_state_is_not_resumed(
         slurm_client):
-    from biomero.slurm_client import SlurmClient
     task = SimpleNamespace(job_ids=[42], status='CANCELLED+',
                            result_message=None)
-    assert SlurmClient._task_is_finished(task)
+    assert slurm_client._task_is_finished(task)
     task.status = 'COMPLETED+'
-    assert not SlurmClient._task_is_finished(task)
+    assert not slurm_client._task_is_finished(task)

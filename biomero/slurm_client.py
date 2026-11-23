@@ -78,6 +78,12 @@ SHALLOWER_EXCLUDED_FLAG_PREFIXES = ('gpus', 'gpu-', 'ntasks-')
 TERMINAL_JOB_STATES = frozenset({
     'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
     'NODE_FAIL', 'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED'})
+# Final states after which Slurm can requeue the job under the same job ID,
+# while sacct may still report the ended attempt. Such a state is final only
+# when squeue does not show the job queued or running again, also after
+# waiting this many seconds once more.
+REQUEUEABLE_JOB_STATES = frozenset({'NODE_FAIL', 'PREEMPTED'})
+REQUEUE_RECHECK_SECONDS = 10
 # ``check_job_status`` asks sacct up to this many times, waiting this many
 # seconds in between, while it returns no rows (a freshly submitted job can take
 # a while to show up on a busy cluster), then raises. 2.8.0 asked 3 times and
@@ -299,7 +305,25 @@ class SlurmJob:
             self.error_message = getattr(poll_result, 'stderr', '')
             logger.warning(f'Error checking job status: {self.error_message}')
         else:
-            self.job_state = state
+            self.job_state = self._follow_requeue(slurmClient, state)
+
+    def _follow_requeue(self, slurmClient, state: str) -> str:
+        """Return the requeued job's state if Slurm requeued it, else state.
+
+        Only a state in ``REQUEUEABLE_JOB_STATES`` is checked: the job keeps
+        its ID when requeued, so monitoring (and cancelling) continue on it.
+        """
+        ended_state = self.state_name(state)
+        if ended_state not in REQUEUEABLE_JOB_STATES:
+            return state
+        requeued_state = slurmClient.find_requeued_job_state(self.job_id)
+        if requeued_state is None:
+            logger.info(f"Slurm job {self.job_id} ended in {ended_state} and "
+                        "was not requeued")
+            return state
+        logger.info(f"Slurm job {self.job_id} was requeued after "
+                    f"{ended_state}; still waiting (now {requeued_state})")
+        return requeued_state
 
     def _publish_progress(self, slurmClient, track_progress: bool,
                           update_task: bool):
@@ -500,6 +524,11 @@ class SlurmClient(Connection):
     _ALL_JOBS_CMD = "sacct --starttime {start_time} --endtime {end_time} --state {states} -o {columns} -n -X "
     _ACTIVE_JOBS_CMD = "squeue -u $USER --nohead --format %F"
     _JOB_STATUS_CMD = "sacct -n -o JobId,State,End -X -j {slurm_job_id}"
+    # The job's current state at the controller; empty or an error once the
+    # job left the queue.
+    _QUEUE_STATE_CMD = "squeue -h -j {slurm_job_id} -o %T"
+    # squeue's error for a job ID the controller no longer knows.
+    _UNKNOWN_JOB_ERROR = "Invalid job id specified"
     # --user restricts the cancel to jobs of the account running it, expanded
     # on the remote side like the other commands' $USER.
     _CANCEL_JOBS_CMD = 'scancel --user="$USER" {slurm_job_ids}'
@@ -3493,22 +3522,39 @@ class SlurmClient(Connection):
         return posixpath.join(
             self.slurm_data_path, SUBMISSION_STATE_DIRECTORY, str(task_id))
 
-    @staticmethod
-    def _task_is_finished(task: Task) -> bool:
+    def _task_is_finished(self, task: Task) -> bool:
         """Tell whether a task is over, so that it cannot be resumed.
 
         A task is over when it was completed or failed (its outputs were
         processed), when its job ended without success (failed, cancelled,
-        timed out ...), or when its submission failed (job id -1). A job that
-        COMPLETED but whose task is not completed yet is not over: after a
-        crash the workflow adopts that job and processes its outputs, instead
-        of running the analysis a second time.
+        timed out ...) and was not requeued by Slurm, or when its submission
+        failed (job id -1). A job that COMPLETED but whose task is not
+        completed yet is not over: after a crash the workflow adopts that job
+        and processes its outputs, instead of running the analysis a second
+        time.
         """
         submission_failed = bool(task.job_ids) and all(
             int(job_id) <= 0 for job_id in task.job_ids)
         return (task.result_message is not None
-                or SlurmJob.ended_without_success(task.status)
+                or (SlurmJob.ended_without_success(task.status)
+                    and not self._task_job_was_requeued(task))
                 or submission_failed)
+
+    def _task_job_was_requeued(self, task: Task) -> bool:
+        """Tell whether Slurm requeued the job of a task after it ended."""
+        ended_state = SlurmJob.state_name(task.status)
+        if ended_state not in REQUEUEABLE_JOB_STATES:
+            return False
+        for job_id in self.positive_job_ids(task.job_ids):
+            requeued_state = self.find_requeued_job_state(job_id)
+            if requeued_state is not None:
+                logger.info(f"Slurm job {job_id} of task {task.id} was "
+                            f"requeued after {ended_state} (now "
+                            f"{requeued_state}); resuming it")
+                return True
+        logger.info(f"Task {task.id} ended in {ended_state} and its job was "
+                    "not requeued; not resuming it")
+        return False
 
     def _find_resumable_task(self, wf_id: Any, name: str,
                              input_data: str) -> Optional[Task]:
@@ -4206,6 +4252,48 @@ class SlurmClient(Connection):
             logger.warning(f"scancel of {valid_job_ids} reported: "
                            f"{result.stderr or result.stdout}")
         return result
+
+    def find_requeued_job_state(self, slurm_job_id: int) -> Optional[str]:
+        """Return the state of a job that Slurm requeued, or None.
+
+        After NODE_FAIL or PREEMPTED, Slurm can requeue a job under the same
+        job ID, while sacct may still report the ended attempt. squeue shows
+        the job's current state; the requeue can lag a little behind, so the
+        job is asked about once more after ``REQUEUE_RECHECK_SECONDS``.
+
+        Args:
+            slurm_job_id (int): The job ID.
+
+        Returns:
+            Optional[str]: The queue state (e.g. ``PENDING``), or None if the
+                job ended or left the queue.
+
+        Raises:
+            SSHException: If squeue failed for another reason (for example an
+                unreachable controller), which says nothing about the job.
+        """
+        queue_state_cmd = self._QUEUE_STATE_CMD.format(
+            slurm_job_id=slurm_job_id)
+        for check in range(2):
+            if check:
+                logger.debug(f"Job {slurm_job_id} is not requeued (yet); "
+                             f"asking again in {REQUEUE_RECHECK_SECONDS}s")
+                timesleep.sleep(REQUEUE_RECHECK_SECONDS)
+            # warn: squeue fails for a job that already left the queue.
+            result = self.run_commands_read_only([queue_state_cmd], warn=True)
+            if result.ok:
+                active_states = [state for state in result.stdout.split()
+                                 if not SlurmJob.is_terminal(state)]
+                if active_states:
+                    return active_states[0]
+                continue
+            squeue_error = f"{result.stderr or ''}{result.stdout or ''}"
+            if self._UNKNOWN_JOB_ERROR not in squeue_error:
+                raise SSHException(
+                    f"squeue could not tell whether job {slurm_job_id} was "
+                    f"requeued: {squeue_error.strip()}")
+            logger.debug(f"squeue no longer knows job {slurm_job_id}")
+        return None
 
     def get_job_status_command(self, slurm_job_ids: List[int]) -> str:
         """

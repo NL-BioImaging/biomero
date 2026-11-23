@@ -199,6 +199,12 @@
 <span class="n">TERMINAL_JOB_STATES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
     <span class="s1">'COMPLETED'</span><span class="p">,</span> <span class="s1">'FAILED'</span><span class="p">,</span> <span class="s1">'CANCELLED'</span><span class="p">,</span> <span class="s1">'TIMEOUT'</span><span class="p">,</span> <span class="s1">'OUT_OF_MEMORY'</span><span class="p">,</span>
     <span class="s1">'NODE_FAIL'</span><span class="p">,</span> <span class="s1">'BOOT_FAIL'</span><span class="p">,</span> <span class="s1">'DEADLINE'</span><span class="p">,</span> <span class="s1">'PREEMPTED'</span><span class="p">,</span> <span class="s1">'REVOKED'</span><span class="p">})</span>
+<span class="c1"># Final states after which Slurm can requeue the job under the same job ID,</span>
+<span class="c1"># while sacct may still report the ended attempt. Such a state is final only</span>
+<span class="c1"># when squeue does not show the job queued or running again, also after</span>
+<span class="c1"># waiting this many seconds once more.</span>
+<span class="n">REQUEUEABLE_JOB_STATES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s1">'NODE_FAIL'</span><span class="p">,</span> <span class="s1">'PREEMPTED'</span><span class="p">})</span>
+<span class="n">REQUEUE_RECHECK_SECONDS</span> <span class="o">=</span> <span class="mi">10</span>
 <span class="c1"># ``check_job_status`` asks sacct up to this many times, waiting this many</span>
 <span class="c1"># seconds in between, while it returns no rows (a freshly submitted job can take</span>
 <span class="c1"># a while to show up on a busy cluster), then raises. 2.8.0 asked 3 times and</span>
@@ -420,7 +426,25 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">poll_result</span><span class="p">,</span> <span class="s1">'stderr'</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Error checking job status: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">error_message</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="n">state</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">job_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_follow_requeue</span><span class="p">(</span><span class="n">slurmClient</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_follow_requeue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the requeued job's state if Slurm requeued it, else state.</span>
+
+<span class="sd">        Only a state in ``REQUEUEABLE_JOB_STATES`` is checked: the job keeps</span>
+<span class="sd">        its ID when requeued, so monitoring (and cancelling) continue on it.</span>
+<span class="sd">        """</span>
+        <span class="n">ended_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_name</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ended_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">REQUEUEABLE_JOB_STATES</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">state</span>
+        <span class="n">requeued_state</span> <span class="o">=</span> <span class="n">slurmClient</span><span class="o">.</span><span class="n">find_requeued_job_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">requeued_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Slurm job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> ended in </span><span class="si">{</span><span class="n">ended_state</span><span class="si">}</span><span class="s2"> and "</span>
+                        <span class="s2">"was not requeued"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">state</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Slurm job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> was requeued after "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ended_state</span><span class="si">}</span><span class="s2">; still waiting (now </span><span class="si">{</span><span class="n">requeued_state</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">requeued_state</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_publish_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurmClient</span><span class="p">,</span> <span class="n">track_progress</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
                           <span class="n">update_task</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
@@ -621,6 +645,11 @@
     <span class="n">_ALL_JOBS_CMD</span> <span class="o">=</span> <span class="s2">"sacct --starttime </span><span class="si">{start_time}</span><span class="s2"> --endtime </span><span class="si">{end_time}</span><span class="s2"> --state </span><span class="si">{states}</span><span class="s2"> -o </span><span class="si">{columns}</span><span class="s2"> -n -X "</span>
     <span class="n">_ACTIVE_JOBS_CMD</span> <span class="o">=</span> <span class="s2">"squeue -u $USER --nohead --format </span><span class="si">%F</span><span class="s2">"</span>
     <span class="n">_JOB_STATUS_CMD</span> <span class="o">=</span> <span class="s2">"sacct -n -o JobId,State,End -X -j </span><span class="si">{slurm_job_id}</span><span class="s2">"</span>
+    <span class="c1"># The job's current state at the controller; empty or an error once the</span>
+    <span class="c1"># job left the queue.</span>
+    <span class="n">_QUEUE_STATE_CMD</span> <span class="o">=</span> <span class="s2">"squeue -h -j </span><span class="si">{slurm_job_id}</span><span class="s2"> -o %T"</span>
+    <span class="c1"># squeue's error for a job ID the controller no longer knows.</span>
+    <span class="n">_UNKNOWN_JOB_ERROR</span> <span class="o">=</span> <span class="s2">"Invalid job id specified"</span>
     <span class="c1"># --user restricts the cancel to jobs of the account running it, expanded</span>
     <span class="c1"># on the remote side like the other commands' $USER.</span>
     <span class="n">_CANCEL_JOBS_CMD</span> <span class="o">=</span> <span class="s1">'scancel --user="$USER" </span><span class="si">{slurm_job_ids}</span><span class="s1">'</span>
@@ -3614,22 +3643,39 @@
         <span class="k">return</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">slurm_data_path</span><span class="p">,</span> <span class="n">SUBMISSION_STATE_DIRECTORY</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">))</span></div>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_task_is_finished</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">Task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_task_is_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">Task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Tell whether a task is over, so that it cannot be resumed.</span>
 
 <span class="sd">        A task is over when it was completed or failed (its outputs were</span>
 <span class="sd">        processed), when its job ended without success (failed, cancelled,</span>
-<span class="sd">        timed out ...), or when its submission failed (job id -1). A job that</span>
-<span class="sd">        COMPLETED but whose task is not completed yet is not over: after a</span>
-<span class="sd">        crash the workflow adopts that job and processes its outputs, instead</span>
-<span class="sd">        of running the analysis a second time.</span>
+<span class="sd">        timed out ...) and was not requeued by Slurm, or when its submission</span>
+<span class="sd">        failed (job id -1). A job that COMPLETED but whose task is not</span>
+<span class="sd">        completed yet is not over: after a crash the workflow adopts that job</span>
+<span class="sd">        and processes its outputs, instead of running the analysis a second</span>
+<span class="sd">        time.</span>
 <span class="sd">        """</span>
         <span class="n">submission_failed</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span>
             <span class="nb">int</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">result_message</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-                <span class="ow">or</span> <span class="n">SlurmJob</span><span class="o">.</span><span class="n">ended_without_success</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="p">(</span><span class="n">SlurmJob</span><span class="o">.</span><span class="n">ended_without_success</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_task_job_was_requeued</span><span class="p">(</span><span class="n">task</span><span class="p">))</span>
                 <span class="ow">or</span> <span class="n">submission_failed</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_task_job_was_requeued</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">Task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Tell whether Slurm requeued the job of a task after it ended."""</span>
+        <span class="n">ended_state</span> <span class="o">=</span> <span class="n">SlurmJob</span><span class="o">.</span><span class="n">state_name</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ended_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">REQUEUEABLE_JOB_STATES</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">positive_job_ids</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">job_ids</span><span class="p">):</span>
+            <span class="n">requeued_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_requeued_job_state</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">requeued_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Slurm job </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> of task </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> was "</span>
+                            <span class="sa">f</span><span class="s2">"requeued after </span><span class="si">{</span><span class="n">ended_state</span><span class="si">}</span><span class="s2"> (now "</span>
+                            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">requeued_state</span><span class="si">}</span><span class="s2">); resuming it"</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Task </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> ended in </span><span class="si">{</span><span class="n">ended_state</span><span class="si">}</span><span class="s2"> and its job was "</span>
+                    <span class="s2">"not requeued; not resuming it"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_find_resumable_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                              <span class="n">input_data</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Task</span><span class="p">]:</span>
@@ -4327,6 +4373,48 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"scancel of </span><span class="si">{</span><span class="n">valid_job_ids</span><span class="si">}</span><span class="s2"> reported: "</span>
                            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="SlurmClient.find_requeued_job_state"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.find_requeued_job_state">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">find_requeued_job_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the state of a job that Slurm requeued, or None.</span>
+
+<span class="sd">        After NODE_FAIL or PREEMPTED, Slurm can requeue a job under the same</span>
+<span class="sd">        job ID, while sacct may still report the ended attempt. squeue shows</span>
+<span class="sd">        the job's current state; the requeue can lag a little behind, so the</span>
+<span class="sd">        job is asked about once more after ``REQUEUE_RECHECK_SECONDS``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            slurm_job_id (int): The job ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[str]: The queue state (e.g. ``PENDING``), or None if the</span>
+<span class="sd">                job ended or left the queue.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SSHException: If squeue failed for another reason (for example an</span>
+<span class="sd">                unreachable controller), which says nothing about the job.</span>
+<span class="sd">        """</span>
+        <span class="n">queue_state_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_QUEUE_STATE_CMD</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">slurm_job_id</span><span class="o">=</span><span class="n">slurm_job_id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">check</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">check</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Job </span><span class="si">{</span><span class="n">slurm_job_id</span><span class="si">}</span><span class="s2"> is not requeued (yet); "</span>
+                             <span class="sa">f</span><span class="s2">"asking again in </span><span class="si">{</span><span class="n">REQUEUE_RECHECK_SECONDS</span><span class="si">}</span><span class="s2">s"</span><span class="p">)</span>
+                <span class="n">timesleep</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">REQUEUE_RECHECK_SECONDS</span><span class="p">)</span>
+            <span class="c1"># warn: squeue fails for a job that already left the queue.</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_commands_read_only</span><span class="p">([</span><span class="n">queue_state_cmd</span><span class="p">],</span> <span class="n">warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+                <span class="n">active_states</span> <span class="o">=</span> <span class="p">[</span><span class="n">state</span> <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                                 <span class="k">if</span> <span class="ow">not</span> <span class="n">SlurmJob</span><span class="o">.</span><span class="n">is_terminal</span><span class="p">(</span><span class="n">state</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="n">active_states</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">active_states</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="n">squeue_error</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">}{</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_UNKNOWN_JOB_ERROR</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">squeue_error</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SSHException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"squeue could not tell whether job </span><span class="si">{</span><span class="n">slurm_job_id</span><span class="si">}</span><span class="s2"> was "</span>
+                    <span class="sa">f</span><span class="s2">"requeued: </span><span class="si">{</span><span class="n">squeue_error</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"squeue no longer knows job </span><span class="si">{</span><span class="n">slurm_job_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
 
 <div class="viewcode-block" id="SlurmClient.get_job_status_command"><a class="viewcode-back" href="../../biomero.html#biomero.slurm_client.SlurmClient.get_job_status_command">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_status_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slurm_job_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>

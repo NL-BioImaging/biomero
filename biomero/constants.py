@@ -456,6 +456,8 @@ class workflow_status:
     FAILED = "FAILED"
     RUNNING = "RUNNING"
     JOB_STATUS = "JOB_"
+    # A workflow in one of these states does not run again.
+    FINAL = (DONE, FAILED)
 
 
 class metadata_refresh_status:

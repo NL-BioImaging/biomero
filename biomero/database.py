@@ -110,6 +110,22 @@ def is_retryable_conflict(error: Exception) -> bool:
             or any(text in message for text in RETRYABLE_CONFLICT_MESSAGES))
 
 
+def describe_error(error: Exception) -> str:
+    """Return an error's full type name and message, for the log.
+
+    Event sourcing raises some conflicts without a message, so the message
+    alone can be empty.
+
+    Args:
+        error (Exception): The exception to describe.
+
+    Returns:
+        The description, e.g. ``"eventsourcing.persistence.IntegrityError: "``.
+    """
+    error_type = type(error)
+    return f"{error_type.__module__}.{error_type.__qualname__}: {error}"
+
+
 def backoff_delay(attempt: int, base_delay: float, max_delay: float) -> float:
     """Return the exponential backoff, with jitter, before the next attempt."""
     return min(base_delay * (2 ** attempt) + random.uniform(0, 0.1), max_delay)
@@ -139,7 +155,8 @@ def retry_on_database_conflict(
                         break
                     delay = backoff_delay(attempt, base_delay, max_delay)
                     logger.warning(
-                        f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: {error}. "
+                        f"Database conflict on attempt {attempt + 1}/{max_retries + 1}: "
+                        f"{describe_error(error)}. "
                         f"Retrying in {delay:.2f}s..."
                     )
                     time.sleep(delay)
@@ -150,7 +167,8 @@ def retry_on_database_conflict(
                                        f"{rollback_error}")
 
             # All retries exhausted, raise the last exception
-            logger.error(f"Database operation failed after {attempt + 1} attempts (max {max_retries + 1}): {last_exception}")
+            logger.error(f"Database operation failed after {attempt + 1} attempts (max {max_retries + 1}): "
+                         f"{describe_error(last_exception)}")
             raise last_exception
 
         return wrapper

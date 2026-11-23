@@ -1,5 +1,5 @@
 """Which task a submission belongs to, and what is recorded about it."""
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -86,6 +86,33 @@ def test_a_crash_after_job_completion_adopts_the_completed_job(tracked):
     result = client._submit_tracked('sbatch job.sh', {}, task_id)
     assert client.extract_job_id(result) == 42
     client.run_commands.assert_not_called()
+
+
+@pytest.mark.parametrize('queue_state,resumed', [
+    ('RUNNING\n', True), ('', False)], ids=['requeued', 'not-requeued'])
+def test_a_node_failed_job_is_resumed_only_when_slurm_requeued_it(
+        tracked, queue_state, resumed):
+    """Slurm requeued the job under the same ID after the task recorded
+    NODE_FAIL: resuming adopts that job instead of starting a new run."""
+    client, workflow_id = tracked
+    task_id = new_task(client, workflow_id)
+    client.workflowTracker.add_job_id(task_id, 42)
+    client.workflowTracker.update_task_status(task_id, 'NODE_FAIL')
+    client.run_commands_read_only = MagicMock(return_value=Result(
+        connection=None, exited=0, stdout=queue_state))
+    with patch('biomero.slurm_client.timesleep.sleep'):
+        assert (new_task(client, workflow_id) == task_id) is resumed
+
+
+def test_a_failed_task_is_not_resumed_even_if_its_job_was_requeued(tracked):
+    client, workflow_id = tracked
+    task_id = new_task(client, workflow_id)
+    client.workflowTracker.add_job_id(task_id, 42)
+    client.workflowTracker.update_task_status(task_id, 'NODE_FAIL')
+    client.workflowTracker.fail_task(task_id, 'failed')
+    client.run_commands_read_only = MagicMock()
+    assert new_task(client, workflow_id) != task_id
+    client.run_commands_read_only.assert_not_called()
 
 
 def test_once_the_outputs_are_processed_the_next_run_is_a_new_task(tracked):

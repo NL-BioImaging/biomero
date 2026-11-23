@@ -3610,7 +3610,12 @@ reader (supervisor, views, metadata views) applies the same rule.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.views.JobAccounting">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.views.</span></span><span class="sig-name descname"><span class="pre">JobAccounting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#JobAccounting"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.JobAccounting" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessApplication</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ViewProjection</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.views.JobAccounting.cache_names">
+<span class="sig-name descname"><span class="pre">cache_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('workflows',</span> <span class="pre">'tasks',</span> <span class="pre">'jobs')</span></em><a class="headerlink" href="#biomero.views.JobAccounting.cache_names" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.views.JobAccounting.get_jobs">
 <span class="sig-name descname"><span class="pre">get_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#JobAccounting.get_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.JobAccounting.get_jobs" title="Permalink to this definition"></a></dt>
@@ -3707,7 +3712,12 @@ failing and leaving the old mapping in place.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.views.JobProgress">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.views.</span></span><span class="sig-name descname"><span class="pre">JobProgress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#JobProgress"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.JobProgress" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessApplication</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ViewProjection</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.views.JobProgress.cache_names">
+<span class="sig-name descname"><span class="pre">cache_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('task_to_job',</span> <span class="pre">'job_status')</span></em><a class="headerlink" href="#biomero.views.JobProgress.cache_names" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.views.JobProgress.name">
 <span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'JobProgress'</span></em><a class="headerlink" href="#biomero.views.JobProgress.name" title="Permalink to this definition"></a></dt>
@@ -3777,7 +3787,12 @@ read).</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.views.WorkflowAnalytics">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.views.</span></span><span class="sig-name descname"><span class="pre">WorkflowAnalytics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#WorkflowAnalytics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.WorkflowAnalytics" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessApplication</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ViewProjection</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.views.WorkflowAnalytics.cache_names">
+<span class="sig-name descname"><span class="pre">cache_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('workflows',</span> <span class="pre">'tasks')</span></em><a class="headerlink" href="#biomero.views.WorkflowAnalytics.cache_names" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.views.WorkflowAnalytics.get_average_task_duration">
 <span class="sig-name descname"><span class="pre">get_average_task_duration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#WorkflowAnalytics.get_average_task_duration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.WorkflowAnalytics.get_average_task_duration" title="Permalink to this definition"></a></dt>
@@ -3875,7 +3890,9 @@ read).</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.views.WorkflowAnalytics.resolve_task">
 <span class="sig-name descname"><span class="pre">resolve_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#WorkflowAnalytics.resolve_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.WorkflowAnalytics.resolve_task" title="Permalink to this definition"></a></dt>
-<dd><p>Look a task up when we did not see it created ourselves.</p>
+<dd><p>Look a task up when we did not see it added to its workflow.</p>
+<p>A task seen created but not added (another process projected its
+TaskAdded) has no workflow yet, so it is looked up too.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -3900,7 +3917,35 @@ read).</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="biomero.views.WorkflowProgress">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">biomero.views.</span></span><span class="sig-name descname"><span class="pre">WorkflowProgress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#WorkflowProgress"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.WorkflowProgress" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessApplication</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ViewProjection</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="biomero.views.WorkflowProgress.cache_names">
+<span class="sig-name descname"><span class="pre">cache_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('workflows',</span> <span class="pre">'tasks')</span></em><a class="headerlink" href="#biomero.views.WorkflowProgress.cache_names" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="biomero.views.WorkflowProgress.keep_final_row">
+<span class="sig-name descname"><span class="pre">keep_final_row</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wf_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/uuid.html#uuid.UUID" title="(in Python v3.15)"><span class="pre">UUID</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">existing_row</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">WorkflowProgressView</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/biomero/views.html#WorkflowProgress.keep_final_row"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.WorkflowProgress.keep_final_row" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to keep a final row rather than write a non-final status.</p>
+<p>A process that lags behind can still handle an older task event after
+another process projected the workflow’s completion or failure. That
+event must not reopen the workflow in the view; the cached state takes
+the row’s final state over instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>wf_id</strong> (<em>UUID</em>) – ID of the workflow.</p></li>
+<li><p><strong>existing_row</strong> (<em>Optional</em><em>[</em><em>WorkflowProgressView</em><em>]</em>) – The workflow’s
+current row, if any.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the row is final and the cached status is not, so the row
+is kept.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="biomero.views.WorkflowProgress.name">
 <span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'WorkflowProgress'</span></em><a class="headerlink" href="#biomero.views.WorkflowProgress.name" title="Permalink to this definition"></a></dt>
@@ -3931,7 +3976,9 @@ read).</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="biomero.views.WorkflowProgress.resolve_task">
 <span class="sig-name descname"><span class="pre">resolve_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/biomero/views.html#WorkflowProgress.resolve_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#biomero.views.WorkflowProgress.resolve_task" title="Permalink to this definition"></a></dt>
-<dd><p>Look a task up when we did not see it created ourselves.</p>
+<dd><p>Look a task up when we did not see it added to its workflow.</p>
+<p>A task seen created but not added (another process projected its
+TaskAdded) has no workflow yet, so it is looked up too.</p>
 </dd></dl>
 
 <dl class="py method">

@@ -138,7 +138,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.application</span><span class="w"> </span><span class="kn">import</span> <span class="n">AggregateNotFoundError</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.persistence</span><span class="w"> </span><span class="kn">import</span> <span class="n">PersistenceError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.persistence</span><span class="w"> </span><span class="kn">import</span> <span class="n">PersistenceError</span><span class="p">,</span> <span class="n">Tracking</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.persistence</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">EventSourcingIntegrityError</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.application</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessingEvent</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessApplication</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eventsourcing.dispatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">singledispatchmethod</span>
@@ -411,9 +412,75 @@
 <span class="c1"># ------------------- View Listener Applications ------------------ #</span>
 
 
-<div class="viewcode-block" id="JobAccounting"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobAccounting</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ViewProjection</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Base of the view projections: skips events another process projected.</span>
+
+<span class="sd">    Every process with a ``SlurmClient`` runs its own copy of each projection</span>
+<span class="sd">    inside the producer's ``save()``, and all copies share one tracking</span>
+<span class="sd">    position per projection in the database. Event sourcing raises its</span>
+<span class="sd">    ``IntegrityError`` when a copy records an event that another copy already</span>
+<span class="sd">    recorded; out of ``save()``, that would fail the producer's command</span>
+<span class="sd">    although its event is stored. An event whose position is already recorded</span>
+<span class="sd">    is therefore skipped, before or (if another process recorded it in the</span>
+<span class="sd">    meantime) after handling it, as ``bring_listener_uptodate`` does when</span>
+<span class="sd">    catching up. A conflict while the position is not recorded still raises,</span>
+<span class="sd">    and so does a conflict that the database reported (it has a cause): its</span>
+<span class="sd">    transaction is aborted, so it must not be queried here but rolled back by</span>
+<span class="sd">    ``retry_on_database_conflict``.</span>
+
+<span class="sd">    A skipped event can leave what a projection cached incomplete (a task</span>
+<span class="sd">    without its workflow, a job's old task), so skipping drops the caches</span>
+<span class="sd">    named in ``cache_names``; the projections look up what they miss.</span>
+<span class="sd">    """</span>
+
+    <span class="c1"># Attributes holding a projection's cached state, dropped on a skip.</span>
+    <span class="n">cache_names</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">process_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">tracking</span><span class="p">:</span> <span class="n">Tracking</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Project an event unless another process already projected it.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            domain_event (Any): The event to project.</span>
+<span class="sd">            tracking (Tracking): Position of the event in the leader's log.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            EventSourcingIntegrityError: If recording the position conflicts</span>
+<span class="sd">                in the database, or although no process has recorded it.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_already_projected</span><span class="p">(</span><span class="n">tracking</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skip_already_projected</span><span class="p">(</span><span class="n">domain_event</span><span class="p">,</span> <span class="n">tracking</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_event</span><span class="p">(</span><span class="n">domain_event</span><span class="p">,</span> <span class="n">tracking</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">EventSourcingIntegrityError</span> <span class="k">as</span> <span class="n">conflict</span><span class="p">:</span>
+            <span class="c1"># Event sourcing raises a conflict without a cause when it finds</span>
+            <span class="c1"># the position recorded; with a cause, the database refused the</span>
+            <span class="c1"># write and the transaction must be rolled back first.</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">conflict</span><span class="o">.</span><span class="n">__cause__</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_already_projected</span><span class="p">(</span><span class="n">tracking</span><span class="p">)):</span>
+                <span class="k">raise</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skip_already_projected</span><span class="p">(</span><span class="n">domain_event</span><span class="p">,</span> <span class="n">tracking</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_already_projected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracking</span><span class="p">:</span> <span class="n">Tracking</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether this projection's tracking position includes the event."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">recorder</span><span class="o">.</span><span class="n">has_tracking_id</span><span class="p">(</span>
+            <span class="n">tracking</span><span class="o">.</span><span class="n">application_name</span><span class="p">,</span> <span class="n">tracking</span><span class="o">.</span><span class="n">notification_id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">skip_already_projected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain_event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+                               <span class="n">tracking</span><span class="p">:</span> <span class="n">Tracking</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Skip an event that another process projected; drop the caches."""</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">] Skipping </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">domain_event</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> "</span>
+                     <span class="sa">f</span><span class="s2">"(notification </span><span class="si">{</span><span class="n">tracking</span><span class="o">.</span><span class="n">notification_id</span><span class="si">}</span><span class="s2">): already "</span>
+                     <span class="sa">f</span><span class="s2">"projected by another process; dropping cached state"</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">cache_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_names</span><span class="p">:</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_name</span><span class="p">)</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="JobAccounting"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobAccounting">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobAccounting</span><span class="p">(</span><span class="n">ViewProjection</span><span class="p">):</span>
+    <span class="n">cache_names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"workflows"</span><span class="p">,</span> <span class="s2">"tasks"</span><span class="p">,</span> <span class="s2">"jobs"</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">ProcessApplication</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># State tracking</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {wf_id: {"user": user, "group": group}}</span>
@@ -580,7 +647,9 @@
                 <span class="k">return</span> <span class="kc">None</span></div></div>
 
 
-<div class="viewcode-block" id="WorkflowProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowProgress</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowProgress</span><span class="p">(</span><span class="n">ViewProjection</span><span class="p">):</span>
+    <span class="n">cache_names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"workflows"</span><span class="p">,</span> <span class="s2">"tasks"</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -610,8 +679,12 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="WorkflowProgress.resolve_task"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.resolve_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Look a task up when we did not see it created ourselves."""</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Look a task up when we did not see it added to its workflow.</span>
+
+<span class="sd">        A task seen created but not added (another process projected its</span>
+<span class="sd">        TaskAdded) has no workflow yet, so it is looked up too.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"workflow_id"</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">task_agg</span> <span class="o">=</span> <span class="n">get_tracker_aggregate</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="s2">"Task"</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">task_agg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
@@ -726,10 +799,11 @@
         <span class="n">task_id</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">originator_id</span>
         <span class="n">task_name</span> <span class="o">=</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">task_name</span>
 
-        <span class="c1"># store task name</span>
+        <span class="c1"># Store the task name and its workflow: another process may project</span>
+        <span class="c1"># the TaskAdded event.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
-            <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"workflow_id"</span><span class="p">:</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">,</span>
             <span class="s2">"is_launcher"</span><span class="p">:</span> <span class="n">is_launcher_task</span><span class="p">(</span><span class="n">domain_event</span><span class="p">),</span>
             <span class="s2">"progress"</span><span class="p">:</span> <span class="kc">None</span>
             <span class="p">}</span>
@@ -834,9 +908,15 @@
         <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span>
         <span class="c1"># Determine the main user-facing task name</span>
         <span class="n">main_task_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_determine_main_task_name</span><span class="p">(</span><span class="n">wf_id</span><span class="p">)</span>
-        <span class="n">write_view_row</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"[WFP] workflow progress </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-            <span class="k">lambda</span> <span class="n">session</span><span class="p">:</span> <span class="n">session</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">WorkflowProgressView</span><span class="p">(</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
+            <span class="c1"># Locked (where the database supports it) until the commit, so a</span>
+            <span class="c1"># final state that another process writes meanwhile is not lost.</span>
+            <span class="n">existing_row</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">WorkflowProgressView</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
+                <span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">)</span><span class="o">.</span><span class="n">with_for_update</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_final_row</span><span class="p">(</span><span class="n">wf_id</span><span class="p">,</span> <span class="n">existing_row</span><span class="p">):</span>
+                <span class="k">return</span>
+            <span class="n">session</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">WorkflowProgressView</span><span class="p">(</span>
                 <span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">,</span>
                 <span class="n">status</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span>
                 <span class="n">progress</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">],</span>
@@ -845,8 +925,39 @@
                 <span class="n">name</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span>
                 <span class="n">task</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">"task"</span><span class="p">],</span>
                 <span class="n">main_task_name</span><span class="o">=</span><span class="n">main_task_name</span><span class="p">,</span>
-                <span class="n">start_time</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">"start_time"</span><span class="p">])))</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Inserted wf progress in view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+                <span class="n">start_time</span><span class="o">=</span><span class="n">workflow_info</span><span class="p">[</span><span class="s2">"start_time"</span><span class="p">]))</span>
+
+        <span class="n">write_view_row</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] workflow progress </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">write</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Wrote wf progress to view table: wf_id=</span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2"> wf_info=</span><span class="si">{</span><span class="n">workflow_info</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkflowProgress.keep_final_row"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowProgress.keep_final_row">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">keep_final_row</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">,</span>
+                       <span class="n">existing_row</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WorkflowProgressView</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether to keep a final row rather than write a non-final status.</span>
+
+<span class="sd">        A process that lags behind can still handle an older task event after</span>
+<span class="sd">        another process projected the workflow's completion or failure. That</span>
+<span class="sd">        event must not reopen the workflow in the view; the cached state takes</span>
+<span class="sd">        the row's final state over instead.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            wf_id (UUID): ID of the workflow.</span>
+<span class="sd">            existing_row (Optional[WorkflowProgressView]): The workflow's</span>
+<span class="sd">                current row, if any.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True if the row is final and the cached status is not, so the row</span>
+<span class="sd">            is kept.</span>
+<span class="sd">        """</span>
+        <span class="n">workflow_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">existing_row</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">existing_row</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">wfs</span><span class="o">.</span><span class="n">FINAL</span>
+                <span class="ow">or</span> <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="ow">in</span> <span class="n">wfs</span><span class="o">.</span><span class="n">FINAL</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WFP] Keeping final status </span><span class="si">{</span><span class="n">existing_row</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2"> of "</span>
+                     <span class="sa">f</span><span class="s2">"workflow </span><span class="si">{</span><span class="n">wf_id</span><span class="si">}</span><span class="s2">: not replacing it with "</span>
+                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">workflow_info</span><span class="p">[</span><span class="s1">'status'</span><span class="p">]</span><span class="si">}</span><span class="s2"> from an older event"</span><span class="p">)</span>
+        <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">=</span> <span class="n">existing_row</span><span class="o">.</span><span class="n">status</span>
+        <span class="n">workflow_info</span><span class="p">[</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">existing_row</span><span class="o">.</span><span class="n">progress</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_determine_main_task_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Determine the main user-facing task name for a workflow."""</span>
@@ -876,9 +987,11 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"task"</span><span class="p">,</span> <span class="n">UNKNOWN_TASK_NAME</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="JobProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobProgress</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+<div class="viewcode-block" id="JobProgress"><a class="viewcode-back" href="../../biomero.html#biomero.views.JobProgress">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JobProgress</span><span class="p">(</span><span class="n">ViewProjection</span><span class="p">):</span>
+    <span class="n">cache_names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"task_to_job"</span><span class="p">,</span> <span class="s2">"job_status"</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">ProcessApplication</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># State tracking</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">task_to_job</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {task_id: job_id}</span>
@@ -999,9 +1112,11 @@
 <span class="c1">#     logger.debug(f"Parameters: {parameters}")</span>
 
 
-<div class="viewcode-block" id="WorkflowAnalytics"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowAnalytics</span><span class="p">(</span><span class="n">ProcessApplication</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkflowAnalytics"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">WorkflowAnalytics</span><span class="p">(</span><span class="n">ViewProjection</span><span class="p">):</span>
+    <span class="n">cache_names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"workflows"</span><span class="p">,</span> <span class="s2">"tasks"</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">ProcessApplication</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># State tracking for workflows and tasks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">workflows</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {wf_id: {"user": user, "group": group}}</span>
@@ -1014,8 +1129,12 @@
         <span class="k">return</span> <span class="n">resolve_workflow_owner</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workflows</span><span class="p">,</span> <span class="n">wf_id</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="WorkflowAnalytics.resolve_task"><a class="viewcode-back" href="../../biomero.html#biomero.views.WorkflowAnalytics.resolve_task">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Look a task up when we did not see it created ourselves."""</span>
-        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Look a task up when we did not see it added to its workflow.</span>
+
+<span class="sd">        A task seen created but not added (another process projected its</span>
+<span class="sd">        TaskAdded) has no workflow yet, so it is looked up too.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"wf_id"</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">task_agg</span> <span class="o">=</span> <span class="n">get_tracker_aggregate</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="s2">"Task"</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">task_agg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">start_time</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1089,6 +1208,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">task_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span>
         <span class="n">task_info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="c1"># Known now: another process may project the TaskAdded event.</span>
+            <span class="s2">"wf_id"</span><span class="p">:</span> <span class="n">domain_event</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">,</span>
             <span class="s2">"task_name"</span><span class="p">:</span> <span class="n">task_name</span><span class="p">,</span>
             <span class="s2">"task_version"</span><span class="p">:</span> <span class="n">task_version</span><span class="p">,</span>
             <span class="s2">"start_time"</span><span class="p">:</span> <span class="n">timestamp_created</span><span class="p">,</span>

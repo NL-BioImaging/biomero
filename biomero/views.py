@@ -18,7 +18,7 @@ from uuid import UUID
 
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.persistence import PersistenceError, Tracking
-from eventsourcing.persistence import IntegrityError as EventStoreConflict
+from eventsourcing.persistence import IntegrityError as EventSourcingIntegrityError
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.system import ProcessApplication
 from eventsourcing.dispatch import singledispatchmethod
@@ -302,8 +302,18 @@ class ViewProjection(ProcessApplication):
     although its event is stored. An event whose position is already recorded
     is therefore skipped, before or (if another process recorded it in the
     meantime) after handling it, as ``bring_listener_uptodate`` does when
-    catching up. A conflict while the position is not recorded still raises.
+    catching up. A conflict while the position is not recorded still raises,
+    and so does a conflict that the database reported (it has a cause): its
+    transaction is aborted, so it must not be queried here but rolled back by
+    ``retry_on_database_conflict``.
+
+    A skipped event can leave what a projection cached incomplete (a task
+    without its workflow, a job's old task), so skipping drops the caches
+    named in ``cache_names``; the projections look up what they miss.
     """
+
+    # Attributes holding a projection's cached state, dropped on a skip.
+    cache_names: Tuple[str, ...] = ()
 
     def process_event(self, domain_event: Any, tracking: Tracking) -> None:
         """Project an event unless another process already projected it.
@@ -313,35 +323,43 @@ class ViewProjection(ProcessApplication):
             tracking (Tracking): Position of the event in the leader's log.
 
         Raises:
-            EventStoreConflict: If recording the position conflicts although
-                no process has recorded it.
+            EventSourcingIntegrityError: If recording the position conflicts
+                in the database, or although no process has recorded it.
         """
         if self.is_already_projected(tracking):
-            self.log_already_projected(domain_event, tracking)
+            self.skip_already_projected(domain_event, tracking)
             return
         try:
             super().process_event(domain_event, tracking)
-        except EventStoreConflict:
-            if not self.is_already_projected(tracking):
+        except EventSourcingIntegrityError as conflict:
+            # Event sourcing raises a conflict without a cause when it finds
+            # the position recorded; with a cause, the database refused the
+            # write and the transaction must be rolled back first.
+            if (conflict.__cause__ is not None
+                    or not self.is_already_projected(tracking)):
                 raise
-            self.log_already_projected(domain_event, tracking)
+            self.skip_already_projected(domain_event, tracking)
 
     def is_already_projected(self, tracking: Tracking) -> bool:
         """Whether this projection's tracking position includes the event."""
         return self.recorder.has_tracking_id(
             tracking.application_name, tracking.notification_id)
 
-    def log_already_projected(self, domain_event: Any,
-                              tracking: Tracking) -> None:
-        """Log that an event is skipped because it is already projected."""
+    def skip_already_projected(self, domain_event: Any,
+                               tracking: Tracking) -> None:
+        """Skip an event that another process projected; drop the caches."""
         logger.debug(f"[{self.name}] Skipping {type(domain_event).__name__} "
                      f"(notification {tracking.notification_id}): already "
-                     f"projected by another process")
+                     f"projected by another process; dropping cached state")
+        for cache_name in self.cache_names:
+            getattr(self, cache_name).clear()
 
 
 class JobAccounting(ViewProjection):
+    cache_names = ("workflows", "tasks", "jobs")
+
     def __init__(self, *args, **kwargs):
-        ProcessApplication.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # State tracking
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
@@ -509,6 +527,8 @@ class JobAccounting(ViewProjection):
 
 
 class WorkflowProgress(ViewProjection):
+    cache_names = ("workflows", "tasks")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -538,8 +558,12 @@ class WorkflowProgress(ViewProjection):
         return self.workflows.get(wf_id)
 
     def resolve_task(self, task_id):
-        """Look a task up when we did not see it created ourselves."""
-        if task_id not in self.tasks:
+        """Look a task up when we did not see it added to its workflow.
+
+        A task seen created but not added (another process projected its
+        TaskAdded) has no workflow yet, so it is looked up too.
+        """
+        if self.tasks.get(task_id, {}).get("workflow_id") is None:
             task_agg = get_tracker_aggregate(task_id, "Task")
             if task_agg is not None:
                 self.tasks[task_id] = {
@@ -654,10 +678,11 @@ class WorkflowProgress(ViewProjection):
         task_id = domain_event.originator_id
         task_name = domain_event.task_name
 
-        # store task name
+        # Store the task name and its workflow: another process may project
+        # the TaskAdded event.
         self.tasks[task_id] = {
             "task_name": task_name,
-            "workflow_id": None,
+            "workflow_id": domain_event.workflow_id,
             "is_launcher": is_launcher_task(domain_event),
             "progress": None
             }
@@ -842,8 +867,10 @@ class WorkflowProgress(ViewProjection):
 
 
 class JobProgress(ViewProjection):
+    cache_names = ("task_to_job", "job_status")
+
     def __init__(self, *args, **kwargs):
-        ProcessApplication.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # State tracking
         self.task_to_job = {}  # {task_id: job_id}
@@ -965,8 +992,10 @@ class JobProgress(ViewProjection):
 
 
 class WorkflowAnalytics(ViewProjection):
+    cache_names = ("workflows", "tasks")
+
     def __init__(self, *args, **kwargs):
-        ProcessApplication.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # State tracking for workflows and tasks
         self.workflows = {}  # {wf_id: {"user": user, "group": group}}
@@ -979,8 +1008,12 @@ class WorkflowAnalytics(ViewProjection):
         return resolve_workflow_owner(self.workflows, wf_id)
 
     def resolve_task(self, task_id):
-        """Look a task up when we did not see it created ourselves."""
-        if task_id not in self.tasks:
+        """Look a task up when we did not see it added to its workflow.
+
+        A task seen created but not added (another process projected its
+        TaskAdded) has no workflow yet, so it is looked up too.
+        """
+        if self.tasks.get(task_id, {}).get("wf_id") is None:
             task_agg = get_tracker_aggregate(task_id, "Task")
             if task_agg is not None:
                 start_time = None
@@ -1054,6 +1087,8 @@ class WorkflowAnalytics(ViewProjection):
             self.tasks[task_id] = {}
         task_info = self.tasks[task_id]
         task_info.update({
+            # Known now: another process may project the TaskAdded event.
+            "wf_id": domain_event.workflow_id,
             "task_name": task_name,
             "task_version": task_version,
             "start_time": timestamp_created,

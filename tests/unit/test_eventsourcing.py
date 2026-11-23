@@ -15,7 +15,8 @@ from biomero.database import (
     WorkflowProgressView,
 )
 from biomero.constants import (
-    DATABASE_CONFLICT_MAX_RETRIES, workflow_status as wfs)
+    DATABASE_CONFLICT_MAX_RETRIES, DATABASE_READ_MAX_RETRIES,
+    workflow_status as wfs)
 from uuid import UUID
 import logging
 from types import SimpleNamespace
@@ -3009,10 +3010,12 @@ def test_job_progress_ignores_events_of_a_task_without_a_job(
 # ---------------- Dropped database connection ---------------- #
 
 def _dropped_connection():
+    """The error repository.get raises while the database is down."""
+    import eventsourcing.persistence as persistence
     from sqlalchemy.exc import OperationalError
-    return OperationalError(
+    return persistence.OperationalError(OperationalError(
         "SELECT", {}, Exception("server closed the connection unexpectedly"),
-        connection_invalidated=True)
+        connection_invalidated=True))
 
 
 @pytest.fixture
@@ -3026,36 +3029,13 @@ def repository_get(monkeypatch):
     return script
 
 
-def test_a_save_after_a_dropped_connection_is_rolled_back_and_retried(
-        workflow_tracker, caplog):
-    from sqlalchemy.exc import PendingRollbackError
-    workflow_id = workflow_tracker.initiate_workflow("wf", "", user=1, group=2)
-    real_save = workflow_tracker.save
-    failures = [PendingRollbackError("Can't reconnect until invalid "
-                                     "transaction is rolled back"),
-                _dropped_connection()]
-
-    def flaky_save(*aggregates):
-        if failures:
-            raise failures.pop(0)
-        return real_save(*aggregates)
-
-    with patch("biomero.database.time.sleep"),             patch.object(EngineManager, "rollback") as rollback,             patch.object(workflow_tracker, "save", flaky_save),             caplog.at_level("WARNING", logger="biomero.database"):
-        workflow_tracker.start_workflow(workflow_id)
-    assert rollback.call_count == 2
-    assert len([r for r in caplog.records
-                if r.levelname == "WARNING"
-                and "Database conflict on attempt" in r.message]) == 2
-    started = [n for n in workflow_tracker.recorder.select_notifications(
-        start=None, limit=10) if n.topic.endswith("WorkflowStarted")]
-    assert len(started) == 1
-
-
 def test_the_cancel_check_retries_a_dropped_connection(
         workflow_tracker, repository_get, caplog):
     get = repository_get(_dropped_connection(), _dropped_connection(),
                          SimpleNamespace(cancel_requested=False))
-    with patch("biomero.database.time.sleep"),             patch.object(EngineManager, "rollback") as rollback,             caplog.at_level("WARNING", logger="biomero.database"):
+    with (patch("biomero.database.time.sleep"),
+          patch.object(EngineManager, "rollback") as rollback,
+          caplog.at_level("WARNING", logger="biomero.database")):
         workflow_tracker.raise_if_cancel_requested(uuid.uuid4())
     assert get.call_count == 3
     assert rollback.call_count == 2
@@ -3065,19 +3045,31 @@ def test_the_cancel_check_retries_a_dropped_connection(
 def test_the_claim_check_retries_a_dropped_connection(
         workflow_tracker, repository_get):
     repository_get(_dropped_connection(), SimpleNamespace(finished=True))
-    with patch("biomero.database.time.sleep"),             patch.object(EngineManager, "rollback"):
+    with (patch("biomero.database.time.sleep"),
+          patch.object(EngineManager, "rollback")):
         assert workflow_tracker.is_workflow_finished(uuid.uuid4()) is True
+
+
+def test_the_cancel_lookup_retries_a_dropped_connection(
+        workflow_tracker, repository_get):
+    repository_get(_dropped_connection(),
+                   SimpleNamespace(cancel_requested=True))
+    with (patch("biomero.database.time.sleep"),
+          patch.object(EngineManager, "rollback")):
+        assert workflow_tracker.is_workflow_cancel_requested(
+            uuid.uuid4()) is True
 
 
 def test_the_cancel_check_still_raises_when_the_retries_are_spent(
         workflow_tracker, repository_get):
-    from sqlalchemy.exc import OperationalError
+    import eventsourcing.persistence as persistence
     get = repository_get(
-        *[_dropped_connection()] * (DATABASE_CONFLICT_MAX_RETRIES + 1))
-    with patch("biomero.database.time.sleep"),             patch.object(EngineManager, "rollback"):
-        with pytest.raises(OperationalError):
+        *[_dropped_connection()] * (DATABASE_READ_MAX_RETRIES + 1))
+    with (patch("biomero.database.time.sleep"),
+          patch.object(EngineManager, "rollback")):
+        with pytest.raises(persistence.OperationalError):
             workflow_tracker.raise_if_cancel_requested(uuid.uuid4())
-    assert get.call_count == DATABASE_CONFLICT_MAX_RETRIES + 1
+    assert get.call_count == DATABASE_READ_MAX_RETRIES + 1
 
 
 def test_the_cancel_check_still_reports_a_requested_cancel(
@@ -3085,6 +3077,7 @@ def test_the_cancel_check_still_reports_a_requested_cancel(
     from biomero.eventsourcing import WorkflowCancelled
     repository_get(_dropped_connection(),
                    SimpleNamespace(cancel_requested=True, cancel_reason="user"))
-    with patch("biomero.database.time.sleep"),             patch.object(EngineManager, "rollback"):
+    with (patch("biomero.database.time.sleep"),
+          patch.object(EngineManager, "rollback")):
         with pytest.raises(WorkflowCancelled):
             workflow_tracker.raise_if_cancel_requested(uuid.uuid4())

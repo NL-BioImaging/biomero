@@ -25,8 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.exc import (
-    DBAPIError, IntegrityError, OperationalError, PendingRollbackError)
+from sqlalchemy.exc import DBAPIError, OperationalError, IntegrityError
 from biomero.constants import DATABASE_CONFLICT_DEFAULT_RETRIES, slurm_env
 import os
 import threading
@@ -69,8 +68,7 @@ NON_RETRYABLE_ERROR_MESSAGES = (
 
 def conflict_exception_types() -> tuple:
     """Return the exception types that may be a database conflict."""
-    exception_types = [IntegrityError, OperationalError,
-                       PendingRollbackError]
+    exception_types = [IntegrityError, OperationalError]
     if EventSourcingIntegrityError:
         exception_types.append(EventSourcingIntegrityError)
     if EventSourcingOperationalError:
@@ -89,18 +87,6 @@ def is_eventsourcing_error(error: Exception) -> bool:
         (EventSourcingIntegrityError, EventSourcingOperationalError)
         if error_type)
     return isinstance(error, eventsourcing_types)
-
-
-def is_dropped_connection(error: Exception) -> bool:
-    """Whether a database error means the connection to the database was lost.
-
-    A restarted database fails the open transaction with an invalidated
-    connection, the next statement with ``PendingRollbackError`` until the
-    session is rolled back, and new connections with ``OperationalError``
-    until the database is up again.
-    """
-    return (isinstance(error, (OperationalError, PendingRollbackError))
-            or (isinstance(error, DBAPIError) and error.connection_invalidated))
 
 
 def is_retryable_conflict(error: Exception) -> bool:
@@ -148,10 +134,7 @@ def backoff_delay(attempt: int, base_delay: float, max_delay: float) -> float:
 def retry_on_database_conflict(
         max_retries=DATABASE_CONFLICT_DEFAULT_RETRIES,
         base_delay=0.1, max_delay=5.0):
-    """Decorator to retry database operations on conflicts and dropped connections.
-
-    The session is rolled back before each retry, so the operation must be
-    safe to run again.
+    """Decorator to retry database operations on concurrency conflicts.
 
     Args:
         max_retries: Maximum number of retry attempts
@@ -168,8 +151,7 @@ def retry_on_database_conflict(
                 except conflict_exception_types() as error:
                     last_exception = error
                     if (attempt == max_retries
-                            or not (is_retryable_conflict(error)
-                                    or is_dropped_connection(error))):
+                            or not is_retryable_conflict(error)):
                         break
                     delay = backoff_delay(attempt, base_delay, max_delay)
                     logger.warning(

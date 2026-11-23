@@ -1363,7 +1363,7 @@ def test_extract_data_location_from_log_exc(mock_run_commands,
 
     # THEN
     mock_run_commands.assert_called_with(
-        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"], env=None)
+        [slurm_client._LOGFILE_DATA_CMD.format(log_file=logfile)], env=None)
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -1382,7 +1382,8 @@ def test_extract_data_location_from_log_2(mock_run_commands,
     # THEN
     assert data_location == expected_data_location
     mock_run_commands.assert_called_with(
-        [f"cat \"omero-{slurm_job_id}.log\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"], env=None)
+        [slurm_client._LOGFILE_DATA_CMD.format(
+            log_file=f"omero-{slurm_job_id}.log")], env=None)
 
 
 @patch('biomero.slurm_client.SlurmClient.run_commands')
@@ -1402,7 +1403,33 @@ def test_extract_data_location_from_log(mock_run_commands,
     # THEN
     assert data_location == expected_data_location
     mock_run_commands.assert_called_with(
-        [f"cat \"{logfile}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"], env=None)
+        [slurm_client._LOGFILE_DATA_CMD.format(log_file=logfile)], env=None)
+
+
+@pytest.mark.skipif(not (shutil.which("perl") and shutil.which("sh")),
+                    reason="perl and sh are required")
+@pytest.mark.parametrize("run_lines, expected", [
+    (["/path/to/data"], "/path/to/data"),
+    (["/path/to/data", "/path/to/data"], "/path/to/data"),
+    (["/first", "/second"], "/second"),
+    ([], ""),
+])
+def test_logfile_data_cmd_uses_last_match(slurm_client, tmp_path, run_lines,
+                                          expected):
+    # GIVEN a log where a requeued job appended its start line again
+    logfile = tmp_path / "omero-123.log"
+    lines = ["Starting"]
+    for data in run_lines:
+        lines += [f"Running my-wf Job w/ 1 | 2 | {data} | extra", "output"]
+    logfile.write_text("\n".join(lines) + "\n")
+
+    # WHEN
+    cmd = slurm_client._LOGFILE_DATA_CMD.format(log_file=logfile.as_posix())
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True,
+                         text=True, check=True).stdout
+
+    # THEN
+    assert out == expected
 
 
 def test_get_job_status_command(slurm_client):

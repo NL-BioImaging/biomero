@@ -1125,7 +1125,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
         <span class="n">EngineManager</span><span class="o">.</span><span class="n">safe_commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.is_workflow_cancel_requested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.is_workflow_cancel_requested">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_workflow_cancel_requested</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="WorkflowTracker.is_workflow_cancel_requested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.is_workflow_cancel_requested">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">DATABASE_READ_MAX_RETRIES</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_workflow_cancel_requested</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Whether a cancel was requested for the workflow.</span>
 
@@ -1138,7 +1140,9 @@
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">workflow</span><span class="o">.</span><span class="n">cancel_requested</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.is_workflow_finished"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.is_workflow_finished">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_workflow_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="WorkflowTracker.is_workflow_finished"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.is_workflow_finished">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">DATABASE_READ_MAX_RETRIES</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_workflow_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Whether the workflow already completed or failed.</span>
 
@@ -1151,7 +1155,9 @@
         <span class="n">workflow</span><span class="p">:</span> <span class="n">WorkflowRun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">workflow</span><span class="o">.</span><span class="n">finished</span></div>
 
-<div class="viewcode-block" id="WorkflowTracker.raise_if_cancel_requested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.raise_if_cancel_requested">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">raise_if_cancel_requested</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="WorkflowTracker.raise_if_cancel_requested"><a class="viewcode-back" href="../../biomero.html#biomero.eventsourcing.WorkflowTracker.raise_if_cancel_requested">[docs]</a>    <span class="nd">@retry_on_database_conflict</span><span class="p">(</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">DATABASE_READ_MAX_RETRIES</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">raise_if_cancel_requested</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Stops the caller when a cancel was requested for the workflow. Call it</span>
 <span class="sd">        between the steps of a workflow run.</span>

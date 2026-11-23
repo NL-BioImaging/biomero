@@ -537,7 +537,8 @@ class SlurmClient(Connection):
     _LOGFILE = "omero-{slurm_job_id}.log"
     _CONVERTER_LOGFILE = "\"omero-{slurm_job_id}\"_*.log"
     _TAIL_LOG_CMD = "tail -n {n} \"{log_file}\" | strings"
-    _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and print$1'"
+    # A requeued job appends to the same log, so keep only the last match
+    _LOGFILE_DATA_CMD = "cat \"{log_file}\" | perl -wne '/Running [\\w-]+? Job w\\/ .+? \\| .+? \\| (.+?) \\|.*/i and $d=$1; END{{print $d if defined $d}}'"
     _FOLDER_INPUT_TYPES = ('image', 'file', 'array',
                            'measurement', 'executable')
     # Folder-type inputs that the user can supply as OMERO file-annotation IDs

@@ -74,6 +74,10 @@ DATABASE_CONFLICT_MAX_RETRIES = 3
 # Attempts for the operations that must not give up early (committing the
 # event store; also the default of retry_on_database_conflict).
 DATABASE_CONFLICT_DEFAULT_RETRIES = 10
+# Attempts of a read (the cancel and claim checks of a workflow) that hit a
+# database error. A read is safe to repeat, so it keeps trying through a
+# short database restart: about 16 seconds with the backoff.
+DATABASE_READ_MAX_RETRIES = 8
 
 # Metadata maintenance requests (see biomero.maintenance).
 MAINTENANCE_SCAN_PAGE_SIZE = 100
